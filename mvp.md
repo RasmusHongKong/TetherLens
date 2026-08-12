@@ -2,47 +2,102 @@
 
 ## Objective
 
-The MVP should test one narrow proposition:
+The MVP should test whether TetherLens can turn a maintainable, reusable body of product knowledge into field recommendations that are more useful and convenient than existing alternatives.
 
-> **Can a field worker photograph a tool, confirm its identity, provide a small amount of relevant work context, and reach the correct verified tethering configuration faster and more reliably than through the current lookup process?**
+It therefore has two equally important sides:
 
-The MVP is not intended to prove that TetherLens can recognise every tool, understand an entire worksite from an image, or automate a complete dropped-object prevention programme.
+1. **Demand-side usability:** can a field worker receive a useful tethering recommendation through a workflow that is more convenient than current lookup methods?
+2. **Supply-side scalability:** can the product knowledge required to generate those recommendations be added and maintained efficiently enough for the system to scale?
 
-It should prove that the core architecture works:
+The MVP is not successful if only one of these is true.
 
-`recognition + context + structured compatibility data -> verified recommendation or safe abstention`
+## Core MVP proposition
 
-## Core hypotheses
+> **Can TetherLens identify a tool, capture the work context that matters, and produce a useful defensible tethering recommendation using a knowledge base that can be expanded primarily by adding reusable product facts rather than manually authoring every tool-to-tether combination?**
 
-The MVP should test four related hypotheses.
+## Demand-side hypotheses
 
 ### 1. Camera-first lookup reduces friction
 
-For a small, curated tool catalogue, image recognition can get the worker to the correct tool faster than manual lookup.
+For a curated tool catalogue, image recognition can get the worker to the correct tool faster than manual lookup.
 
 ### 2. Workers can provide the missing context
 
-Where worksite conditions affect the recommendation, TetherLens can ask a small number of targeted questions that a worker can answer without specialist knowledge.
+Where worksite conditions materially affect the recommendation, TetherLens can ask a small number of targeted questions that a worker can answer without specialist knowledge.
 
-### 3. Context changes the recommendation meaningfully
+### 3. Context changes recommendations meaningfully
 
-For at least some tools, different task, environmental, or anchorage conditions should result in a different validated configuration, a conditional recommendation, or a safe abstention.
+For at least some tools, different task, environmental, or anchorage conditions should result in a different recommended configuration, ranking, caution, or genuine no-suitable-solution outcome.
 
-### 4. Structured rules can support independent compatibility decisions
+### 4. Useful recommendations can be graded
 
-TetherLens can recommend a technically suitable configuration from structured evidence and constraints without requiring all components to come from the tool manufacturer.
+TetherLens can distinguish between:
 
-If the system cannot do these things reliably for a small, controlled set, expanding the catalogue will not solve the underlying product problem.
+- recommended;
+- recommended with constraints;
+- limited-confidence recommendation; and
+- no suitable recommendation.
+
+The system should not abstain solely because a viable option is imperfect.
+
+### 5. Mixed-manufacturer recommendations are possible
+
+TetherLens can evaluate products according to technical facts, interfaces, and reusable rules rather than assuming that all components must come from the same manufacturer.
+
+## Supply-side hypotheses
+
+### 1. Product ingestion can remain fact-based
+
+Adding a product can primarily consist of capturing low-level technical facts and their sources rather than manually classifying the product for every possible application.
+
+### 2. Existing rules can be reused
+
+A newly added tool or tethering component can participate in recommendations through existing rules without requiring a manually curated compatibility entry for every pairing.
+
+### 3. Missing secondary data does not block the catalogue unnecessarily
+
+Products can become recommendation-ready once the mandatory recommendation facts are known, while richer data improves later ranking and context sensitivity.
+
+### 4. Evidence remains traceable without creating an excessive maintenance burden
+
+The system can record where mandatory facts and rules came from without making ingestion so onerous that the catalogue becomes impractical to build.
+
+### 5. The model scales by adding facts, not exceptions
+
+As more products are added, the proportion of products requiring one-off rules or manually authored pairings should remain low.
 
 ## MVP user
 
-The MVP is designed for a worker using a mobile phone at the point of use.
+The demand-side MVP is designed for a worker using a mobile phone at the point of use.
 
-The pilot should use a **defined tool population**, ideally a real toolbox, worksite, team, or representative set of approximately 20-30 commonly used tools.
+The supply-side MVP is designed for the person maintaining the TetherLens catalogue. This may initially be an internal technical or product specialist rather than an end customer.
 
-The purpose of the limit is to make the catalogue, compatibility data, and contextual rules complete enough to test rather than broad enough to impress.
+## Pilot catalogue
 
-## MVP scope
+The pilot should be large enough to exercise reuse and variation rather than merely prove that two database records can be linked.
+
+A useful initial target is:
+
+- approximately **15-30 tools**; and
+- approximately **20-40 tethering components** across relevant categories.
+
+The exact numbers are less important than the diversity.
+
+The catalogue should deliberately include:
+
+- multiple manufacturers;
+- several tools that can use the same tethering components;
+- several components that can work with multiple tools;
+- mixed-manufacturer configurations;
+- different attachment mechanisms;
+- different capacities and lengths;
+- body-anchoring and structural-anchoring scenarios;
+- products with excellent manufacturer data;
+- products with incomplete public geometry or material data;
+- cases requiring internal measurement; and
+- scenarios where context affects the preferred configuration.
+
+## Demand-side scope
 
 ### 1. Mobile-first image capture
 
@@ -50,11 +105,11 @@ The worker can take or upload a photograph of **one tool at a time**.
 
 The MVP does not need to interpret a full toolbox, workbench, or scene containing multiple candidate tools.
 
-### 2. Recognition against a known tool catalogue
+### 2. Recognition against the pilot catalogue
 
-The recognition layer attempts to match the image to the curated MVP tool catalogue.
+The recognition layer attempts to match the image to the curated tool catalogue.
 
-The system may return one likely match or a short list of candidates, but it should not silently convert an uncertain visual guess into a safety-related recommendation.
+The system may return one likely match or a short list of candidates.
 
 ### 3. User confirmation
 
@@ -64,127 +119,67 @@ Where visually similar tools cannot be distinguished reliably, TetherLens should
 
 ### 4. Targeted context questions
 
-The MVP should include a deliberately small set of contextual constraints that can materially change the recommendation.
+The MVP should include a deliberately small set of contextual inputs that can materially change the recommendation.
 
-Rather than attempting general worksite understanding, the system should ask only questions triggered by the confirmed tool or candidate configuration.
-
-The pilot should cover approximately **3-5 contextual dimensions**, for example:
+The pilot should cover approximately **3-5 contextual dimensions**, selected from real use cases, such as:
 
 - restricted or congested working space / elevated snag risk;
-- relevant contaminant or chemical exposure;
-- available anchorage type or location;
+- relevant contaminant or environmental exposure;
+- available anchorage method;
 - reach or tether-length constraint; and
-- another pilot-specific environmental condition that affects component suitability.
+- another pilot-specific condition that affects practical suitability.
 
-The exact dimensions should be chosen from real pilot use cases.
+The MVP does not need to infer these conditions automatically from the camera image.
 
-The MVP does **not** need to infer these conditions automatically from the camera image. Manual confirmation is acceptable and preferable to unreliable inference.
+### 5. Candidate configuration generation
 
-### 5. Structured tool data
+The system should identify candidate configurations from the available product catalogue.
 
-Each in-scope tool should have a maintained record containing, where applicable:
+For the MVP, this may use a mixture of:
 
-- internal tool ID;
-- manufacturer;
-- model or model family;
-- category;
-- known mass or mass range;
-- recognition labels;
-- attachment characteristics;
-- relevant operational constraints; and
-- source references.
+- predefined compatible interface relationships;
+- reusable compatibility rules; and
+- a limited number of curated configurations where necessary.
 
-The MVP should not depend on the vision model inferring safety-critical properties that already exist in the data.
+The goal is to reduce reliance on manually authored exact tool-to-configuration pairings over time.
 
-### 6. Structured component data
+### 6. Hard-constraint evaluation
 
-Tethering equipment should be represented at component level so that TetherLens is not structurally limited to same-brand or pre-packaged solutions.
+The recommendation engine should remove configurations that fail defined hard constraints.
 
-At minimum, component records should distinguish roles such as:
+At minimum, the MVP should evaluate:
 
-- tool attachment;
-- tether / lanyard;
-- anchor attachment; and
-- other relevant connector or retaining component.
+- manufacturer-published tool/object mass;
+- manufacturer-published rated capacity of every applicable load-bearing component; and
+- sufficient evidence of interface compatibility.
 
-A component record may include:
+### 7. Context-based ranking and cautions
 
-- component ID;
-- manufacturer;
-- product/model;
-- component role;
-- capacity;
-- material;
-- length or geometry;
-- connector type;
-- environmental limitations;
-- relevant standards or certifications;
-- manufacturer restrictions or endorsements; and
-- evidence references.
+Configurations that pass hard constraints should be ranked according to work context.
 
-### 7. Validated configurations
+A viable option should not automatically be rejected because it is less than ideal.
 
-The worker-facing recommendation should resolve to a known configuration assembled from structured component records.
+Where a viable option has a meaningful limitation, TetherLens should recommend it with an appropriate caution if it remains the best defensible choice.
 
-For the MVP, configurations can be curated in advance rather than generated dynamically.
+### 8. Policy treatment
 
-A configuration should include:
+The MVP data model should distinguish technical viability from site or organisation policy.
 
-- configuration ID;
-- tool or tool-family applicability;
-- component IDs;
-- attachment method;
-- anchorage requirements;
-- contextual conditions;
-- important limitations;
-- technical validation status;
-- evidence references; and
-- manufacturer endorsement status where relevant.
+A simple static policy layer is sufficient for the pilot.
 
-This allows the MVP to include mixed-manufacturer configurations without treating them as inherently invalid.
+### 9. Result screen
 
-### 8. Explicit suitability rules
+The result should answer:
 
-The recommendation engine should evaluate the confirmed tool, contextual inputs, and available validated configurations using deterministic rules or explicit compatibility mappings.
+- What tool did I confirm?
+- What configuration should I use?
+- How should it be attached?
+- Why is this the best available option here?
+- What limitations or hazards should I watch for?
+- Is the recommendation constrained by incomplete secondary data?
+- Is there any manufacturer or site-policy conflict I should be aware of?
 
-The AI should not invent the compatibility relationship.
-
-A simplified MVP relationship is:
-
-`confirmed tool + relevant context -> validated configuration(s) -> policy check -> result`
-
-### 9. Distinct technical and policy status
-
-The MVP should not use a single ambiguous "approved" flag.
-
-At minimum, it should distinguish:
-
-- **technical validation status** — whether TetherLens considers the configuration suitable under the stated conditions;
-- **manufacturer endorsement status** — endorsed, restricted/prohibited, not addressed, or unknown; and
-- **site/company policy status** — permitted, prohibited, or not configured.
-
-For the first pilot, site/company policy may be minimal or static, but the data model should accommodate it from the start.
-
-### 10. Result screen
-
-The result should answer the worker's immediate questions with minimal reading:
-
-- **What tool did I confirm?**
-- **What configuration should I use?**
-- **How should it be attached?**
-- **Why is this configuration suitable here?**
-- **What important limit or condition do I need to know?**
-- **Is there any manufacturer or site-policy conflict I should be aware of?**
-
-The result should distinguish clearly between technical suitability and external endorsement or policy.
-
-### 11. Safe failure
-
-If TetherLens cannot identify the tool with sufficient confidence, cannot resolve the required context, finds no validated configuration, or encounters a policy condition that prevents recommendation, it should return a clear **no verified recommendation available** state.
-
-An incomplete result is preferable to a fabricated one.
-
-### 12. Lightweight feedback capture
+### 10. Lightweight feedback
 
 The worker should be able to indicate that:
 
@@ -194,17 +189,207 @@ The worker should be able to indicate that:
 - the recommended configuration was impractical; or
 - the recommendation was otherwise not useful.
 
-This feedback is primarily for evaluating the MVP and improving the data and rules. A full administrative workflow is not required.
+## Supply-side scope
+
+### 1. Minimal product-ingestion workflow
+
+The MVP should include a simple way to add tools and tethering components.
+
+This does not require a polished administration application. A controlled form, spreadsheet-backed workflow, structured editor, or similar internal interface is acceptable.
+
+The workflow should be:
+
+`identify product -> add source(s) -> capture primitive facts -> identify mandatory gaps -> enrich where necessary -> recommendation-ready`
+
+### 2. Primitive facts only
+
+The ingestion workflow should capture what the product **is**, not where someone thinks it should be used.
+
+Examples include:
+
+- manufacturer;
+- model / SKU;
+- mass, where applicable;
+- rated capacity, where applicable;
+- tether length;
+- connector type and geometry;
+- relevant attachment geometry;
+- materials, at the level actually known;
+- explicit manufacturer limits; and
+- data source/provenance.
+
+The workflow should avoid application-level fields such as:
+
+- `suitable_for_scaffolding`;
+- `suitable_for_hot_work`;
+- `suitable_for_offshore`; or
+- `suitable_for_tight_spaces`.
+
+Those should normally be derived through reusable rules and work context.
+
+### 3. Recommendation-ready threshold
+
+A product or component becomes recommendation-ready when the mandatory facts required for the relevant recommendation logic are established.
+
+For baseline tethering recommendations, the mandatory facts are:
+
+- **object/tool mass** from manufacturer information, where applicable;
+- **rated capacity** from manufacturer information for every applicable load-bearing component; and
+- **sufficient interface compatibility information** to establish that required connections can be made correctly.
+
+Interface compatibility may be established through:
+
+- published dimensions;
+- internal measurement;
+- explicit manufacturer pairing or kit compatibility; or
+- another sufficiently reliable reusable interface rule.
+
+Everything else enriches recommendations rather than automatically blocking them.
+
+### 4. Evidence capture
+
+Mandatory facts should be traceable to a source.
+
+Evidence capture should be lightweight enough that it does not dominate product ingestion.
+
+### 5. Rule reuse
+
+The MVP should intentionally test whether newly added products can be evaluated by existing rules.
+
+The target operating model is:
+
+`new product -> capture reusable facts -> existing rules evaluate configurations`
+
+not:
+
+`new product -> manually create every compatible pairing`
+
+## Two-stage scalability test
+
+The MVP should deliberately test the supply-side model in two stages.
+
+### Stage 1: establish the initial catalogue and rules
+
+Build a small but diverse initial set of tools and tethering components.
+
+Create only the reusable rules required to produce sensible recommendations for that set.
+
+### Stage 2: freeze the core rules and add a new batch
+
+Add a second batch of previously unseen tools and components without redesigning the model.
+
+Measure:
+
+- how many products become recommendation-ready through fact capture alone;
+- how often internal measurement is required;
+- how often a new reusable rule is genuinely needed;
+- how often a one-off compatibility exception is required;
+- how many candidate configurations become available automatically; and
+- whether existing products need to be manually edited as a side effect.
+
+If most new products require custom rules or hand-authored pairings, the model is not yet scalable.
+
+## Suggested MVP data concepts
+
+The MVP should represent at least:
+
+### Operational product entities
+
+- Tool
+- Tether
+- ToolAttachment
+- AnchorAttachment
+- Container
+
+Not every recommendation uses all four tethering component categories. Tethers will always be present; the other categories apply as required by the configuration.
+
+### Knowledge and reasoning entities
+
+- Source
+- Claim
+- Evidence
+- Rule
+- Context
+- Policy
+- CandidateConfiguration / Recommendation
+
+The precise physical database schema is not part of the MVP definition.
+
+## Demand-side success criteria
+
+A useful initial bar is:
+
+- **Recognition:** the correct in-scope tool appears in the proposed candidate set for at least 90% of representative test images.
+- **Confirmation:** users can reach the correct tool selection without outside help in at least 90% of in-scope tasks.
+- **Context capture:** users can answer required contextual questions without specialist help in at least 90% of test scenarios.
+- **Hard-constraint integrity:** configurations that fail a defined hard constraint are never recommended.
+- **Context sensitivity:** where a scenario requires a different ranking, caution, or outcome, the system produces the expected result.
+- **Recommendation usefulness:** where at least one viable configuration exists, TetherLens provides a useful recommendation rather than abstaining solely because the option is imperfect.
+- **Speed:** median time from image capture to recommendation is under 45 seconds for scenarios requiring context questions and under 30 seconds where no context questions are required.
+- **Usability:** pilot users judge the workflow easier or more useful than the reference method they would otherwise use.
+
+## Supply-side success criteria
+
+The MVP should also measure:
+
+### Time to recommendation-ready product
+
+Human time required from initial product identification to recommendation-ready status.
+
+### Mandatory-data availability
+
+What proportion of products can reach recommendation-ready status using public first-party information alone.
+
+### Enrichment burden
+
+How often internal measurement or additional research is required.
+
+### Rule reuse
+
+How often adding a product requires no new rule.
+
+### Compatibility leverage
+
+How many viable candidate configurations become possible from newly added facts without manually authoring each pairing.
+
+### Maintenance locality
+
+Changing one product fact should not require manual updates across many unrelated compatibility records.
+
+### Evidence traceability
+
+Every mandatory fact used in a recommendation can be traced to a source.
+
+### Exception rate
+
+The proportion of products that require one-off compatibility logic should remain low.
+
+Hard numerical thresholds for these supply-side metrics should be set after the first ingestion batch establishes a realistic baseline.
+
+## Pilot scenarios
+
+The pilot should intentionally include cases where:
+
+- the same tool produces different recommendations under different work conditions;
+- a shorter or coiled tether is preferred because of snagging risk;
+- a viable but suboptimal tether is recommended with a caution because a better option is unavailable;
+- a component is excluded because of a hard constraint;
+- person anchoring is technically possible but site policy changes whether it is permitted;
+- a mixed-manufacturer configuration is viable;
+- a manufacturer explicitly endorses a component pairing;
+- connector compatibility is established through internal measurement rather than public dimensions;
+- secondary material data is incomplete but a baseline recommendation remains possible; and
+- no viable configuration exists.
 
 ## Deliberate non-goals
 
 The MVP will not attempt to provide:
 
-- recognition of arbitrary tools outside the curated pilot catalogue;
+- recognition of arbitrary tools outside the pilot catalogue;
 - multiple-tool or full-scene recognition;
 - automatic understanding of all worksite conditions from images or video;
-- dynamic generation of previously unvalidated tethering configurations;
-- site-specific anchor-point engineering assessment from an image;
+- unrestricted dynamic generation of arbitrary tethering configurations;
+- automatic engineering assessment of structural anchor points;
 - complete inventory or asset management;
 - procurement or stock availability;
 - organisation-wide user management or SSO;
@@ -213,197 +398,39 @@ The MVP will not attempt to provide:
 - augmented-reality overlays;
 - a general-purpose conversational safety assistant;
 - training records or competency management;
-- programme analytics dashboards; or
-- automated ingestion of every manufacturer's catalogue.
-
-These may become useful later, but none are required to test the core hypotheses.
-
-## Suggested MVP data model
-
-The MVP data model should be simple enough to implement quickly but should preserve the distinctions required by the product vision.
-
-### Tool
-
-```text
-Tool
-- id
-- manufacturer
-- model
-- category
-- mass
-- recognition_labels
-- attachment_characteristics
-- operational_constraints
-- evidence_references
-```
-
-### Component
-
-```text
-Component
-- id
-- manufacturer
-- model
-- role
-- capacity
-- material
-- geometry
-- connector_type
-- environmental_limits
-- manufacturer_restrictions
-- evidence_references
-```
-
-### Configuration
-
-```text
-Configuration
-- id
-- component_ids
-- attachment_method
-- anchorage_requirements
-- context_conditions
-- limitations
-- validation_status
-- evidence_references
-- manufacturer_endorsement_status
-```
-
-### Tool-configuration compatibility
-
-```text
-Compatibility
-- tool_id
-- configuration_id
-- conditions
-- rationale
-- validated_by
-- validation_date
-- validation_status
-```
-
-### Policy
-
-```text
-Policy
-- scope
-- tool_id or category
-- configuration_id or component_id
-- status
-- condition
-- authority
-- source_reference
-```
-
-The MVP can store these records in simple structured files or a lightweight database. The important architectural decision is that recognition, technical suitability, evidence, manufacturer endorsement, and site policy remain separable.
-
-## MVP workflow
-
-```text
-Open TetherLens
-      ↓
-Photograph one tool
-      ↓
-Recognition returns likely catalogue match(es)
-      ↓
-Worker confirms or corrects the tool
-      ↓
-System asks only the context questions relevant to this tool
-      ↓
-Rules evaluate validated configurations
-      ↓
-Policy / endorsement information is checked
-      ↓
-Show suitable configuration + key constraints
-      ↓
-Optional feedback
-```
-
-If any required step cannot be completed reliably, the workflow ends in a safe failure state rather than an invented recommendation.
-
-## Pilot design
-
-The pilot should intentionally include cases where **the same tool produces different outcomes under different work conditions**.
-
-For example, the test set should contain scenarios in which:
-
-- an otherwise suitable tether becomes undesirable because of snagging or restricted-space risk;
-- a component is excluded because of an environmental or contaminant limitation;
-- the available anchorage changes the viable configuration;
-- a mixed-manufacturer configuration is technically validated;
-- a manufacturer does not endorse the configuration, but sufficient evidence supports technical suitability;
-- a site policy prohibits an otherwise technically suitable configuration; and
-- no suitable configuration exists, requiring abstention.
-
-This is important because a pilot that only matches tools to tethers by weight would test the easiest part of the problem while missing a major source of real-world value.
-
-## Test plan
-
-The MVP should be evaluated against a fixed test set before expanding its scope.
-
-The test set should include:
-
-- clear photographs of known tools;
-- poor-angle or imperfect photographs;
-- visually similar in-scope tools;
-- tools that are not in the catalogue;
-- tools for which no validated configuration exists;
-- tools with more than one validated configuration;
-- contextual scenarios where the recommended configuration changes;
-- mixed-manufacturer configurations; and
-- policy conflicts.
-
-Testing should include real field users rather than relying only on developer testing.
-
-## Success criteria
-
-The precise thresholds can be adjusted once the pilot tool set and worksite scenarios are selected, but the MVP should be judged on measurable outcomes.
-
-A useful initial bar is:
-
-- **Recognition:** the correct in-scope tool appears in the proposed candidate set for at least 90% of representative test images.
-- **Confirmation:** users can reach the correct tool selection without outside help in at least 90% of in-scope tasks.
-- **Context capture:** users can answer the required contextual questions correctly without specialist help in at least 90% of test scenarios.
-- **Context sensitivity:** where the predefined scenario requires a different configuration or abstention, the system produces the correct contextual outcome in 100% of validated test cases.
-- **Recommendation integrity:** every recommendation shown resolves to an existing validated configuration and supporting compatibility record.
-- **Mixed-manufacturer integrity:** cross-brand configurations are treated according to technical evidence rather than brand matching alone.
-- **Policy integrity:** technical suitability, manufacturer endorsement, and site/company policy are never presented as if they were the same thing.
-- **Safe failure:** unknown tools, unresolved context, missing compatibility data, and unsupported configurations produce an explicit no-recommendation state rather than a guessed solution.
-- **Speed:** median time from image capture to confirmed recommendation is under 45 seconds for scenarios requiring contextual questions, and under 30 seconds where no context questions are needed.
-- **Usability:** pilot users judge the workflow easier or faster than the reference method they would otherwise use for the same task.
-
-The most important MVP metric is not raw image-recognition accuracy.
-
-It is the percentage of field scenarios that end with the **correct verified configuration or a safe abstention given the actual work context**.
+- programme analytics dashboards;
+- automated ingestion of every manufacturer's catalogue; or
+- automated creation of new engineering rules from user feedback.
 
 ## What the MVP should teach us
 
 Before expanding TetherLens, the MVP should answer:
 
 1. Do workers prefer a camera-first workflow for this problem?
-2. Is visual recognition reliable enough to reduce lookup friction?
+2. Is recognition reliable enough to reduce lookup friction?
 3. Which contextual factors materially change tethering decisions most often?
-4. Can workers provide those factors accurately through a small number of questions?
-5. Which contextual inputs might later be inferred reliably from images, site data, or sensors?
-6. Is the structured configuration model expressive enough for real mixed-manufacturer tethering decisions?
-7. What level of evidence is needed before a technical configuration should be treated as validated?
-8. How should the product present conflicts between technical suitability, manufacturer endorsement, and site policy?
-9. Which types of tools and tasks create the most ambiguity?
-10. How often does the system need to abstain?
-11. Do workers trust the result more when the reason and constraints are visible?
-12. Is maintaining the underlying tool, component, configuration, evidence, and policy data operationally practical?
+4. Can workers provide those factors through a small number of questions?
+5. Can the recommendation engine provide useful answers without manually validating every exact combination?
+6. Which facts are genuinely required to make a baseline recommendation?
+7. How much public manufacturer data is sufficient for catalogue ingestion?
+8. How often is internal measurement required?
+9. Can new products reuse existing rules?
+10. Does the number of one-off exceptions remain manageable as the catalogue grows?
+11. How often does TetherLens genuinely need to return no suitable recommendation?
+12. Do workers continue to trust the system when the best available option is imperfect?
+13. Is maintaining the product, evidence, and rule base operationally practical?
 
 ## Exit criteria
 
 The MVP is successful enough to justify expansion when:
 
-- field users can complete the core workflow with little or no assistance;
-- validated recommendations are consistently correct for the in-scope catalogue and scenarios;
-- the same tool can produce different correct outcomes when contextual conditions require it;
-- mixed-manufacturer configurations can be represented and evaluated without compromising traceability;
-- unsafe false certainty is controlled through confirmation, explicit rules, and abstention;
-- technical suitability is clearly separated from manufacturer endorsement and site policy;
-- the workflow is materially faster or easier than the existing alternative; and
-- the team can identify a credible path to adding more tools, constraints, and configurations without changing the fundamental product architecture.
-
-If those conditions are not met, the next step should be to improve the core workflow, evidence model, or compatibility logic rather than simply broaden the catalogue.
+- field users can complete the recommendation workflow with little or no assistance;
+- hard constraints are reliably enforced;
+- viable configurations are ranked appropriately for context;
+- useful recommendations can be made without manually validating every exact product combination;
+- mixed-manufacturer configurations can be represented and evaluated;
+- new products can usually be added through fact capture and evidence rather than one-off application judgement;
+- rule reuse remains high as the catalogue grows;
+- mandatory evidence remains traceable;
+- no-suitable-recommendation outcomes are limited to genuine hard-stop cases; and
+- the team can identify a credible path to scaling the catalogue without fundamentally changing the knowledge model.
