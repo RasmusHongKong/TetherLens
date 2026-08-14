@@ -22,6 +22,13 @@ class ProductType(StrEnum):
     UNKNOWN = "unknown"
 
 
+class ClaimSubjectType(StrEnum):
+    PRODUCT = "product"
+    PRODUCT_VARIANT = "product_variant"
+    PHYSICAL_INTERFACE = "physical_interface"
+    CONNECTOR_SPEC = "connector_spec"
+
+
 class ProductIdentity(BaseModel):
     manufacturer: str
     product_type: ProductType = ProductType.UNKNOWN
@@ -42,6 +49,8 @@ class SourceArtifact(BaseModel):
 
 
 class CandidateClaim(BaseModel):
+    subject_type: ClaimSubjectType = ClaimSubjectType.PRODUCT
+    subject_ref: str = "self"
     property_key: str
     value: int | float | str | bool
     unit: str | None = None
