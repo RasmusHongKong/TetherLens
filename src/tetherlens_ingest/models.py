@@ -51,6 +51,14 @@ class CandidateClaim(BaseModel):
     extractor: str
 
 
+class AcquisitionObservation(BaseModel):
+    code: str
+    value: int | float | str | bool | None = None
+    detail: str | None = None
+    source_url: str | None = None
+    extractor: str | None = None
+
+
 class ReadinessIssue(BaseModel):
     code: str
     property_key: str | None = None
@@ -61,7 +69,9 @@ class IngestionResult(BaseModel):
     identity: ProductIdentity
     artifacts: list[SourceArtifact] = Field(default_factory=list)
     claims: list[CandidateClaim] = Field(default_factory=list)
+    acquisition_observations: list[AcquisitionObservation] = Field(default_factory=list)
     issues: list[ReadinessIssue] = Field(default_factory=list)
+    readiness_assessed: bool = False
 
     def claim(self, property_key: str) -> CandidateClaim | None:
         return next((c for c in self.claims if c.property_key == property_key), None)
