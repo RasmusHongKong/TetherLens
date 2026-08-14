@@ -1,0 +1,117 @@
+{
+  "version": "0.1",
+  "description": "Conservative first-party golden expectations for the 12-product Batch 1 ingestion benchmark. Only listed property keys are scored.",
+  "products": {
+    "NLG:101372": {
+      "scored_property_keys": ["rated_capacity_kg", "min_length_mm", "max_length_mm", "connector.opening_action_count", "connector.swivel", "interface.loop_present"],
+      "expected": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 5.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "min_length_mm", "value": 800.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "max_length_mm", "value": 1200.0},
+        {"subject_type": "connector_spec", "subject_ref": "tether_connector", "property_key": "connector.opening_action_count", "value": 2},
+        {"subject_type": "connector_spec", "subject_ref": "tether_connector", "property_key": "connector.swivel", "value": true},
+        {"subject_type": "physical_interface", "subject_ref": "loop_interface", "property_key": "interface.loop_present", "value": true}
+      ],
+      "forbidden": []
+    },
+    "NLG:101363": {
+      "scored_property_keys": ["rated_capacity_kg", "connector.swivel", "interface.loop_present"],
+      "expected": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 3.0},
+        {"subject_type": "physical_interface", "subject_ref": "rotating_interface", "property_key": "connector.swivel", "value": true},
+        {"subject_type": "physical_interface", "subject_ref": "loop_interface", "property_key": "interface.loop_present", "value": true}
+      ],
+      "forbidden": []
+    },
+    "NLG:101420": {
+      "scored_property_keys": ["rated_capacity_kg", "min_length_mm", "max_length_mm", "connector.opening_action_count"],
+      "expected": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 30.0}
+      ],
+      "forbidden": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "min_length_mm"},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "max_length_mm"},
+        {"property_key": "connector.opening_action_count"}
+      ]
+    },
+    "NLG:101423": {
+      "scored_property_keys": ["rated_capacity_kg"],
+      "expected": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 30.0},
+        {"subject_type": "physical_interface", "subject_ref": "internal_anchor", "property_key": "rated_capacity_kg", "value": 5.0}
+      ],
+      "forbidden": []
+    },
+    "Hilti:2253847": {
+      "scored_property_keys": ["manufacturer_item_code", "tool_body_mass_kg", "tether.connection_count", "connector.locking_mode"],
+      "expected": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "manufacturer_item_code", "value": "2253847"},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "tool_body_mass_kg", "value": 1.315418}
+      ],
+      "forbidden": [
+        {"property_key": "tether.connection_count"},
+        {"property_key": "connector.locking_mode"}
+      ]
+    },
+    "Hilti:2261970": {
+      "scored_property_keys": ["manufacturer_item_code", "rated_capacity_kg", "connector.locking_mode", "tether.connection_count"],
+      "expected": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "manufacturer_item_code", "value": "2261970"},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 6.79935},
+        {"subject_type": "connector_spec", "subject_ref": "tether_connector", "property_key": "connector.locking_mode", "value": "auto_locking"},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "tether.connection_count", "value": 2}
+      ],
+      "forbidden": []
+    },
+    "Hilti:2293133": {
+      "scored_property_keys": ["manufacturer_item_code", "tether.connection_count", "connector.locking_mode"],
+      "expected": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "manufacturer_item_code", "value": "2293133"}
+      ],
+      "forbidden": [
+        {"property_key": "tether.connection_count"},
+        {"property_key": "connector.locking_mode"}
+      ]
+    },
+    "StopDrop:SDKN1802": {
+      "scored_property_keys": ["tool.native_tether_point_status"],
+      "expected": [
+        {"subject_type": "physical_interface", "subject_ref": "native_tether_point", "property_key": "tool.native_tether_point_status", "value": "documented_present"}
+      ],
+      "forbidden": []
+    },
+    "StopDrop:SDCOIL32": {
+      "scored_property_keys": ["variant.length_mm", "variant.rated_capacity_kg", "tether.connection_count", "connector.locking_mode"],
+      "expected": [
+        {"subject_type": "product_variant", "subject_ref": "length_1000mm", "property_key": "variant.length_mm", "value": 1000.0},
+        {"subject_type": "product_variant", "subject_ref": "length_1000mm", "property_key": "variant.rated_capacity_kg", "value": 3.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "tether.connection_count", "value": 2},
+        {"subject_type": "connector_spec", "subject_ref": "tether_connector", "property_key": "connector.locking_mode", "value": "manual_locking"}
+      ],
+      "forbidden": []
+    },
+    "StopDrop:SDLANWIRE10": {
+      "scored_property_keys": ["variant.length_mm", "variant.rated_capacity_kg"],
+      "expected": [
+        {"subject_type": "product_variant", "subject_ref": "length_1000mm", "property_key": "variant.length_mm", "value": 1000.0},
+        {"subject_type": "product_variant", "subject_ref": "length_1000mm", "property_key": "variant.rated_capacity_kg", "value": 5.0},
+        {"subject_type": "product_variant", "subject_ref": "length_1500mm", "property_key": "variant.length_mm", "value": 1500.0},
+        {"subject_type": "product_variant", "subject_ref": "length_1500mm", "property_key": "variant.rated_capacity_kg", "value": 8.0}
+      ],
+      "forbidden": []
+    },
+    "StopDrop:SDBAG2": {
+      "scored_property_keys": [],
+      "expected": [],
+      "forbidden": []
+    },
+    "Milwaukee:2602-20": {
+      "scored_property_keys": ["manufacturer_item_code", "battery_platform", "operational_mass_kg"],
+      "expected": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "manufacturer_item_code", "value": "2602-20"},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "battery_platform", "value": "M18"}
+      ],
+      "forbidden": []
+    }
+  }
+}

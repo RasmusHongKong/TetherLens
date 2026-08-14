@@ -30,6 +30,9 @@ jobs:
           pytest -q
       - name: Run live manufacturer benchmark
         run: python scripts/run_batch1_smoke.py
+      - name: Score benchmark against golden expectations
+        if: success()
+        run: python scripts/score_batch1_results.py
       - name: Upload benchmark results
         if: always()
         uses: actions/upload-artifact@v4
