@@ -27,6 +27,8 @@ class ClaimSubjectType(StrEnum):
     PRODUCT_VARIANT = "product_variant"
     PHYSICAL_INTERFACE = "physical_interface"
     CONNECTOR_SPEC = "connector_spec"
+    RELATED_PRODUCT = "related_product"
+    OPERATIONAL_PROFILE = "operational_profile"
 
 
 class ProductIdentity(BaseModel):
@@ -37,6 +39,12 @@ class ProductIdentity(BaseModel):
     sku: str | None = None
     url: str
     manufacturer_ids: dict[str, str] = Field(default_factory=dict)
+
+
+class SourceRequest(BaseModel):
+    url: str
+    source_type: SourceType = SourceType.MANUFACTURER_WEBPAGE
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class SourceArtifact(BaseModel):
@@ -56,6 +64,7 @@ class CandidateClaim(BaseModel):
     unit: str | None = None
     raw_value: str | None = None
     source_url: str
+    supporting_source_urls: list[str] = Field(default_factory=list)
     evidence_method: str = "manufacturer_stated"
     extractor: str
 

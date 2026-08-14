@@ -7,10 +7,20 @@ from typing import Any
 
 
 DEFAULT_GOLDEN_PATH = Path("benchmarks/batch1_golden.json")
+DEFAULT_GOLDEN_OVERLAY_PATH = Path("benchmarks/batch1_source_graph_overrides.json")
 
 
-def load_golden(path: Path = DEFAULT_GOLDEN_PATH) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
+def load_golden(
+    path: Path = DEFAULT_GOLDEN_PATH,
+    overlay_path: Path = DEFAULT_GOLDEN_OVERLAY_PATH,
+) -> dict[str, Any]:
+    golden = json.loads(path.read_text(encoding="utf-8"))
+    if overlay_path.exists():
+        overlay = json.loads(overlay_path.read_text(encoding="utf-8"))
+        golden["products"].update(overlay.get("products", {}))
+        golden["version"] = overlay.get("version", golden.get("version"))
+        golden["overlay_description"] = overlay.get("description")
+    return golden
 
 
 def summarize_acquisition(records: list[dict[str, Any]]) -> dict[str, Any]:
@@ -214,7 +224,6 @@ def summarize_recommendation_data_scores(product_scores: list[dict[str, Any]]) -
     }
 
 
-# Backward-compatible aliases while the benchmark output migrates to the split model.
 score_product = score_extraction_product
 summarize_scores = summarize_extraction_scores
 

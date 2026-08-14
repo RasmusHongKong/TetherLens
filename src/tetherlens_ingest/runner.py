@@ -10,8 +10,14 @@ class IngestionRunner:
         self.fetcher = fetcher
 
     def ingest(self, identity: ProductIdentity, adapter: ManufacturerAdapter) -> IngestionResult:
-        artifact = self.fetcher.get(identity.url, SourceType.MANUFACTURER_WEBPAGE)
-        artifacts = [artifact]
+        primary = self.fetcher.get(identity.url, SourceType.MANUFACTURER_WEBPAGE)
+        artifacts = [primary]
+
+        for request in adapter.related_sources(identity, primary):
+            artifact = self.fetcher.get(request.url, request.source_type)
+            artifact.metadata.update(request.metadata)
+            artifacts.append(artifact)
+
         claims = adapter.extract(identity, artifacts)
         observations = adapter.observe(identity, artifacts)
         readiness = adapter.readiness_issues(claims, observations)
