@@ -26,13 +26,21 @@ def main() -> None:
                 print(json.dumps({
                     "manufacturer": identity.manufacturer,
                     "sku": identity.sku,
+                    "acquisition_succeeded": True,
                     "claim_count": len(result.claims),
                     "claims": [c.model_dump(mode="json") for c in result.claims],
-                    "issues": [i.model_dump(mode="json") for i in result.issues],
+                    "acquisition_observations": [o.model_dump(mode="json") for o in result.acquisition_observations],
+                    "readiness_assessed": result.readiness_assessed,
+                    "readiness_issues": [i.model_dump(mode="json") for i in result.issues],
                 }, indent=2))
             except Exception as exc:
                 failures += 1
-                print(json.dumps({"manufacturer": identity.manufacturer, "sku": identity.sku, "error": f"{type(exc).__name__}: {exc}"}, indent=2))
+                print(json.dumps({
+                    "manufacturer": identity.manufacturer,
+                    "sku": identity.sku,
+                    "acquisition_succeeded": False,
+                    "error": f"{type(exc).__name__}: {exc}",
+                }, indent=2))
     finally:
         fetcher.close()
     if failures:
