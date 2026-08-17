@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import html as html_lib
 import re
+from urllib.parse import urljoin
 
 from tetherlens_ingest.models import (
     AcquisitionObservation,
@@ -32,11 +34,19 @@ class HiltiAdapter(ManufacturerAdapter):
     )
 
     def related_sources(self, identity: ProductIdentity, primary_artifact: SourceArtifact) -> list[SourceRequest]:
-        if identity.product_type == ProductType.TOOL and (
-            identity.sku == "2253847" or identity.manufacturer_ids.get("technical_family") == "r13275669"
+        if not (
+            identity.product_type == ProductType.TOOL
+            and (identity.sku == "2253847" or identity.manufacturer_ids.get("technical_family") == "r13275669")
         ):
-            return list(self._SF4_22_BATTERY_SOURCES)
-        return []
+            return []
+
+        discovered = self._discover_battery_sources(primary_artifact)
+        discovered_models = {request.metadata.get("battery_model") for request in discovered}
+        requests = list(discovered)
+        for seed in self._SF4_22_BATTERY_SOURCES:
+            if seed.metadata.get("battery_model") not in discovered_models:
+                requests.append(seed)
+        return _dedupe_requests(requests)
 
     def extract(self, identity: ProductIdentity, artifacts: list[SourceArtifact]) -> list[CandidateClaim]:
         claims: list[CandidateClaim] = []
@@ -48,13 +58,13 @@ class HiltiAdapter(ManufacturerAdapter):
 
             if role == "battery":
                 model = str(artifact.metadata.get("battery_model") or "battery")
-                m = re.search(r"\bWeight\s*:?\s*([^\n]+)", text, re.I)
-                if m and (q := parse_mass(m.group(1))):
+                raw_mass = self._extract_battery_mass_text(artifact)
+                if raw_mass and (q := parse_mass(raw_mass)):
                     claims.append(self._claim(
                         "battery_mass_kg",
                         q.value,
                         "kg",
-                        m.group(1),
+                        raw_mass,
                         artifact.url,
                         ClaimSubjectType.RELATED_PRODUCT,
                         model,
@@ -111,23 +121,52 @@ class HiltiAdapter(ManufacturerAdapter):
                         source_url=primary_url,
                         supporting_source_urls=[battery_claim.source_url],
                         evidence_method="derived",
-                        extractor="hilti.v0.3",
+                        extractor="hilti.v0.4",
                     ))
 
         return _dedupe(claims)
 
     def observe(self, identity: ProductIdentity, artifacts: list[SourceArtifact]) -> list[AcquisitionObservation]:
         observations: list[AcquisitionObservation] = []
-        if identity.product_type == ProductType.TOOL and (
-            identity.sku == "2253847" or identity.manufacturer_ids.get("technical_family") == "r13275669"
+        if not (
+            identity.product_type == ProductType.TOOL
+            and (identity.sku == "2253847" or identity.manufacturer_ids.get("technical_family") == "r13275669")
         ):
+            return observations
+
+        battery_artifacts = [artifact for artifact in artifacts if artifact.metadata.get("role") == "battery"]
+        discovered_count = sum(
+            artifact.metadata.get("relationship_basis") == "page_link" for artifact in battery_artifacts
+        )
+        seeded_count = sum(
+            artifact.metadata.get("relationship_basis") == "benchmark_seed" for artifact in battery_artifacts
+        )
+        if discovered_count:
+            observations.append(AcquisitionObservation(
+                code="RELATED_SOURCES_DISCOVERED",
+                value=discovered_count,
+                detail="Hilti battery source edges were discovered from first-party links in the tool page.",
+                source_url=identity.url,
+                extractor="hilti.v0.4",
+            ))
+        if seeded_count:
             observations.append(AcquisitionObservation(
                 code="RELATED_SOURCES_SEEDED",
-                value=2,
-                detail="B 22-55 and B 22-85 battery source edges are pre-verified benchmark seeds; automatic Hilti compatibility discovery is not yet implemented.",
+                value=seeded_count,
+                detail="Missing battery source edges were filled from pre-verified benchmark seeds; automatic relationship discovery is incomplete.",
                 source_url=identity.url,
-                extractor="hilti.v0.3",
+                extractor="hilti.v0.4",
             ))
+
+        for artifact in battery_artifacts:
+            if self._extract_battery_mass_text(artifact) is None:
+                observations.append(AcquisitionObservation(
+                    code="RELATED_SOURCE_FACT_MISSING",
+                    value=str(artifact.metadata.get("battery_model") or "battery"),
+                    detail="Related Hilti battery page was fetched but no parseable manufacturer weight was recovered.",
+                    source_url=artifact.url,
+                    extractor="hilti.v0.4",
+                ))
         return observations
 
     def readiness_issues(
@@ -144,6 +183,55 @@ class HiltiAdapter(ManufacturerAdapter):
     @staticmethod
     def operational_mass(tool_body_mass_kg: float, battery_mass_kg: float) -> float:
         return round(tool_body_mass_kg + battery_mass_kg, 6)
+
+    @staticmethod
+    def _extract_battery_mass_text(artifact: SourceArtifact) -> str | None:
+        text = page_text(artifact.body)
+        for pattern in (
+            r"\bWeight\s*:?\s*([^\n]+)",
+            r"\bProduct weight\s*:?\s*([^\n]+)",
+        ):
+            m = re.search(pattern, text, re.I)
+            if m and parse_mass(m.group(1)):
+                mass = re.search(r"\d+(?:\.\d+)?\s*(?:kg|kgs?|lb|lbs?|g)\b", m.group(1), re.I)
+                return mass.group(0) if mass else m.group(1).strip()
+
+        # Hilti can expose technical attributes in embedded structured markup that
+        # the visible-text pass does not surface. Restrict this fallback to battery
+        # artifacts and a short window following a weight label.
+        raw = html_lib.unescape(artifact.body)
+        m = re.search(
+            r"(?:Product\s+)?Weight.{0,240}?(\d+(?:\.\d+)?\s*(?:kg|kgs?|lb|lbs?|g)\b)",
+            raw,
+            re.I | re.S,
+        )
+        return m.group(1).strip() if m and parse_mass(m.group(1)) else None
+
+    @staticmethod
+    def _discover_battery_sources(primary_artifact: SourceArtifact) -> list[SourceRequest]:
+        html = html_lib.unescape(primary_artifact.body)
+        requests: list[SourceRequest] = []
+        link_pattern = re.compile(
+            r'href=["\'](?P<href>[^"\']*CLS_BATT_CHARGERS_POWER_STATIONS_7125[^"\']*)["\']',
+            re.I,
+        )
+        for match in link_pattern.finditer(html):
+            start = max(0, match.start() - 300)
+            end = min(len(html), match.end() + 300)
+            context = re.sub(r"<[^>]+>", " ", html[start:end])
+            model_match = re.search(r"\bB\s*22-\d+\b", context, re.I)
+            if not model_match:
+                continue
+            model = re.sub(r"\s+", " ", model_match.group(0)).upper()
+            requests.append(SourceRequest(
+                url=urljoin(primary_artifact.url, match.group("href")),
+                metadata={
+                    "role": "battery",
+                    "battery_model": model,
+                    "relationship_basis": "page_link",
+                },
+            ))
+        return _dedupe_requests(requests)
 
     @staticmethod
     def _claim(
@@ -163,7 +251,7 @@ class HiltiAdapter(ManufacturerAdapter):
             unit=unit,
             raw_value=raw,
             source_url=url,
-            extractor="hilti.v0.3",
+            extractor="hilti.v0.4",
         )
 
 
@@ -174,5 +262,16 @@ def _dedupe(claims: list[CandidateClaim]) -> list[CandidateClaim]:
         key = (claim.subject_type.value, claim.subject_ref, claim.property_key, str(claim.value))
         if key not in seen:
             out.append(claim)
+            seen.add(key)
+    return out
+
+
+def _dedupe_requests(requests: list[SourceRequest]) -> list[SourceRequest]:
+    seen = set()
+    out = []
+    for request in requests:
+        key = (request.metadata.get("battery_model"), request.url)
+        if key not in seen:
+            out.append(request)
             seen.add(key)
     return out
