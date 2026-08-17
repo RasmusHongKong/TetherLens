@@ -39,9 +39,10 @@ def main() -> None:
         extraction_scores.append(extraction)
         recommendation_scores.append(recommendation)
 
+    extraction_summary = summarize_extraction_scores(extraction_scores)
     payload["benchmark_scores"] = {
         "acquisition_coverage": summarize_acquisition(payload.get("results", [])),
-        "extraction_quality": summarize_extraction_scores(extraction_scores),
+        "extraction_quality": extraction_summary,
         "recommendation_data_coverage": summarize_recommendation_data_scores(recommendation_scores),
     }
     payload["golden_version"] = golden.get("version")
@@ -66,6 +67,15 @@ def main() -> None:
                 "requirement_results": recommendation.get("requirement_results", []),
                 "known_gaps": recommendation.get("known_gaps", []),
             }, indent=2))
+
+    # Recommendation-data gaps are legitimate benchmark findings and do not fail CI.
+    # Extraction regressions do: the golden contract is the parser safety gate.
+    if (
+        extraction_summary.get("false_positive_count", 0)
+        or extraction_summary.get("false_negative_count", 0)
+        or extraction_summary.get("forbidden_hit_count", 0)
+    ):
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
