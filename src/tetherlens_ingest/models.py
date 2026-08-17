@@ -11,6 +11,7 @@ class SourceType(StrEnum):
     MANUFACTURER_WEBPAGE = "manufacturer_webpage"
     MANUFACTURER_JSON = "manufacturer_json"
     MANUFACTURER_DOCUMENT = "manufacturer_document"
+    QUALIFIED_SECONDARY_WEBPAGE = "qualified_secondary_webpage"
 
 
 class ProductType(StrEnum):
