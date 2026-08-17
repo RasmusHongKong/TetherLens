@@ -60,10 +60,15 @@ class GraingerToolMassResolver:
                 extractor=self.extractor,
             )])
 
-        search = fetcher.get(
-            self.search_url.format(query=quote_plus(identity.sku)),
-            SourceType.QUALIFIED_SECONDARY_WEBPAGE,
-        )
+        search_url = self.search_url.format(query=quote_plus(identity.sku))
+        try:
+            search = fetcher.get(search_url, SourceType.QUALIFIED_SECONDARY_WEBPAGE)
+        except Exception as exc:
+            return Resolution(observations=[self._source_error(
+                search_url,
+                f"Grainger search request failed: {type(exc).__name__}: {exc}",
+            )])
+
         search.metadata.update({"role": "secondary_search", "provider": "Grainger"})
         out = Resolution(artifacts=[search])
         candidate_url = self._exact_candidate_url(search.body, identity.sku)
@@ -71,7 +76,15 @@ class GraingerToolMassResolver:
             out.observations.append(self._miss(identity, search.url, "No exact-SKU Grainger product candidate was discovered."))
             return out
 
-        product = fetcher.get(candidate_url, SourceType.QUALIFIED_SECONDARY_WEBPAGE)
+        try:
+            product = fetcher.get(candidate_url, SourceType.QUALIFIED_SECONDARY_WEBPAGE)
+        except Exception as exc:
+            out.observations.append(self._source_error(
+                candidate_url,
+                f"Grainger product request failed: {type(exc).__name__}: {exc}",
+            ))
+            return out
+
         product.metadata.update({"role": "secondary_product", "provider": "Grainger"})
         out.artifacts.append(product)
         text = self._text(product.body)
@@ -140,6 +153,15 @@ class GraingerToolMassResolver:
     def _miss(self, identity: ProductIdentity, url: str, detail: str) -> AcquisitionObservation:
         return AcquisitionObservation(
             code="REQUIRED_FACT_SECONDARY_UNRESOLVED",
+            value="tool_body_mass_kg",
+            detail=detail,
+            source_url=url,
+            extractor=self.extractor,
+        )
+
+    def _source_error(self, url: str, detail: str) -> AcquisitionObservation:
+        return AcquisitionObservation(
+            code="SECONDARY_SOURCE_BLOCKED_OR_UNAVAILABLE",
             value="tool_body_mass_kg",
             detail=detail,
             source_url=url,
