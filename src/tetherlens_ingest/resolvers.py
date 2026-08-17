@@ -110,8 +110,9 @@ class GraingerToolMassResolver:
         decoded = html.unescape(raw)
         # Grainger search results use /en/product/<slug>/p/<item>. Require the
         # manufacturer SKU in the href or nearby anchor context; do not choose
-        # the first search result blindly.
-        for match in re.finditer(r'href=["\']([^"\']+/en/product/[^"\']+/p/[^"\']+)["\']', decoded, re.I):
+        # the first search result blindly. Support both relative and absolute
+        # hrefs because Grainger may emit either shape.
+        for match in re.finditer(r'href=["\']([^"\']*?/en/product/[^"\']+/p/[^"\']+)["\']', decoded, re.I):
             href = match.group(1)
             context = decoded[max(0, match.start() - 400): min(len(decoded), match.end() + 400)]
             if re.search(rf"(?<![A-Z0-9]){re.escape(sku)}(?![A-Z0-9])", context, re.I):
