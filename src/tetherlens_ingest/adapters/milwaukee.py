@@ -54,13 +54,9 @@ class MilwaukeeAdapter(ManufacturerAdapter):
                     raw_mass = self._preferred_battery_mass(product)
                     if raw_mass and (mass := parse_mass(raw_mass)):
                         claims.append(self._claim(
-                            "battery_mass_kg",
-                            mass.value,
-                            raw_mass,
-                            artifact.url,
+                            "battery_mass_kg", mass.value, raw_mass, artifact.url,
                             subject_type=ClaimSubjectType.RELATED_PRODUCT,
-                            subject_ref=sku or "battery",
-                            unit="kg",
+                            subject_ref=sku or "battery", unit="kg",
                         ))
                     continue
 
@@ -107,30 +103,24 @@ class MilwaukeeAdapter(ManufacturerAdapter):
 
         if product_api and any(self._api_product(artifact) for artifact in product_api):
             observations.append(AcquisitionObservation(
-                code="PRODUCT_API_ACQUIRED",
-                value=True,
+                code="PRODUCT_API_ACQUIRED", value=True,
                 detail="Milwaukee first-party product API returned structured product specifications.",
-                source_url=product_api[0].url,
-                extractor=self.extractor,
+                source_url=product_api[0].url, extractor=self.extractor,
             ))
         if battery_api:
             observations.append(AcquisitionObservation(
-                code="RELATED_SOURCES_DISCOVERED",
-                value=len(battery_api),
+                code="RELATED_SOURCES_DISCOVERED", value=len(battery_api),
                 detail="Compatible battery SKUs were discovered from Milwaukee first-party RSC family data and fetched through the product API.",
-                source_url=identity.url,
-                extractor=self.extractor,
+                source_url=identity.url, extractor=self.extractor,
             ))
 
         if identity.product_type == ProductType.TOOL:
             product = next((self._api_product(artifact) for artifact in product_api if self._api_product(artifact)), None)
             if product and self._product_mass(product) is None:
                 observations.append(AcquisitionObservation(
-                    code="MANUFACTURER_TOOL_MASS_MISSING",
-                    value=True,
+                    code="MANUFACTURER_TOOL_MASS_MISSING", value=True,
                     detail="Milwaukee product API was acquired successfully but does not publish a tool-body mass for this SKU.",
-                    source_url=product_api[0].url,
-                    extractor=self.extractor,
+                    source_url=product_api[0].url, extractor=self.extractor,
                 ))
 
         for artifact in battery_api:
@@ -140,34 +130,28 @@ class MilwaukeeAdapter(ManufacturerAdapter):
                     code="RELATED_SOURCE_FACT_MISSING",
                     value=str(product.get("sku") or artifact.metadata.get("sku") or "battery"),
                     detail="Related Milwaukee battery API record was fetched but contains no manufacturer physical-mass value.",
-                    source_url=artifact.url,
-                    extractor=self.extractor,
+                    source_url=artifact.url, extractor=self.extractor,
                 ))
             elif product and self._has_mass_conflict(product):
                 observations.append(AcquisitionObservation(
                     code="CONFLICTING_MANUFACTURER_MASS",
                     value=str(product.get("sku") or artifact.metadata.get("sku") or "battery"),
                     detail="Milwaukee publishes different physical weight and netWeight values; the physical specs.weight value is retained as the battery mass candidate.",
-                    source_url=artifact.url,
-                    extractor=self.extractor,
+                    source_url=artifact.url, extractor=self.extractor,
                 ))
         return observations
 
-    def readiness_issues(
-        self,
-        claims: list[CandidateClaim],
-        observations: list[AcquisitionObservation],
-    ) -> list[ReadinessIssue]:
+    def readiness_issues(self, claims, observations) -> list[ReadinessIssue]:
         issues: list[ReadinessIssue] = []
         if not any(claim.property_key == "operational_mass_kg" for claim in claims):
             issues.append(ReadinessIssue(code="MISSING_OPERATIONAL_MASS", property_key="operational_mass_kg"))
-        codes = {observation.code for observation in observations}
-        if "MANUFACTURER_TOOL_MASS_MISSING" in codes:
-            issues.append(ReadinessIssue(
-                code="MISSING_TOOL_BODY_MASS",
-                property_key="tool_body_mass_kg",
-                detail="Milwaukee first-party product data does not publish the tool-body mass required for an operational-mass calculation.",
-            ))
+        if not any(claim.property_key == "tool_body_mass_kg" for claim in claims):
+            codes = {observation.code for observation in observations}
+            if "MANUFACTURER_TOOL_MASS_MISSING" in codes:
+                issues.append(ReadinessIssue(
+                    code="MISSING_TOOL_BODY_MASS", property_key="tool_body_mass_kg",
+                    detail="Manufacturer data does not publish tool-body mass and no qualified fallback source resolved it.",
+                ))
         return issues
 
     @classmethod
@@ -175,11 +159,7 @@ class MilwaukeeAdapter(ManufacturerAdapter):
         metadata = {"role": role, "sku": sku}
         if relationship_basis:
             metadata["relationship_basis"] = relationship_basis
-        return SourceRequest(
-            url=urljoin(page_url, f"/api/v1/products/{quote(sku, safe='')}?language=en"),
-            source_type=SourceType.MANUFACTURER_JSON,
-            metadata=metadata,
-        )
+        return SourceRequest(url=urljoin(page_url, f"/api/v1/products/{quote(sku, safe='')}?language=en"), source_type=SourceType.MANUFACTURER_JSON, metadata=metadata)
 
     @staticmethod
     def _sku_from_artifact(artifact: SourceArtifact) -> str | None:
@@ -188,9 +168,6 @@ class MilwaukeeAdapter(ManufacturerAdapter):
 
     @staticmethod
     def _discover_battery_skus(raw: str) -> list[str]:
-        # RSC family records expose included SALEABLE_ITEM objects. Restrict
-        # discovery to Milwaukee battery-number format and require nearby
-        # battery wording so chargers/accessories are not promoted as batteries.
         found: list[str] = []
         for match in re.finditer(r"\b(48-11-\d{4})\b", raw, re.I):
             context = raw[max(0, match.start() - 500): min(len(raw), match.end() + 500)]
@@ -223,15 +200,10 @@ class MilwaukeeAdapter(ManufacturerAdapter):
 
     @classmethod
     def _product_mass(cls, product: dict) -> str | None:
-        # Only accept an explicit product physical-weight field. Do not use
-        # packaging-oriented specs2.netWeight as tool-body mass.
         return cls._spec_value(product, "weight") or cls._spec_value(product, "productWeight")
 
     @classmethod
     def _preferred_battery_mass(cls, product: dict) -> str | None:
-        # Main specs dimensions describe the physical battery. Prefer its weight
-        # over specs2.netWeight, whose neighboring fields are assembled/package
-        # dimensions and may differ slightly (e.g. 1.54 lb vs 1.6 lb).
         return cls._spec_value(product, "weight") or cls._spec_value(product, "productWeight")
 
     @classmethod
@@ -242,34 +214,12 @@ class MilwaukeeAdapter(ManufacturerAdapter):
         specs2 = product.get("specs2")
         if not isinstance(specs2, list):
             return False
-        net = next((
-            str(item.get("value") or item.get("display") or "").strip()
-            for item in specs2
-            if isinstance(item, dict) and item.get("key") == "netWeight"
-        ), "")
+        net = next((str(item.get("value") or item.get("display") or "").strip() for item in specs2 if isinstance(item, dict) and item.get("key") == "netWeight"), "")
         return bool(net and net != physical)
 
     @classmethod
-    def _claim(
-        cls,
-        key: str,
-        value,
-        raw: str | None,
-        url: str,
-        subject_type: ClaimSubjectType = ClaimSubjectType.PRODUCT,
-        subject_ref: str = "self",
-        unit: str | None = None,
-    ) -> CandidateClaim:
-        return CandidateClaim(
-            subject_type=subject_type,
-            subject_ref=subject_ref,
-            property_key=key,
-            value=value,
-            unit=unit,
-            raw_value=raw,
-            source_url=url,
-            extractor=cls.extractor,
-        )
+    def _claim(cls, key, value, raw, url, subject_type=ClaimSubjectType.PRODUCT, subject_ref="self", unit=None) -> CandidateClaim:
+        return CandidateClaim(subject_type=subject_type, subject_ref=subject_ref, property_key=key, value=value, unit=unit, raw_value=raw, source_url=url, extractor=cls.extractor)
 
 
 def _dedupe(claims: list[CandidateClaim]) -> list[CandidateClaim]:
