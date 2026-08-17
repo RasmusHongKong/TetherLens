@@ -1,0 +1,42 @@
+name: Ingestion live smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ingestion-smoke-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install package
+        run: pip install -e .
+      - name: Run unit tests
+        run: |
+          pip install pytest
+          pytest -q
+      - name: Run live manufacturer benchmark
+        run: python scripts/run_batch1_smoke.py
+      - name: Score benchmark against golden expectations
+        if: success()
+        run: python scripts/score_batch1_results.py
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: batch1-ingestion-benchmark
+          path: batch1-benchmark-results.json
+          if-no-files-found: warn

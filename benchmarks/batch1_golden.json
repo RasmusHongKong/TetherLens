@@ -1,0 +1,220 @@
+{
+  "version": "0.2",
+  "description": "Batch 1 benchmark contract. Extraction precision is strict by default: every extracted claim is scored unless explicitly listed in ignored_claims. Recommendation-data coverage is scored separately from extraction quality.",
+  "products": {
+    "NLG:101372": {
+      "expected_claims": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 5.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "min_length_mm", "value": 800.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "max_length_mm", "value": 1200.0},
+        {"subject_type": "connector_spec", "subject_ref": "tether_connector", "property_key": "connector.opening_action_count", "value": 2},
+        {"subject_type": "connector_spec", "subject_ref": "tether_connector", "property_key": "connector.swivel", "value": true},
+        {"subject_type": "physical_interface", "subject_ref": "loop_interface", "property_key": "interface.loop_present", "value": true}
+      ],
+      "forbidden_claims": [],
+      "ignored_claims": [],
+      "recommendation_data": {
+        "baseline_requirements": [
+          {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 5.0}], "gap_if_missing": "public_fact_missing"}
+        ],
+        "known_gaps": [
+          {"category": "internal_measurement", "field": "connector_geometry", "detail": "Generic cross-brand connector fit still needs gate/internal geometry."}
+        ]
+      }
+    },
+    "NLG:101363": {
+      "expected_claims": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 3.0},
+        {"subject_type": "physical_interface", "subject_ref": "rotating_interface", "property_key": "connector.swivel", "value": true},
+        {"subject_type": "physical_interface", "subject_ref": "loop_interface", "property_key": "interface.loop_present", "value": true}
+      ],
+      "forbidden_claims": [],
+      "ignored_claims": [],
+      "recommendation_data": {
+        "baseline_requirements": [
+          {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 3.0}], "gap_if_missing": "public_fact_missing"}
+        ],
+        "known_gaps": [
+          {"category": "internal_measurement", "field": "d_ring_geometry", "detail": "Generic connector engagement still needs D-ring/interface geometry."}
+        ]
+      }
+    },
+    "NLG:101420": {
+      "expected_claims": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 30.0}
+      ],
+      "forbidden_claims": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "min_length_mm"},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "max_length_mm"},
+        {"property_key": "connector.opening_action_count"}
+      ],
+      "ignored_claims": [],
+      "recommendation_data": {
+        "baseline_requirements": [
+          {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 30.0}], "gap_if_missing": "public_fact_missing"}
+        ],
+        "known_gaps": [
+          {"category": "document_join", "field": "individual_anchor_capacity", "detail": "Overall belt load is published; individual anchor-point capacity still needs authoritative clarification."},
+          {"category": "internal_measurement", "field": "anchor_geometry", "detail": "Generic connector engagement needs anchor-point geometry."}
+        ]
+      }
+    },
+    "NLG:101423": {
+      "expected_claims": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 30.0},
+        {"subject_type": "physical_interface", "subject_ref": "internal_anchor", "property_key": "rated_capacity_kg", "value": 5.0}
+      ],
+      "forbidden_claims": [],
+      "ignored_claims": [],
+      "recommendation_data": {
+        "baseline_requirements": [
+          {"name": "container_rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 30.0}], "gap_if_missing": "public_fact_missing"},
+          {"name": "internal_anchor_rated_capacity", "any_of": [{"subject_type": "physical_interface", "subject_ref": "internal_anchor", "property_key": "rated_capacity_kg", "value": 5.0}], "gap_if_missing": "public_fact_missing"}
+        ],
+        "known_gaps": [
+          {"category": "internal_measurement", "field": "internal_anchor_geometry", "detail": "Generic connector engagement needs internal anchor geometry."}
+        ]
+      }
+    },
+    "Hilti:2253847": {
+      "expected_claims": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "manufacturer_item_code", "value": "2253847"},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "tool_body_mass_kg", "value": 1.315418}
+      ],
+      "forbidden_claims": [
+        {"property_key": "tether.connection_count"},
+        {"property_key": "connector.locking_mode"}
+      ],
+      "ignored_claims": [],
+      "recommendation_data": {
+        "baseline_requirements": [
+          {"name": "operational_mass", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "operational_mass_kg"}], "gap_if_missing": "document_join", "detail": "Operational mass must include a selected compatible battery."}
+        ],
+        "known_gaps": [
+          {"category": "document_join", "field": "battery_configuration", "detail": "Join tool-body mass with compatible battery mass to create operational mass profiles."}
+        ]
+      }
+    },
+    "Hilti:2261970": {
+      "expected_claims": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "manufacturer_item_code", "value": "2261970"},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 6.79935},
+        {"subject_type": "connector_spec", "subject_ref": "tether_connector", "property_key": "connector.locking_mode", "value": "auto_locking"},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "tether.connection_count", "value": 2}
+      ],
+      "forbidden_claims": [],
+      "ignored_claims": [],
+      "recommendation_data": {
+        "baseline_requirements": [
+          {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 6.79935}], "gap_if_missing": "public_fact_missing"}
+        ],
+        "known_gaps": [
+          {"category": "document_join", "field": "tether_length", "detail": "Tether length was not recovered from the current product-page pass."},
+          {"category": "internal_measurement", "field": "connector_geometry", "detail": "Generic cross-brand fit requires connector geometry."}
+        ]
+      }
+    },
+    "Hilti:2293133": {
+      "expected_claims": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "manufacturer_item_code", "value": "2293133"}
+      ],
+      "forbidden_claims": [
+        {"property_key": "tether.connection_count"},
+        {"property_key": "connector.locking_mode"}
+      ],
+      "ignored_claims": [],
+      "recommendation_data": {
+        "baseline_requirements": [
+          {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg"}], "gap_if_missing": "document_join", "detail": "15 lb / 6.8 kg option is known from manufacturer material but not yet extracted in this path."}
+        ],
+        "known_gaps": [
+          {"category": "document_join", "field": "rated_capacity", "detail": "Need stronger extraction/join for the retaining-strap load value."},
+          {"category": "document_join", "field": "compatible_tools", "detail": "Need explicit compatible-tool relationships rather than relying on imagery/related-product text."}
+        ]
+      }
+    },
+    "StopDrop:SDKN1802": {
+      "expected_claims": [
+        {"subject_type": "physical_interface", "subject_ref": "native_tether_point", "property_key": "tool.native_tether_point_status", "value": "documented_present"}
+      ],
+      "forbidden_claims": [],
+      "ignored_claims": [],
+      "recommendation_data": {
+        "baseline_requirements": [
+          {"name": "operational_mass", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "operational_mass_kg"}], "gap_if_missing": "source_blocked", "detail": "Manufacturer mass was not found in the tested public source path."}
+        ],
+        "known_gaps": [
+          {"category": "source_blocked", "field": "operational_mass", "detail": "No acceptable manufacturer mass surfaced; persistent load reasoning remains blocked."}
+        ]
+      }
+    },
+    "StopDrop:SDCOIL32": {
+      "expected_claims": [
+        {"subject_type": "product_variant", "subject_ref": "length_1000mm", "property_key": "variant.length_mm", "value": 1000.0},
+        {"subject_type": "product_variant", "subject_ref": "length_1000mm", "property_key": "variant.rated_capacity_kg", "value": 3.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "tether.connection_count", "value": 2},
+        {"subject_type": "connector_spec", "subject_ref": "tether_connector", "property_key": "connector.locking_mode", "value": "manual_locking"}
+      ],
+      "forbidden_claims": [],
+      "ignored_claims": [],
+      "recommendation_data": {
+        "baseline_requirements": [
+          {"name": "rated_capacity", "any_of": [{"subject_type": "product_variant", "subject_ref": "length_1000mm", "property_key": "variant.rated_capacity_kg", "value": 3.0}], "gap_if_missing": "public_fact_missing"}
+        ],
+        "known_gaps": [
+          {"category": "internal_measurement", "field": "connector_geometry", "detail": "Generic fit requires screwgate connector geometry."}
+        ]
+      }
+    },
+    "StopDrop:SDLANWIRE10": {
+      "expected_claims": [
+        {"subject_type": "product_variant", "subject_ref": "length_1000mm", "property_key": "variant.length_mm", "value": 1000.0},
+        {"subject_type": "product_variant", "subject_ref": "length_1000mm", "property_key": "variant.rated_capacity_kg", "value": 5.0},
+        {"subject_type": "product_variant", "subject_ref": "length_1500mm", "property_key": "variant.length_mm", "value": 1500.0},
+        {"subject_type": "product_variant", "subject_ref": "length_1500mm", "property_key": "variant.rated_capacity_kg", "value": 8.0}
+      ],
+      "forbidden_claims": [],
+      "ignored_claims": [],
+      "recommendation_data": {
+        "baseline_requirements": [
+          {"name": "rated_capacity_variant_1m", "any_of": [{"subject_type": "product_variant", "subject_ref": "length_1000mm", "property_key": "variant.rated_capacity_kg", "value": 5.0}], "gap_if_missing": "public_fact_missing"},
+          {"name": "rated_capacity_variant_1_5m", "any_of": [{"subject_type": "product_variant", "subject_ref": "length_1500mm", "property_key": "variant.rated_capacity_kg", "value": 8.0}], "gap_if_missing": "public_fact_missing"}
+        ],
+        "known_gaps": [
+          {"category": "internal_measurement", "field": "connector_geometry", "detail": "Generic fit requires connector geometry."}
+        ]
+      }
+    },
+    "StopDrop:SDBAG2": {
+      "expected_claims": [],
+      "forbidden_claims": [],
+      "ignored_claims": [],
+      "recommendation_data": {
+        "baseline_requirements": [
+          {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg"}], "gap_if_missing": "source_blocked", "detail": "No rated bag or interface load was established in tested manufacturer material."}
+        ],
+        "known_gaps": [
+          {"category": "source_blocked", "field": "rated_capacity", "detail": "Current manufacturer sources do not establish a usable rated capacity for SDBAG2."},
+          {"category": "document_join", "field": "internal_d_ring_count", "detail": "Bag Range Flyer contains useful descriptive data not yet acquired by runtime."}
+        ]
+      }
+    },
+    "Milwaukee:2602-20": {
+      "expected_claims": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "manufacturer_item_code", "value": "2602-20"},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "battery_platform", "value": "M18"}
+      ],
+      "forbidden_claims": [],
+      "ignored_claims": [],
+      "recommendation_data": {
+        "baseline_requirements": [
+          {"name": "operational_mass", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "operational_mass_kg"}], "gap_if_missing": "dynamic_acquisition", "detail": "Operational mass requires resolving dynamic specs and battery configuration."}
+        ],
+        "known_gaps": [
+          {"category": "dynamic_acquisition", "field": "specs", "detail": "Static page shell does not expose the loaded Specs block."},
+          {"category": "document_join", "field": "battery_configuration", "detail": "Operational mass requires an installed-battery configuration and battery mass."}
+        ]
+      }
+    }
+  }
+}

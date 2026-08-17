@@ -1,0 +1,35 @@
+{
+  "version": "0.4",
+  "description": "Source-graph expectations layered onto the Batch 1 golden contract.",
+  "products": {
+    "Hilti:2253847": {
+      "expected_claims": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "manufacturer_item_code", "value": "2253847"},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "tool_body_mass_kg", "value": 1.315418},
+        {"subject_type": "related_product", "subject_ref": "B 22-55", "property_key": "battery_mass_kg", "value": 0.548847},
+        {"subject_type": "related_product", "subject_ref": "B 22-85", "property_key": "battery_mass_kg", "value": 0.757499},
+        {"subject_type": "operational_profile", "subject_ref": "2253847+B 22-55", "property_key": "operational_mass_kg", "value": 1.864265},
+        {"subject_type": "operational_profile", "subject_ref": "2253847+B 22-85", "property_key": "operational_mass_kg", "value": 2.072917}
+      ],
+      "forbidden_claims": [
+        {"property_key": "tether.connection_count"},
+        {"property_key": "connector.locking_mode"}
+      ],
+      "ignored_claims": [],
+      "acquisition_expectations": {
+        "required_observations": [
+          {"code": "RELATED_SOURCES_DISCOVERED", "value": 2}
+        ],
+        "forbidden_observations": [
+          {"code": "RELATED_SOURCES_SEEDED"}
+        ]
+      },
+      "recommendation_data": {
+        "baseline_requirements": [
+          {"name": "operational_mass", "any_of": [{"property_key": "operational_mass_kg"}], "gap_if_missing": "document_join", "detail": "Operational mass must include a selected compatible battery."}
+        ],
+        "known_gaps": []
+      }
+    }
+  }
+}
