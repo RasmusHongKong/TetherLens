@@ -232,7 +232,10 @@ class HiltiAdapter(ManufacturerAdapter):
         except (TypeError, ValueError):
             return []
 
-        state = payload.get("apollo", {}).get("state", {})
+        state = payload.get("apollo.state")
+        if not isinstance(state, dict):
+            apollo = payload.get("apollo")
+            state = apollo.get("state", {}) if isinstance(apollo, dict) else {}
         if not isinstance(state, dict):
             return []
 
