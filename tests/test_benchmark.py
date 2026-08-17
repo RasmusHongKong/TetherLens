@@ -1,10 +1,48 @@
 from tetherlens_ingest.benchmark import (
+    score_acquisition_product,
     score_extraction_product,
     score_recommendation_data_product,
     summarize_acquisition,
+    summarize_acquisition_scores,
     summarize_extraction_scores,
     summarize_recommendation_data_scores,
 )
+
+
+def test_acquisition_scoring_requires_discovery_and_forbids_seed_fallback():
+    golden = {
+        "products": {
+            "Example:X0": {
+                "acquisition_expectations": {
+                    "required_observations": [
+                        {"code": "RELATED_SOURCES_DISCOVERED", "value": 2}
+                    ],
+                    "forbidden_observations": [
+                        {"code": "RELATED_SOURCES_SEEDED"}
+                    ],
+                }
+            }
+        }
+    }
+    passing = score_acquisition_product(
+        "Example",
+        "X0",
+        [{"code": "RELATED_SOURCES_DISCOVERED", "value": 2}],
+        golden,
+    )
+    assert passing["passed"] is True
+    assert passing["missing_required"] == []
+    assert passing["forbidden_hits"] == []
+
+    failing = score_acquisition_product(
+        "Example",
+        "X0",
+        [{"code": "RELATED_SOURCES_SEEDED", "value": 2}],
+        golden,
+    )
+    assert failing["passed"] is False
+    assert failing["missing_required"] == [{"code": "RELATED_SOURCES_DISCOVERED", "value": 2}]
+    assert len(failing["forbidden_hits"]) == 1
 
 
 def test_extraction_scoring_counts_forbidden_claim_as_false_positive():
@@ -116,6 +154,15 @@ def test_summary_helpers_use_separate_dimensions():
         {"manufacturer": "A", "acquisition_succeeded": False, "artifact_count": 0, "acquisition_observations": []},
     ])
     assert acquisition["acquisition_rate"] == 0.5
+
+    acquisition_quality = summarize_acquisition_scores([
+        {"scored": True, "passed": True, "missing_required": [], "forbidden_hits": []},
+        {"scored": True, "passed": False, "missing_required": [{"code": "X"}], "forbidden_hits": [{"code": "Y"}]},
+    ])
+    assert acquisition_quality["products_passed"] == 1
+    assert acquisition_quality["products_failed"] == 1
+    assert acquisition_quality["missing_required_count"] == 1
+    assert acquisition_quality["forbidden_hit_count"] == 1
 
     extraction = summarize_extraction_scores([
         {"scored": True, "true_positive_count": 3, "false_positive_count": 1, "false_negative_count": 1, "forbidden_hits": [], "unexpected_extracted": [{}]},
