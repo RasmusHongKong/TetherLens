@@ -1,5 +1,5 @@
 {
-  "version": "0.3",
+  "version": "0.4",
   "description": "Source-graph expectations layered onto the Batch 1 golden contract.",
   "products": {
     "Hilti:2253847": {
@@ -16,13 +16,19 @@
         {"property_key": "connector.locking_mode"}
       ],
       "ignored_claims": [],
+      "acquisition_expectations": {
+        "required_observations": [
+          {"code": "RELATED_SOURCES_DISCOVERED", "value": 2}
+        ],
+        "forbidden_observations": [
+          {"code": "RELATED_SOURCES_SEEDED"}
+        ]
+      },
       "recommendation_data": {
         "baseline_requirements": [
           {"name": "operational_mass", "any_of": [{"property_key": "operational_mass_kg"}], "gap_if_missing": "document_join", "detail": "Operational mass must include a selected compatible battery."}
         ],
-        "known_gaps": [
-          {"category": "source_discovery", "field": "battery_compatibility_edges", "detail": "B 22-55 and B 22-85 are pre-verified benchmark source seeds; automatic Hilti relationship discovery is not yet implemented."}
-        ]
+        "known_gaps": []
       }
     }
   }
