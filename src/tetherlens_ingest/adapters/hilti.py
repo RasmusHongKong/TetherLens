@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html as html_lib
+import json
 import re
 from urllib.parse import urljoin
 
@@ -36,13 +37,10 @@ class HiltiAdapter(ManufacturerAdapter):
     )
 
     def related_sources(self, identity: ProductIdentity, primary_artifact: SourceArtifact) -> list[SourceRequest]:
-        if not (
-            identity.product_type == ProductType.TOOL
-            and (identity.sku == "2253847" or identity.manufacturer_ids.get("technical_family") == "r13275669")
-        ):
+        if not self._is_sf4_22(identity):
             return []
 
-        discovered = self._discover_battery_sources(primary_artifact)
+        discovered = self._discover_battery_sources(identity, primary_artifact)
         return _prefer_discovered_requests([*discovered, *self._SF4_22_BATTERY_SOURCES])
 
     def extract(self, identity: ProductIdentity, artifacts: list[SourceArtifact]) -> list[CandidateClaim]:
@@ -118,22 +116,20 @@ class HiltiAdapter(ManufacturerAdapter):
                         source_url=primary_url,
                         supporting_source_urls=[battery_claim.source_url],
                         evidence_method="derived",
-                        extractor="hilti.v0.4",
+                        extractor="hilti.v0.5",
                     ))
 
         return _dedupe(claims)
 
     def observe(self, identity: ProductIdentity, artifacts: list[SourceArtifact]) -> list[AcquisitionObservation]:
         observations: list[AcquisitionObservation] = []
-        if not (
-            identity.product_type == ProductType.TOOL
-            and (identity.sku == "2253847" or identity.manufacturer_ids.get("technical_family") == "r13275669")
-        ):
+        if not self._is_sf4_22(identity):
             return observations
 
         battery_artifacts = [artifact for artifact in artifacts if artifact.metadata.get("role") == "battery"]
         discovered_count = sum(
-            artifact.metadata.get("relationship_basis") == "page_link" for artifact in battery_artifacts
+            artifact.metadata.get("relationship_basis") in {"apollo_state", "page_link"}
+            for artifact in battery_artifacts
         )
         seeded_count = sum(
             artifact.metadata.get("relationship_basis") == "benchmark_seed" for artifact in battery_artifacts
@@ -142,9 +138,9 @@ class HiltiAdapter(ManufacturerAdapter):
             observations.append(AcquisitionObservation(
                 code="RELATED_SOURCES_DISCOVERED",
                 value=discovered_count,
-                detail="Hilti battery source edges were discovered from first-party links in the tool page.",
+                detail="Hilti battery source edges were discovered from first-party relationship data in the tool page.",
                 source_url=identity.url,
-                extractor="hilti.v0.4",
+                extractor="hilti.v0.5",
             ))
         if seeded_count:
             observations.append(AcquisitionObservation(
@@ -152,7 +148,7 @@ class HiltiAdapter(ManufacturerAdapter):
                 value=seeded_count,
                 detail="Missing battery source edges were filled from pre-verified benchmark seeds; automatic relationship discovery is incomplete.",
                 source_url=identity.url,
-                extractor="hilti.v0.4",
+                extractor="hilti.v0.5",
             ))
 
         for artifact in battery_artifacts:
@@ -162,7 +158,7 @@ class HiltiAdapter(ManufacturerAdapter):
                     value=str(artifact.metadata.get("battery_model") or "battery"),
                     detail="Related Hilti battery page was fetched but no parseable manufacturer weight was recovered.",
                     source_url=artifact.url,
-                    extractor="hilti.v0.4",
+                    extractor="hilti.v0.5",
                 ))
         return observations
 
@@ -180,6 +176,13 @@ class HiltiAdapter(ManufacturerAdapter):
     @staticmethod
     def operational_mass(tool_body_mass_kg: float, battery_mass_kg: float) -> float:
         return round(tool_body_mass_kg + battery_mass_kg, 6)
+
+    @staticmethod
+    def _is_sf4_22(identity: ProductIdentity) -> bool:
+        return (
+            identity.product_type == ProductType.TOOL
+            and (identity.sku == "2253847" or identity.manufacturer_ids.get("technical_family") == "r13275669")
+        )
 
     @staticmethod
     def _extract_battery_mass_text(artifact: SourceArtifact) -> str | None:
@@ -201,8 +204,91 @@ class HiltiAdapter(ManufacturerAdapter):
         )
         return m.group(1).strip() if m and parse_mass(m.group(1)) else None
 
+    def _discover_battery_sources(
+        self,
+        identity: ProductIdentity,
+        primary_artifact: SourceArtifact,
+    ) -> list[SourceRequest]:
+        requests = [
+            *self._discover_apollo_battery_sources(identity, primary_artifact),
+            *self._discover_linked_battery_sources(primary_artifact),
+        ]
+        return _prefer_discovered_requests(requests)
+
     @staticmethod
-    def _discover_battery_sources(primary_artifact: SourceArtifact) -> list[SourceRequest]:
+    def _discover_apollo_battery_sources(
+        identity: ProductIdentity,
+        primary_artifact: SourceArtifact,
+    ) -> list[SourceRequest]:
+        soup = BeautifulSoup(primary_artifact.body, "html.parser")
+        script = soup.find("script", id="hdms-website-state")
+        if script is None:
+            return []
+        body = script.string or script.get_text(" ", strip=False)
+        if not body:
+            return []
+        try:
+            payload = json.loads(body)
+        except (TypeError, ValueError):
+            return []
+
+        state = payload.get("apollo", {}).get("state", {})
+        if not isinstance(state, dict):
+            return []
+
+        subject_refs = []
+        if identity.sku:
+            subject_refs.append(f"Product:{identity.sku}")
+        family = identity.manufacturer_ids.get("technical_family")
+        if family:
+            subject_refs.append(f"Product:{family}")
+
+        requests: list[SourceRequest] = []
+        for subject_ref in subject_refs:
+            subject = state.get(subject_ref)
+            if not isinstance(subject, dict):
+                continue
+            related = subject.get("relatedProducts")
+            if not isinstance(related, list):
+                continue
+
+            for relation in related:
+                if not isinstance(relation, dict) or relation.get("type") != "BATTERIES_CHARGERS":
+                    continue
+                product_pointer = relation.get("product")
+                if not isinstance(product_pointer, dict):
+                    continue
+                product_ref = product_pointer.get("__ref")
+                if not isinstance(product_ref, str):
+                    continue
+                product = state.get(product_ref)
+                if not isinstance(product, dict):
+                    continue
+
+                title = str(product.get("title") or "")
+                model_match = re.search(r"\bB\s*\d{2}-\d+\b", title, re.I)
+                if not model_match or "battery" not in title.lower():
+                    continue
+                model = re.sub(r"\s+", " ", model_match.group(0)).upper()
+
+                product_id = str(product.get("id") or product_ref.removeprefix("Product:"))
+                url = _apollo_product_url(primary_artifact.url, state, product, product_id)
+                if not url:
+                    continue
+                requests.append(SourceRequest(
+                    url=url,
+                    metadata={
+                        "role": "battery",
+                        "battery_model": model,
+                        "relationship_basis": "apollo_state",
+                        "relationship_subject": subject_ref,
+                        "relationship_product_ref": product_ref,
+                    },
+                ))
+        return _prefer_discovered_requests(requests)
+
+    @staticmethod
+    def _discover_linked_battery_sources(primary_artifact: SourceArtifact) -> list[SourceRequest]:
         soup = BeautifulSoup(primary_artifact.body, "html.parser")
         requests: list[SourceRequest] = []
         for anchor in soup.find_all("a", href=True):
@@ -211,10 +297,10 @@ class HiltiAdapter(ManufacturerAdapter):
                 continue
 
             anchor_text = " ".join(anchor.stripped_strings)
-            model_match = re.search(r"\bB\s*22-\d+\b", anchor_text, re.I)
+            model_match = re.search(r"\bB\s*\d{2}-\d+\b", anchor_text, re.I)
             if not model_match:
                 parent_text = " ".join(anchor.parent.stripped_strings) if anchor.parent else ""
-                model_match = re.search(r"\bB\s*22-\d+\b", parent_text, re.I)
+                model_match = re.search(r"\bB\s*\d{2}-\d+\b", parent_text, re.I)
             if not model_match:
                 continue
 
@@ -247,8 +333,41 @@ class HiltiAdapter(ManufacturerAdapter):
             unit=unit,
             raw_value=raw,
             source_url=url,
-            extractor="hilti.v0.4",
+            extractor="hilti.v0.5",
         )
+
+
+def _apollo_product_url(
+    primary_url: str,
+    state: dict,
+    product: dict,
+    product_id: str,
+) -> str | None:
+    category_pointer = product.get("defaultCategory")
+    if not isinstance(category_pointer, dict):
+        return None
+    category_ref = category_pointer.get("__ref")
+    if not isinstance(category_ref, str) or not category_ref.startswith("Category:"):
+        return None
+    category = state.get(category_ref)
+    if not isinstance(category, dict):
+        return None
+
+    category_ids: list[str] = []
+    path = category.get("path")
+    if isinstance(path, list):
+        for pointer in path:
+            if not isinstance(pointer, dict):
+                continue
+            ref = pointer.get("__ref")
+            if isinstance(ref, str) and ref.startswith("Category:"):
+                category_ids.append(ref.removeprefix("Category:"))
+    category_id = str(category.get("id") or category_ref.removeprefix("Category:"))
+    category_ids.append(category_id)
+    if not category_ids:
+        return None
+    relative = "/c/" + "/".join(category_ids) + f"/{product_id}"
+    return urljoin(primary_url, relative)
 
 
 def _dedupe(claims: list[CandidateClaim]) -> list[CandidateClaim]:
@@ -263,16 +382,16 @@ def _dedupe(claims: list[CandidateClaim]) -> list[CandidateClaim]:
 
 
 def _prefer_discovered_requests(requests: list[SourceRequest]) -> list[SourceRequest]:
+    priority = {"benchmark_seed": 0, "page_link": 1, "apollo_state": 2}
     by_model: dict[str, SourceRequest] = {}
     for request in requests:
-        model = str(request.metadata.get("battery_model") or request.url)
+        model = str(request.metadata.get("battery_model") or request.url).upper()
         existing = by_model.get(model)
         if existing is None:
             by_model[model] = request
             continue
-        if (
-            existing.metadata.get("relationship_basis") != "page_link"
-            and request.metadata.get("relationship_basis") == "page_link"
-        ):
+        existing_priority = priority.get(str(existing.metadata.get("relationship_basis")), 0)
+        request_priority = priority.get(str(request.metadata.get("relationship_basis")), 0)
+        if request_priority > existing_priority:
             by_model[model] = request
     return list(by_model.values())
