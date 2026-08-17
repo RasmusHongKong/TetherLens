@@ -60,6 +60,53 @@ def summarize_acquisition(records: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def score_acquisition_product(
+    manufacturer: str,
+    sku: str | None,
+    observations: list[dict[str, Any]],
+    golden: dict[str, Any],
+) -> dict[str, Any]:
+    key = f"{manufacturer}:{sku}"
+    spec = golden.get("products", {}).get(key)
+    acquisition_spec = spec.get("acquisition_expectations") if spec else None
+    if not acquisition_spec:
+        return {"scored": False, "reason": "NO_ACQUISITION_EXPECTATION"}
+
+    required = list(acquisition_spec.get("required_observations", []))
+    forbidden = list(acquisition_spec.get("forbidden_observations", []))
+    missing_required = [
+        target
+        for target in required
+        if not any(_matches_observation(target, observation) for observation in observations)
+    ]
+    forbidden_hits = [
+        {"forbidden": target, "observation": observation}
+        for target in forbidden
+        for observation in observations
+        if _matches_observation(target, observation)
+    ]
+    return {
+        "scored": True,
+        "passed": not missing_required and not forbidden_hits,
+        "required_count": len(required),
+        "required_matched_count": len(required) - len(missing_required),
+        "missing_required": missing_required,
+        "forbidden_hits": forbidden_hits,
+    }
+
+
+def summarize_acquisition_scores(product_scores: list[dict[str, Any]]) -> dict[str, Any]:
+    scored = [score for score in product_scores if score.get("scored")]
+    passed = sum(bool(score.get("passed")) for score in scored)
+    return {
+        "products_scored": len(scored),
+        "products_passed": passed,
+        "products_failed": len(scored) - passed,
+        "missing_required_count": sum(len(score.get("missing_required", [])) for score in scored),
+        "forbidden_hit_count": sum(len(score.get("forbidden_hits", [])) for score in scored),
+    }
+
+
 def score_extraction_product(
     manufacturer: str,
     sku: str | None,
@@ -234,6 +281,17 @@ def _matches(target: dict[str, Any], claim: dict[str, Any], require_value: bool 
             return False
     if require_value and "value" in target and not _value_equal(target["value"], claim.get("value")):
         return False
+    return True
+
+
+def _matches_observation(target: dict[str, Any], observation: dict[str, Any]) -> bool:
+    for field, expected in target.items():
+        actual = observation.get(field)
+        if field == "value":
+            if not _value_equal(expected, actual):
+                return False
+        elif expected != actual:
+            return False
     return True
 
 
