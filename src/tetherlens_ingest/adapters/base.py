@@ -14,6 +14,7 @@ from tetherlens_ingest.models import (
 
 class ManufacturerAdapter(ABC):
     manufacturer: str
+    recursive_related_sources = False
 
     @abstractmethod
     def extract(self, identity: ProductIdentity, artifacts: list[SourceArtifact]) -> list[CandidateClaim]:
