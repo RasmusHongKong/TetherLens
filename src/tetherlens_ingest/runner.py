@@ -40,6 +40,12 @@ class IngestionRunner:
                     if related_fetches >= self.max_related_sources:
                         break
                     continue
+
+                if artifact.url != request.url and artifact.url in seen_urls:
+                    if related_fetches >= self.max_related_sources:
+                        break
+                    continue
+
                 artifact.metadata.update(request.metadata)
                 seen_urls.add(artifact.url)
                 artifacts.append(artifact)
