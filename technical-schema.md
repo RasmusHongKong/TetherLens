@@ -346,6 +346,7 @@ manufacturer_stated
 manufacturer_pairing
 manufacturer_certification_statement
 certificate_reviewed
+qualified_secondary_exact_sku
 published_geometry
 internally_measured
 internally_tested
@@ -583,7 +584,7 @@ Tool-specific operational fields.
 |---|---|---:|---|
 | `product_id` | UUID | no | PK + FK -> `product.id` |
 | `tool_category_code` | TEXT | no | Expandable controlled vocabulary |
-| `mass_kg` | DECIMAL(12,6) | yes | Current accepted manufacturer-backed mass |
+| `mass_kg` | DECIMAL(12,6) | yes | Current accepted evidence-qualified physical mass |
 | `native_tether_point_status` | ENUM | no | Default `unknown` |
 
 ### Constraints
@@ -591,7 +592,7 @@ Tool-specific operational fields.
 - Parent `product.product_type` must equal `tool`.
 - `mass_kg > 0` when populated.
 - `mass_kg` may be null while the catalogue record is being built.
-- A non-null operational `mass_kg` used by recommendation logic must have a matching `accepted_fact_link` to an accepted manufacturer-backed Claim.
+- A non-null operational `mass_kg` used by recommendation logic must have a matching `accepted_fact_link` to an accepted Claim supported by evidence permitted for physical mass. Manufacturer evidence is preferred; a reputable verified exact-SKU secondary source may be accepted when manufacturer mass is unavailable or incomplete.
 - `native_tether_point_status = observed_absent` does not imply that the tool is untetherable.
 
 ---
@@ -1006,7 +1007,7 @@ accepted_fact_link
 - subject_type = product
 - subject_id = <tool product id>
 - property_key = mass_kg
-- claim_id = <accepted manufacturer mass claim>
+- claim_id = <accepted evidence-qualified mass claim>
 ```
 
 ---
@@ -1199,7 +1200,7 @@ For a catalogued Tool to participate in load-based recommendations:
 1. `tool.mass_kg` must be populated.
 2. `mass_kg` must have an `accepted_fact_link`.
 3. The linked Claim must be accepted.
-4. At least one Evidence row for that Claim must trace to acceptable manufacturer information.
+4. At least one Evidence row for that Claim must satisfy the physical-mass evidence policy: manufacturer evidence is preferred; a reputable verified exact-SKU secondary source may be accepted when manufacturer mass is unavailable or incomplete.
 5. For a particular recommendation path, sufficient physical-interface information must exist to establish a valid tool-side connection directly or through a ToolAttachment.
 
 A native tether point is not mandatory.
@@ -1228,9 +1229,9 @@ The interface does not need every possible dimension populated.
 
 It needs the facts required by the rule being applied.
 
-## 13.4 Manufacturer-source validation
+## 13.4 Property-specific source validation
 
-For mandatory tool mass and rated capacity, acceptable supporting Source types are initially:
+For physical tool or battery mass, manufacturer evidence is preferred. Acceptable manufacturer Source types are initially:
 
 ```text
 manufacturer_datasheet
@@ -1239,9 +1240,11 @@ manufacturer_manual
 manufacturer_declaration
 ```
 
-A manufacturer compatibility statement may support compatibility/relationship Claims but should not automatically be treated as the source of a rated load unless it actually states that rating and the review process accepts it as manufacturer technical information.
+Where manufacturer mass is unavailable or incomplete, `secondary_published` may support an accepted physical-mass Claim when the resolved source is reputable, verified against the exact SKU/model, and recorded with `evidence_method = qualified_secondary_exact_sku`. Secondary mass must never be represented as manufacturer-stated evidence.
 
-Internal measurement is acceptable for geometry but not as the normal source of tool mass or manufacturer-rated component capacity.
+For rated capacity of Tethers, ToolAttachments, AnchorAttachments, and Containers, manufacturer evidence remains mandatory. A manufacturer compatibility statement may support compatibility/relationship Claims but should not automatically be treated as the source of a rated load unless it actually states that rating and the review process accepts it as manufacturer technical information.
+
+Internal measurement is acceptable for geometry but not as the normal source of catalogue tool mass or manufacturer-rated component capacity.
 
 ---
 
@@ -1271,7 +1274,7 @@ The following involve cross-table semantics and should initially be enforced in 
 - physical interface role is valid for its parent product type;
 - accepted fact link subject/property matches its Claim;
 - accepted operational value equals normalized accepted Claim value;
-- mandatory mass/capacity Claims have acceptable manufacturer evidence;
+- mandatory tool-mass Claims satisfy the physical-mass evidence policy, and rated-capacity Claims have acceptable manufacturer evidence;
 - interface facts required by a compatibility rule have sufficient evidence;
 - declared relationship interfaces belong to their declared products;
 - constraint value shape matches `constraint_key`;
@@ -1735,7 +1738,7 @@ Version-controlled deterministic code is the default.
 The schema is ready for implementation when all of the following are true:
 
 1. A real Batch 1 can represent tools, tethers, attachments, and connectors without schema-specific exceptions.
-2. Tool mass and component capacity are queryable directly and traceable to accepted manufacturer-backed Claims.
+2. Tool mass is queryable directly and traceable to an accepted evidence-qualified Claim, while component capacity is queryable directly and traceable to an accepted manufacturer-backed Claim.
 3. Tool features and component connection points can participate in the same interface reasoning model.
 4. Connector specifications can be reused across multiple products.
 5. Multi-leg tethers require data rows rather than schema changes.
