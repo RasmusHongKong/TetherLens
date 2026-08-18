@@ -57,13 +57,17 @@ A manufacturer datasheet is the preferred source for rated capacity.
 
 An internal calliper measurement may be perfectly appropriate for a connector opening.
 
+A reputable exact-SKU secondary source may be appropriate for a physical tool or battery mass when the manufacturer does not publish a usable value.
+
 Structured field evidence may be more useful than a manufacturer brochure for practical usability.
 
-### 4. Mandatory safety facts use strict evidence requirements
+### 4. Mandatory safety facts use property-specific evidence requirements
 
-Tool mass and rated component capacity should come from manufacturer information.
+Manufacturer-rated capacities, restrictions and compliance declarations should come from manufacturer evidence.
 
-They should not be visually inferred or estimated for recommendation purposes.
+Physical tool and battery mass should be established from trustworthy evidence bound to the exact product identity. Manufacturer evidence is preferred, but a reputable exact-SKU secondary source may be accepted when manufacturer mass is unavailable or incomplete.
+
+Physical mass should not be visually inferred, estimated from a similar model, or taken from an unverified search/aggregate result for persistent catalogue use.
 
 ### 5. Missing secondary evidence should constrain inference, not automatically block a recommendation
 
@@ -197,6 +201,7 @@ Evidence
 - `manufacturer_pairing`
 - `manufacturer_certification_statement`
 - `certificate_reviewed`
+- `qualified_secondary_exact_sku`
 - `published_geometry`
 - `internally_measured`
 - `internally_tested`
@@ -283,24 +288,28 @@ outcome:
 
 ### Tool mass
 
-Required source:
+Required evidence:
 
-- manufacturer information.
+- trustworthy physical-mass evidence bound to the exact tool or battery identity.
 
-Acceptable examples:
+Preferred examples:
 
-- datasheet;
+- manufacturer datasheet;
 - technical product page;
 - manufacturer manual.
 
-Not acceptable as the normal recommendation source:
+Acceptable fallback where manufacturer mass is unavailable or incomplete:
+
+- a reputable secondary product-detail source that is verified against the exact SKU/model and clearly states the relevant physical mass.
+
+Not acceptable as the normal catalogue source:
 
 - visual estimation;
 - user estimate;
-- retailer listing where manufacturer data is available;
-- inferred mass from a similar model.
+- inferred mass from a similar model;
+- a secondary search/aggregate page whose resolved identity is not the expected exact product.
 
-If manufacturer mass cannot be established, the tool is not recommendation-ready for load-based reasoning.
+Secondary physical-mass evidence must remain labelled as secondary evidence; it must never be represented as manufacturer-stated evidence.
 
 ### Rated capacity
 
@@ -461,18 +470,27 @@ A hard load-capacity rule requires strong support.
 
 A practical ranking preference such as reducing free tether length in congested areas can tolerate a broader evidence base.
 
+## Evidence identity and priority
+
+Evidence priority only applies after source identity has been verified for the claim being asserted.
+
+A request to a manufacturer domain does not automatically make the resolved response manufacturer evidence. Before a fact receives `manufacturer_stated` status, the resolved product-detail page or document must be bound to the expected product identity. Likewise, a secondary source must resolve to the expected exact-SKU product record before it can receive exact-SKU secondary status.
+
+For properties where evidence priority is defined, reconciliation should be evaluated at the **highest applicable verified priority**. Lower-priority disagreement remains part of the provenance record but does not automatically block a claim when a higher-priority verified source decisively establishes the value.
+
 ## Conflicting evidence
 
-The MVP should not require automatic contradiction resolution.
+The MVP should preserve conflicting evidence rather than discard it.
 
 Where sources disagree:
 
-1. preserve both evidence records;
-2. mark the affected claim as `disputed`;
-3. require human review before accepting a mandatory fact;
-4. retain the superseded or rejected evidence for traceability.
+1. preserve all evidence records;
+2. determine the highest applicable verified evidence priority for the property;
+3. if claims at that highest priority disagree materially, mark the affected fact as disputed and require reconciliation/review before using it as a mandatory fact;
+4. if the highest-priority verified claims agree, they may establish the accepted value even when lower-priority evidence differs;
+5. retain lower-priority conflicting or superseded evidence for traceability.
 
-Mandatory safety facts should not be silently resolved by choosing the most convenient source.
+Mandatory safety facts should not be silently resolved by convenience, request order, or unverified source labels.
 
 ## Derived claims and dependency
 
