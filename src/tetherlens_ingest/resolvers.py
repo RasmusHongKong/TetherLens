@@ -4,8 +4,8 @@ import html
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
-from urllib.parse import quote_plus, urljoin, urlparse
 from typing import Protocol
+from urllib.parse import quote_plus, urljoin, urlparse
 
 from .http import Fetcher
 from .models import (
@@ -50,11 +50,10 @@ class IndexedMassCandidate:
 class SearchIndexedToolMassResolver:
     """Resolve tool-body mass from qualified search-index evidence.
 
-    The resolver is provider-neutral. Search discovers candidate evidence; this
-    class independently requires exact manufacturer/SKU identity and explicit
-    tool-mass language. A single indexed result is accepted only from a
-    qualified industrial-distribution domain. Otherwise two independent domains
-    must corroborate the same mass before it is promoted to a claim.
+    Search discovers candidate evidence; this class independently requires
+    exact manufacturer/SKU identity and explicit tool-mass language. A single
+    indexed result is accepted only from a qualified industrial-distribution
+    domain. Otherwise two independent domains must corroborate the same mass.
     """
 
     extractor = "search_index.tool_mass.v0.1"
@@ -108,7 +107,10 @@ class SearchIndexedToolMassResolver:
                 source_url=identity.url,
                 extractor=self.extractor,
             ))
-            candidates.extend(self._candidate(result, identity) for result in results if self._candidate(result, identity))
+            for result in results:
+                candidate = self._candidate(result, identity)
+                if candidate:
+                    candidates.append(candidate)
 
             accepted = self._accepted(candidates)
             if accepted:
@@ -134,7 +136,7 @@ class SearchIndexedToolMassResolver:
         ]
 
     def _candidate(self, result: SearchResult, identity: ProductIdentity) -> IndexedMassCandidate | None:
-        text = re.sub(r"\s+", " ", html.unescape(f"{result.title} {result.snippet}")).strip()
+        text = self._plain_text(f"{result.title} {result.snippet}")
         if not self._identity_matches(text, identity):
             return None
         raw_mass = self._explicit_tool_mass(text)
@@ -171,14 +173,10 @@ class SearchIndexedToolMassResolver:
         return None
 
     def _accepted(self, candidates: list[IndexedMassCandidate]) -> list[IndexedMassCandidate]:
-        # One exact-SKU result from a pre-qualified industrial distributor is
-        # sufficient for this evidence tier.
         qualified = sorted((c for c in candidates if c.qualified_domain), key=lambda c: c.result.rank)
         if qualified:
             return [qualified[0]]
 
-        # Other sources require independent-domain corroboration. Bucket values
-        # at gram precision so lb/kg rendering differences converge.
         by_mass: dict[float, list[IndexedMassCandidate]] = defaultdict(list)
         for candidate in candidates:
             by_mass[round(candidate.mass_kg, 3)].append(candidate)
@@ -223,14 +221,16 @@ class SearchIndexedToolMassResolver:
     def _is_qualified_domain(self, domain: str) -> bool:
         return any(domain == allowed or domain.endswith(f".{allowed}") for allowed in self.qualified_domains)
 
+    @staticmethod
+    def _plain_text(raw: str) -> str:
+        text = re.sub(r"<script\b[^>]*>.*?</script>", " ", raw, flags=re.I | re.S)
+        text = re.sub(r"<style\b[^>]*>.*?</style>", " ", text, flags=re.I | re.S)
+        text = re.sub(r"<[^>]+>", " ", text)
+        return re.sub(r"\s+", " ", html.unescape(text)).strip()
+
 
 class GraingerToolMassResolver:
-    """Legacy direct-fetch experiment retained for comparison only.
-
-    Grainger currently returns 403 to direct automated requests in both GitHub
-    Actions and local testing, so this is no longer the preferred production
-    resolution path. It remains useful for regression/failure-isolation tests.
-    """
+    """Legacy direct-fetch experiment retained for failure-isolation tests."""
 
     extractor = "grainger.tool_mass.v0.1"
     search_url = "https://www.grainger.ca/en/search?searchQuery={query}"
@@ -273,7 +273,7 @@ class GraingerToolMassResolver:
 
         product.metadata.update({"role": "secondary_product", "provider": "Grainger"})
         out.artifacts.append(product)
-        text = SearchIndexedToolMassResolver._text(product.body) if hasattr(SearchIndexedToolMassResolver, "_text") else re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html.unescape(product.body))).strip()
+        text = SearchIndexedToolMassResolver._plain_text(product.body)
         if not SearchIndexedToolMassResolver._identity_matches(text, identity):
             return out
         raw_mass = SearchIndexedToolMassResolver._explicit_tool_mass(text)
