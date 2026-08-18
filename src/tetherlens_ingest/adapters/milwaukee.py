@@ -25,7 +25,7 @@ _EVIDENCE_PRIORITY = {"manufacturer_stated": 2, "qualified_secondary_exact_sku":
 
 class MilwaukeeAdapter(ManufacturerAdapter):
     manufacturer = "Milwaukee"
-    extractor = "milwaukee.v0.7"
+    extractor = "milwaukee.v0.8"
     recursive_related_sources = True
 
     def related_sources(self, identity: ProductIdentity, source_artifact: SourceArtifact) -> list[SourceRequest]:
@@ -358,11 +358,27 @@ def _contains_exact_sku(body: str, sku: str) -> bool:
     return bool(sku and re.search(rf"(?<![A-Z0-9]){re.escape(sku)}(?![A-Z0-9])", body, re.I))
 
 
+def _is_milwaukee_product_detail_url(url: str, expected_sku: str) -> bool:
+    parts = urlsplit(url)
+    if parts.scheme.lower() != "https" or parts.netloc.lower() not in {"milwaukeetool.com", "www.milwaukeetool.com"}:
+        return False
+    segments = [segment for segment in parts.path.split("/") if segment]
+    if len(segments) == 2:
+        return segments[0].lower() == "products" and segments[1].upper() == expected_sku.upper()
+    return bool(
+        len(segments) == 4
+        and segments[0].lower() == "products"
+        and segments[1].lower() == "details"
+        and segments[2]
+        and segments[3].upper() == expected_sku.upper()
+    )
+
+
 def _is_verified_manufacturer_page(artifact: SourceArtifact, expected_sku: str) -> bool:
     return bool(
         expected_sku
         and artifact.source_type == SourceType.MANUFACTURER_WEBPAGE
-        and _contains_exact_sku(artifact.url, expected_sku)
+        and _is_milwaukee_product_detail_url(artifact.url, expected_sku)
         and _contains_exact_sku(artifact.body, expected_sku)
     )
 
