@@ -15,6 +15,8 @@ jobs:
   live-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      BRAVE_SEARCH_API_KEY: ${{ secrets.BRAVE_SEARCH_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
