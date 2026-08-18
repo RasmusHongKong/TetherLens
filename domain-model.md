@@ -34,7 +34,7 @@ Typical attributes may include:
 - manufacturer-declared limits
 - catalogue status
 
-Tool mass is a mandatory baseline fact for a catalogued tool to participate in load-based recommendations.
+Tool mass is a mandatory baseline fact for a catalogued tool to participate in load-based recommendations. The mass should be established from trustworthy evidence bound to the exact tool identity. Manufacturer evidence is preferred; a reputable exact-SKU secondary source may be used for physical mass where manufacturer data is unavailable or incomplete, with the evidence method and provenance retained.
 
 A tool does **not** need to have a manufacturer-documented tether point in order to be tetherable. A recommendation may use:
 
@@ -241,6 +241,7 @@ Examples:
 - manufacturer datasheet;
 - manufacturer product page;
 - declaration of conformity;
+- reputable secondary product-detail source;
 - internal measurement record;
 - internal test record;
 - standard or formal guidance;
@@ -307,7 +308,7 @@ Examples:
 - `material = polyester`
 - `gate_opening = 14 mm`
 
-Primitive claims normally come from manufacturer data or internal measurement.
+Primitive claims normally come from manufacturer data, qualified exact-product secondary evidence where the property policy permits it, or internal measurement.
 
 ### Declared constraint
 
@@ -344,7 +345,7 @@ The recommendation engine should support two tool-resolution modes.
 
 #### Catalogue tool
 
-The preferred path is an exact or sufficiently specific match to a recommendation-ready Tool record. Manufacturer-backed catalogue facts can then be used directly.
+The preferred path is an exact or sufficiently specific match to a recommendation-ready Tool record. Verified catalogue facts can then be used directly, with provenance indicating whether an accepted physical property came from manufacturer evidence, qualified exact-SKU secondary evidence, or another permitted method.
 
 #### Generic tool profile
 
@@ -364,7 +365,7 @@ A GenericToolProfile is runtime context, not an accepted catalogue Tool record. 
 
 The current work situation relevant to the recommendation.
 
-Examples:
+Examples include:
 
 - restricted space;
 - snag risk;
@@ -433,9 +434,7 @@ For baseline recommendations, TetherLens needs three classes of mandatory fact.
 
 ### 1. Object mass
 
-For tools, the mass should come from manufacturer information.
-
-TetherLens should not infer tool mass from an image.
+For catalogued tools, physical mass should be established from trustworthy evidence bound to the exact product identity. Manufacturer evidence is preferred; a reputable exact-SKU secondary source may be accepted where manufacturer mass is unavailable or incomplete. TetherLens should not infer persistent catalogue mass from an image or a similar product.
 
 ### 2. Rated capacity of applicable load-bearing components
 
