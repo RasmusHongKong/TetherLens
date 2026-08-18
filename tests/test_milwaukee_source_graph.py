@@ -29,9 +29,9 @@ class FakeFetcher:
             <a href="/Products/2607-20">2607-20 M18 Hammer Drill/Driver</a>
             <a href="/Products/48-11-1815">48-11-1815 M18 Compact Battery</a>
             """
-        elif url.endswith("/48-11-1828"):
+        elif "milwaukeetool.com" in url and url.endswith("/48-11-1828"):
             body = "<h1>48-11-1828 M18 REDLITHIUM XC Battery</h1><div>Specs Loading</div>"
-        elif url.endswith("/48-11-1815"):
+        elif "milwaukeetool.com" in url and url.endswith("/48-11-1815"):
             body = "<h1>48-11-1815 M18 Compact Battery</h1><div>Specs Loading</div>"
         elif "grainger.com" in url and "2607-20" in url:
             body = "<h1>Milwaukee 2607-20</h1><div>Tool Weight 3 lb</div>"
