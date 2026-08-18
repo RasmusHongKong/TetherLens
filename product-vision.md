@@ -129,7 +129,7 @@ Whether the configuration satisfies the relevant hard constraints and is practic
 
 ### Supporting evidence
 
-What supports the underlying product facts and recommendation rules, such as manufacturer documentation, internal measurement, standards, engineering assessment, testing, or structured field evidence.
+What supports the underlying product facts and recommendation rules, such as manufacturer documentation, qualified exact-product secondary evidence where the property policy permits it, internal measurement, standards, engineering assessment, testing, or structured field evidence.
 
 ### Manufacturer endorsement
 
@@ -215,7 +215,11 @@ Where the relevant product properties, interfaces, limits, and compatibility rul
 
 ### 8. Safety-critical facts should not be guessed
 
-Tool mass and rated component capacity should come from manufacturer information.
+Physical tool and battery mass should be established from trustworthy evidence bound to the exact product identity. Manufacturer evidence is preferred; where manufacturer mass is unavailable or incomplete, a reputable verified exact-SKU secondary source may be accepted for physical mass.
+
+Rated capacity of every applicable load-bearing component must come from manufacturer information.
+
+Neither physical mass nor rated capacity should be visually inferred, guessed from a similar product, or taken from an unverified aggregate/search result for catalogue recommendation purposes.
 
 Interface compatibility should be established through published geometry, internal measurement, explicit manufacturer compatibility, or another sufficiently reliable method.
 
