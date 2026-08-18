@@ -2,27 +2,21 @@
 
 ## Status
 
-Initial benchmark specification and exploratory baseline, created 2026-08-14.
+Initial benchmark specification created 2026-08-14 and consolidated 2026-08-18 after the first Hilti and Milwaukee acquisition experiments.
 
 This benchmark tests the main supply-side uncertainty in TetherLens:
 
-> Can a manufacturer product identity be converted into recommendation-ready structured knowledge with sufficiently little product-specific human effort to scale to hundreds or thousands of products?
+> Can a manufacturer product identity be converted into recommendation-ready structured knowledge with sufficiently little product-specific human effort and acquisition cost to scale across manufacturer catalogues?
 
-The benchmark deliberately measures **data availability** separately from **data accessibility**.
+`benchmark-goals.md` defines the current success criteria and should be read alongside this document.
 
-A fact may exist publicly but still be expensive to ingest if it is hidden behind dynamic rendering, spread across multiple documents, represented inconsistently across variants, or difficult to normalize.
-
-The benchmark is not intended to prove that a human or an LLM can eventually find a value. It is intended to test whether repeatable acquisition and normalization strategies can do most of the work.
+The important distinction is between **data availability**, **data accessibility**, and **recommendation readiness**. A product can be acquired successfully while still failing to provide the facts needed for a safe recommendation.
 
 ---
 
-# 1. Frozen Batch 1 scope
+# 1. Batch 1 scope
 
-The full Batch 1 product list is frozen apart from one correction:
-
-- Milwaukee kit `2602-22DC` is replaced by the canonical tool-only identity `2602-20`.
-
-The first benchmark run covers four deliberately different manufacturer patterns:
+Batch 1 covers four deliberately different manufacturer patterns:
 
 - NLG
 - Hilti
@@ -39,689 +33,250 @@ The current subset contains 12 canonical products:
 | Milwaukee | 1 |
 | **Total** | **12** |
 
-Detailed product-level results are stored in `ingestion-benchmark-batch1.csv`.
+Detailed product-level cases are stored in `ingestion-benchmark-batch1.csv`.
+
+The primary Milwaukee development SKU is now:
+
+```text
+2607-20 — M18 1/2 in Hammer Drill/Driver
+```
+
+This replaces `2602-20` as the normal Milwaukee development case. `2602-20` is a legacy/discontinued-product hard case and should be retained for later evaluation rather than used to shape the baseline Milwaukee architecture.
 
 ---
 
 # 2. Cordless-tool operational mass convention
 
-For TetherLens load reasoning, a battery-powered power tool must use its **operational mass**, including the installed battery.
+For TetherLens load reasoning, a battery-powered tool must use its **operational mass**, including the installed battery.
 
-Bare-tool mass is not sufficient because the tool is not used in that state.
-
-The benchmark must therefore record separately:
+The benchmark must therefore represent separately:
 
 - tool-body mass;
 - compatible battery configuration(s);
 - battery mass; and
-- derived operational mass for the configuration being evaluated.
+- derived operational mass profile(s).
 
-Example from the first Hilti test:
-
-```text
-SF 4-22 tool body mass = 1.30 kg
-B 22-55 battery mass   = 0.55 kg
---------------------------------
-operational mass       = 1.85 kg
-```
-
-or:
+Conceptually:
 
 ```text
-SF 4-22 tool body mass = 1.30 kg
-B 22-85 battery mass   = 0.76 kg
---------------------------------
-operational mass       = 2.06 kg
+tool-body mass + installed battery mass = operational mass profile
 ```
 
-Both component masses are available from first-party Hilti technical data.
+A cordless tool can have several valid operational mass profiles when several compatible batteries exist.
 
-This confirms that a single invariant `tool.mass_kg` is not always sufficient for cordless products. The schema should eventually represent operational mass profiles/configurations rather than silently storing bare-tool mass or choosing an arbitrary battery.
-
-This schema change should be made after the benchmark has tested the pattern across more than one power-tool manufacturer.
+The benchmark must not silently choose an arbitrary battery or treat bare-tool mass as the final reasoning value.
 
 ---
 
-# 3. Benchmark questions
+# 3. Source-graph ingestion model
 
-For every product, the benchmark asks the following questions in order.
+The Hilti work established the preferred architecture: treat product evidence as a graph rather than expecting one page to contain every required fact.
 
-## 3.1 Discovery
-
-Given a manufacturer plus model/SKU/product code:
-
-1. Can the canonical first-party product page be found deterministically?
-2. Is there a manufacturer catalogue/listing surface from which products can be enumerated?
-3. Are there stable product IDs, SKUs, variant IDs, family IDs, or URLs that can be retained for refreshes?
-
-## 3.2 Acquisition
-
-Which source channels are available?
+A typical cordless-tool graph is:
 
 ```text
-structured JSON / API-like endpoint
-structured static HTML
-semi-structured static HTML
-dynamically rendered HTML
-manufacturer PDF / technical document
-manufacturer relationship / related-products data
-image-only information
+tool identity
+  -> related / recommended / kit battery relationship(s)
+  -> tool-body mass
+  -> battery mass
+  -> derived operational mass profile(s)
 ```
 
-The benchmark records source type rather than treating all webpages as equivalent.
+Hilti often exposes these nodes and edges entirely within its first-party ecosystem.
 
-## 3.3 Extraction
+Milwaukee should use the **same conceptual graph**, but the evidence may cross publisher boundaries. For example:
 
-Can deterministic extraction recover candidate low-level facts such as:
+```text
+Milwaukee tool identity
+  -> Milwaukee kit / product relationship
+  -> Milwaukee battery identity
+  -> qualified exact-SKU distributor fact where first-party physical data is incomplete
+  -> derived operational mass
+```
 
-- identity;
-- mass / rated capacity;
-- length;
-- product form;
-- connector/interface type;
-- locking/action characteristics;
-- material;
-- declared restrictions;
-- product relationships; and
-- document links?
+Cross-source ingestion is therefore allowed when the property-specific evidence policy permits it. The fact source and evidence method must remain explicit in provenance.
 
-An LLM may later be tested as a document-extraction aid, but **LLM browsing product-by-product is not the baseline ingestion strategy**.
+The downstream product graph should look the same regardless of whether every operand came from one publisher.
 
-## 3.4 Normalization
+---
 
-Can extracted values be converted to TetherLens vocabulary and canonical units without product-specific code?
+# 4. Evidence qualification
+
+Evidence requirements depend on the property being asserted.
 
 Examples:
 
-```text
-15 lb -> 6.803886 kg
-80cm to 120cm -> min_length_mm=800, max_length_mm=1200
-"double action" -> opening_action_count=2
-```
+- manufacturer-rated tether capacity, restrictions and standards/compliance claims should normally require manufacturer evidence;
+- tool-body or battery physical mass may be accepted from a reputable exact-SKU industrial distributor when manufacturer evidence is unavailable or incomplete;
+- tool/battery compatibility should preferably come from manufacturer relationships, kit composition or explicit manufacturer compatibility data;
+- interface geometry may require internal measurement if it is not publicly published.
 
-Normalization must preserve the source value in Evidence while writing normalized candidate Claims separately.
+A distributor fact must never be represented as manufacturer-stated evidence.
 
-## 3.5 Evidence qualification
+Exact model/SKU identity, raw evidence, source URL and derivation provenance must be retained.
 
-Does the source meet the evidence requirement for the Claim?
-
-Examples:
-
-- manufacturer technical page: acceptable for manufacturer-stated capacity;
-- manufacturer datasheet: acceptable for manufacturer-stated capacity;
-- internal measurement: acceptable for connector geometry;
-- retailer page: potentially useful for discovery/corroboration but not the normal source for mandatory manufacturer mass/capacity.
-
-## 3.6 Recommendation-readiness
-
-After automated acquisition/extraction, which mandatory facts remain missing?
-
-The benchmark distinguishes:
-
-```text
-available and machine-extractable
-available but requires another manufacturer source
-available but requires document extraction
-not publicly established
-requires internal measurement
-requires product-specific engineering review
-```
+Conflicting values should remain visible and be reconciled explicitly.
 
 ---
 
-# 4. Benchmark metrics
+# 5. Acquisition progression
 
-The benchmark should collect the following metrics once adapters are executable.
+The preferred ingestion order is progressive and cost-aware:
 
-## Discovery metrics
+1. deterministic manufacturer catalogue/product sources;
+2. manufacturer APIs, embedded state, related products, kit composition, regional pages and technical documents;
+3. deterministic qualified secondary sources such as exact-SKU industrial distributor records where the property policy permits them;
+4. evidence reconciliation and derived configuration profiles;
+5. paid/general search, browser automation or manual research only for genuinely difficult unresolved cases.
 
-- exact first-party discovery rate;
-- products enumerated from manufacturer catalogue surfaces;
-- duplicate/variant resolution rate;
-- stable identifier coverage.
+Paid web search should **not** be the default acquisition path for ordinary products. It is a later fallback capability whose cost and success rate should be measured separately.
 
-## Acquisition metrics
-
-- requests/sources required per product;
-- percentage with structured catalogue endpoints;
-- percentage with static parseable HTML;
-- percentage requiring dynamic/JS acquisition;
-- percentage with downloadable technical documents;
-- document download success rate.
-
-## Extraction metrics
-
-- primitive candidate Claims extracted per product;
-- mandatory scalar fact yield before human review;
-- field-level extraction precision after review;
-- unit-normalization success rate;
-- declared-constraint extraction yield;
-- relationship extraction yield.
-
-## Readiness metrics
-
-- percentage recommendation-ready from public first-party information alone;
-- percentage requiring an additional manufacturer document;
-- percentage requiring internal measurement;
-- percentage blocked by missing mandatory manufacturer data;
-- blocking field distribution.
-
-## Human-effort metrics
-
-- human review minutes per product;
-- LLM-assisted extraction rate;
-- manual research rate;
-- manual correction rate;
-- product-specific code/change rate.
-
-## Reuse metrics
-
-- products handled by an existing manufacturer adapter without code changes;
-- reusable connector/interface measurements created;
-- products unlocked per reusable measurement;
-- new schema concepts required per batch;
-- bespoke exception rate.
-
-## Refresh metrics
-
-A later repeat run should also record:
-
-- source changes detected;
-- unchanged facts correctly retained;
-- candidate changes generated rather than silently accepted;
-- discontinued/redirected products detected;
-- adapter breakage rate.
+A secondary-source access failure should also not invalidate already successful manufacturer acquisition; fallback channels must fail independently.
 
 ---
 
-# 5. Acquisition tiers
-
-These tiers describe ingestion cost, not product quality.
-
-## Tier A — deterministic structured acquisition
-
-Typical characteristics:
-
-- machine-readable catalogue/listing surface;
-- highly regular product pages;
-- stable field labels;
-- downloadable supporting documents;
-- little product-specific parsing logic.
-
-Expected strategy:
-
-```text
-manufacturer adapter -> deterministic extraction -> normalization -> review
-```
-
-## Tier B — deterministic multi-source acquisition
-
-Facts are public and structured enough to automate, but must be joined across:
-
-- product page;
-- regional page;
-- battery/accessory page;
-- technical document;
-- related-products relationship; or
-- manufacturer technical library.
-
-Expected strategy:
-
-```text
-manufacturer adapter -> source graph -> deterministic/document extraction -> normalization -> review
-```
-
-## Tier C — difficult acquisition / enrichment
-
-Typical characteristics:
-
-- dynamic specs;
-- sparse manufacturer pages;
-- inconsistent variants;
-- important facts only in documents or hidden endpoints;
-- missing interface geometry.
-
-A manufacturer-specific dynamic/API adapter, document extraction, internal measurement, or limited human research may be required.
-
-## Tier D — source blocked
-
-Mandatory facts cannot be established from acceptable sources.
-
-No amount of better parsing makes the product recommendation-ready until the underlying evidence gap is addressed.
-
----
-
-# 6. Initial exploratory baseline
-
-This first run is a source-surface audit rather than a timed executable scraper run. It establishes what the future adapters need to target.
+# 6. Manufacturer patterns
 
 ## 6.1 NLG
 
-### Observed acquisition pattern
+NLG remains the most ingestion-friendly pattern in the first batch:
 
-NLG currently provides an unusually ingestion-friendly combination of:
+- regular product pages;
+- useful collection/listing structure;
+- downloadable product documents;
+- strong load/capacity coverage; and
+- recurring interface-geometry gaps that may be solved through reusable measurements.
 
-1. category/collection pages;
-2. machine-readable collection JSON views;
-3. regular product pages with repeated Description / Specification / Features / Downloads sections; and
-4. downloadable product datasheets, inspection checklists, and instructions.
-
-A verified collection JSON example is:
-
-```text
-https://neverletgo.com/collections/anchor-points?view=json
-```
-
-The response contains product title, `max_load`, internal product/variant IDs, canonical product URL, image URLs, price, availability, and other listing metadata.
-
-A second verified JSON collection is:
-
-```text
-https://neverletgo.com/collections/tool-bags?view=json
-```
-
-which includes the MEWP Bag and its `max_load` and canonical URL.
-
-### Tested products
-
-#### 101372 — Bungee Tool Lanyard
-
-Public first-party page exposes:
-
-- 5 kg / 11 lb maximum load;
-- 80–120 cm length range;
-- 360° Rotobiner;
-- two-stage/dual-action locking gate;
-- climbing-cord loop;
-- standards declarations; and
-- datasheet/instruction links.
-
-Main remaining gap for generic cross-brand interface reasoning:
-
-- connector gate/internal geometry.
-
-#### 101363 — 360 D Ring Loop Tool Tether
-
-Public page and text-extractable PDF expose:
-
-- 3 kg maximum load;
-- 200 x 25 mm overall dimensions;
-- loop/cinch attachment method;
-- 360° D-ring;
-- maximum lanyard length; and
-- manufacturer evidence/documentation.
-
-Main remaining gap:
-
-- D-ring/interface geometry required for generic connector fit rules.
-
-#### 101420 — Superlight Safety Tool Belt
-
-Public page and catalogue JSON expose:
-
-- 30 kg overall maximum load;
-- multiple D-ring anchor points;
-- triple-action buckle;
-- 76–139 cm adjustment range;
-- standards declarations; and
-- downloadable documentation.
-
-Remaining question:
-
-- exact per-anchor capacity/geometry needed to use individual belt anchor points in generic cross-brand reasoning.
-
-#### 101423 — MEWP Bag
-
-Public page and catalogue JSON expose:
-
-- 30 kg overall bag load;
-- 5 kg internal anchor/daisy-chain load per point;
-- integrated anchor points;
-- dimensions;
-- heavy-duty PVC construction;
-- maximum lanyard length; and
-- downloadable documentation.
-
-Main remaining gap:
-
-- interface geometry for generic connector engagement.
-
-### Preliminary NLG assessment
-
-```text
-Discovery:             strong
-Catalogue enumeration: strong
-Static extraction:     strong
-Document channel:      strong
-Mandatory load data:   strong
-Interface geometry:    recurring enrichment gap
-Likely tier:           A + reusable measurement enrichment
-```
-
-NLG is the clearest initial candidate for a true brand-level adapter.
-
----
+Likely baseline acquisition tier: **A**.
 
 ## 6.2 Hilti
 
-### Observed acquisition pattern
+Hilti demonstrates a scalable **source-graph adapter**:
 
-Hilti exposes a different but also promising structure:
-
-- structured product pages;
-- structured category/list pages;
-- configurators;
+- structured product/category surfaces;
+- regional/canonical identity issues;
 - related-product relationships;
-- technical data sections;
-- `productdata.hilti.com` assets; and
-- downloadable guidance, declarations, instructions, and other technical documents.
+- technical pages and documents; and
+- first-party battery relationships and physical facts that can be joined into operational profiles.
 
-Facts may be split across several manufacturer sources rather than appearing on one page.
+The SF 4-22 case is the reference pattern for cordless-tool graph ingestion.
 
-### Important identity finding: regional SKUs
-
-The same SF 4-22 technical product/family (`r13275669`) is represented with different sale-item codes in different Hilti regions.
-
-Examples observed:
-
-```text
-USA listing:       #2253847
-UK box listing:    #2253837
-Singapore case:    #2253844
-```
-
-This is a schema warning: one `product.sku` field is unlikely to be sufficient for globally ingested products.
-
-TetherLens will probably need to distinguish:
-
-- canonical technical product/family identity; and
-- one or more regional/catalogue identifiers or sale configurations.
-
-### 2253847 — SF 4-22 cordless drill driver
-
-The US page exposes model identity, battery platform, torque, speed, chuck range, configurator and related-product structure.
-
-The UK first-party technical page exposes:
-
-```text
-tool body mass = 1.3 kg
-```
-
-Hilti battery pages expose, for example:
-
-```text
-B 22-55 = 0.55 kg
-B 22-85 = 0.76 kg
-```
-
-Therefore operational mass is deterministically derivable for a selected battery configuration using manufacturer facts.
-
-This is a good example of a Tier B join rather than missing data.
-
-### 2261970 — Tool tether 15lbs double carabiner
-
-Public Hilti page exposes:
-
-- maximum load of approximately 6.8 kg;
-- double-carabiner configuration;
-- self-locking carabiner statement;
-- ANSI compliance statement;
-- related retaining strap; and
-- downloadable Tethering Guidance and Declaration of Conformity.
-
-Remaining tested gaps:
-
-- tether length; and
-- connector geometry.
-
-### 2293133 — Retaining strap 15lb cordl.
-
-Public page exposes:
-
-- 6.8 kg / 15 lb product option;
-- purpose as an accessory connecting compatible power tools to Hilti tool lanyards; and
-- imagery showing an installed use case.
-
-The exact complete compatible-tool set and interface limits were not exposed in the basic page content used in this exploratory run.
-
-### Preliminary Hilti assessment
-
-```text
-Discovery:             strong
-Catalogue enumeration: strong
-Static extraction:     strong
-Relationship data:     strong
-Document channel:      strong
-Mandatory data:        usually obtainable but join-heavy
-Interface geometry:    recurring gap
-Likely tier:           B
-```
-
-Hilti looks scalable through a **source-graph adapter** rather than a single-page scraper.
-
----
+Likely baseline acquisition tier: **B**.
 
 ## 6.3 StopDrop
 
-### Observed acquisition pattern
+StopDrop demonstrates that simple acquisition does not guarantee complete evidence:
 
-StopDrop's pages are straightforward to crawl but sparse.
+- static pages are easy to crawl;
+- technical detail is often sparse;
+- some required capacities or masses are not published; and
+- the benchmark must distinguish source incompleteness from parser failure.
 
-This is an important distinction: the main problem is often not extraction technology but the amount of technical information actually published.
-
-### SDKN1802 — Crimp tool for working at height
-
-Manufacturer page establishes:
-
-- tool identity/type; and
-- a permanent StopDrop attachment point.
-
-No manufacturer-published tool mass was surfaced in the tested page/search path.
-
-Because manufacturer tool mass is mandatory for catalogued load reasoning, this product is currently blocked regardless of scraper sophistication.
-
-### SDCOIL32 — Black Wire Coil Tool Lanyard
-
-Page exposes:
-
-- 1 m;
-- 3 kg maximum load; and
-- two locking screwgate carabiners.
-
-Remaining gaps include connector geometry and richer material/interface detail.
-
-### SDLANWIRE10 — Wire Tool Lanyard
-
-Page exposes two product variants on one page:
-
-```text
-1.0 m -> 5 kg
-1.5 m -> 8 kg
-```
-
-This produces a second schema warning: product-page identity and technical variant identity cannot always be treated as the same thing.
-
-The ingestion model needs to preserve variant-dependent ratings rather than accepting one capacity onto the parent page identity.
-
-### SDBAG2 — Waist and Shoulder Bag
-
-Page plus manufacturer Bag Range Flyer PDF establish:
-
-- product code SDBAG2;
-- bag type;
-- adjustable strap; and
-- six internal D-ring attachment points.
-
-The tested manufacturer material did not expose a rated bag load or per-interface load.
-
-That is a source gap, not a parser failure.
-
-### Preliminary StopDrop assessment
-
-```text
-Discovery:             moderate/strong
-Static extraction:     easy
-Document channel:      limited
-Mandatory load data:   mixed
-Interface geometry:    weak
-Source completeness:   primary bottleneck
-Likely tier:           C/D depending on product
-```
-
-StopDrop is valuable to the benchmark precisely because it tests whether TetherLens can distinguish **automation failure** from **underlying evidence absence**.
-
----
+Likely baseline acquisition tier: **C/D depending on product**.
 
 ## 6.4 Milwaukee
 
-### Observed acquisition pattern
+Milwaukee is closer to Hilti than the first `2602-20` experiment suggested.
 
-The corrected canonical product is:
+The primary development case is now `2607-20`. Milwaukee's current product and kit surfaces expose useful graph relationships. For example, the `2607-22` kit identifies `2607-20` as the tool and `48-11-1828` as the included battery configuration.
 
-```text
-2602-20 — M18 Cordless 1/2 in Hammer Drill/Driver (Tool Only)
-```
-
-The first-party page is crawlable for identity, descriptive content, battery-system statements and document links, but its key Specs section presents as:
+The normal Milwaukee strategy should therefore be:
 
 ```text
-Specs
-Loading
+manufacturer product identity
+  -> manufacturer kit / related-product / battery graph
+  -> first-party physical facts where available
+  -> qualified exact-SKU distributor facts where needed
+  -> operational mass profile
 ```
 
-for a basic crawler.
+This is conceptually the same architecture as Hilti, with the important difference that some physical facts may come from a qualified secondary publisher.
 
-The page links a directly downloadable operator manual and multiple parts/service documents.
+The earlier `2602-20` case remains useful as a later test of sparse legacy-product handling, but it should not drive the normal Milwaukee adapter design.
 
-The operator manual is text-extractable and provides model-specific operating specifications, but the tested manual does not publish tool or operational mass.
-
-The tool page explicitly states compatibility with both Compact and XC M18 REDLITHIUM battery packs, so even if bare-tool weight is recovered, operational mass remains battery-configuration dependent.
-
-### Preliminary Milwaukee assessment
-
-```text
-Discovery:             strong
-Static shell:          strong
-Key spec acquisition:  dynamic / unresolved
-Document channel:      strong
-Mandatory mass:        not established in tested first-party sources
-Interface data:        not established
-Likely tier:           C pending dynamic/API investigation
-```
-
-Milwaukee is therefore the correct benchmark case for testing whether a manufacturer-specific JS/API adapter can convert an apparent page failure into deterministic acquisition.
+Likely baseline acquisition tier: **B**, with selective cross-source enrichment.
 
 ---
 
-# 7. Preliminary quantitative baseline
+# 7. Representative product selection
 
-For the first 12 products:
+Development SKUs should represent the catalogue behavior TetherLens expects to encounter in normal operation.
 
-## Product discovery
+The first development product for a manufacturer should normally be:
 
-All 12 canonical product identities were located from the supplied manufacturer/model context, although StopDrop demonstrates that exact part numbers are not always surfaced cleanly in indexed page text.
+- current or actively supported;
+- discoverable through the normal catalogue structure;
+- representative of normal product relationships; and
+- sufficiently documented to test the architecture without immediately forcing exceptional recovery methods.
 
-## Mandatory mass/capacity scalar
+Legacy, discontinued and unusually sparse products remain important, but should normally form a separate hard-case cohort after the baseline strategy is established.
 
-A manufacturer-backed mandatory mass/capacity value is directly available or deterministically derivable from first-party product/battery facts for approximately **9 of 12** products in this first source-surface pass.
-
-The three currently blocked scalar cases are:
-
-- StopDrop SDKN1802 tool mass;
-- StopDrop SDBAG2 container rated capacity; and
-- Milwaukee 2602-20 operational mass in the tested first-party acquisition path.
-
-This number is a preliminary availability measure, not yet an automated extraction success rate.
-
-## Interface completeness
-
-Interface information is materially less complete than load data.
-
-Even the best-documented manufacturers often omit dimensions needed for generic cross-brand connector engagement.
-
-This remains the leading candidate for a structured internal-measurement programme.
-
-## Machine-readable catalogue surfaces
-
-NLG has a verified machine-readable collection JSON surface that can support catalogue discovery and initial facts.
-
-Hilti has strong structured category/product/relationship surfaces, but this run has not yet established a public raw JSON endpoint as the preferred acquisition method.
-
-StopDrop exposes simple static HTML but no comparable structured catalogue endpoint was identified in this run.
-
-Milwaukee's key specs remain dynamically loaded to the basic crawler used for this audit.
+This prevents one pathological first SKU from pushing unnecessary complexity into the normal ingestion design.
 
 ---
 
-# 8. Cross-cutting schema findings
+# 8. Benchmark questions
 
-The benchmark has already exposed three implementation issues that should be resolved before a large seed dataset is built.
+For every product, the benchmark should ask:
 
-## 8.1 Operational mass profiles
+## Discovery
 
-Cordless tools can have multiple valid battery configurations and therefore multiple operational masses.
+- Can the canonical product identity be found deterministically?
+- Can the manufacturer catalogue be enumerated?
+- Are stable product/model/variant identifiers available?
 
-The eventual schema should represent the mass used for reasoning as configuration-specific while ensuring it always includes the installed battery.
+## Acquisition
 
-## 8.2 Multiple manufacturer identifiers
+- Which first-party pages, APIs, relationship surfaces and documents are available?
+- Which qualified cross-source records are needed, if any?
+- What is the acquisition cost of each channel?
 
-A technical product can have:
+## Extraction and normalization
 
-- global family ID;
-- model;
-- regional SKU/item code;
-- sale configuration/pack code; and
-- manufacturer internal product ID.
+- Can identity, physical facts, capacities, connector/interface properties and product relationships be extracted deterministically?
+- Can values be normalized without SKU-specific rules?
+- Are raw values and source provenance preserved?
 
-Hilti demonstrates that one `product.sku` is insufficient for robust international ingestion.
+## Recommendation readiness
 
-A likely future addition is a reusable `product_identifier` table rather than adding more identifier columns one by one.
-
-## 8.3 Variant-dependent facts
-
-One manufacturer page can represent multiple technical variants with different lengths and capacities.
-
-StopDrop's Wire Tool Lanyard is the first explicit example.
-
-TetherLens must not collapse variant-dependent ratings into a single accepted parent-product fact.
-
-The implementation should determine whether variants become separate Product records or a first-class ProductVariant layer after a second manufacturer example is tested.
+- Are all recommendation-critical facts resolved?
+- Which unresolved fields remain?
+- Are derived facts supported by complete evidence chains?
 
 ---
 
-# 9. Reusable measurement hypothesis
+# 9. Benchmark metrics
 
-The most common missing information so far is not load rating but interface geometry.
+The benchmark should track both engineering health and product viability.
 
-The benchmark should therefore measure both:
+Useful metrics include:
 
-```text
-percentage of products needing internal measurement
-```
+- exact identity discovery rate;
+- manufacturer catalogue enumeration rate;
+- source requests per product;
+- relationship extraction rate;
+- mandatory fact coverage;
+- operational-mass profile coverage;
+- recommendation-readiness rate;
+- secondary-source usage rate;
+- paid-search/browser fallback rate;
+- evidence conflicts;
+- human review minutes;
+- product-specific exception/code rate;
+- acquisition cost per product; and
+- acquisition cost per resolved critical fact.
 
-and, more importantly:
+Future evaluation should also separate:
 
-```text
-number of unique reusable interface/connector specifications needing measurement
-```
-
-Example:
-
-If the same NLG Rotobiner is reused across 25 products, one accepted internal connector measurement can potentially unlock generic compatibility reasoning for all 25.
-
-The economically meaningful metric is therefore:
-
-```text
-products unlocked per measurement record
-```
-
-rather than simply `products requiring measurement`.
+- development SKUs;
+- unseen same-manufacturer SKUs; and
+- hard-case/legacy SKUs.
 
 ---
 
 # 10. Adapter architecture to benchmark
 
-Each manufacturer adapter should expose the same conceptual stages.
+Each manufacturer adapter should expose the same conceptual stages:
 
 ```text
 discover(identity)
@@ -730,143 +285,41 @@ discover(identity)
 acquire(candidate)
     -> SourceArtifact[]
 
-extract(source)
+extract(source_graph)
     -> CandidateClaim[]
 
 normalize(candidate_claims)
     -> NormalizedCandidateClaim[]
 
+resolve_required_facts(product_graph)
+    -> CandidateClaim[]
+
 validate(product, claims, evidence)
     -> ReadinessAssessment
 ```
 
-## `discover`
+Manufacturer adapters should exploit manufacturer-specific structure, while normalization, evidence semantics and downstream graph representation should remain shared wherever possible.
 
-Should use manufacturer-level listing/search/catalogue structure rather than general web search wherever possible.
-
-## `acquire`
-
-Should preserve source metadata and raw source artifacts for review/refresh comparison.
-
-## `extract`
-
-Should be deterministic where structure is reliable.
-
-Document/LLM extraction should create **candidate** claims only.
-
-## `normalize`
-
-Should be shared across manufacturers where possible.
-
-Manufacturer adapters should not each invent their own unit and vocabulary semantics.
-
-## `validate`
-
-Should apply the TetherLens evidence/readiness rules and report explicit missing facts.
+Required-fact resolution should first traverse deterministic graph paths. General search is a later escalation, not the default implementation strategy.
 
 ---
 
-# 11. First adapter prototypes
+# 11. Current conclusion
 
-The initial adapters should be implemented in this order because they test different acquisition strategies.
+The first benchmark work does not support a single universal scraper.
 
-## NLG adapter
+It does support a common higher-level architecture:
 
-Primary test:
+> **manufacturer adapters + evidence-qualified product graphs + shared normalization + explicit provenance + reusable physical enrichment**
 
-```text
-collection JSON discovery -> regular product HTML -> downloadable datasheet
-```
+NLG demonstrates high-throughput structured acquisition.
 
-Goal:
+Hilti demonstrates that multi-source first-party product graphs can be joined into useful operational configurations.
 
-Prove high-throughput deterministic ingestion from an ingestion-friendly manufacturer.
+StopDrop demonstrates that some products remain incomplete because the source evidence itself is sparse.
 
-## Hilti adapter
+Milwaukee demonstrates that the Hilti graph model can be reused even when selected physical facts cross into qualified distributor evidence.
 
-Primary test:
+The next Milwaukee implementation should therefore start from `2607-20`, follow manufacturer relationships first, cross source boundaries only where required, and reserve paid/general search for exceptional cases.
 
-```text
-product/category pages -> regional/canonical identity resolution -> related products -> technical pages/documents -> joined Claims
-```
-
-Goal:
-
-Prove that multi-source manufacturer data can remain scalable without product-specific research.
-
-## StopDrop adapter
-
-Primary test:
-
-```text
-static HTML -> shared PDF where available -> explicit gap reporting
-```
-
-Goal:
-
-Prove that the system distinguishes missing evidence from extraction failure and does not manufacture false completeness.
-
-## Milwaukee adapter
-
-Primary test:
-
-```text
-static shell -> dynamic spec/API investigation -> manufacturer documents -> battery configuration
-```
-
-Goal:
-
-Determine whether dynamic manufacturer sites require expensive browser automation or expose a reusable underlying data endpoint.
-
----
-
-# 12. Benchmark success criterion
-
-The benchmark should ultimately answer a stricter question than whether Batch 1 can be populated:
-
-> After a manufacturer adapter has been created from a small training set, can a second unseen set of that manufacturer's products be discovered, extracted, normalized and gap-assessed with little or no product-specific code or research?
-
-The strongest outcome is:
-
-```text
-new product identity
-    -> manufacturer adapter
-    -> sources
-    -> candidate facts
-    -> normalization
-    -> automatic gap assessment
-    -> short human review
-```
-
-A weak outcome is:
-
-```text
-new product
-    -> general web search
-    -> bespoke LLM browsing
-    -> manual interpretation
-    -> custom fields/rules
-    -> repeated human research
-```
-
-The second pattern may be workable for exceptional products but is not a viable catalogue operating model at scale.
-
----
-
-# 13. Current conclusion
-
-The first four manufacturers do **not** support a single universal scraper.
-
-They do, however, provide early support for a more promising architecture:
-
-> **manufacturer adapters + common normalization + explicit evidence validation + reusable physical measurement enrichment**
-
-NLG suggests that a large product catalogue can sometimes be enumerated and partially populated from structured manufacturer surfaces.
-
-Hilti suggests that multi-document and relationship-heavy manufacturer ecosystems can still be automated if the adapter treats manufacturer sources as a graph rather than a single page.
-
-StopDrop shows that some products will remain incomplete because the source data itself is insufficient.
-
-Milwaukee is the key unresolved technical test: whether dynamically loaded specs can be acquired through a reusable underlying endpoint rather than browser/LLM interaction.
-
-The benchmark should therefore continue by implementing and running the four adapters, then testing them against unseen products from the same manufacturers before expanding Batch 1 to the remaining brands.
+See `benchmark-goals.md` for the benchmark success criteria and interpretation rules.
