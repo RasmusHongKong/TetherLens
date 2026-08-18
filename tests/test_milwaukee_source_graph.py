@@ -56,9 +56,9 @@ def _identity():
     )
 
 
-def _secondary_artifact(url, role, sku, body, subject_ref=None):
+def _secondary_artifact(url, role, sku, body, subject_ref=None, resolved_url=None):
     return SourceArtifact(
-        url=url,
+        url=resolved_url or url,
         source_type=SourceType.SECONDARY_WEBPAGE,
         content_type="text/html",
         body=body,
@@ -67,6 +67,7 @@ def _secondary_artifact(url, role, sku, body, subject_ref=None):
             "requested_sku": sku,
             "subject_ref": subject_ref or sku,
             "evidence_page_kind": "product_detail",
+            "expected_detail_url": url,
         },
     )
 
@@ -124,6 +125,22 @@ def test_milwaukee_search_result_page_cannot_bind_another_products_mass_to_reque
             "subject_ref": "48-11-1828",
             "evidence_page_kind": "search_results",
         },
+    )
+    claims = adapter.extract(_identity(), [artifact])
+    assert not any(c.property_key == "battery_mass_kg" for c in claims)
+
+
+def test_milwaukee_redirected_detail_request_must_resolve_to_expected_detail_url():
+    adapter = MilwaukeeAdapter()
+    artifact = _secondary_artifact(
+        "https://thepowertoolstore.com/products/milwaukee-48-11-1828",
+        "secondary_battery_mass",
+        "48-11-1828",
+        """
+            <article>Milwaukee 48-11-1828 battery - see details</article>
+            <article>Milwaukee 48-11-1850 battery - Battery Weight 2.1 lb</article>
+        """,
+        resolved_url="https://thepowertoolstore.com/search?q=48-11-1828",
     )
     claims = adapter.extract(_identity(), [artifact])
     assert not any(c.property_key == "battery_mass_kg" for c in claims)
@@ -214,3 +231,35 @@ def test_milwaukee_conflicting_battery_mass_blocks_profile_and_marks_readiness_i
         for issue in issues
     )
     assert any(issue.code == "MISSING_OPERATIONAL_MASS" for issue in issues)
+
+
+def test_milwaukee_lower_priority_rounding_difference_does_not_block_manufacturer_mass():
+    adapter = MilwaukeeAdapter()
+    primary = SourceArtifact(
+        url=_identity().url,
+        source_type=SourceType.MANUFACTURER_WEBPAGE,
+        content_type="text/html",
+        body="<h1>2607-20 M18 Hammer Drill</h1><div>Tool Body Weight 3.0 lb</div>",
+    )
+    retailer = _secondary_artifact(
+        "https://example.test/milwaukee-2607-20",
+        "secondary_tool_mass",
+        "2607-20",
+        "<h1>Milwaukee 2607-20</h1><div>Weight: 3.1 lb (Tool Only)</div>",
+        "self",
+    )
+    battery = SourceArtifact(
+        url="https://www.milwaukeetool.com/Products/48-11-1828",
+        source_type=SourceType.MANUFACTURER_WEBPAGE,
+        content_type="text/html",
+        body="<h1>48-11-1828</h1><div>Battery Weight 1.6 lb</div>",
+        metadata={"role": "battery", "battery_model": "48-11-1828"},
+    )
+
+    claims = adapter.extract(_identity(), [primary, retailer, battery])
+    profile = next(c for c in claims if c.property_key == "operational_mass_kg")
+    assert profile.value == 2.086525
+    assert profile.raw_value.startswith("3.0 lb tool body")
+
+    issues = adapter.readiness_issues(claims, [])
+    assert not any(issue.code == "CONFLICTING_PHYSICAL_FACTS" for issue in issues)

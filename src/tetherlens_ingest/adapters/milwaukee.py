@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from urllib.parse import quote, urljoin
+from urllib.parse import quote, urlsplit, urlunsplit, urljoin
 
 from tetherlens_ingest.models import (
     AcquisitionObservation,
@@ -20,9 +20,12 @@ from .base import ManufacturerAdapter
 from .common import page_text
 
 
+_EVIDENCE_PRIORITY = {"manufacturer_stated": 2, "qualified_secondary_exact_sku": 1}
+
+
 class MilwaukeeAdapter(ManufacturerAdapter):
     manufacturer = "Milwaukee"
-    extractor = "milwaukee.v0.5"
+    extractor = "milwaukee.v0.6"
     recursive_related_sources = True
 
     def related_sources(self, identity: ProductIdentity, source_artifact: SourceArtifact) -> list[SourceRequest]:
@@ -130,7 +133,7 @@ class MilwaukeeAdapter(ManufacturerAdapter):
             c for c in claims
             if c.property_key == "tool_body_mass_kg" and c.subject_ref == "self"
         ]
-        body_claim = _unambiguous_preferred_from(body_claims)
+        body_claim = _resolved_preferred_from(body_claims)
 
         batteries: dict[str, list[CandidateClaim]] = defaultdict(list)
         for claim in claims:
@@ -139,7 +142,7 @@ class MilwaukeeAdapter(ManufacturerAdapter):
 
         if body_claim:
             for battery_ref, battery_claims in batteries.items():
-                battery_claim = _unambiguous_preferred_from(battery_claims)
+                battery_claim = _resolved_preferred_from(battery_claims)
                 if battery_claim is None:
                     continue
                 evidence_urls = list(dict.fromkeys([body_claim.source_url, battery_claim.source_url]))
@@ -197,7 +200,7 @@ class MilwaukeeAdapter(ManufacturerAdapter):
                 observations.append(AcquisitionObservation(
                     code="SECONDARY_IDENTITY_UNVERIFIED",
                     value=requested_sku or None,
-                    detail="Secondary evidence was ignored because it was not a verified exact-SKU product-detail page.",
+                    detail="Secondary evidence was ignored because the resolved page was not the expected exact-SKU product-detail URL.",
                     source_url=artifact.url,
                     extractor=self.extractor,
                 ))
@@ -217,7 +220,7 @@ class MilwaukeeAdapter(ManufacturerAdapter):
             observations.append(AcquisitionObservation(
                 code="QUALIFIED_SECONDARY_SOURCES_VERIFIED",
                 value=verified_secondary,
-                detail="Secondary product-detail pages passed exact-SKU identity verification before physical facts were accepted.",
+                detail="Resolved secondary product-detail URLs and exact-SKU identity were verified before physical facts were accepted.",
                 source_url=identity.url,
                 extractor=self.extractor,
             ))
@@ -250,11 +253,11 @@ class MilwaukeeAdapter(ManufacturerAdapter):
             c for c in claims
             if c.property_key == "tool_body_mass_kg" and c.subject_ref == "self"
         ]
-        if _has_conflicting_values(tool_claims):
+        if _has_highest_priority_conflict(tool_claims):
             issues.append(ReadinessIssue(
                 code="CONFLICTING_PHYSICAL_FACTS",
                 property_key="tool_body_mass_kg",
-                detail="Qualified tool-body mass sources disagree; no operational profile is derived until reconciled.",
+                detail="Highest-priority tool-body mass sources disagree; no operational profile is derived until reconciled.",
             ))
 
         battery_claims: dict[str, list[CandidateClaim]] = defaultdict(list)
@@ -262,11 +265,11 @@ class MilwaukeeAdapter(ManufacturerAdapter):
             if claim.property_key == "battery_mass_kg":
                 battery_claims[claim.subject_ref].append(claim)
         for battery_ref, grouped_claims in battery_claims.items():
-            if _has_conflicting_values(grouped_claims):
+            if _has_highest_priority_conflict(grouped_claims):
                 issues.append(ReadinessIssue(
                     code="CONFLICTING_PHYSICAL_FACTS",
                     property_key="battery_mass_kg",
-                    detail=f"Qualified battery mass sources disagree for {battery_ref}; that profile is not derived until reconciled.",
+                    detail=f"Highest-priority battery mass sources disagree for {battery_ref}; that profile is not derived until reconciled.",
                 ))
         return issues
 
@@ -301,16 +304,18 @@ class MilwaukeeAdapter(ManufacturerAdapter):
         subject_ref: str,
         **metadata,
     ) -> list[SourceRequest]:
+        detail_url = f"https://thepowertoolstore.com/products/milwaukee-{quote(sku)}"
         common = {
             "role": role,
             "requested_sku": sku,
             "subject_ref": subject_ref,
             "evidence_page_kind": "product_detail",
+            "expected_detail_url": detail_url,
             **{k: v for k, v in metadata.items() if v},
         }
         return [
             SourceRequest(
-                url=f"https://thepowertoolstore.com/products/milwaukee-{quote(sku)}",
+                url=detail_url,
                 source_type=SourceType.SECONDARY_WEBPAGE,
                 metadata={**common, "publisher": "The Power Tool Store"},
             ),
@@ -361,10 +366,19 @@ def _kit_contents_text(body: str) -> str | None:
     return remainder[:stop.start()] if stop else remainder[:5000]
 
 
+def _normalize_url(url: str) -> str:
+    parts = urlsplit(url)
+    path = parts.path.rstrip("/") or "/"
+    return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), path, parts.query, ""))
+
+
 def _is_verified_secondary_detail(artifact: SourceArtifact, requested_sku: str) -> bool:
+    expected_detail_url = str(artifact.metadata.get("expected_detail_url") or "")
     return bool(
         requested_sku
         and artifact.metadata.get("evidence_page_kind") == "product_detail"
+        and expected_detail_url
+        and _normalize_url(artifact.url) == _normalize_url(expected_detail_url)
         and _contains_exact_sku(artifact.body, requested_sku)
     )
 
@@ -407,19 +421,26 @@ def _parse_mass_with_label_unit(raw: str) -> float | None:
     return mass_to_kg(float(m.group(1)), "lb") if m else None
 
 
+def _highest_priority_claims(claims: list[CandidateClaim]) -> list[CandidateClaim]:
+    if not claims:
+        return []
+    highest = max(_EVIDENCE_PRIORITY.get(c.evidence_method, 0) for c in claims)
+    return [c for c in claims if _EVIDENCE_PRIORITY.get(c.evidence_method, 0) == highest]
+
+
 def _has_conflicting_values(claims: list[CandidateClaim]) -> bool:
     return len({round(float(c.value), 9) for c in claims}) > 1
 
 
-def _unambiguous_preferred_from(claims: list[CandidateClaim]) -> CandidateClaim | None:
-    if not claims or _has_conflicting_values(claims):
+def _has_highest_priority_conflict(claims: list[CandidateClaim]) -> bool:
+    return _has_conflicting_values(_highest_priority_claims(claims))
+
+
+def _resolved_preferred_from(claims: list[CandidateClaim]) -> CandidateClaim | None:
+    highest = _highest_priority_claims(claims)
+    if not highest or _has_conflicting_values(highest):
         return None
-    return _preferred_from(claims)
-
-
-def _preferred_from(claims: list[CandidateClaim]) -> CandidateClaim:
-    priority = {"manufacturer_stated": 2, "qualified_secondary_exact_sku": 1}
-    return max(claims, key=lambda c: priority.get(c.evidence_method, 0))
+    return highest[0]
 
 
 def _dedupe_claims(claims: list[CandidateClaim]) -> list[CandidateClaim]:

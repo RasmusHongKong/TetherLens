@@ -24,8 +24,21 @@ class RedirectAdapter(ManufacturerAdapter):
 
     def related_sources(self, identity, artifact):
         return [
-            SourceRequest(url="https://example.test/alias", metadata={"role": "related"}),
-            SourceRequest(url="https://example.test/canonical", metadata={"role": "related"}),
+            SourceRequest(url="https://example.test/alias", metadata={"role": "alias"}),
+            SourceRequest(url="https://example.test/canonical", metadata={"role": "canonical"}),
+        ]
+
+
+class CanonicalFirstRedirectAdapter(ManufacturerAdapter):
+    manufacturer = "Test"
+
+    def extract(self, identity, artifacts):
+        return []
+
+    def related_sources(self, identity, artifact):
+        return [
+            SourceRequest(url="https://example.test/canonical", metadata={"role": "canonical"}),
+            SourceRequest(url="https://example.test/alias", metadata={"role": "alias"}),
         ]
 
 
@@ -65,7 +78,7 @@ def test_runner_does_not_recurse_for_adapters_that_do_not_opt_in():
     assert len(result.artifacts) == 2
 
 
-def test_runner_dedupes_canonical_url_after_redirect():
+def test_runner_dedupes_canonical_request_after_alias_redirect():
     fetcher = FakeFetcher()
     result = IngestionRunner(fetcher).ingest(_identity(), RedirectAdapter())
 
@@ -74,3 +87,19 @@ def test_runner_dedupes_canonical_url_after_redirect():
         "https://example.test/primary",
         "https://example.test/canonical",
     ]
+
+
+def test_runner_discards_alias_artifact_when_it_resolves_to_already_seen_canonical_url():
+    fetcher = FakeFetcher()
+    result = IngestionRunner(fetcher).ingest(_identity(), CanonicalFirstRedirectAdapter())
+
+    assert fetcher.calls == [
+        "https://example.test/primary",
+        "https://example.test/canonical",
+        "https://example.test/alias",
+    ]
+    assert [artifact.url for artifact in result.artifacts] == [
+        "https://example.test/primary",
+        "https://example.test/canonical",
+    ]
+    assert result.artifacts[1].metadata["role"] == "canonical"
