@@ -101,6 +101,19 @@ Secondary evidence must never be silently represented as manufacturer-stated evi
 
 Conflicting values must be retained and reconciled explicitly rather than hidden by source precedence.
 
+### Evidence fitness and acquisition reliability are separate
+
+A source should be evaluated along two independent dimensions:
+
+- **evidence fitness** asks whether the source is acceptable for the property being asserted and whether exact product identity can be established;
+- **acquisition reliability** asks whether the ingestion runtime can retrieve that source deterministically and consistently at acceptable cost.
+
+A source can therefore be evidence-qualified but operationally unsuitable for unattended ingestion. Repeated access blocks, anti-bot responses or unstable delivery should be recorded as acquisition telemetry rather than interpreted as evidence-quality failures.
+
+Likewise, failure to fetch an optional secondary source must not invalidate manufacturer evidence or other graph nodes that were acquired successfully.
+
+Where several evidence-qualified providers can establish the same property, normal ingestion should prefer providers that are both trustworthy and reliably retrievable. Provider-specific reliability history may later justify skipping or deprioritizing sources that repeatedly fail in the target runtime, but the benchmark should collect that evidence before introducing a more elaborate source registry or ranking system.
+
 ## Cordless-tool operational mass
 
 For TetherLens load reasoning, the relevant mass is the configured tool in use, not an arbitrary bare-tool value.
@@ -138,6 +151,10 @@ Milwaukee tool/product identity
   -> qualified exact-SKU secondary physical facts where needed
   -> derived operational mass profile
 ```
+
+The 2026-08-18 live experiment validated this pattern end to end. The first-party graph discovered the `2607-22` and `2607-22CT` kits and their `48-11-1828` and `48-11-1815` batteries. A deterministic exact-SKU secondary provider supplied usable tool-body and `48-11-1828` battery mass, allowing a derived operational profile for `2607-20 + 48-11-1828` with full provenance.
+
+The same experiment also clarified acquisition reliability. Grainger and Home Depot returned HTTP 403 responses in both GitHub Actions and a local run, while the alternative exact-SKU provider succeeded in both environments. The useful conclusion is not that those blocked publishers are intrinsically poor evidence sources; it is that their ordinary HTML surfaces are unsuitable for the current unattended direct-HTTP acquisition path. This distinction should inform future provider selection without forcing product-specific exceptions into the Milwaukee adapter.
 
 `2602-20` should be retained for a later legacy/discontinued-product or hard-case cohort rather than used to shape the primary Milwaukee adapter.
 
@@ -223,6 +240,7 @@ The following rules should guide future benchmark design and scoring:
 9. **Measure cost.** A strategy that works but cannot be afforded at catalogue scale has failed the viability question.
 10. **Keep provenance first-class.** Derived facts must retain the evidence chain for every operand.
 11. **Reserve expensive general search for exceptional cases.** Deterministic manufacturer and qualified-source graph traversal should be exhausted first.
+12. **Separate evidence fitness from retrievability.** A trustworthy source that the runtime cannot fetch reliably may remain useful evidence in principle while being unsuitable for the normal unattended acquisition path.
 
 ## Immediate implication for Batch 1
 
@@ -233,6 +251,7 @@ For cordless-tool operational mass:
 - Hilti `SF 4-22` remains the reference example for a source graph resolved almost entirely from first-party evidence;
 - Milwaukee `2607-20` is the corresponding cross-source development case;
 - Milwaukee should be allowed to combine first-party relationships with qualified exact-SKU distributor facts while retaining provenance;
+- secondary providers should be judged separately for evidence fitness and runtime acquisition reliability;
 - Milwaukee `2602-20` moves to a later legacy/hard-case cohort;
 - paid/general search should not be required for the normal Milwaukee path unless deterministic manufacturer/distributor acquisition proves insufficient.
 

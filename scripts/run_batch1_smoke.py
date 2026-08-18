@@ -19,7 +19,6 @@ STOPDROP = StopDropAdapter()
 MILWAUKEE = MilwaukeeAdapter()
 
 CASES = [
-    # NLG — four different product roles on a highly regular manufacturer site.
     (
         NLG,
         ProductIdentity(
@@ -60,7 +59,6 @@ CASES = [
             url="https://neverletgo.com/products/mewp-bag",
         ),
     ),
-    # Hilti — product-family identity, tether product and retaining-strap relationship.
     (
         HILTI,
         ProductIdentity(
@@ -92,7 +90,6 @@ CASES = [
             url="https://www.hilti.com/c/CLS_HEALTH_SAFETY/CLS_SAFETY_GEAR/2293133",
         ),
     ),
-    # StopDrop — sparse tool, two lanyard patterns and a sparse container page.
     (
         STOPDROP,
         ProductIdentity(
@@ -133,15 +130,14 @@ CASES = [
             url="https://stopdroptooling.com/product/stopdrop-tooling-waist-and-shoulder-bags-for-working-at-height/",
         ),
     ),
-    # Milwaukee — dynamic-spec / battery-configuration stress case.
     (
         MILWAUKEE,
         ProductIdentity(
             manufacturer="Milwaukee",
-            name="M18 Cordless 1/2 in Hammer Drill/Driver",
-            sku="2602-20",
+            name="M18 1/2 in Hammer Drill/Driver",
+            sku="2607-20",
             product_type=ProductType.TOOL,
-            url="https://www.milwaukeetool.com/products/details/m18-cordless-1-2-hammer-drill-driver-tool-only/2602-20",
+            url="https://www.milwaukeetool.com/products/details/m18-1-2-hammer-drill-driver/2607-20",
         ),
     ),
 ]
@@ -161,8 +157,6 @@ def _mandatory_scalar_status(product_type: ProductType, claim_keys: set[str]) ->
     else:
         return [], False
 
-    # For variant pages, either the product-level or variant-level rated capacity
-    # is enough to establish that a mandatory scalar was surfaced by this pass.
     if product_type != ProductType.TOOL:
         return required, any(key in claim_keys for key in required)
     return required, all(key in claim_keys for key in required)

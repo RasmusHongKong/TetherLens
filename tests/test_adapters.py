@@ -62,23 +62,28 @@ def test_stopdrop_extracts_sparse_variant_pair():
     assert out["connector.locking_mode"] == "manual_locking"
 
 
-def test_milwaukee_separates_dynamic_acquisition_state_from_product_claims():
+def test_milwaukee_keeps_dynamic_specs_as_observation_not_product_claim():
     html = """
-    <h1>2602-20 M18 Cordless Hammer Drill Driver</h1>
+    <h1>2607-20 M18 1/2 in Hammer Drill/Driver</h1>
     <div>Specs</div><div>Loading</div>
-    <div>Runs on M18 XC Extended Capacity Battery and M18 Compact Battery</div>
     """
     adapter = MilwaukeeAdapter()
-    art = artifact(html)
-    claims = adapter.extract(identity("Milwaukee", ProductType.TOOL), [art])
-    observations = adapter.observe(identity("Milwaukee", ProductType.TOOL), [art])
+    ident = ProductIdentity(
+        manufacturer="Milwaukee",
+        sku="2607-20",
+        product_type=ProductType.TOOL,
+        url="https://www.milwaukeetool.com/Products/2607-20",
+    )
+    art = artifact(html, url=ident.url)
+    claims = adapter.extract(ident, [art])
+    observations = adapter.observe(ident, [art])
     out = values(claims)
-    assert out["manufacturer_item_code"] == "2602-20"
+    assert out["manufacturer_item_code"] == "2607-20"
     assert out["battery_platform"] == "M18"
     assert "acquisition.dynamic_specs_detected" not in out
     observation_codes = {o.code for o in observations}
-    assert "BATTERY_CONFIGURATION_REQUIRED" in observation_codes
     assert "DYNAMIC_SPECS_DETECTED" in observation_codes
     codes = {i.code for i in adapter.readiness_issues(claims, observations)}
+    assert "MISSING_TOOL_BODY_MASS" in codes
+    assert "MISSING_BATTERY_MASS" in codes
     assert "MISSING_OPERATIONAL_MASS" in codes
-    assert "DYNAMIC_SPECS_UNRESOLVED" in codes
