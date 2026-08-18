@@ -25,6 +25,15 @@ class ManufacturerAdapter(ABC):
     def observe(self, identity: ProductIdentity, artifacts: list[SourceArtifact]) -> list[AcquisitionObservation]:
         return []
 
+    def source_fetch_failed_observation(self, identity: ProductIdentity, error: dict[str, str]) -> AcquisitionObservation:
+        return AcquisitionObservation(
+            code="RELATED_SOURCE_FETCH_FAILED",
+            value=error.get("role") or "related",
+            detail=error.get("error"),
+            source_url=error.get("url"),
+            extractor=f"{self.manufacturer.lower()}.runner",
+        )
+
     def readiness_issues(
         self,
         claims: list[CandidateClaim],
