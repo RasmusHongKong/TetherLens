@@ -86,7 +86,9 @@ Automated refreshes should generate candidate changes for review rather than sil
 
 At minimum for a catalogued tool:
 
-- manufacturer-published mass.
+- verified physical mass suitable for load reasoning.
+
+Manufacturer evidence is preferred for tool and battery mass. Where the manufacturer does not publish a usable physical mass, a reputable secondary source may be used if the resolved source is verified against the exact SKU/model and provenance is retained. Physical mass must not be inferred from an image, a similar model, or an aggregate/search result that has not been bound to the expected product identity.
 
 Interface information should be captured where available, but the model must not assume that a manufacturer will document a tether-specific attachment point.
 
@@ -232,7 +234,9 @@ A product becomes recommendation-ready for baseline use when the facts required 
 
 ### Object/tool mass
 
-Must come from manufacturer information.
+Must be established from evidence that is acceptable for the physical mass property and bound to the exact product identity.
+
+Manufacturer information is preferred. Where manufacturer mass is unavailable or incomplete, a reputable exact-SKU secondary source may establish tool-body or battery mass. The source and evidence method must remain explicit, and unverified search/aggregate pages, visual estimates, similar-model inference, or other ambiguous identity matches are not acceptable for catalogue load reasoning.
 
 ### Rated capacity
 
