@@ -16,12 +16,14 @@ class IngestionRunner:
         primary = self.fetcher.get(identity.url, SourceType.MANUFACTURER_WEBPAGE)
         artifacts = [primary]
         pending = deque([primary])
-        seen_urls = {primary.url}
+        seen_urls = {identity.url, primary.url}
         fetch_errors: list[dict[str, str]] = []
         related_fetches = 0
 
         while pending and related_fetches < self.max_related_sources:
             source_artifact = pending.popleft()
+            if source_artifact is not primary and not adapter.recursive_related_sources:
+                continue
             for request in adapter.related_sources(identity, source_artifact):
                 if request.url in seen_urls:
                     continue
@@ -39,6 +41,7 @@ class IngestionRunner:
                         break
                     continue
                 artifact.metadata.update(request.metadata)
+                seen_urls.add(artifact.url)
                 artifacts.append(artifact)
                 pending.append(artifact)
                 if related_fetches >= self.max_related_sources:
