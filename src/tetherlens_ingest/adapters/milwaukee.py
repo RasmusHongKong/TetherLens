@@ -25,7 +25,7 @@ _EVIDENCE_PRIORITY = {"manufacturer_stated": 2, "qualified_secondary_exact_sku":
 
 class MilwaukeeAdapter(ManufacturerAdapter):
     manufacturer = "Milwaukee"
-    extractor = "milwaukee.v0.6"
+    extractor = "milwaukee.v0.7"
     recursive_related_sources = True
 
     def related_sources(self, identity: ProductIdentity, source_artifact: SourceArtifact) -> list[SourceRequest]:
@@ -38,10 +38,13 @@ class MilwaukeeAdapter(ManufacturerAdapter):
         requests: list[SourceRequest] = []
 
         if role == "primary":
-            requests.extend(self._discover_same_family_kits(identity, source_artifact))
+            if _is_verified_manufacturer_page(source_artifact, identity.sku):
+                requests.extend(self._discover_same_family_kits(identity, source_artifact))
             requests.extend(self._qualified_secondary_requests(identity.sku, "secondary_tool_mass", "self"))
         elif role == "kit":
             kit_sku = str(source_artifact.metadata.get("kit_sku") or "")
+            if not _is_verified_manufacturer_page(source_artifact, kit_sku):
+                return []
             battery_skus = _verified_kit_battery_skus(identity.sku, kit_sku, source_artifact.body)
             for battery_sku in battery_skus:
                 requests.append(SourceRequest(
@@ -81,10 +84,11 @@ class MilwaukeeAdapter(ManufacturerAdapter):
             role = str(artifact.metadata.get("role") or "primary")
 
             if role == "primary":
-                if identity.sku and _contains_exact_sku(artifact.body, identity.sku):
-                    claims.append(self._claim(
-                        "manufacturer_item_code", identity.sku, None, identity.sku, artifact.url,
-                    ))
+                if not identity.sku or not _is_verified_manufacturer_page(artifact, identity.sku):
+                    continue
+                claims.append(self._claim(
+                    "manufacturer_item_code", identity.sku, None, identity.sku, artifact.url,
+                ))
                 if re.search(r"\bM18\b", text, re.I):
                     claims.append(self._claim("battery_platform", "M18", None, "M18", artifact.url))
                 if raw_mass := _extract_tool_mass(text):
@@ -95,7 +99,9 @@ class MilwaukeeAdapter(ManufacturerAdapter):
                 continue
 
             if role == "battery":
-                battery_sku = str(artifact.metadata.get("battery_model") or "battery")
+                battery_sku = str(artifact.metadata.get("battery_model") or "")
+                if not battery_sku or not _is_verified_manufacturer_page(artifact, battery_sku):
+                    continue
                 if raw_mass := _extract_battery_mass(text):
                     if q := parse_mass(raw_mass):
                         claims.append(self._claim(
@@ -181,7 +187,12 @@ class MilwaukeeAdapter(ManufacturerAdapter):
                 extractor=self.extractor,
             ))
 
-        battery_models = sorted({str(a.metadata.get("battery_model")) for a in battery_artifacts if a.metadata.get("battery_model")})
+        battery_models = sorted({
+            str(a.metadata.get("battery_model"))
+            for a in battery_artifacts
+            if a.metadata.get("battery_model")
+            and _is_verified_manufacturer_page(a, str(a.metadata.get("battery_model")))
+        })
         if battery_models:
             observations.append(AcquisitionObservation(
                 code="BATTERY_RELATIONSHIP_DISCOVERED",
@@ -226,7 +237,7 @@ class MilwaukeeAdapter(ManufacturerAdapter):
             ))
 
         primary = artifacts[0] if artifacts else None
-        if primary and re.search(r"Specs\s*Loading", page_text(primary.body), re.I):
+        if primary and _is_verified_manufacturer_page(primary, identity.sku or "") and re.search(r"Specs\s*Loading", page_text(primary.body), re.I):
             observations.append(AcquisitionObservation(
                 code="DYNAMIC_SPECS_DETECTED",
                 value=True,
@@ -344,7 +355,16 @@ class MilwaukeeAdapter(ManufacturerAdapter):
 
 
 def _contains_exact_sku(body: str, sku: str) -> bool:
-    return bool(re.search(rf"(?<![A-Z0-9]){re.escape(sku)}(?![A-Z0-9])", body, re.I))
+    return bool(sku and re.search(rf"(?<![A-Z0-9]){re.escape(sku)}(?![A-Z0-9])", body, re.I))
+
+
+def _is_verified_manufacturer_page(artifact: SourceArtifact, expected_sku: str) -> bool:
+    return bool(
+        expected_sku
+        and artifact.source_type == SourceType.MANUFACTURER_WEBPAGE
+        and _contains_exact_sku(artifact.url, expected_sku)
+        and _contains_exact_sku(artifact.body, expected_sku)
+    )
 
 
 def _verified_kit_battery_skus(tool_sku: str, kit_sku: str, body: str) -> list[str]:
