@@ -22,7 +22,7 @@ from .common import page_text
 
 class MilwaukeeAdapter(ManufacturerAdapter):
     manufacturer = "Milwaukee"
-    extractor = "milwaukee.v0.3"
+    extractor = "milwaukee.v0.4"
 
     def related_sources(self, identity: ProductIdentity, source_artifact: SourceArtifact) -> list[SourceRequest]:
         if identity.product_type != ProductType.TOOL or not identity.sku:
@@ -240,14 +240,13 @@ class MilwaukeeAdapter(ManufacturerAdapter):
         if not any(c.property_key == "operational_mass_kg" for c in claims):
             issues.append(ReadinessIssue(code="MISSING_OPERATIONAL_MASS", property_key="operational_mass_kg"))
 
-        for property_key, subject_ref in (("tool_body_mass_kg", "self"),):
-            values = {float(c.value) for c in claims if c.property_key == property_key and c.subject_ref == subject_ref}
-            if len(values) > 1:
-                issues.append(ReadinessIssue(
-                    code="CONFLICTING_PHYSICAL_FACTS",
-                    property_key=property_key,
-                    detail="Qualified sources disagree; values remain preserved for explicit reconciliation.",
-                ))
+        values = {float(c.value) for c in claims if c.property_key == "tool_body_mass_kg" and c.subject_ref == "self"}
+        if len(values) > 1:
+            issues.append(ReadinessIssue(
+                code="CONFLICTING_PHYSICAL_FACTS",
+                property_key="tool_body_mass_kg",
+                detail="Qualified sources disagree; values remain preserved for explicit reconciliation.",
+            ))
         return issues
 
     @classmethod
@@ -298,6 +297,11 @@ class MilwaukeeAdapter(ManufacturerAdapter):
                 source_type=SourceType.SECONDARY_WEBPAGE,
                 metadata={**common, "publisher": "Home Depot"},
             ),
+            SourceRequest(
+                url=f"https://thepowertoolstore.com/products/milwaukee-{quote(sku)}",
+                source_type=SourceType.SECONDARY_WEBPAGE,
+                metadata={**common, "publisher": "The Power Tool Store"},
+            ),
         ]
 
     @staticmethod
@@ -328,8 +332,10 @@ def _contains_exact_sku(body: str, sku: str) -> bool:
 
 def _extract_tool_mass(text: str) -> str | None:
     for pattern in (
+        r"\bNet Tool Weight\b(?:\s*\(lbs?\))?.{0,100}?(\d+(?:\.\d+)?\s*(?:kg|kgs?|lb|lbs?|g)\b|\d+(?:\.\d+)?)",
         r"\bTool Weight\b.{0,100}?(\d+(?:\.\d+)?\s*(?:kg|kgs?|lb|lbs?|g)\b)",
         r"\bTool Body Weight\b.{0,100}?(\d+(?:\.\d+)?\s*(?:kg|kgs?|lb|lbs?|g)\b)",
+        r"\bWeight\s*:?\s*(\d+(?:\.\d+)?\s*(?:kg|kgs?|lb|lbs?|g)\b)\s*\(Tool Only\)",
         r"\bProduct Weight\b.{0,100}?(\d+(?:\.\d+)?\s*(?:kg|kgs?|lb|lbs?|g)\b)",
         r"\bProduct Weight\s*\(lb\.?\)\s*[:|\n]?\s*(\d+(?:\.\d+)?)\b",
     ):
@@ -338,7 +344,7 @@ def _extract_tool_mass(text: str) -> str | None:
             value = m.group(1).strip()
             if re.search(r"\b(?:kg|kgs?|lb|lbs?|g)\b", value, re.I):
                 return value
-            return f"Product Weight (lb.) {value} lb"
+            return f"Net Tool Weight (lbs) {value} lb"
     return None
 
 
@@ -358,7 +364,7 @@ def _parse_mass_with_label_unit(raw: str) -> float | None:
     q = parse_mass(raw)
     if q:
         return q.value
-    m = re.search(r"\(lb\.?\).{0,40}?(\d+(?:\.\d+)?)", raw, re.I | re.S)
+    m = re.search(r"(?:\(lbs?\)|\(lb\.?\)).{0,40}?(\d+(?:\.\d+)?)", raw, re.I | re.S)
     return mass_to_kg(float(m.group(1)), "lb") if m else None
 
 
