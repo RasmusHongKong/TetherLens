@@ -69,6 +69,7 @@ class BraveSearchProvider:
                 "country": self.country,
                 "search_lang": self.search_lang,
                 "safesearch": "moderate",
+                "extra_snippets": "true",
             },
         )
         response.raise_for_status()
@@ -78,13 +79,17 @@ class BraveSearchProvider:
         for rank, row in enumerate(rows[:limit], start=1):
             if not isinstance(row, dict) or not row.get("url"):
                 continue
+            snippets = [str(row.get("description") or "")]
+            extra = row.get("extra_snippets") or []
+            if isinstance(extra, list):
+                snippets.extend(str(value) for value in extra if value)
             out.append(SearchResult(
                 provider=self.name,
                 query=query,
                 rank=rank,
                 title=str(row.get("title") or ""),
                 url=str(row.get("url")),
-                snippet=str(row.get("description") or ""),
+                snippet=" ".join(part for part in snippets if part),
             ))
         return out
 
