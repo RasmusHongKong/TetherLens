@@ -1,5 +1,5 @@
 {
-  "version": "0.4",
+  "version": "0.5",
   "description": "Source-graph expectations layered onto the Batch 1 golden contract.",
   "products": {
     "Hilti:2253847": {
@@ -29,6 +29,26 @@
           {"name": "operational_mass", "any_of": [{"property_key": "operational_mass_kg"}], "gap_if_missing": "document_join", "detail": "Operational mass must include a selected compatible battery."}
         ],
         "known_gaps": []
+      }
+    },
+    "Milwaukee:2607-20": {
+      "expected_claims": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "manufacturer_item_code", "value": "2607-20"},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "battery_platform", "value": "M18"}
+      ],
+      "forbidden_claims": [],
+      "ignored_claims": [
+        {"property_key": "tool_body_mass_kg"},
+        {"property_key": "battery_mass_kg"},
+        {"property_key": "operational_mass_kg"}
+      ],
+      "recommendation_data": {
+        "baseline_requirements": [
+          {"name": "operational_mass", "any_of": [{"property_key": "operational_mass_kg"}], "gap_if_missing": "cross_source_resolution", "detail": "Operational mass should be derived from exact-SKU tool-body and installed-battery mass evidence."}
+        ],
+        "known_gaps": [
+          {"category": "internal_measurement", "field": "tether_interface", "detail": "Tool tether attachment/interface geometry remains outside this mass-ingestion pass."}
+        ]
       }
     }
   }
