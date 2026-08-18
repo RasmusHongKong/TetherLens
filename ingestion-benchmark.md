@@ -115,7 +115,9 @@ A distributor fact must never be represented as manufacturer-stated evidence.
 
 Exact model/SKU identity, raw evidence, source URL and derivation provenance must be retained.
 
-Conflicting values should remain visible and be reconciled explicitly.
+Evidence priority applies only after the resolved source has been verified against the expected product identity. A manufacturer-domain request that resolves to a search/fallback/different-product page must not be treated as manufacturer evidence merely because the requested SKU appears in the URL or aggregate content; the same rule applies to exact-SKU secondary evidence.
+
+Conflicting values should remain visible. Reconciliation should operate at the highest applicable verified evidence priority: conflicting values at that highest priority block the affected fact, while lower-priority disagreement remains retained for provenance without automatically blocking a decisively established higher-priority value.
 
 ---
 
@@ -161,6 +163,8 @@ Hilti demonstrates a scalable **source-graph adapter**:
 
 The SF 4-22 case is the reference pattern for cordless-tool graph ingestion.
 
+The next distinct Hilti benchmark gap is `2293133`, where the useful evidence appears to require joining the manufacturer product page with manufacturer document/PDF evidence rather than extending the Milwaukee-style cross-source path.
+
 Likely baseline acquisition tier: **B**.
 
 ## 6.3 StopDrop
@@ -178,19 +182,20 @@ Likely baseline acquisition tier: **C/D depending on product**.
 
 Milwaukee is closer to Hilti than the first `2602-20` experiment suggested.
 
-The primary development case is now `2607-20`. Milwaukee's current product and kit surfaces expose useful graph relationships. For example, the `2607-22` kit identifies `2607-20` as the tool and `48-11-1828` as the included battery configuration.
+The primary development case is `2607-20`. The Milwaukee workstream has now validated the normal cross-source source-graph strategy end to end: manufacturer product and kit relationships establish tool/battery identity, while a qualified exact-SKU secondary product-detail source can supply permitted physical-mass facts when Milwaukee does not expose them directly.
 
-The normal Milwaukee strategy should therefore be:
+The implemented strategy is:
 
 ```text
 manufacturer product identity
-  -> manufacturer kit / related-product / battery graph
+  -> verified manufacturer kit / related-product / battery graph
   -> first-party physical facts where available
-  -> qualified exact-SKU distributor facts where needed
+  -> qualified exact-SKU secondary facts where needed
+  -> evidence reconciliation at highest verified priority
   -> operational mass profile
 ```
 
-This is conceptually the same architecture as Hilti, with the important difference that some physical facts may come from a qualified secondary publisher.
+The implementation also verifies resolved manufacturer product-detail identity before assigning manufacturer evidence priority and verifies exact resolved secondary product-detail identity before accepting secondary mass evidence. Redirected search, fallback and different-product responses therefore do not inherit evidence priority from the original request.
 
 The earlier `2602-20` case remains useful as a later test of sparse legacy-product handling, but it should not drive the normal Milwaukee adapter design.
 
@@ -318,8 +323,8 @@ Hilti demonstrates that multi-source first-party product graphs can be joined in
 
 StopDrop demonstrates that some products remain incomplete because the source evidence itself is sparse.
 
-Milwaukee demonstrates that the Hilti graph model can be reused even when selected physical facts cross into qualified distributor evidence.
+Milwaukee demonstrates that the Hilti graph model can be reused even when selected physical facts cross into qualified secondary evidence, provided resolved source identity is verified before evidence priority is assigned.
 
-The next Milwaukee implementation should therefore start from `2607-20`, follow manufacturer relationships first, cross source boundaries only where required, and reserve paid/general search for exceptional cases.
+The Milwaukee `2607-20` development path is now implemented and hardened enough to stop being the active benchmark workstream. The next distinct acquisition challenge is the Hilti `2293133` manufacturer document-join gap.
 
 See `benchmark-goals.md` for the benchmark success criteria and interpretation rules.
