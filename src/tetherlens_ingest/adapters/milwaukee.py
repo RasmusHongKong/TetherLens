@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from urllib.parse import quote, quote_plus, urljoin
+from urllib.parse import quote, urljoin
 
 from tetherlens_ingest.models import (
     AcquisitionObservation,
@@ -22,7 +22,8 @@ from .common import page_text
 
 class MilwaukeeAdapter(ManufacturerAdapter):
     manufacturer = "Milwaukee"
-    extractor = "milwaukee.v0.4"
+    extractor = "milwaukee.v0.5"
+    recursive_related_sources = True
 
     def related_sources(self, identity: ProductIdentity, source_artifact: SourceArtifact) -> list[SourceRequest]:
         if identity.product_type != ProductType.TOOL or not identity.sku:
@@ -37,11 +38,9 @@ class MilwaukeeAdapter(ManufacturerAdapter):
             requests.extend(self._discover_same_family_kits(identity, source_artifact))
             requests.extend(self._qualified_secondary_requests(identity.sku, "secondary_tool_mass", "self"))
         elif role == "kit":
-            if not _contains_exact_sku(source_artifact.body, identity.sku):
-                return []
-            kit_sku = str(source_artifact.metadata.get("kit_sku") or "kit")
-            for battery_sku in sorted(set(re.findall(r"\b48-11-\d{4}\b", source_artifact.body, re.I))):
-                battery_sku = battery_sku.upper()
+            kit_sku = str(source_artifact.metadata.get("kit_sku") or "")
+            battery_skus = _verified_kit_battery_skus(identity.sku, kit_sku, source_artifact.body)
+            for battery_sku in battery_skus:
                 requests.append(SourceRequest(
                     url=urljoin(source_artifact.url, f"/Products/{battery_sku}"),
                     metadata={
@@ -106,7 +105,7 @@ class MilwaukeeAdapter(ManufacturerAdapter):
                 continue
 
             requested_sku = str(artifact.metadata.get("requested_sku") or "")
-            if not requested_sku or not _contains_exact_sku(artifact.body, requested_sku):
+            if not _is_verified_secondary_detail(artifact, requested_sku):
                 continue
 
             if role == "secondary_tool_mass":
@@ -127,7 +126,12 @@ class MilwaukeeAdapter(ManufacturerAdapter):
                     ))
 
         claims = _dedupe_claims(claims)
-        body_claim = _preferred_claim(claims, "tool_body_mass_kg", "self")
+        body_claims = [
+            c for c in claims
+            if c.property_key == "tool_body_mass_kg" and c.subject_ref == "self"
+        ]
+        body_claim = _unambiguous_preferred_from(body_claims)
+
         batteries: dict[str, list[CandidateClaim]] = defaultdict(list)
         for claim in claims:
             if claim.property_key == "battery_mass_kg":
@@ -135,7 +139,9 @@ class MilwaukeeAdapter(ManufacturerAdapter):
 
         if body_claim:
             for battery_ref, battery_claims in batteries.items():
-                battery_claim = _preferred_from(battery_claims)
+                battery_claim = _unambiguous_preferred_from(battery_claims)
+                if battery_claim is None:
+                    continue
                 evidence_urls = list(dict.fromkeys([body_claim.source_url, battery_claim.source_url]))
                 evidence_method = (
                     "derived_cross_source"
@@ -177,7 +183,7 @@ class MilwaukeeAdapter(ManufacturerAdapter):
             observations.append(AcquisitionObservation(
                 code="BATTERY_RELATIONSHIP_DISCOVERED",
                 value=len(battery_models),
-                detail="Compatible battery identities were established from Milwaukee kit composition.",
+                detail="Compatible battery identities were established from verified Milwaukee kit contents.",
                 source_url=identity.url,
                 extractor=self.extractor,
             ))
@@ -185,13 +191,13 @@ class MilwaukeeAdapter(ManufacturerAdapter):
         verified_secondary = 0
         for artifact in secondary_artifacts:
             requested_sku = str(artifact.metadata.get("requested_sku") or "")
-            if requested_sku and _contains_exact_sku(artifact.body, requested_sku):
+            if _is_verified_secondary_detail(artifact, requested_sku):
                 verified_secondary += 1
             else:
                 observations.append(AcquisitionObservation(
                     code="SECONDARY_IDENTITY_UNVERIFIED",
                     value=requested_sku or None,
-                    detail="Secondary-source page was ignored because the exact requested SKU was not present.",
+                    detail="Secondary evidence was ignored because it was not a verified exact-SKU product-detail page.",
                     source_url=artifact.url,
                     extractor=self.extractor,
                 ))
@@ -211,7 +217,7 @@ class MilwaukeeAdapter(ManufacturerAdapter):
             observations.append(AcquisitionObservation(
                 code="QUALIFIED_SECONDARY_SOURCES_VERIFIED",
                 value=verified_secondary,
-                detail="Secondary pages passed exact-SKU identity verification before physical facts were accepted.",
+                detail="Secondary product-detail pages passed exact-SKU identity verification before physical facts were accepted.",
                 source_url=identity.url,
                 extractor=self.extractor,
             ))
@@ -240,13 +246,28 @@ class MilwaukeeAdapter(ManufacturerAdapter):
         if not any(c.property_key == "operational_mass_kg" for c in claims):
             issues.append(ReadinessIssue(code="MISSING_OPERATIONAL_MASS", property_key="operational_mass_kg"))
 
-        values = {float(c.value) for c in claims if c.property_key == "tool_body_mass_kg" and c.subject_ref == "self"}
-        if len(values) > 1:
+        tool_claims = [
+            c for c in claims
+            if c.property_key == "tool_body_mass_kg" and c.subject_ref == "self"
+        ]
+        if _has_conflicting_values(tool_claims):
             issues.append(ReadinessIssue(
                 code="CONFLICTING_PHYSICAL_FACTS",
                 property_key="tool_body_mass_kg",
-                detail="Qualified sources disagree; values remain preserved for explicit reconciliation.",
+                detail="Qualified tool-body mass sources disagree; no operational profile is derived until reconciled.",
             ))
+
+        battery_claims: dict[str, list[CandidateClaim]] = defaultdict(list)
+        for claim in claims:
+            if claim.property_key == "battery_mass_kg":
+                battery_claims[claim.subject_ref].append(claim)
+        for battery_ref, grouped_claims in battery_claims.items():
+            if _has_conflicting_values(grouped_claims):
+                issues.append(ReadinessIssue(
+                    code="CONFLICTING_PHYSICAL_FACTS",
+                    property_key="battery_mass_kg",
+                    detail=f"Qualified battery mass sources disagree for {battery_ref}; that profile is not derived until reconciled.",
+                ))
         return issues
 
     @classmethod
@@ -284,19 +305,10 @@ class MilwaukeeAdapter(ManufacturerAdapter):
             "role": role,
             "requested_sku": sku,
             "subject_ref": subject_ref,
+            "evidence_page_kind": "product_detail",
             **{k: v for k, v in metadata.items() if v},
         }
         return [
-            SourceRequest(
-                url=f"https://www.grainger.com/search?searchQuery={quote_plus(sku)}",
-                source_type=SourceType.SECONDARY_WEBPAGE,
-                metadata={**common, "publisher": "Grainger"},
-            ),
-            SourceRequest(
-                url=f"https://www.homedepot.com/s/{quote(sku)}",
-                source_type=SourceType.SECONDARY_WEBPAGE,
-                metadata={**common, "publisher": "Home Depot"},
-            ),
             SourceRequest(
                 url=f"https://thepowertoolstore.com/products/milwaukee-{quote(sku)}",
                 source_type=SourceType.SECONDARY_WEBPAGE,
@@ -328,6 +340,33 @@ class MilwaukeeAdapter(ManufacturerAdapter):
 
 def _contains_exact_sku(body: str, sku: str) -> bool:
     return bool(re.search(rf"(?<![A-Z0-9]){re.escape(sku)}(?![A-Z0-9])", body, re.I))
+
+
+def _verified_kit_battery_skus(tool_sku: str, kit_sku: str, body: str) -> list[str]:
+    if not kit_sku or not _contains_exact_sku(body, kit_sku):
+        return []
+    contents = _kit_contents_text(body)
+    if not contents or not _contains_exact_sku(contents, tool_sku):
+        return []
+    return sorted({sku.upper() for sku in re.findall(r"\b48-11-\d{4}\b", contents, re.I)})
+
+
+def _kit_contents_text(body: str) -> str | None:
+    text = page_text(body)
+    start = re.search(r"(?:^|\n)In The Box(?:\s*\(\d+\))?(?:\n|$)", text, re.I)
+    if not start:
+        return None
+    remainder = text[start.end():]
+    stop = re.search(r"(?:^|\n)(?:Specs|Product Overview|Features|Reviews|Additional Resources)(?:\n|$)", remainder, re.I)
+    return remainder[:stop.start()] if stop else remainder[:5000]
+
+
+def _is_verified_secondary_detail(artifact: SourceArtifact, requested_sku: str) -> bool:
+    return bool(
+        requested_sku
+        and artifact.metadata.get("evidence_page_kind") == "product_detail"
+        and _contains_exact_sku(artifact.body, requested_sku)
+    )
 
 
 def _extract_tool_mass(text: str) -> str | None:
@@ -368,9 +407,14 @@ def _parse_mass_with_label_unit(raw: str) -> float | None:
     return mass_to_kg(float(m.group(1)), "lb") if m else None
 
 
-def _preferred_claim(claims: list[CandidateClaim], key: str, subject_ref: str) -> CandidateClaim | None:
-    matches = [c for c in claims if c.property_key == key and c.subject_ref == subject_ref]
-    return _preferred_from(matches) if matches else None
+def _has_conflicting_values(claims: list[CandidateClaim]) -> bool:
+    return len({round(float(c.value), 9) for c in claims}) > 1
+
+
+def _unambiguous_preferred_from(claims: list[CandidateClaim]) -> CandidateClaim | None:
+    if not claims or _has_conflicting_values(claims):
+        return None
+    return _preferred_from(claims)
 
 
 def _preferred_from(claims: list[CandidateClaim]) -> CandidateClaim:
