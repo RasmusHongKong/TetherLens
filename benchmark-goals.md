@@ -99,7 +99,9 @@ Examples:
 
 Secondary evidence must never be silently represented as manufacturer-stated evidence. Exact model/SKU identity, raw evidence and source provenance must remain attached to the accepted claim.
 
-Conflicting values must be retained and reconciled explicitly rather than hidden by source precedence.
+Evidence priority only applies after the resolved source itself has been verified against the expected identity. A request sent to a manufacturer domain is not sufficient on its own: before a claim receives manufacturer priority, the resolved product-detail page or document must identify the expected product. The same principle applies to secondary evidence: an exact-SKU request that redirects to a search, fallback or different-product page must not inherit exact-SKU qualification merely because the requested SKU appears somewhere in the URL or aggregate body.
+
+Conflicting values must be retained and reconciled explicitly rather than hidden by source precedence. Reconciliation should be evaluated at the highest applicable **verified** evidence priority; lower-priority disagreement remains in provenance but does not automatically block a decisively established higher-priority value, while disagreement at the same highest priority remains a blocking conflict.
 
 ### Evidence fitness and acquisition reliability are separate
 
@@ -241,6 +243,7 @@ The following rules should guide future benchmark design and scoring:
 10. **Keep provenance first-class.** Derived facts must retain the evidence chain for every operand.
 11. **Reserve expensive general search for exceptional cases.** Deterministic manufacturer and qualified-source graph traversal should be exhausted first.
 12. **Separate evidence fitness from retrievability.** A trustworthy source that the runtime cannot fetch reliably may remain useful evidence in principle while being unsuitable for the normal unattended acquisition path.
+13. **Verify the resolved evidence identity before assigning source priority.** Request origin, domain, or query text alone must not promote a search/fallback/different-product response to manufacturer or exact-SKU evidence.
 
 ## Immediate implication for Batch 1
 

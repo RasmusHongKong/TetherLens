@@ -76,13 +76,15 @@ TetherLens should support two resolution paths.
 
 Where possible, TetherLens should identify an exact or sufficiently specific manufacturer/model record and ask the worker to confirm it.
 
-This path can use manufacturer-backed catalogue facts such as:
+This path can use verified catalogue facts such as:
 
 - mass;
 - known geometry;
 - native tether features;
 - materials; and
 - declared product constraints.
+
+Catalogue facts retain their provenance. For physical tool or battery mass, manufacturer evidence is preferred, but a reputable exact-SKU secondary product-detail source may be accepted where manufacturer mass is unavailable or incomplete. Manufacturer-rated capacities, restrictions and compliance claims retain their stricter manufacturer-evidence requirements.
 
 ### Generic-tool path
 
@@ -112,7 +114,7 @@ User-selected mass range: 2-3 kg
 Required capacity for load rules: >= 3 kg
 ```
 
-A generic-tool recommendation should clearly state when the object mass is user-provided rather than manufacturer-confirmed.
+A generic-tool recommendation should clearly state when the object mass is user-provided rather than a verified catalogue fact.
 
 Generic runtime observations must not automatically become accepted catalogue Claims. If the product is later submitted for catalogue inclusion, it should enter the normal ingestion/review process.
 
@@ -165,11 +167,11 @@ For every applicable load-bearing component:
 
 Component capacity should come from manufacturer information.
 
-For a catalogued tool, object mass should come from manufacturer information.
+For a catalogued tool, object mass should come from verified physical-mass evidence bound to the exact product identity. Manufacturer evidence is preferred; a reputable exact-SKU secondary source may be accepted where manufacturer mass is unavailable or incomplete. Visual inference, similar-model estimates and unverified aggregate/search pages are not acceptable catalogue mass evidence.
 
 For the generic-tool fallback path, the engine may use a user-confirmed label/document value, a user measurement, or — with clear qualification — a user-estimated mass range. Where a range is used, the upper bound should be used for the load-capacity comparison.
 
-Runtime user-provided mass should affect the recommendation's qualification/confidence and should not be persisted as a manufacturer-backed catalogue fact.
+Runtime user-provided mass should affect the recommendation's qualification/confidence and should not be persisted as a verified catalogue fact.
 
 ### Interface compatibility
 
@@ -277,13 +279,13 @@ The recommendation may remain usable with a clear limitation.
 
 ### Runtime user-supplied object data
 
-Where the generic-tool path is used, the engine should distinguish the source of the object mass from persistent manufacturer-backed product facts.
+Where the generic-tool path is used, the engine should distinguish the source of the object mass from persistent verified catalogue facts.
 
 A recommendation may remain useful when the worker provides or measures the mass, but the result should state the basis clearly.
 
 Example:
 
-> Recommended based on the information provided: the selected configuration is rated above the 3 kg upper weight you confirmed. The exact tool model and manufacturer-published mass could not be verified.
+> Recommended based on the information provided: the selected configuration is rated above the 3 kg upper weight you confirmed. The exact tool model and catalogue mass could not be verified.
 
 ### Insufficient hard-constraint information
 

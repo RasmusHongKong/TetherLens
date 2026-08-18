@@ -149,9 +149,11 @@ The recommendation engine should remove configurations that fail defined hard co
 
 At minimum, the MVP should evaluate:
 
-- manufacturer-published tool/object mass;
+- verified object/tool mass from evidence acceptable for the physical-mass property and exact product identity;
 - manufacturer-published rated capacity of every applicable load-bearing component; and
 - sufficient evidence of interface compatibility.
+
+For catalogued tool and battery mass, manufacturer evidence is preferred. A reputable exact-SKU secondary product-detail source may be accepted where manufacturer physical mass is unavailable or incomplete, with provenance retained. Visual inference, similar-model estimates and unverified aggregate/search results are not acceptable catalogue mass evidence.
 
 ### 7. Context-based ranking and cautions
 
@@ -233,7 +235,7 @@ A product or component becomes recommendation-ready when the mandatory facts req
 
 For baseline tethering recommendations, the mandatory facts are:
 
-- **object/tool mass** from manufacturer information, where applicable;
+- **object/tool mass** from trustworthy exact-product physical evidence, with manufacturer evidence preferred and reputable exact-SKU secondary evidence permitted where manufacturer mass is unavailable or incomplete;
 - **rated capacity** from manufacturer information for every applicable load-bearing component; and
 - **sufficient interface compatibility information** to establish that required connections can be made correctly.
 
@@ -338,7 +340,7 @@ Human time required from initial product identification to recommendation-ready 
 
 ### Mandatory-data availability
 
-What proportion of products can reach recommendation-ready status using public first-party information alone.
+What proportion of products can reach recommendation-ready status using public first-party information alone, and what additional proportion can be completed through evidence-qualified deterministic secondary sources where the property policy permits them.
 
 ### Enrichment burden
 
@@ -413,12 +415,13 @@ Before expanding TetherLens, the MVP should answer:
 5. Can the recommendation engine provide useful answers without manually validating every exact combination?
 6. Which facts are genuinely required to make a baseline recommendation?
 7. How much public manufacturer data is sufficient for catalogue ingestion?
-8. How often is internal measurement required?
-9. Can new products reuse existing rules?
-10. Does the number of one-off exceptions remain manageable as the catalogue grows?
-11. How often does TetherLens genuinely need to return no suitable recommendation?
-12. Do workers continue to trust the system when the best available option is imperfect?
-13. Is maintaining the product, evidence, and rule base operationally practical?
+8. How often can qualified deterministic secondary evidence close permitted physical-data gaps?
+9. How often is internal measurement required?
+10. Can new products reuse existing rules?
+11. Does the number of one-off exceptions remain manageable as the catalogue grows?
+12. How often does TetherLens genuinely need to return no suitable recommendation?
+13. Do workers continue to trust the system when the best available option is imperfect?
+14. Is maintaining the product, evidence, and rule base operationally practical?
 
 ## Exit criteria
 
