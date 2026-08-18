@@ -1,6 +1,6 @@
 {
-  "version": "0.5",
-  "description": "Source-graph expectations layered onto the Batch 1 golden contract.",
+  "version": "0.6",
+  "description": "Source-graph expectations layered onto the Batch 1 golden contract. Recommendation-critical facts may be added by generic evidence-qualified resolvers after manufacturer acquisition.",
   "products": {
     "Hilti:2253847": {
       "expected_claims": [
@@ -37,10 +37,7 @@
         {"subject_type": "product", "subject_ref": "self", "property_key": "battery_platform", "value": "M18"},
         {"subject_type": "related_product", "subject_ref": "48-11-1828", "property_key": "battery_mass_kg", "value": 0.698532}
       ],
-      "forbidden_claims": [
-        {"property_key": "tool_body_mass_kg"},
-        {"property_key": "operational_mass_kg"}
-      ],
+      "forbidden_claims": [],
       "ignored_claims": [],
       "acquisition_expectations": {
         "required_observations": [
@@ -54,10 +51,10 @@
       },
       "recommendation_data": {
         "baseline_requirements": [
-          {"name": "operational_mass", "any_of": [{"property_key": "operational_mass_kg"}], "gap_if_missing": "public_fact_missing", "detail": "Milwaukee API acquisition succeeds, but the 2602-20 product record does not publish tool-body mass."}
+          {"name": "operational_mass", "any_of": [{"property_key": "operational_mass_kg"}], "gap_if_missing": "required_fact_resolution", "detail": "Manufacturer acquisition does not publish tool-body mass; a generic evidence-qualified resolver should attempt to close this gap."}
         ],
         "known_gaps": [
-          {"category": "public_fact_missing", "field": "tool_body_mass", "detail": "Milwaukee first-party product API does not publish a physical tool-body mass for 2602-20."},
+          {"category": "manufacturer_fact_missing", "field": "tool_body_mass", "detail": "Milwaukee first-party product API does not publish a physical tool-body mass for 2602-20; this is an input to generic required-fact resolution, not an acceptable final state."},
           {"category": "public_fact_missing", "field": "compact_battery_mass", "detail": "Milwaukee first-party product API does not publish a physical mass for 48-11-1815."},
           {"category": "source_conflict", "field": "xc_battery_mass", "detail": "48-11-1828 publishes specs.weight 1.54 lb and specs2.netWeight 1.6 lb; physical specs.weight is retained as the mass candidate."}
         ]
