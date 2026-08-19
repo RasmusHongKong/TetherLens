@@ -71,6 +71,99 @@ def test_extraction_scoring_counts_forbidden_claim_as_false_positive():
     assert score["recall"] == 1.0
 
 
+def test_extraction_scoring_forbidden_value_is_value_sensitive():
+    golden = {
+        "products": {
+            "Example:X1B": {
+                "expected_claims": [
+                    {
+                        "subject_type": "physical_interface",
+                        "subject_ref": "tether_endpoint_2",
+                        "property_key": "interface.type",
+                        "value": "loop",
+                    }
+                ],
+                "forbidden_claims": [
+                    {
+                        "subject_type": "physical_interface",
+                        "subject_ref": "tether_endpoint_2",
+                        "property_key": "interface.type",
+                        "value": "carabiner",
+                    }
+                ],
+                "ignored_claims": [],
+            }
+        }
+    }
+
+    passing = score_extraction_product(
+        "Example",
+        "X1B",
+        [{
+            "subject_type": "physical_interface",
+            "subject_ref": "tether_endpoint_2",
+            "property_key": "interface.type",
+            "value": "loop",
+        }],
+        golden,
+    )
+    assert passing["forbidden_hits"] == []
+    assert passing["precision"] == 1.0
+    assert passing["recall"] == 1.0
+
+    failing = score_extraction_product(
+        "Example",
+        "X1B",
+        [
+            {
+                "subject_type": "physical_interface",
+                "subject_ref": "tether_endpoint_2",
+                "property_key": "interface.type",
+                "value": "loop",
+            },
+            {
+                "subject_type": "physical_interface",
+                "subject_ref": "tether_endpoint_2",
+                "property_key": "interface.type",
+                "value": "carabiner",
+            },
+        ],
+        golden,
+    )
+    assert len(failing["forbidden_hits"]) == 1
+    assert failing["forbidden_hits"][0]["claim"]["value"] == "carabiner"
+
+
+def test_extraction_scoring_forbidden_claim_without_value_forbids_property():
+    golden = {
+        "products": {
+            "Example:X1C": {
+                "expected_claims": [],
+                "forbidden_claims": [
+                    {
+                        "subject_type": "physical_interface",
+                        "subject_ref": "tether_endpoint_2",
+                        "property_key": "interface.type",
+                    }
+                ],
+                "ignored_claims": [],
+            }
+        }
+    }
+    score = score_extraction_product(
+        "Example",
+        "X1C",
+        [{
+            "subject_type": "physical_interface",
+            "subject_ref": "tether_endpoint_2",
+            "property_key": "interface.type",
+            "value": "loop",
+        }],
+        golden,
+    )
+    assert len(score["forbidden_hits"]) == 1
+
+
 def test_extraction_scoring_is_strict_for_unexpected_property_keys():
     golden = {
         "products": {
