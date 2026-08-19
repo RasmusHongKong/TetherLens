@@ -7,6 +7,7 @@ from pathlib import Path
 from time import perf_counter
 
 from tetherlens_ingest.adapters import NLGAdapter
+from tetherlens_ingest.adapters.common import page_text
 from tetherlens_ingest.http import HttpxFetcher
 from tetherlens_ingest.models import ProductIdentity, ProductType, SourceType
 from tetherlens_ingest.runner import IngestionRunner
@@ -27,6 +28,22 @@ def _discover_catalogue(fetcher: HttpxFetcher, adapter: NLGAdapter, urls: list[s
             if identity.sku:
                 discovered.setdefault(identity.sku, identity)
     return discovered
+
+
+def _bounded_excerpt(body: str, product_name: str | None, limit: int = 3200) -> str:
+    text = page_text(body)
+    if len(text) <= limit:
+        return text
+
+    needles = [product_name or "", "Max Load", "Dimensions", "Max Lanyard Length"]
+    positions = [text.lower().find(needle.lower()) for needle in needles if needle]
+    positions = [position for position in positions if position >= 0]
+    if not positions:
+        return text[:limit]
+
+    center = min(positions)
+    start = max(0, center - 600)
+    return text[start:start + limit]
 
 
 def main() -> None:
@@ -53,6 +70,7 @@ def main() -> None:
                     "acquisition_succeeded": False,
                     "claims": [],
                     "claim_keys": [],
+                    "source_evidence": [],
                     "error": "SKU not discovered in configured NLG collections",
                 })
                 continue
@@ -75,6 +93,16 @@ def main() -> None:
             try:
                 result = runner.ingest(identity, adapter)
                 claims = [claim.model_dump(mode="json") for claim in result.claims]
+                source_evidence = [
+                    {
+                        "url": artifact.url,
+                        "source_type": artifact.source_type.value,
+                        "content_type": artifact.content_type,
+                        "excerpt": _bounded_excerpt(artifact.body, frozen["name"]),
+                    }
+                    for artifact in result.artifacts
+                    if artifact.source_type == SourceType.MANUFACTURER_WEBPAGE
+                ]
                 record = {
                     "sku": sku,
                     "name": frozen["name"],
@@ -87,6 +115,7 @@ def main() -> None:
                     "claim_count": len(claims),
                     "claim_keys": sorted({claim["property_key"] for claim in claims}),
                     "claims": claims,
+                    "source_evidence": source_evidence,
                     "readiness_assessed": result.readiness_assessed,
                     "readiness_issues": [issue.model_dump(mode="json") for issue in result.issues],
                 }
@@ -101,6 +130,7 @@ def main() -> None:
                     "elapsed_ms": round((perf_counter() - case_started) * 1000),
                     "claims": [],
                     "claim_keys": [],
+                    "source_evidence": [],
                     "error": f"{type(exc).__name__}: {exc}",
                 }
             records.append(record)
@@ -121,7 +151,7 @@ def main() -> None:
         "elapsed_ms": round((perf_counter() - started) * 1000),
     }
     payload = {
-        "benchmark": "nlg-unseen-generalization-v0.1",
+        "benchmark": "nlg-unseen-generalization-v0.2",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "cohort": cohort,
         "results": records,
