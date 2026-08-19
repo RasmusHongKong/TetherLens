@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import html
 import json
 import re
 import subprocess
@@ -21,6 +22,7 @@ RESULT_PATH = Path("batch2-nlg-blind-results.json")
 
 
 def _normalized_title(value: str) -> str:
+    value = html.unescape(value)
     value = unicodedata.normalize("NFKD", value)
     value = "".join(ch for ch in value if not unicodedata.combining(ch))
     return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
