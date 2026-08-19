@@ -85,6 +85,8 @@ The provenance layer exists alongside the operational catalogue and explains why
 
 For configuration-dependent cordless tools, the engine consumes a specific `operational_mass_profile`; it must not substitute `tool.body_mass_kg` as the load-check mass when an installed battery is required.
 
+Whether a Tool may use `body_mass_kg` directly or requires an operational profile is itself an accepted catalogue fact. The default state is unknown, and absence of a known Battery relationship or operational profile must never be treated as evidence that no installed configuration is required.
+
 ## 1.3 Provenance remains claim-level
 
 `Claim` remains atomic and source-backed where it represents a directly sourced fact.
@@ -151,7 +153,7 @@ Recommendation-readiness is derived from:
 - valid configuration relationships where applicable; and
 - whether at least one supported interface path can be established for the use being evaluated.
 
-For a cordless Tool that requires an installed interchangeable battery, readiness for load-based reasoning requires at least one valid `operational_mass_profile`. A bare-tool/body mass alone is insufficient.
+For every catalogued Tool, the catalogue must first establish whether an operational profile is `required` or `not_required`. The default `unknown` state blocks load-based readiness. For a cordless Tool classified as `required`, readiness for load-based reasoning requires at least one valid `operational_mass_profile`. A bare-tool/body mass alone is insufficient.
 
 Readiness may therefore be path-dependent rather than a permanent intrinsic property of a product.
 
@@ -226,6 +228,18 @@ discontinued
 superseded
 unknown
 ```
+
+## `operational_profile_requirement`
+
+```text
+unknown
+not_required
+required
+```
+
+`unknown` is the default and means TetherLens has not yet established whether `tool.body_mass_kg` represents the complete in-use load or whether an installed configuration must be added. This state blocks load-based recommendation-readiness.
+
+`not_required` and `required` are accepted catalogue classifications, not fallbacks inferred from missing data. Each requires an accepted Claim linked to the Tool's `operational_profile_requirement` property.
 
 ## `native_tether_point_status`
 
@@ -616,7 +630,7 @@ Tool-specific operational fields.
 | `product_id` | UUID | no | PK + FK -> `product.id` |
 | `tool_category_code` | TEXT | no | Expandable controlled vocabulary |
 | `body_mass_kg` | DECIMAL(12,6) | yes | Current accepted physical mass excluding an interchangeable installed Battery where applicable |
-| `requires_operational_profile` | BOOLEAN | no | Default `false`; true when load reasoning requires an installed configuration such as a battery |
+| `operational_profile_requirement` | ENUM | no | Default `unknown`; `not_required` permits direct body-mass reasoning only after accepted classification, `required` requires a configured profile |
 | `native_tether_point_status` | ENUM | no | Default `unknown` |
 
 ### Constraints
@@ -625,8 +639,10 @@ Tool-specific operational fields.
 - `body_mass_kg > 0` when populated.
 - `body_mass_kg` may be null while the catalogue record is being built.
 - A non-null operational `body_mass_kg` must have a matching `accepted_fact_link` to an accepted Claim supported by evidence permitted for physical mass. Manufacturer evidence is preferred; a reputable verified exact-SKU secondary source may be accepted when manufacturer mass is unavailable or incomplete.
-- If `requires_operational_profile = false`, `body_mass_kg` may be used directly as the object mass for load reasoning once all other readiness conditions pass.
-- If `requires_operational_profile = true`, `body_mass_kg` is not itself the load-check mass; at least one valid `operational_mass_profile` is required.
+- `operational_profile_requirement = unknown` blocks load-based recommendation-readiness, even if `body_mass_kg` is known and no Battery relationship/profile has been discovered.
+- `operational_profile_requirement = not_required` permits `body_mass_kg` to be used directly as the object mass for load reasoning only when the classification itself has a matching `accepted_fact_link` to an accepted Claim for `operational_profile_requirement`.
+- `operational_profile_requirement = required` also requires a matching accepted classification Claim; `body_mass_kg` is not itself the load-check mass and at least one valid `operational_mass_profile` is required.
+- The classification Claim may be direct or derived from source-backed product facts, but `not_required` must never be inferred solely from absence of a Battery relationship, Battery product, or operational profile.
 - `native_tether_point_status = observed_absent` does not imply that the tool is untetherable.
 
 ---
@@ -676,6 +692,7 @@ tool.body_mass_kg + battery.mass_kg = operational_mass_profile.operational_mass_
 - `operational_mass_kg > 0`.
 - Prefer `UNIQUE(tool_product_id, battery_product_id)` for active profiles unless a future product has materially distinct installed configurations using the same battery identity.
 - `relationship_id` must relate the same Tool and Battery and use a manufacturer-backed relationship type such as `compatible_configuration` or `kit_relationship`.
+- The parent Tool must have `operational_profile_requirement = required` with a matching accepted classification Claim before the profile is recommendation-eligible.
 - The profile must have an `accepted_fact_link` for `operational_mass_kg` pointing to an accepted Claim with `claim_type = derived`.
 - That derived Claim must depend through `claim_dependency` on the current accepted Tool `body_mass_kg` Claim and current accepted Battery `mass_kg` Claim.
 - The normalized derived value must equal the accepted input masses according to the version-controlled derivation rule.
@@ -1101,6 +1118,16 @@ accepted_fact_link
 ```
 
 ```text
+tool.operational_profile_requirement = required
+
+accepted_fact_link
+- subject_type = product
+- subject_id = <tool product id>
+- property_key = operational_profile_requirement
+- claim_id = <accepted Tool operational-profile classification claim>
+```
+
+```text
 operational_mass_profile.operational_mass_kg = 2.086525
 
 accepted_fact_link
@@ -1330,6 +1357,8 @@ Example logical result:
 product_id: ...
 baseline_ready: false
 issues:
+  - code: OPERATIONAL_PROFILE_REQUIREMENT_UNKNOWN
+    property: operational_profile_requirement
   - code: MISSING_OPERATIONAL_MASS_PROFILE
     property: operational_mass_kg
   - code: MISSING_MANUFACTURER_CAPACITY
@@ -1343,15 +1372,19 @@ For a catalogued Tool to participate in load-based recommendations:
 
 1. `tool.body_mass_kg` must be populated.
 2. `body_mass_kg` must have an `accepted_fact_link` to an accepted Claim satisfying the physical-mass evidence policy.
-3. If `requires_operational_profile = false`, `body_mass_kg` is the object's load-reasoning mass.
-4. If `requires_operational_profile = true`, the exact installed configuration must resolve to an active `operational_mass_profile` before load checks run.
-5. Each accepted operational profile must reference an exact Battery product, an active manufacturer-backed Tool/Battery `declared_relationship`, and an accepted derived `operational_mass_kg` Claim.
-6. The derived operational-mass Claim must depend on the current accepted Tool `body_mass_kg` Claim and Battery `mass_kg` Claim, and its value must match the deterministic derivation.
-7. For a particular recommendation path, sufficient physical-interface information must exist to establish a valid tool-side connection directly or through a ToolAttachment.
+3. `tool.operational_profile_requirement` must be explicitly classified as `not_required` or `required`; `unknown` is a hard readiness gap.
+4. The non-`unknown` classification must have an `accepted_fact_link` to an accepted Claim for `operational_profile_requirement`. Missing Battery/profile data alone cannot establish `not_required`.
+5. If `operational_profile_requirement = not_required`, `body_mass_kg` is the object's load-reasoning mass.
+6. If `operational_profile_requirement = required`, the exact installed configuration must resolve to an active `operational_mass_profile` before load checks run.
+7. Each accepted operational profile must reference an exact Battery product, an active manufacturer-backed Tool/Battery `declared_relationship`, and an accepted derived `operational_mass_kg` Claim.
+8. The derived operational-mass Claim must depend on the current accepted Tool `body_mass_kg` Claim and Battery `mass_kg` Claim, and its value must match the deterministic derivation.
+9. For a particular recommendation path, sufficient physical-interface information must exist to establish a valid tool-side connection directly or through a ToolAttachment.
 
 A native tether point is not mandatory.
 
-A cordless tool requiring an installed Battery is not recommendation-ready merely because its bare/body mass is known. If several valid Battery profiles exist and the installed Battery is unresolved, the engine must resolve the configuration or remain unable to perform the load check; it must not choose a profile arbitrarily.
+An incompletely classified Tool is not recommendation-ready merely because its body mass is known. The validator must not interpret absence of a Battery relationship or operational profile as evidence that the Tool is non-battery/non-configurable.
+
+A Tool classified as requiring an installed Battery is likewise not recommendation-ready merely because its bare/body mass is known. If several valid Battery profiles exist and the installed Battery is unresolved, the engine must resolve the configuration or remain unable to perform the load check; it must not choose a profile arbitrarily.
 
 ## 13.2 Battery profile requirements
 
@@ -1405,6 +1438,8 @@ Where manufacturer mass is unavailable or incomplete, `secondary_published` may 
 
 Physical Battery mass is eligible under this policy **only because the Battery is represented as an exact catalogue Product and is incorporated into a specific manufacturer-backed operational profile**. A mass value attached only to a battery family/platform label is insufficient.
 
+The Tool's `operational_profile_requirement` classification must also be source-backed/reviewed. A classification Claim may be direct or derived from accepted product facts, but `not_required` may not be inferred from missing Battery/profile records or from ingestion simply failing to discover them.
+
 For rated capacity of Tethers, ToolAttachments, AnchorAttachments, and Containers, manufacturer evidence remains mandatory. A manufacturer compatibility statement may support compatibility/relationship Claims but should not automatically be treated as the source of a rated load unless it actually states that rating and the review process accepts it as manufacturer technical information.
 
 Internal measurement is acceptable for geometry but not as the normal source of catalogue tool/battery mass or manufacturer-rated component capacity.
@@ -1419,6 +1454,7 @@ The final physical implementation should enforce as many simple invariants in th
 
 - all PKs unique and non-null;
 - all explicit FKs valid;
+- `tool.operational_profile_requirement` is non-null and defaults to `unknown`;
 - masses, capacities, and dimensions positive when populated;
 - active operational profiles unique by Tool/Battery where applicable;
 - tether and leg minimum length must not exceed maximum length;
@@ -1436,6 +1472,9 @@ The final physical implementation should enforce as many simple invariants in th
 The following involve cross-table semantics and should initially be enforced in a validation/service layer, even if some later become database triggers:
 
 - product subtype matches `product_type`;
+- `operational_profile_requirement = unknown` blocks load-based Tool readiness;
+- `not_required` and `required` operational-profile classifications each have a matching accepted classification Claim and accepted fact link;
+- absence of Battery, relationship, or profile records does not establish `not_required`;
 - Batteries used in profiles have exact catalogue identity and accepted mass Claims;
 - Tool/Battery profile relationship references the same Tool/Battery and is manufacturer-backed;
 - operational-mass derived Claim dependencies correspond to the current accepted Tool body-mass and Battery-mass Claims;
@@ -1475,7 +1514,7 @@ Evidence should only be deleted to correct an ingestion mistake before acceptanc
 
 ## Accepted operational facts
 
-When an accepted primitive physical value changes:
+When an accepted primitive physical value or operational-profile classification changes:
 
 ```text
 old accepted Claim
@@ -1488,14 +1527,16 @@ review
         ↓
 new Claim accepted
         ↓
-update typed operational value
+update typed operational value/classification
         ↓
 move AcceptedFactLink
         ↓
-re-derive any dependent operational profiles
+re-derive or revalidate any dependent operational profiles
 ```
 
 A superseded Tool-body or Battery-mass Claim invalidates an operational profile until its derived Claim is recalculated/reviewed against the new accepted input.
+
+A superseded `operational_profile_requirement` Claim makes the Tool non-ready for load reasoning until a replacement classification is accepted. Changing from `not_required` to `required` prevents further direct use of `body_mass_kg` and requires a valid operational profile.
 
 The historical value, dependency chain, and source remain traceable.
 
@@ -1512,7 +1553,8 @@ The following examples test structure only unless explicitly tied to an establis
 ```text
 Tool A
 - body_mass_kg = 1.40
-- requires_operational_profile = false
+- operational_profile_requirement = not_required
+- operational_profile_requirement Claim = accepted
 - native_tether_point_status = documented_present
 
 PhysicalInterface A1
@@ -1578,7 +1620,7 @@ No exact Tool A -> Tether B compatibility row is required.
 
 Pass.
 
-The schema can represent direct connection and reusable geometric compatibility without a compatibility matrix.
+The schema can represent direct connection and reusable geometric compatibility without a compatibility matrix, while requiring explicit confirmation that no additional operational mass profile is needed.
 
 ---
 
@@ -1589,7 +1631,8 @@ The schema can represent direct connection and reusable geometric compatibility 
 ```text
 Tool D
 - body_mass_kg = 2.00
-- requires_operational_profile = false
+- operational_profile_requirement = not_required
+- operational_profile_requirement Claim = accepted
 - native_tether_point_status = observed_absent
 
 PhysicalInterface D1
@@ -1721,7 +1764,8 @@ This pressure test mirrors the structure already exercised by the Milwaukee inge
 Tool H
 - sku = 2607-20
 - body_mass_kg = 1.360777
-- requires_operational_profile = true
+- operational_profile_requirement = required
+- operational_profile_requirement Claim = accepted
 
 Battery J
 - sku = 48-11-1828
@@ -1768,6 +1812,40 @@ If the worker's installed Battery cannot be resolved among several profiles, the
 Pass.
 
 The schema can bind physical Battery evidence to an exact SKU, represent manufacturer-backed Tool/Battery validity, retain the primitive Claim dependencies of the derived mass, and preserve multiple operational mass profiles.
+
+---
+
+## 16.5 Configuration E: incomplete operational-mass classification
+
+This pressure test exists specifically to ensure that missing ingestion cannot silently authorize a bare-tool mass.
+
+### Catalogue structure
+
+```text
+Tool K
+- body_mass_kg = 1.50
+- operational_profile_requirement = unknown
+- no accepted operational_profile_requirement Claim
+- no Battery relationship/profile discovered yet
+```
+
+### Engine behaviour
+
+The load rule does **not** receive `1.50 kg`.
+
+The catalogue validator returns:
+
+```text
+OPERATIONAL_PROFILE_REQUIREMENT_UNKNOWN
+```
+
+The Tool remains incomplete for load-based recommendations until the catalogue explicitly accepts either `not_required` or `required`.
+
+### Schema result
+
+Pass.
+
+The absence of Battery evidence cannot be mistaken for evidence that no installed configuration contributes mass.
 
 ---
 
@@ -1874,7 +1952,7 @@ Example conceptual shape:
 ResolvedCatalogueTool
 - product identity
 - body_mass_kg
-- requires_operational_profile
+- operational_profile_requirement    # unknown | not_required | required
 - operational_mass_profiles[]
     - profile_id
     - battery identity / SKU
@@ -1896,6 +1974,8 @@ AvailableToolAttachment
 AvailableAnchorAttachment
 AvailableContainer
 ```
+
+The runtime object must preserve `unknown` explicitly. It must not coerce missing/unknown classification to `not_required`.
 
 For a resolved cordless configuration, the runtime object should carry one selected profile (or an explicit unresolved-profile state) so load rules cannot accidentally read `body_mass_kg` in place of configured mass.
 
@@ -1921,6 +2001,7 @@ A seed set should be able to express:
 ```text
 product identities, including supporting Batteries
 subtype operational facts
+explicit Tool operational-profile requirement classification
 Tool/Battery manufacturer relationships
 operational mass profiles
 interfaces
@@ -1933,7 +2014,7 @@ claims + evidence
 claim dependencies for persisted derived facts
 ```
 
-The seed validator should perform the same semantic checks as the database catalogue validator.
+The seed validator should perform the same semantic checks as the database catalogue validator, including rejecting load-readiness when the Tool's operational-profile requirement remains `unknown`.
 
 This makes it possible to use YAML/JSON files for Batch 1 while retaining a clean migration path into a relational database.
 
@@ -1995,16 +2076,17 @@ The schema is ready for implementation when all of the following are true:
 
 1. A real Batch 1 can represent tools, supporting Batteries, tethers, attachments, and connectors without schema-specific exceptions.
 2. Tool-body and Battery mass are queryable directly and traceable to accepted evidence-qualified Claims, while component capacity remains traceable to accepted manufacturer-backed Claims.
-3. A cordless Tool can have multiple exact manufacturer-backed Battery configurations without collapsing them into one mass.
-4. Each persisted operational-mass profile is traceable to exact Tool/Battery identities, a valid manufacturer relationship, and explicit primitive Claim dependencies.
-5. Tool features and component connection points can participate in the same interface reasoning model.
-6. Connector specifications can be reused across multiple products.
-7. Multi-leg tethers require data rows rather than schema changes.
-8. Manufacturer pairings/restrictions can be stored without creating a general tethering compatibility matrix.
-9. Missing, not-published, and not-established values cannot be confused with zero or false.
-10. Recommendation-readiness can be calculated from mandatory facts, configuration profiles, and evidence.
-11. Hard constraints can be implemented deterministically against the typed catalogue and use configured operational mass rather than bare-tool mass where required.
-12. Adding a second product batch does not require redesigning core tables or manually adding pairwise tethering compatibility rows for most products.
+3. Every Tool's operational-profile requirement defaults to `unknown`, becomes `not_required` or `required` only through an accepted classification Claim, and blocks load reasoning while unknown.
+4. A cordless Tool can have multiple exact manufacturer-backed Battery configurations without collapsing them into one mass.
+5. Each persisted operational-mass profile is traceable to exact Tool/Battery identities, a valid manufacturer relationship, and explicit primitive Claim dependencies.
+6. Tool features and component connection points can participate in the same interface reasoning model.
+7. Connector specifications can be reused across multiple products.
+8. Multi-leg tethers require data rows rather than schema changes.
+9. Manufacturer pairings/restrictions can be stored without creating a general tethering compatibility matrix.
+10. Missing, not-published, not-established, and unknown operational-profile classification cannot be confused with a safe/direct body-mass path.
+11. Recommendation-readiness can be calculated from mandatory facts, explicit configuration classification, configuration profiles, and evidence.
+12. Hard constraints can be implemented deterministically against the typed catalogue and use configured operational mass rather than bare-tool mass where required.
+13. Adding a second product batch does not require redesigning core tables or manually adding pairwise tethering compatibility rows for most products.
 
 ---
 
@@ -2014,6 +2096,7 @@ After this specification is accepted, the next work item should continue validat
 
 Batch work should deliberately pressure-test:
 
+- explicit operational-profile requirement classification, including unknown/incomplete cases;
 - cordless tools with multiple Battery operational profiles;
 - exact-SKU evidence binding for Tool and Battery physical mass;
 - manufacturer-backed configuration relationships;
