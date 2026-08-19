@@ -1,5 +1,5 @@
 {
-  "version": "0.2",
+  "version": "0.3",
   "description": "Batch 1 benchmark contract. Extraction precision is strict by default: every extracted claim is scored unless explicitly listed in ignored_claims. Recommendation-data coverage is scored separately from extraction quality.",
   "products": {
     "NLG:101372": {
@@ -7,11 +7,16 @@
         {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 5.0},
         {"subject_type": "product", "subject_ref": "self", "property_key": "min_length_mm", "value": 800.0},
         {"subject_type": "product", "subject_ref": "self", "property_key": "max_length_mm", "value": 1200.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "tether.connection_count", "value": 2},
+        {"subject_type": "physical_interface", "subject_ref": "tether_endpoint_1", "property_key": "interface.type", "value": "carabiner"},
+        {"subject_type": "physical_interface", "subject_ref": "tether_endpoint_2", "property_key": "interface.type", "value": "loop"},
         {"subject_type": "connector_spec", "subject_ref": "tether_connector", "property_key": "connector.opening_action_count", "value": 2},
         {"subject_type": "connector_spec", "subject_ref": "tether_connector", "property_key": "connector.swivel", "value": true},
         {"subject_type": "physical_interface", "subject_ref": "loop_interface", "property_key": "interface.loop_present", "value": true}
       ],
-      "forbidden_claims": [],
+      "forbidden_claims": [
+        {"subject_type": "physical_interface", "subject_ref": "tether_endpoint_2", "property_key": "interface.type", "value": "carabiner"}
+      ],
       "ignored_claims": [],
       "recommendation_data": {
         "baseline_requirements": [
@@ -25,6 +30,10 @@
     "NLG:101363": {
       "expected_claims": [
         {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 3.0},
+        {"subject_type": "physical_interface", "subject_ref": "lanyard_interface", "property_key": "interface.type", "value": "d_ring"},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "dimensions.length_mm", "value": 200.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "dimensions.width_mm", "value": 25.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "max_lanyard_length_mm", "value": 2000.0},
         {"subject_type": "physical_interface", "subject_ref": "rotating_interface", "property_key": "connector.swivel", "value": true},
         {"subject_type": "physical_interface", "subject_ref": "loop_interface", "property_key": "interface.loop_present", "value": true}
       ],
@@ -62,9 +71,12 @@
     "NLG:101423": {
       "expected_claims": [
         {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 30.0},
-        {"subject_type": "physical_interface", "subject_ref": "internal_anchor", "property_key": "rated_capacity_kg", "value": 5.0}
+        {"subject_type": "physical_interface", "subject_ref": "internal_anchor", "property_key": "rated_capacity_kg", "value": 5.0},
+        {"subject_type": "physical_interface", "subject_ref": "internal_anchor", "property_key": "max_lanyard_length_mm", "value": 2000.0}
       ],
-      "forbidden_claims": [],
+      "forbidden_claims": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "max_lanyard_length_mm"}
+      ],
       "ignored_claims": [],
       "recommendation_data": {
         "baseline_requirements": [
