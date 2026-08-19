@@ -1,11 +1,13 @@
 {
-  "version": "0.6",
+  "version": "0.7",
   "description": "Source-graph expectations layered onto the Batch 1 golden contract.",
   "products": {
     "Hilti:2253847": {
       "expected_claims": [
         {"subject_type": "product", "subject_ref": "self", "property_key": "manufacturer_item_code", "value": "2253847"},
         {"subject_type": "product", "subject_ref": "self", "property_key": "tool_body_mass_kg", "value": 1.315418},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "tool.required_tool_attachment", "value": "2293133"},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "tool.required_tether", "value": "2261970"},
         {"subject_type": "related_product", "subject_ref": "B 22-55", "property_key": "battery_mass_kg", "value": 0.548847},
         {"subject_type": "related_product", "subject_ref": "B 22-85", "property_key": "battery_mass_kg", "value": 0.757499},
         {"subject_type": "operational_profile", "subject_ref": "2253847+B 22-55", "property_key": "operational_mass_kg", "value": 1.864265},
@@ -18,7 +20,8 @@
       "ignored_claims": [],
       "acquisition_expectations": {
         "required_observations": [
-          {"code": "RELATED_SOURCES_DISCOVERED", "value": 2}
+          {"code": "RELATED_SOURCES_DISCOVERED", "value": 2},
+          {"code": "MANUFACTURER_DOCUMENTS_DISCOVERED"}
         ],
         "forbidden_observations": [
           {"code": "RELATED_SOURCES_SEEDED"}
@@ -26,7 +29,9 @@
       },
       "recommendation_data": {
         "baseline_requirements": [
-          {"name": "operational_mass", "any_of": [{"property_key": "operational_mass_kg"}], "gap_if_missing": "document_join", "detail": "Operational mass must include a selected compatible battery."}
+          {"name": "operational_mass", "any_of": [{"property_key": "operational_mass_kg"}], "gap_if_missing": "document_join", "detail": "Operational mass must include a selected compatible battery."},
+          {"name": "required_tool_attachment", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "tool.required_tool_attachment", "value": "2293133"}], "gap_if_missing": "document_join", "detail": "Hilti operating instructions require retaining strap 2293133 for drop arrest."},
+          {"name": "required_tether", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "tool.required_tether", "value": "2261970"}], "gap_if_missing": "document_join", "detail": "Hilti operating instructions require tether 2261970 as part of the drop-arrest combination."}
         ],
         "known_gaps": []
       }
@@ -46,7 +51,7 @@
           {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 6.8}], "gap_if_missing": "public_fact_missing", "detail": "The current Hilti product option explicitly states the 6.8 kg retaining-strap capacity."}
         ],
         "known_gaps": [
-          {"category": "document_join", "field": "compatible_tools", "detail": "Need explicit compatible-tool relationships from manufacturer evidence rather than relying on imagery/related-product text."}
+          {"category": "document_join", "field": "compatible_tool_coverage", "detail": "Explicit tool-to-attachment relationships can now be extracted from Hilti operating instructions; catalogue-wide reverse coverage for 2293133 remains to be enumerated."}
         ]
       }
     },
