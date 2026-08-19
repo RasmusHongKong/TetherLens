@@ -5,6 +5,7 @@ from typing import Protocol
 
 import httpx
 from pypdf import PdfReader
+import zxingcpp
 
 from .models import SourceArtifact, SourceType
 
@@ -32,6 +33,8 @@ class HttpxFetcher:
             metadata["page_count"] = len(reader.pages)
             if links := _pdf_external_links(reader):
                 metadata["document_links"] = links
+            if qr_payloads := _pdf_qr_payloads(reader):
+                metadata["document_qr_payloads"] = qr_payloads
         else:
             body = response.text
         return SourceArtifact(
@@ -66,3 +69,25 @@ def _pdf_external_links(reader: PdfReader) -> list[str]:
                 seen.add(uri)
                 links.append(uri)
     return links
+
+
+def _pdf_qr_payloads(reader: PdfReader) -> list[str]:
+    """Decode QR codes embedded as page image objects without OCR or semantic inference."""
+    payloads: list[str] = []
+    seen: set[str] = set()
+    for page in reader.pages:
+        for image_key in page.images.keys():
+            try:
+                image_file = page.images[image_key]
+                image = image_file.image
+                if image is None:
+                    continue
+                barcodes = zxingcpp.read_barcodes(image, formats=zxingcpp.BarcodeFormat.QRCode)
+            except (AttributeError, KeyError, RuntimeError, TypeError, ValueError):
+                continue
+            for barcode in barcodes:
+                payload = str(barcode.text or "").strip()
+                if payload and payload not in seen:
+                    seen.add(payload)
+                    payloads.append(payload)
+    return payloads
