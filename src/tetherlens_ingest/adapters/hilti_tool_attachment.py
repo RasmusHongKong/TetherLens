@@ -141,44 +141,48 @@ class HiltiAdapter(_BaseHiltiAdapter):
     def _extract_drop_arrest_pairing(identity: ProductIdentity, artifact: SourceArtifact) -> list[CandidateClaim]:
         model = _tool_model(identity)
         text = re.sub(r"\s+", " ", page_text(artifact.body))
-        if not model or not _contains_model(text[:2500], model):
+        if not model or not _contains_model(text, model):
             return []
 
-        pattern = re.compile(
-            r"As drop arrester for this product, use only a combination of the Hilti retaining strap\s*#\s*(\d{6,})\s*"
-            r"and the Hilti tool tether\s*#\s*(\d{6,})",
+        sentence = re.search(
+            r"As drop arrester for this product, use only a combination of the Hilti retaining strap(.{0,160}?)"
+            r"and the Hilti tool tether(.{0,80}?)(?:\.|$)",
+            text,
             re.I,
         )
-        match = pattern.search(text)
-        if not match:
+        if not sentence:
             return []
 
-        strap_sku, tether_sku = match.groups()
-        raw = match.group(0)
-        return [
-            CandidateClaim(
+        strap_part, tether_part = sentence.group(1), sentence.group(2)
+        raw = sentence.group(0)
+        strap_match = re.search(r"#\s*(\d{6,})", strap_part)
+        tether_match = re.search(r"#\s*(\d{6,})", tether_part)
+        claims: list[CandidateClaim] = []
+        if strap_match:
+            claims.append(CandidateClaim(
                 subject_type=ClaimSubjectType.PRODUCT,
                 subject_ref="self",
                 property_key="tool.required_tool_attachment",
-                value=strap_sku,
+                value=strap_match.group(1),
                 unit=None,
                 raw_value=raw,
                 source_url=artifact.url,
                 evidence_method="manufacturer_pairing",
                 extractor="hilti.v0.7",
-            ),
-            CandidateClaim(
+            ))
+        if tether_match:
+            claims.append(CandidateClaim(
                 subject_type=ClaimSubjectType.PRODUCT,
                 subject_ref="self",
                 property_key="tool.required_tether",
-                value=tether_sku,
+                value=tether_match.group(1),
                 unit=None,
                 raw_value=raw,
                 source_url=artifact.url,
                 evidence_method="manufacturer_pairing",
                 extractor="hilti.v0.7",
-            ),
-        ]
+            ))
+        return claims
 
     @staticmethod
     def _extract_retaining_strap_capacity(identity: ProductIdentity, artifact: SourceArtifact) -> str | None:
