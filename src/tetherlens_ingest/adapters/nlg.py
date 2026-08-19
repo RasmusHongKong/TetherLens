@@ -217,6 +217,16 @@ class NLGAdapter(ManufacturerAdapter):
             text,
             re.I,
         )
+        carabiner_each_end = re.search(
+            r"(?:(?:rotobiners?|carabiners?).{0,100}?\b(?:at\s+each|on\s+(?:either|each))\s+end\b|\b(?:at\s+each|on\s+(?:either|each))\s+end\b.{0,100}?(?:rotobiners?|carabiners?))",
+            text,
+            re.I | re.S,
+        )
+        loop_each_end = re.search(
+            r"(?:\bloops?\b.{0,100}?\b(?:at\s+each|on\s+(?:either|each))\s+end\b|\b(?:at\s+each|on\s+(?:either|each))\s+end\b.{0,100}?\bloops?\b)",
+            text,
+            re.I | re.S,
+        )
         loop_to_carabiner = re.search(
             r"(?:one|an?)\s+end.{0,180}?(?:dyneema[^\n]{0,30})?loop.{0,220}?(?:other|another)\s+(?:end\s+)?(?:it\s+)?(?:features?\s+)?(?:a\s+)?[^\n]{0,80}?(?:rotobiner|carabiner)",
             text,
@@ -228,30 +238,55 @@ class NLGAdapter(ManufacturerAdapter):
             re.I | re.S,
         )
         carabiner_one_end_to_loop_other = re.search(
-            r"(?:rotobiner|carabiner).{0,140}?(?:at\s+)?(?:the\s+)?one\s+end.{0,240}?loop.{0,140}?(?:at\s+)?(?:the\s+)?other\s+end",
+            r"(?:rotobiner|carabiner).{0,140}?(?:at\s+)?(?:the\s+)?one\s+end.{0,240}?loop.{0,140}?(?:at\s+)?(?:the\s+)?(?:other|opposite)\s+end",
             text,
             re.I | re.S,
         )
         loop_one_end_to_carabiner_other = re.search(
-            r"loop.{0,140}?(?:at\s+)?(?:the\s+)?one\s+end.{0,240}?(?:rotobiner|carabiner).{0,140}?(?:at\s+)?(?:the\s+)?other\s+end",
+            r"loop.{0,140}?(?:at\s+)?(?:the\s+)?one\s+end.{0,240}?(?:rotobiner|carabiner).{0,140}?(?:at\s+)?(?:the\s+)?(?:other|opposite)\s+end",
+            text,
+            re.I | re.S,
+        )
+        carabiner_then_other_end_loop = re.search(
+            r"(?:rotobiner|carabiner).{0,280}?\b(?:at\s+)?(?:the\s+)?(?:other|opposite)\s+end\b.{0,160}?\bloop\b",
+            text,
+            re.I | re.S,
+        )
+        loop_then_other_end_carabiner = re.search(
+            r"\bloop\b.{0,280}?\b(?:at\s+)?(?:the\s+)?(?:other|opposite)\s+end\b.{0,160}?(?:rotobiner|carabiner)",
             text,
             re.I | re.S,
         )
 
-        if dual_carabiner:
-            claims.append(self._claim("tether.connection_count", 2, None, dual_carabiner.group(0), url))
+        if dual_carabiner or carabiner_each_end:
+            match = dual_carabiner or carabiner_each_end
+            raw = match.group(0) if match else None
+            claims.append(self._claim("tether.connection_count", 2, None, raw, url))
             for endpoint in ("tether_endpoint_1", "tether_endpoint_2"):
                 claims.append(self._claim(
                     "interface.type",
                     "carabiner",
                     None,
-                    dual_carabiner.group(0),
+                    raw,
                     url,
                     ClaimSubjectType.PHYSICAL_INTERFACE,
                     endpoint,
                 ))
-        elif loop_to_carabiner or loop_one_end_to_carabiner_other:
-            match = loop_to_carabiner or loop_one_end_to_carabiner_other
+        elif loop_each_end:
+            raw = loop_each_end.group(0)
+            claims.append(self._claim("tether.connection_count", 2, None, raw, url))
+            for endpoint in ("tether_endpoint_1", "tether_endpoint_2"):
+                claims.append(self._claim(
+                    "interface.type",
+                    "loop",
+                    None,
+                    raw,
+                    url,
+                    ClaimSubjectType.PHYSICAL_INTERFACE,
+                    endpoint,
+                ))
+        elif loop_to_carabiner or loop_one_end_to_carabiner_other or loop_then_other_end_carabiner:
+            match = loop_to_carabiner or loop_one_end_to_carabiner_other or loop_then_other_end_carabiner
             raw = match.group(0) if match else None
             claims.append(self._claim("tether.connection_count", 2, None, raw, url))
             claims.extend([
@@ -274,8 +309,8 @@ class NLGAdapter(ManufacturerAdapter):
                     "tether_endpoint_2",
                 ),
             ])
-        elif carabiner_to_loop or carabiner_one_end_to_loop_other:
-            match = carabiner_to_loop or carabiner_one_end_to_loop_other
+        elif carabiner_to_loop or carabiner_one_end_to_loop_other or carabiner_then_other_end_loop:
+            match = carabiner_to_loop or carabiner_one_end_to_loop_other or carabiner_then_other_end_loop
             raw = match.group(0) if match else None
             claims.append(self._claim("tether.connection_count", 2, None, raw, url))
             claims.extend([
