@@ -1,12 +1,11 @@
 {
-  "version": "0.8",
+  "version": "0.9",
   "description": "Source-graph expectations layered onto the Batch 1 golden contract.",
   "products": {
     "Hilti:2253847": {
       "expected_claims": [
         {"subject_type": "product", "subject_ref": "self", "property_key": "manufacturer_item_code", "value": "2253847"},
         {"subject_type": "product", "subject_ref": "self", "property_key": "tool_body_mass_kg", "value": 1.315418},
-        {"subject_type": "product", "subject_ref": "self", "property_key": "tool.required_tether", "value": "2261970"},
         {"subject_type": "related_product", "subject_ref": "B 22-55", "property_key": "battery_mass_kg", "value": 0.548847},
         {"subject_type": "related_product", "subject_ref": "B 22-85", "property_key": "battery_mass_kg", "value": 0.757499},
         {"subject_type": "operational_profile", "subject_ref": "2253847+B 22-55", "property_key": "operational_mass_kg", "value": 1.864265},
@@ -28,11 +27,10 @@
       },
       "recommendation_data": {
         "baseline_requirements": [
-          {"name": "operational_mass", "any_of": [{"property_key": "operational_mass_kg"}], "gap_if_missing": "document_join", "detail": "Operational mass must include a selected compatible battery."},
-          {"name": "required_tether", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "tool.required_tether", "value": "2261970"}], "gap_if_missing": "document_join", "detail": "The discovered Hilti operating instruction explicitly identifies tether 2261970 for fall arrest."}
+          {"name": "operational_mass", "any_of": [{"property_key": "operational_mass_kg"}], "gap_if_missing": "document_join", "detail": "Operational mass must include a selected compatible battery."}
         ],
         "known_gaps": [
-          {"category": "document_revision", "field": "required_tool_attachment", "detail": "The live US Technical Library PDF names the Hilti retaining strap but does not expose its SKU in extractable text; a current Hilti online operating-instruction revision explicitly identifies 2293133."}
+          {"category": "document_revision", "field": "drop_arrest_pairing", "detail": "Hilti Technical Library discovery and PDF acquisition succeed, but the live US operating-instruction PDF does not currently yield exact-SKU drop-arrest component references in extractable evidence. Current Hilti online operating instructions expose the exact 2293133 + 2261970 pairing; deterministic current-revision selection remains to be implemented."}
         ]
       }
     },
@@ -51,7 +49,7 @@
           {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 6.8}], "gap_if_missing": "public_fact_missing", "detail": "The current Hilti product option explicitly states the 6.8 kg retaining-strap capacity."}
         ],
         "known_gaps": [
-          {"category": "document_revision", "field": "compatible_tool_coverage", "detail": "Current Hilti online operating instructions can explicitly pair tools with retaining strap 2293133, but the deterministic US Technical Library PDF path may surface older revisions that omit the strap SKU."}
+          {"category": "document_revision", "field": "compatible_tool_coverage", "detail": "Current Hilti online operating instructions can explicitly pair tools with retaining strap 2293133, but the deterministic US Technical Library PDF path may surface a revision whose extractable evidence omits the exact drop-arrest component SKUs."}
         ]
       }
     },
