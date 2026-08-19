@@ -1,4 +1,4 @@
-from .hilti import HiltiAdapter
+from .hilti_tool_attachment import HiltiAdapter
 from .milwaukee import MilwaukeeAdapter
 from .nlg import NLGAdapter
 from .stopdrop import StopDropAdapter

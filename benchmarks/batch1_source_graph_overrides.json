@@ -1,5 +1,5 @@
 {
-  "version": "0.5",
+  "version": "0.6",
   "description": "Source-graph expectations layered onto the Batch 1 golden contract.",
   "products": {
     "Hilti:2253847": {
@@ -29,6 +29,25 @@
           {"name": "operational_mass", "any_of": [{"property_key": "operational_mass_kg"}], "gap_if_missing": "document_join", "detail": "Operational mass must include a selected compatible battery."}
         ],
         "known_gaps": []
+      }
+    },
+    "Hilti:2293133": {
+      "expected_claims": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "manufacturer_item_code", "value": "2293133"},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 6.8}
+      ],
+      "forbidden_claims": [
+        {"property_key": "tether.connection_count"},
+        {"property_key": "connector.locking_mode"}
+      ],
+      "ignored_claims": [],
+      "recommendation_data": {
+        "baseline_requirements": [
+          {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 6.8}], "gap_if_missing": "public_fact_missing", "detail": "The current Hilti product option explicitly states the 6.8 kg retaining-strap capacity."}
+        ],
+        "known_gaps": [
+          {"category": "document_join", "field": "compatible_tools", "detail": "Need explicit compatible-tool relationships from manufacturer evidence rather than relying on imagery/related-product text."}
+        ]
       }
     },
     "Milwaukee:2607-20": {
