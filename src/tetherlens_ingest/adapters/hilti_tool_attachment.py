@@ -112,6 +112,18 @@ class HiltiAdapter(_BaseHiltiAdapter):
                 source_url=identity.url,
                 extractor="hilti.v0.9",
             ))
+            qr_payload_count = sum(
+                len(payloads)
+                for artifact in manuals
+                if isinstance((payloads := artifact.metadata.get("document_qr_payloads")), list)
+            )
+            observations.append(AcquisitionObservation(
+                code="MANUFACTURER_DOCUMENT_QR_PAYLOADS",
+                value=qr_payload_count,
+                detail="Count of QR payloads decoded from image objects embedded in Hilti operating-instruction PDFs.",
+                source_url=identity.url,
+                extractor="hilti.v0.9",
+            ))
 
         online_manuals = [artifact for artifact in artifacts if artifact.metadata.get("role") == "online_operating_instruction"]
         if online_manuals:
@@ -167,9 +179,10 @@ class HiltiAdapter(_BaseHiltiAdapter):
             return []
 
         evidence_strings = [text]
-        links = artifact.metadata.get("document_links")
-        if isinstance(links, list):
-            evidence_strings.extend(str(link) for link in links)
+        for metadata_key in ("document_links", "document_qr_payloads"):
+            values = artifact.metadata.get(metadata_key)
+            if isinstance(values, list):
+                evidence_strings.extend(str(value) for value in values)
 
         document_id = next(
             (document_id for value in evidence_strings if (document_id := _embedded_online_manual_id(value))),
