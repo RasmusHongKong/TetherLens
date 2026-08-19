@@ -13,8 +13,16 @@ def _tool_identity() -> ProductIdentity:
     )
 
 
-def _artifact(body: str, *, role: str | None = None, source_type=SourceType.MANUFACTURER_WEBPAGE, url=None):
+def _artifact(
+    body: str,
+    *,
+    role: str | None = None,
+    source_type=SourceType.MANUFACTURER_WEBPAGE,
+    url=None,
+    metadata_extra: dict | None = None,
+):
     metadata = {"role": role} if role else {}
+    metadata.update(metadata_extra or {})
     return SourceArtifact(
         url=url or _tool_identity().url,
         source_type=source_type,
@@ -51,15 +59,15 @@ def test_hilti_technical_library_discovers_matching_operating_instruction():
     assert manuals[0].metadata["relationship_basis"] == "technical_library_result"
 
 
-def test_hilti_pdf_embedded_document_id_discovers_us_online_operating_instruction():
+def test_hilti_pdf_annotation_document_id_discovers_us_online_operating_instruction():
     manual = _artifact(
-        """
-        SF 4-22 (02), SF 4H-22 (02)
-        More information: https://qr.hilti.com/manual?id=2272252&id=2272254
-        """,
+        "SF 4-22 (02), SF 4H-22 (02) Original operating instructions",
         role="operating_instruction",
         source_type=SourceType.MANUFACTURER_DOCUMENT,
         url="https://productdata.hilti.com/APQ_HC_RAW/PUB_5664433_000.pdf",
+        metadata_extra={
+            "document_links": ["https://qr.hilti.com/manual?id=2272252&id=2272254"],
+        },
     )
     requests = HiltiAdapter().related_sources(_tool_identity(), manual)
     assert len(requests) == 1
@@ -70,14 +78,26 @@ def test_hilti_pdf_embedded_document_id_discovers_us_online_operating_instructio
     assert online.metadata["relationship_basis"] == "embedded_document_id"
 
 
-def test_hilti_pdf_document_join_requires_manual_to_match_tool_model():
+def test_hilti_pdf_text_document_id_remains_a_supported_fallback():
     manual = _artifact(
         """
-        SID 6-22 (01)
-        https://qr.hilti.com/manual?id=2272252&id=2272254
+        SF 4-22 (02), SF 4H-22 (02)
+        More information: https://qr.hilti.com/manual?id=2272252&id=2272254
         """,
         role="operating_instruction",
         source_type=SourceType.MANUFACTURER_DOCUMENT,
+    )
+    assert HiltiAdapter().related_sources(_tool_identity(), manual)[0].metadata["document_id"] == "2272254"
+
+
+def test_hilti_pdf_document_join_requires_manual_to_match_tool_model():
+    manual = _artifact(
+        "SID 6-22 (01)",
+        role="operating_instruction",
+        source_type=SourceType.MANUFACTURER_DOCUMENT,
+        metadata_extra={
+            "document_links": ["https://qr.hilti.com/manual?id=2272252&id=2272254"],
+        },
     )
     assert HiltiAdapter().related_sources(_tool_identity(), manual) == []
 
