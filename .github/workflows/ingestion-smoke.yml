@@ -32,6 +32,8 @@ jobs:
         run: python scripts/probe_nlg_catalogue.py
       - name: Run blind NLG unseen benchmark
         run: python scripts/run_nlg_unseen.py
+      - name: Score NLG unseen expected claims
+        run: python scripts/score_nlg_unseen.py
       - name: Run live manufacturer benchmark
         run: python scripts/run_batch1_smoke.py
       - name: Score benchmark against golden expectations
