@@ -2,7 +2,7 @@
 
 ## Status
 
-Initial benchmark specification created 2026-08-14 and consolidated 2026-08-18 after the first Hilti and Milwaukee acquisition experiments.
+Initial benchmark specification created 2026-08-14 and consolidated 2026-08-19 after the first Hilti, Milwaukee and manufacturer-document acquisition experiments.
 
 This benchmark tests the main supply-side uncertainty in TetherLens:
 
@@ -163,7 +163,11 @@ Hilti demonstrates a scalable **source-graph adapter**:
 
 The SF 4-22 case is the reference pattern for cordless-tool graph ingestion.
 
-The next distinct Hilti benchmark gap is `2293133`, where the useful evidence appears to require joining the manufacturer product page with manufacturer document/PDF evidence rather than extending the Milwaukee-style cross-source path.
+The `2293133` pass refined the original document-join assumption. Its rated capacity is now available directly on the current manufacturer product page, so a document join is not required for that scalar fact. The remaining distinct Hilti gap is **explicit drop-arrest relationship evidence**: current Hilti online operating instructions can name the required retaining strap and tether, but the deterministic US Technical Library path can return an operating-instruction PDF revision whose extractable evidence does not expose those exact component SKUs.
+
+The adapter now treats manufacturer Technical Library results and operating-instruction PDFs as graph nodes, with model/SKU identity gates and PDF text extraction. Live acquisition therefore proves the document-join path itself; exact relationship claims remain revision-gated and must not be inferred when the acquired document does not state the SKU explicitly.
+
+A focused current-revision investigation on 2026-08-19 tested the remaining deterministic first-party surfaces for SF 4-22. The Technical Library result card exposed only `PUB_5664433_000.pdf` and no hidden current-document identifier. The acquired PDF corresponded to publication `2272253`; it exposed no external URI annotation that could resolve a newer instruction. QR decoding was tested experimentally and found two payloads: the manual resolver for `2272253` and an unrelated ON!Track app link. Following the manual resolver returned a Hilti country-selector page without tool, revision or current-document state. The current web-rendered Hilti instruction is a distinct `2272254` revision that explicitly identifies retaining strap `2293133` and tether `2261970`, but no deterministic mapping from `2272253` to `2272254` was found. **Sequentially inferring or incrementing the document ID is not acceptable evidence.** The QR experiment was therefore not retained in the production path because it added dependencies and acquisition latency without resolving a recommendation-critical fact.
 
 Likely baseline acquisition tier: **B**.
 
@@ -325,6 +329,6 @@ StopDrop demonstrates that some products remain incomplete because the source ev
 
 Milwaukee demonstrates that the Hilti graph model can be reused even when selected physical facts cross into qualified secondary evidence, provided resolved source identity is verified before evidence priority is assigned.
 
-The Milwaukee `2607-20` development path is now implemented and hardened enough to stop being the active benchmark workstream. The next distinct acquisition challenge is the Hilti `2293133` manufacturer document-join gap.
+The Milwaukee `2607-20` development path is now implemented and hardened enough to stop being the active benchmark workstream. The Hilti manufacturer-document pass has also established deterministic Technical Library discovery and PDF acquisition. The current-revision investigation showed that the tested first-party Technical Library/PDF/QR surfaces do not provide a safe mapping from the acquired `2272253` publication to the current `2272254` web instruction. That remains an explicit `document_revision` gap rather than a reason to weaken evidence requirements or add an expensive default search path.
 
 See `benchmark-goals.md` for the benchmark success criteria and interpretation rules.
