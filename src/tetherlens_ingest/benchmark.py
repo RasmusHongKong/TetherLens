@@ -154,7 +154,7 @@ def score_extraction_product(
         {"forbidden": pattern, "claim": claim}
         for pattern in forbidden
         for claim in extracted
-        if _matches(pattern, claim, require_value=False)
+        if _matches(pattern, claim)
     ]
 
     tp = len(matched_expected)
