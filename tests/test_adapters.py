@@ -112,6 +112,24 @@ def test_nlg_extracts_reusable_tether_endpoint_and_auto_locking_patterns():
     assert any(c.property_key == "connector.locking_mode" and c.value == "auto_locking" for c in claims)
 
 
+def test_nlg_dual_action_carabiner_does_not_mean_dual_carabiners():
+    html = """
+    <h1>Bungee Tool Lanyard</h1>
+    <div>Max Load: 5 KG / 11 LBS</div>
+    <p>At one end is a Rotobiner, a dual action carabiner. At the other end is a climbing cord loop.</p>
+    """
+    claims = NLGAdapter().extract(identity("NLG", ProductType.TETHER), [artifact(html)])
+    endpoints = {
+        (c.subject_ref, c.value)
+        for c in claims
+        if c.property_key == "interface.type"
+    }
+    assert any(c.property_key == "tether.connection_count" and c.value == 2 for c in claims)
+    assert ("tether_endpoint_1", "carabiner") in endpoints
+    assert ("tether_endpoint_2", "loop") in endpoints
+    assert ("tether_endpoint_2", "carabiner") not in endpoints
+
+
 def test_nlg_extracts_tool_attachment_geometry_and_lanyard_limit():
     html = """
     <h1>Tether Choke</h1>
@@ -130,6 +148,21 @@ def test_nlg_extracts_tool_attachment_geometry_and_lanyard_limit():
     assert any(c.property_key == "interface.attachment_method" and c.value == "cinch" for c in claims)
     features = {c.value for c in claims if c.property_key == "interface.compatible_tool_feature"}
     assert {"captive_handle", "captive_hole"} <= features
+
+
+def test_nlg_container_lanyard_limit_belongs_to_internal_anchor():
+    html = """
+    <h1>MEWP Bag</h1>
+    <div>Max Load: 30 KG / 66 LBS</div>
+    <div>Anchor Point / Daisy Chain Max Load: 5 KG</div>
+    <div>Max Lanyard Length: 200 CM / 78 IN</div>
+    """
+    claims = NLGAdapter().extract(identity("NLG", ProductType.CONTAINER), [artifact(html)])
+    matches = [c for c in claims if c.property_key == "max_lanyard_length_mm"]
+    assert len(matches) == 1
+    assert matches[0].subject_type.value == "physical_interface"
+    assert matches[0].subject_ref == "internal_anchor"
+    assert matches[0].value == 2000.0
 
 
 def test_hilti_extracts_tether_rating_and_connector():
