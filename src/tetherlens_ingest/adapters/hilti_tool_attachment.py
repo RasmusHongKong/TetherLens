@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from urllib.parse import quote_plus, urljoin, urlparse
+from urllib.parse import quote_plus, urljoin
 
 from bs4 import BeautifulSoup
 
@@ -21,8 +21,7 @@ from .common import page_text
 from .hilti import HiltiAdapter as _BaseHiltiAdapter
 
 
-_DOCUMENT_ROLES = {"document_index", "operating_instruction", "online_operating_instruction"}
-_PAIRING_ROLES = {"operating_instruction", "online_operating_instruction"}
+_DOCUMENT_ROLES = {"document_index", "operating_instruction"}
 
 
 class HiltiAdapter(_BaseHiltiAdapter):
@@ -34,8 +33,6 @@ class HiltiAdapter(_BaseHiltiAdapter):
         role = str(artifact.metadata.get("role") or "primary")
         if role == "document_index":
             return self._discover_operating_instructions(identity, artifact)
-        if role == "operating_instruction":
-            return self._discover_online_operating_instruction(identity, artifact)
         if role != "primary":
             return []
 
@@ -56,6 +53,9 @@ class HiltiAdapter(_BaseHiltiAdapter):
         return _dedupe_requests(requests)
 
     def extract(self, identity: ProductIdentity, artifacts: list[SourceArtifact]) -> list[CandidateClaim]:
+        # The legacy Hilti extractor treats every non-battery artifact as the product page.
+        # Keep manufacturer documents out of that path so referenced component SKUs cannot
+        # be mistaken for the tool's own manufacturer item code.
         base_artifacts = [
             artifact for artifact in artifacts
             if str(artifact.metadata.get("role") or "primary") not in _DOCUMENT_ROLES
@@ -78,12 +78,12 @@ class HiltiAdapter(_BaseHiltiAdapter):
                     raw_value=raw_capacity,
                     source_url=artifact.url,
                     evidence_method="manufacturer_stated",
-                    extractor="hilti.v0.9",
+                    extractor="hilti.v0.8",
                 ))
 
         if identity.product_type == ProductType.TOOL:
             for artifact in artifacts:
-                if artifact.metadata.get("role") not in _PAIRING_ROLES:
+                if artifact.metadata.get("role") != "operating_instruction":
                     continue
                 claims.extend(self._extract_drop_arrest_pairing(identity, artifact))
 
@@ -98,46 +98,7 @@ class HiltiAdapter(_BaseHiltiAdapter):
                 value=len(manuals),
                 detail="Hilti operating instructions were discovered through the manufacturer technical library.",
                 source_url=identity.url,
-                extractor="hilti.v0.9",
-            ))
-            external_link_count = sum(
-                len(links)
-                for artifact in manuals
-                if isinstance((links := artifact.metadata.get("document_links")), list)
-            )
-            observations.append(AcquisitionObservation(
-                code="MANUFACTURER_DOCUMENT_EXTERNAL_LINKS",
-                value=external_link_count,
-                detail="Count of external URI link annotations extracted from Hilti operating-instruction PDFs.",
-                source_url=identity.url,
-                extractor="hilti.v0.9",
-            ))
-            qr_payload_count = sum(
-                len(payloads)
-                for artifact in manuals
-                if isinstance((payloads := artifact.metadata.get("document_qr_payloads")), list)
-            )
-            observations.append(AcquisitionObservation(
-                code="MANUFACTURER_DOCUMENT_QR_PAYLOADS",
-                value=qr_payload_count,
-                detail="Count of QR payloads decoded from image objects embedded in Hilti operating-instruction PDFs.",
-                source_url=identity.url,
-                extractor="hilti.v0.9",
-            ))
-
-        online_manuals = [
-            artifact for artifact in artifacts
-            if artifact.metadata.get("role") == "online_operating_instruction"
-            and (model := _tool_model(identity))
-            and _contains_model(_normalized_document_text(artifact), model)
-        ]
-        if online_manuals:
-            observations.append(AcquisitionObservation(
-                code="ONLINE_OPERATING_INSTRUCTION_DISCOVERED",
-                value=len(online_manuals),
-                detail="Hilti web-rendered operating instructions were resolved from manufacturer PDF evidence.",
-                source_url=identity.url,
-                extractor="hilti.v0.9",
+                extractor="hilti.v0.8",
             ))
         return observations
 
@@ -177,54 +138,6 @@ class HiltiAdapter(_BaseHiltiAdapter):
         return _dedupe_requests(requests)
 
     @staticmethod
-    def _discover_online_operating_instruction(identity: ProductIdentity, artifact: SourceArtifact) -> list[SourceRequest]:
-        model = _tool_model(identity)
-        text = _normalized_document_text(artifact)
-        if not model or not _contains_model(text, model):
-            return []
-
-        qr_payloads = artifact.metadata.get("document_qr_payloads")
-        if isinstance(qr_payloads, list):
-            qr_requests = [
-                SourceRequest(
-                    url=url,
-                    metadata={
-                        "role": "online_operating_instruction",
-                        "document_query": model,
-                        "parent_document_url": artifact.url,
-                        "relationship_basis": "manufacturer_qr_payload",
-                    },
-                )
-                for payload in qr_payloads
-                if (url := _hilti_qr_url(str(payload)))
-            ]
-            if qr_requests:
-                return _dedupe_requests(qr_requests)
-
-        evidence_strings = [text]
-        links = artifact.metadata.get("document_links")
-        if isinstance(links, list):
-            evidence_strings.extend(str(value) for value in links)
-
-        document_id = next(
-            (document_id for value in evidence_strings if (document_id := _embedded_online_manual_id(value))),
-            None,
-        )
-        if not document_id or not (url := _online_manual_url(identity, document_id)):
-            return []
-
-        return [SourceRequest(
-            url=url,
-            metadata={
-                "role": "online_operating_instruction",
-                "document_query": model,
-                "document_id": document_id,
-                "parent_document_url": artifact.url,
-                "relationship_basis": "embedded_document_id",
-            },
-        )]
-
-    @staticmethod
     def _extract_drop_arrest_pairing(identity: ProductIdentity, artifact: SourceArtifact) -> list[CandidateClaim]:
         model = _tool_model(identity)
         text = _normalized_document_text(artifact)
@@ -259,7 +172,7 @@ class HiltiAdapter(_BaseHiltiAdapter):
                 raw_value=raw,
                 source_url=artifact.url,
                 evidence_method="manufacturer_pairing",
-                extractor="hilti.v0.9",
+                extractor="hilti.v0.8",
             ))
         if tether_match:
             claims.append(CandidateClaim(
@@ -271,7 +184,7 @@ class HiltiAdapter(_BaseHiltiAdapter):
                 raw_value=raw,
                 source_url=artifact.url,
                 evidence_method="manufacturer_pairing",
-                extractor="hilti.v0.9",
+                extractor="hilti.v0.8",
             ))
         return claims
 
@@ -283,6 +196,9 @@ class HiltiAdapter(_BaseHiltiAdapter):
         if "retaining strap" not in text.lower():
             return None
 
+        # Hilti's option line currently renders as e.g. "1x 15lb (6.8kg) Retaining strap assy".
+        # Prefer the manufacturer's metric value when both units are published rather than
+        # converting the rounded imperial marketing value back to kg.
         patterns = (
             r"\d+(?:\.\d+)?\s*lb[s]?\s*\(\s*(\d+(?:\.\d+)?\s*kg)\s*\)\s*Retaining strap",
             r"Retaining strap.{0,100}?\d+(?:\.\d+)?\s*lb[s]?\s*\(\s*(\d+(?:\.\d+)?\s*kg)\s*\)",
@@ -293,37 +209,6 @@ class HiltiAdapter(_BaseHiltiAdapter):
             if match and parse_mass(match.group(1)):
                 return match.group(1).strip()
         return None
-
-
-def _hilti_qr_url(payload: str) -> str | None:
-    value = payload.strip()
-    if not value:
-        return None
-    candidate = value if "://" in value else f"https://{value}"
-    parsed = urlparse(candidate)
-    if parsed.scheme not in {"http", "https"} or parsed.netloc.lower() != "qr.hilti.com":
-        return None
-    return candidate
-
-
-def _embedded_online_manual_id(text: str) -> str | None:
-    pair = re.search(
-        r"id\s*=\s*(\d{6,})\s*(?:&|&amp;)\s*id\s*=\s*(\d{6,})",
-        text,
-        re.I,
-    )
-    if pair:
-        return pair.group(2)
-
-    pair = re.search(r"id\s*=\s*(\d{6,}).{0,80}?id\s*=\s*(\d{6,})", text, re.I)
-    return pair.group(2) if pair else None
-
-
-def _online_manual_url(identity: ProductIdentity, document_id: str) -> str | None:
-    host = urlparse(identity.url).netloc.lower()
-    if host in {"hilti.com", "www.hilti.com"}:
-        return f"https://www.hilti.com/content/hilti/W1/US/en/op-man.html/{document_id}/en"
-    return None
 
 
 def _normalized_document_text(artifact: SourceArtifact) -> str:
