@@ -54,7 +54,7 @@ Create staged product candidate
       ↓
 Attach source(s)
       ↓
-Extract / enter primitive technical facts
+Extract / enter primitive technical facts and declared relationships
       ↓
 Normalize and validate units / vocabulary
       ↓
@@ -64,7 +64,9 @@ Identify mandatory gaps
       ↓
 Measure or enrich where necessary
       ↓
-Accept claims
+Accept claims / relationships
+      ↓
+Derive reusable operational profiles where required
       ↓
 Catalogue / recommendation-ready for supported paths
 ```
@@ -86,9 +88,28 @@ Automated refreshes should generate candidate changes for review rather than sil
 
 At minimum for a catalogued tool:
 
-- verified physical mass suitable for load reasoning.
+- verified physical tool-body mass;
+- whether operational mass depends on an installed configuration such as an interchangeable battery; and
+- where configuration-dependent, enough exact product relationships and physical facts to derive one or more valid operational mass profiles.
 
-Manufacturer evidence is preferred for tool and battery mass. Where the manufacturer does not publish a usable physical mass, a reputable secondary source may be used if the resolved source is verified against the exact SKU/model and provenance is retained. Physical mass must not be inferred from an image, a similar model, or an aggregate/search result that has not been bound to the expected product identity.
+Manufacturer evidence is preferred for tool-body and battery mass. Where the manufacturer does not publish a usable physical mass, a reputable secondary source may be used if the resolved source is verified against the exact SKU/model and provenance is retained. Physical mass must not be inferred from an image, a similar model, or an aggregate/search result that has not been bound to the expected product identity.
+
+For a cordless tool with interchangeable batteries, ingestion should represent separately:
+
+```text
+exact tool identity + accepted tool-body mass
+       │
+       ├── manufacturer-backed Tool/Battery relationship
+       │
+       └── exact Battery identity + accepted battery mass
+                         │
+                         ▼
+                operational mass profile
+```
+
+A shared voltage or battery-platform label is useful discovery information but is not sufficient by itself to establish an exact Tool/Battery configuration. Kit composition, explicit compatibility/recommended-battery information, or another manufacturer-backed relationship should establish the configuration used by an operational profile.
+
+If several batteries are valid, ingestion should preserve several profiles rather than selecting one silently. Bare-tool mass is not an acceptable substitute for configured mass where an installed battery is required for use.
 
 Interface information should be captured where available, but the model must not assume that a manufacturer will document a tether-specific attachment point.
 
@@ -114,6 +135,19 @@ Other useful enrichment includes:
 - dimensions where relevant;
 - materials where known;
 - manufacturer-declared limits.
+
+### Supporting Battery facts
+
+Where a Battery is needed to define a Tool's operational configuration, ingestion should capture it as an exact supporting catalogue product rather than as an anonymous mass value.
+
+At minimum where used by an operational profile:
+
+- manufacturer;
+- exact model / SKU;
+- accepted physical mass;
+- manufacturer-backed relationship to the Tool configuration.
+
+Battery records are supporting configuration products, not tethering components.
 
 ### Tether facts
 
@@ -214,9 +248,9 @@ connector = aluminium screwgate
 
 Then the recommendation engine evaluates those facts against context using reusable rules.
 
-## Exception: explicit manufacturer constraints
+## Exception: explicit manufacturer constraints and relationships
 
-If a manufacturer explicitly states a product-specific limit, retain it.
+If a manufacturer explicitly states a product-specific limit or relationship, retain it.
 
 Examples:
 
@@ -224,19 +258,31 @@ Examples:
 - explicit chemical restriction;
 - "use only with attachment X";
 - "not intended for use around rotating equipment";
-- explicit compatible product pairing.
+- explicit compatible product pairing;
+- a Tool/Battery compatibility statement or kit relationship used to establish a valid operational configuration.
 
-These should be represented as source-backed declared constraints, not vague application tags.
+These should be represented as source-backed declared constraints/relationships, not vague application tags.
 
 ## Mandatory recommendation facts
 
 A product becomes recommendation-ready for baseline use when the facts required for its role are known.
 
-### Object/tool mass
+### Object/tool operational mass
 
-Must be established from evidence that is acceptable for the physical mass property and bound to the exact product identity.
+The mass used by load reasoning must represent the object as configured for use.
 
-Manufacturer information is preferred. Where manufacturer mass is unavailable or incomplete, a reputable exact-SKU secondary source may establish tool-body or battery mass. The source and evidence method must remain explicit, and unverified search/aggregate pages, visual estimates, similar-model inference, or other ambiguous identity matches are not acceptable for catalogue load reasoning.
+For a non-configuration-dependent Tool, this may be its accepted physical mass. For a cordless Tool with an interchangeable installed Battery, TetherLens must establish separately:
+
+- exact Tool identity and accepted tool-body mass;
+- exact Battery identity and accepted battery mass;
+- a manufacturer-backed relationship establishing the Battery as a valid Tool configuration; and
+- a derived operational mass profile for that exact Tool/Battery combination.
+
+Manufacturer information is preferred for primitive physical mass. Where manufacturer mass is unavailable or incomplete, a reputable exact-SKU secondary source may establish tool-body or battery mass. The source and evidence method must remain explicit, and unverified search/aggregate pages, visual estimates, similar-model inference, or other ambiguous identity matches are not acceptable for catalogue load reasoning.
+
+A persisted derived operational-mass value should retain explicit dependencies on its accepted primitive tool-body and battery-mass Claims. If an input Claim changes or is superseded, dependent profiles should be re-derived before recommendation use.
+
+If several valid Battery profiles exist, the recommendation workflow must resolve the applicable profile before the load check. It must not choose an arbitrary profile or use bare-tool mass instead.
 
 ### Rated capacity
 
@@ -273,7 +319,7 @@ One or more mandatory facts are missing.
 
 ### Recommendation-ready
 
-Mandatory facts are available.
+Mandatory facts are available for the relevant recommendation path. For a cordless Tool requiring an installed Battery, at least one valid operational mass profile must exist; a particular recommendation still needs the applicable profile to be resolved before load reasoning.
 
 ### Enriched
 
@@ -305,14 +351,16 @@ Internal measurements should create source/evidence records rather than silently
 
 ## Source handling
 
-One product may require several sources.
+One product graph may require several sources.
 
 Example:
 
 ```text
-rated capacity -> manufacturer datasheet
-material       -> manufacturer webpage
-gate opening   -> internal measurement
+Tool body mass            -> exact-SKU manufacturer or qualified secondary source
+Tool/Battery relationship -> manufacturer kit / compatibility source
+Battery mass              -> exact-SKU manufacturer or qualified secondary source
+Rated tether capacity     -> manufacturer datasheet
+Gate opening              -> internal measurement
 ```
 
 The ingestion interface should make this normal rather than forcing one "product source".
@@ -324,9 +372,10 @@ Automated scraping or document extraction is expected to be the most scalable wa
 Automation should:
 
 - discover candidate products and sources;
-- extract candidate primitive facts;
+- extract candidate primitive facts and declared relationships;
 - retain the source location where practical;
 - normalize units and common vocabulary;
+- derive configuration facts only from accepted/eligible inputs;
 - flag missing mandatory data; and
 - compare newly extracted values with currently accepted claims.
 
@@ -346,8 +395,11 @@ A periodic refresh process can later be used to identify:
 - new products;
 - discontinued products;
 - updated datasheets;
-- changed technical facts; and
+- changed technical facts;
+- changed product relationships; and
 - newly published evidence.
+
+A changed accepted Tool-body or Battery mass should identify and invalidate/re-derive dependent operational mass profiles rather than leaving a stale configured mass active.
 
 ## User submissions
 
@@ -379,12 +431,16 @@ Missing secondary information should not block a product unnecessarily.
 
 Missing mandatory information should prevent recommendation-readiness for the affected use.
 
+For a cordless Tool that requires an installed Battery, missing exact Battery identity, valid manufacturer relationship, Battery mass, or derived operational profile is a mandatory load-reasoning gap for that configuration.
+
 ## Product ingestion should require minimal application expertise
 
 The person adding a product should mostly answer questions such as:
 
-- What does it weigh?
-- What is it rated to?
+- What is the exact product/SKU?
+- What does the Tool body or Battery weigh?
+- Which Battery configurations does the manufacturer establish for this Tool?
+- What is the component rated to?
 - How long is it?
 - What material does the manufacturer identify?
 - What connector does it use?
@@ -416,6 +472,7 @@ Whatever tooling is used should:
 
 - make mandatory gaps obvious;
 - attach sources at field/claim level;
+- support declared relationships and derived operational profiles;
 - support internal measurements;
 - prevent invalid units or obvious data errors;
 - distinguish unknown from zero/false;
@@ -433,6 +490,10 @@ Human time required from initial product identification to recommendation-ready 
 
 Percentage of products that can become recommendation-ready from public first-party information alone.
 
+### Operational-profile coverage
+
+For cordless Tools requiring an installed Battery, percentage with one or more valid operational mass profiles and number of profiles derived without product-specific code.
+
 ### Enrichment rate
 
 Percentage requiring internal measurement or additional research.
@@ -447,15 +508,15 @@ Useful for understanding how fragmented manufacturer data is.
 
 ### Automated extraction yield
 
-Percentage of required and useful primitive facts that can be extracted correctly before human enrichment.
+Percentage of required and useful primitive facts/relationships that can be extracted correctly before human enrichment.
 
 ### Refresh-change rate
 
-Number and type of product additions, removals, and fact changes identified by a repeat extraction pass.
+Number and type of product additions, removals, fact changes, and relationship changes identified by a repeat extraction pass.
 
 ### Review burden
 
-Human time required to review and accept automatically extracted candidate claims.
+Human time required to review and accept automatically extracted candidate claims/relationships.
 
 ### Rule reuse
 
@@ -467,7 +528,7 @@ Percentage requiring a bespoke rule or manual compatibility relationship.
 
 ### Compatibility leverage
 
-Number of candidate configurations unlocked by adding one new product without manually authoring each pairing.
+Number of candidate tethering configurations unlocked by adding one new product without manually authoring each pairing.
 
 ## Two-stage ingestion test
 
@@ -479,13 +540,13 @@ Build an initial diverse catalogue and create the reusable rules required.
 
 ### Batch 2
 
-Freeze the core domain model and rules, then ingest a new set of tools and tethering components.
+Freeze the core domain model and rules, then ingest a new set of tools and tethering components/supporting configuration products.
 
 The second batch should reveal whether the model truly scales.
 
 A strong outcome is:
 
-`new product -> facts + evidence -> recommendations`
+`new product -> facts + evidence + reusable relationships -> operational profile where needed -> recommendations`
 
 A weak outcome is:
 
@@ -496,7 +557,7 @@ A weak outcome is:
 Once the manual model is proven, AI may help:
 
 - find manufacturer sources;
-- extract candidate facts;
+- extract candidate facts and relationships;
 - highlight conflicting sources;
 - suggest missing fields;
 - identify likely duplicate products;
@@ -509,7 +570,8 @@ AI-assisted ingestion should remain reviewable and should not silently establish
 The ingestion model is successful if:
 
 - catalogue maintainers can add products quickly;
-- mandatory facts remain traceable;
+- mandatory facts and derived operational dependencies remain traceable;
+- cordless Tool configurations can be represented without arbitrary Battery selection;
 - application judgement is rarely required during product entry;
 - internal measurement fills geometry gaps efficiently;
 - existing rules handle most new products;

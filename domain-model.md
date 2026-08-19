@@ -10,7 +10,7 @@ It is a conceptual domain model, not a final database schema.
 
 TetherLens contains three broad groups of entities:
 
-1. **Product entities** — the physical tools and tethering components.
+1. **Product entities** — the physical tools, supporting configuration products, and tethering components.
 2. **Knowledge entities** — what TetherLens knows about those products and why.
 3. **Recommendation entities** — the current work context and the reasoning output.
 
@@ -27,14 +27,17 @@ Typical attributes may include:
 - `model`
 - `sku`
 - `category`
-- `mass`
+- `body_mass`, where the tool has a separable installed battery or other configuration component
+- power-source/configuration information where relevant
 - native tether-point status
 - relevant physical/interface features
 - known materials where relevant
 - manufacturer-declared limits
 - catalogue status
 
-Tool mass is a mandatory baseline fact for a catalogued tool to participate in load-based recommendations. The mass should be established from trustworthy evidence bound to the exact tool identity. Manufacturer evidence is preferred; a reputable exact-SKU secondary source may be used for physical mass where manufacturer data is unavailable or incomplete, with the evidence method and provenance retained.
+For load reasoning, TetherLens must use the mass of the tool **as configured for use**, not automatically a bare-tool value. A non-battery tool may use its accepted physical mass directly. A cordless tool with an interchangeable installed battery should instead use an `OperationalMassProfile` that combines the accepted tool-body mass with the mass of a specific compatible battery.
+
+Physical tool-body mass should be established from trustworthy evidence bound to the exact tool identity. Manufacturer evidence is preferred; a reputable exact-SKU secondary source may be used where manufacturer data is unavailable or incomplete, with the evidence method and provenance retained.
 
 A tool does **not** need to have a manufacturer-documented tether point in order to be tetherable. A recommendation may use:
 
@@ -79,6 +82,56 @@ Possible feature types may include:
 - other geometry defined by a reusable rule.
 
 The feature vocabulary should remain small and geometry-led rather than becoming an application-specific classification system.
+
+### Battery
+
+A `Battery` is a supporting catalogue product used to represent the installed configuration of a cordless Tool. It is not itself a tethering component and does not appear in the tether load path as a separate tethered item.
+
+Typical attributes may include:
+
+- `id`
+- `manufacturer`
+- `model`
+- `sku`
+- battery platform/family where published
+- `mass`
+- catalogue status
+
+Battery mass should be established from trustworthy evidence bound to the exact battery identity. Manufacturer evidence is preferred; a reputable exact-SKU secondary source may be used where manufacturer data is unavailable or incomplete.
+
+Tool-to-battery compatibility should not be inferred merely because two products share a voltage or marketing platform name. The relationship should be supported by manufacturer evidence such as:
+
+- explicit compatibility/recommended-battery information;
+- manufacturer kit composition; or
+- another manufacturer-backed product relationship.
+
+One Battery may be compatible with many Tools and one Tool may have several compatible Batteries.
+
+### OperationalMassProfile
+
+An `OperationalMassProfile` represents the mass of one specific tool configuration used for load reasoning.
+
+For a cordless tool with an interchangeable battery:
+
+```text
+tool body mass + installed battery mass = operational mass
+```
+
+Typical attributes may include:
+
+- `id`
+- `tool_id`
+- `battery_id`
+- `operational_mass`
+- relationship/evidence basis establishing that the battery is valid for the tool
+- dependency references to the accepted tool-body and battery-mass Claims
+- status
+
+A Tool may therefore have several valid operational mass profiles. TetherLens should preserve those profiles explicitly rather than silently choosing an arbitrary battery.
+
+The operational mass is a derived fact. Its provenance should identify the exact tool-body mass Claim, exact battery-mass Claim, and the manufacturer-backed relationship that permits that tool/battery configuration.
+
+If a cordless tool requires an installed battery but no valid operational profile can be established, it is not recommendation-ready for load-based reasoning. A bare-tool mass must not be substituted silently.
 
 ### Tether
 
@@ -190,7 +243,7 @@ An AnchorAttachment may connect to:
 - a structural anchor;
 - another permitted anchorage method.
 
-Whether a person may be used as the anchorage can depend on tool mass, product capacity, site policy, and task context.
+Whether a person may be used as the anchorage can depend on operational tool mass, product capacity, site policy, and task context.
 
 ### Container
 
@@ -219,12 +272,14 @@ Although the product categories differ, they share common conceptual attributes:
 - identity;
 - manufacturer;
 - model / SKU;
-- rated properties;
+- rated or physical properties;
 - physical geometry;
 - material information;
 - declared constraints;
 - source-backed claims;
-- recommendation-readiness status.
+- recommendation-readiness status where applicable.
+
+Supporting products such as Batteries may exist primarily to define a Tool's valid operational configuration rather than to appear as independent recommendation components.
 
 The final implementation may use separate tables, a shared Product/Component base entity, subtype tables, or another structure.
 
@@ -253,11 +308,13 @@ An atomic statement TetherLens accepts or considers about a subject.
 
 Examples:
 
-- Tool A mass = 1.8 kg.
-- Tether B rated capacity = 2.3 kg.
-- Connector C gate opening = 14 mm.
-- Product D material = polyester.
-- Manufacturer E explicitly pairs Tether F with ToolAttachment G.
+- Tool A body mass = 1.3 kg.
+- Battery B mass = 0.6 kg.
+- Operational profile A+B mass = 1.9 kg.
+- Tether C rated capacity = 2.3 kg.
+- Connector D gate opening = 14 mm.
+- Product E material = polyester.
+- Manufacturer F explicitly pairs Tether G with ToolAttachment H.
 
 Claims should be granular enough that one incorrect or superseded fact does not invalidate unrelated facts about the same product.
 
@@ -289,7 +346,7 @@ Rule types may include:
 
 Examples:
 
-- object mass must not exceed rated component capacity;
+- object operational mass must not exceed rated component capacity;
 - connector geometry must permit valid engagement;
 - prefer reduced free tether length where snag risk is elevated;
 - person anchoring is prohibited above a configured site threshold.
@@ -302,7 +359,8 @@ A directly known product property.
 
 Examples:
 
-- `mass = 1.8 kg`
+- `tool_body_mass = 1.3 kg`
+- `battery_mass = 0.6 kg`
 - `rated_capacity = 2.3 kg`
 - `length = 1.0 m`
 - `material = polyester`
@@ -329,13 +387,14 @@ A conclusion produced from claims and rules.
 
 Examples:
 
+- operational mass of Tool A with Battery B = accepted tool-body mass + accepted battery mass;
 - connector A is compatible with attachment B;
 - configuration C satisfies all rated-capacity requirements;
 - configuration D is less suitable where snag risk is high.
 
-Derived claims should retain enough dependency information to explain how they were reached.
+Derived claims should retain enough dependency information to explain how they were reached. For a persisted operational-mass Claim, the dependency chain should explicitly identify the accepted tool-body and battery-mass Claims rather than relying only on a human-readable note.
 
-The MVP may compute them at runtime rather than persist them permanently.
+Most derived recommendation conclusions may be computed at runtime. Operational mass profiles are a useful exception to persist because they are reusable configuration facts required by load checks and must retain their exact input provenance.
 
 ## Recommendation-side entities
 
@@ -346,6 +405,8 @@ The recommendation engine should support two tool-resolution modes.
 #### Catalogue tool
 
 The preferred path is an exact or sufficiently specific match to a recommendation-ready Tool record. Verified catalogue facts can then be used directly, with provenance indicating whether an accepted physical property came from manufacturer evidence, qualified exact-SKU secondary evidence, or another permitted method.
+
+For a cordless catalogue tool, the resolved profile should also identify the applicable `OperationalMassProfile`, including the installed Battery identity. The engine must not substitute bare-tool mass or silently choose among several compatible batteries.
 
 #### Generic tool profile
 
@@ -397,7 +458,7 @@ A possible tethering arrangement assembled from applicable product entities.
 
 A candidate may include:
 
-- tool;
+- resolved tool configuration, including an installed battery profile where applicable;
 - tool attachment, if required;
 - tether;
 - anchor attachment, if required;
@@ -434,7 +495,18 @@ For baseline recommendations, TetherLens needs three classes of mandatory fact.
 
 ### 1. Object mass
 
-For catalogued tools, physical mass should be established from trustworthy evidence bound to the exact product identity. Manufacturer evidence is preferred; a reputable exact-SKU secondary source may be accepted where manufacturer mass is unavailable or incomplete. TetherLens should not infer persistent catalogue mass from an image or a similar product.
+For catalogued tools, the mass used for load reasoning must represent the tool as configured for use.
+
+For a non-battery tool, the accepted physical tool mass may be used directly. For a cordless tool with an interchangeable installed battery, TetherLens should establish separately:
+
+- exact tool identity and accepted tool-body mass;
+- exact battery identity and accepted battery mass;
+- a manufacturer-backed relationship establishing that the battery is valid for the tool; and
+- the derived operational mass profile for that exact tool/battery combination.
+
+Manufacturer evidence is preferred for physical tool-body and battery mass; a reputable exact-SKU secondary source may be accepted where manufacturer mass is unavailable or incomplete. TetherLens should not infer persistent catalogue mass from an image or a similar product.
+
+If several compatible batteries exist, several valid operational mass profiles may exist. Load reasoning must use a specific resolved profile rather than an arbitrary battery or bare-tool mass.
 
 ### 2. Rated capacity of applicable load-bearing components
 
@@ -509,6 +581,8 @@ At least one relevant product source is recorded.
 
 Mandatory recommendation facts are available for the relevant product role.
 
+For a battery-powered Tool, this includes at least one valid operational mass profile for any configuration intended to participate in load-based recommendations.
+
 ### Enriched
 
 Additional material, dimensional, standards, or application-relevant facts are available.
@@ -522,9 +596,20 @@ These labels are primarily internal and may change as the implementation matures
 ## Relationship summary
 
 ```text
+Tool ──manufacturer-backed relationship──> Battery
+  │                                         │
+  └──────────────┬──────────────────────────┘
+                 ▼
+       OperationalMassProfile
+                 │
+                 ▼
+        load reasoning mass
+
 Source
   │
-  └── Evidence ──> Claim ──> Product
+  └── Evidence ──> Claim ──> Product / OperationalMassProfile
+  │                    │
+  │                    └── dependency ──> input Claim(s)
   │
   └── Evidence ──> Rule
 
