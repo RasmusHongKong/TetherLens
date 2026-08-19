@@ -125,12 +125,17 @@ class HiltiAdapter(_BaseHiltiAdapter):
                 extractor="hilti.v0.9",
             ))
 
-        online_manuals = [artifact for artifact in artifacts if artifact.metadata.get("role") == "online_operating_instruction"]
+        online_manuals = [
+            artifact for artifact in artifacts
+            if artifact.metadata.get("role") == "online_operating_instruction"
+            and (model := _tool_model(identity))
+            and _contains_model(_normalized_document_text(artifact), model)
+        ]
         if online_manuals:
             observations.append(AcquisitionObservation(
                 code="ONLINE_OPERATING_INSTRUCTION_DISCOVERED",
                 value=len(online_manuals),
-                detail="Hilti web-rendered operating instructions were resolved from documentation IDs embedded in manufacturer PDF evidence.",
+                detail="Hilti web-rendered operating instructions were resolved from manufacturer PDF evidence.",
                 source_url=identity.url,
                 extractor="hilti.v0.9",
             ))
@@ -178,11 +183,28 @@ class HiltiAdapter(_BaseHiltiAdapter):
         if not model or not _contains_model(text, model):
             return []
 
+        qr_payloads = artifact.metadata.get("document_qr_payloads")
+        if isinstance(qr_payloads, list):
+            qr_requests = [
+                SourceRequest(
+                    url=url,
+                    metadata={
+                        "role": "online_operating_instruction",
+                        "document_query": model,
+                        "parent_document_url": artifact.url,
+                        "relationship_basis": "manufacturer_qr_payload",
+                    },
+                )
+                for payload in qr_payloads
+                if (url := _hilti_qr_url(str(payload)))
+            ]
+            if qr_requests:
+                return _dedupe_requests(qr_requests)
+
         evidence_strings = [text]
-        for metadata_key in ("document_links", "document_qr_payloads"):
-            values = artifact.metadata.get(metadata_key)
-            if isinstance(values, list):
-                evidence_strings.extend(str(value) for value in values)
+        links = artifact.metadata.get("document_links")
+        if isinstance(links, list):
+            evidence_strings.extend(str(value) for value in links)
 
         document_id = next(
             (document_id for value in evidence_strings if (document_id := _embedded_online_manual_id(value))),
@@ -271,6 +293,17 @@ class HiltiAdapter(_BaseHiltiAdapter):
             if match and parse_mass(match.group(1)):
                 return match.group(1).strip()
         return None
+
+
+def _hilti_qr_url(payload: str) -> str | None:
+    value = payload.strip()
+    if not value:
+        return None
+    candidate = value if "://" in value else f"https://{value}"
+    parsed = urlparse(candidate)
+    if parsed.scheme not in {"http", "https"} or parsed.netloc.lower() != "qr.hilti.com":
+        return None
+    return candidate
 
 
 def _embedded_online_manual_id(text: str) -> str | None:
