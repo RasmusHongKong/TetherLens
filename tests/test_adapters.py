@@ -130,6 +130,55 @@ def test_nlg_dual_action_carabiner_does_not_mean_dual_carabiners():
     assert ("tether_endpoint_2", "carabiner") not in endpoints
 
 
+def test_nlg_infers_first_endpoint_from_other_end_contrast():
+    html = """
+    <h1>Bungee Tool Lanyard</h1>
+    <p>The 360° Rotobiner is a dual action carabiner designed for easy use with gloves. At the other end is a climbing cord loop.</p>
+    """
+    claims = NLGAdapter().extract(identity("NLG", ProductType.TETHER), [artifact(html)])
+    endpoints = {
+        (c.subject_ref, c.value)
+        for c in claims
+        if c.property_key == "interface.type"
+    }
+    assert any(c.property_key == "tether.connection_count" and c.value == 2 for c in claims)
+    assert ("tether_endpoint_1", "carabiner") in endpoints
+    assert ("tether_endpoint_2", "loop") in endpoints
+    assert ("tether_endpoint_2", "carabiner") not in endpoints
+
+
+def test_nlg_extracts_opposite_end_carabiner_loop_pair():
+    html = """
+    <h1>Example Tool Lanyard</h1>
+    <p>A carabiner sits at one end, with a webbing loop at the opposite end.</p>
+    """
+    claims = NLGAdapter().extract(identity("NLG", ProductType.TETHER), [artifact(html)])
+    endpoints = {
+        (c.subject_ref, c.value)
+        for c in claims
+        if c.property_key == "interface.type"
+    }
+    assert any(c.property_key == "tether.connection_count" and c.value == 2 for c in claims)
+    assert ("tether_endpoint_1", "carabiner") in endpoints
+    assert ("tether_endpoint_2", "loop") in endpoints
+
+
+def test_nlg_extracts_same_connector_at_each_end():
+    html = """
+    <h1>Double Carabiner Tool Lanyard</h1>
+    <p>This lanyard has carabiners at each end.</p>
+    """
+    claims = NLGAdapter().extract(identity("NLG", ProductType.TETHER), [artifact(html)])
+    endpoints = {
+        (c.subject_ref, c.value)
+        for c in claims
+        if c.property_key == "interface.type"
+    }
+    assert any(c.property_key == "tether.connection_count" and c.value == 2 for c in claims)
+    assert ("tether_endpoint_1", "carabiner") in endpoints
+    assert ("tether_endpoint_2", "carabiner") in endpoints
+
+
 def test_nlg_extracts_tool_attachment_geometry_and_lanyard_limit():
     html = """
     <h1>Tether Choke</h1>
