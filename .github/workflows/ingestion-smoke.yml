@@ -28,8 +28,6 @@ jobs:
         run: |
           pip install pytest
           pytest -q
-      - name: Run Hilti QR diagnostic
-        run: python scripts/debug_hilti_qr_payloads.py
       - name: Run live manufacturer benchmark
         run: python scripts/run_batch1_smoke.py
       - name: Score benchmark against golden expectations
