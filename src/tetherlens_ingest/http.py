@@ -5,7 +5,6 @@ from typing import Protocol
 
 import httpx
 from pypdf import PdfReader
-import zxingcpp
 
 from .models import SourceArtifact, SourceType
 
@@ -26,15 +25,9 @@ class HttpxFetcher:
         response = self._client.get(url)
         response.raise_for_status()
         content_type = response.headers.get("content-type", "application/octet-stream").split(";", 1)[0]
-        metadata: dict[str, object] = {"status_code": response.status_code}
         if content_type == "application/pdf":
             reader = PdfReader(BytesIO(response.content))
             body = "\n".join(page.extract_text() or "" for page in reader.pages)
-            metadata["page_count"] = len(reader.pages)
-            if links := _pdf_external_links(reader):
-                metadata["document_links"] = links
-            if qr_payloads := _pdf_qr_payloads(reader):
-                metadata["document_qr_payloads"] = qr_payloads
         else:
             body = response.text
         return SourceArtifact(
@@ -42,52 +35,8 @@ class HttpxFetcher:
             source_type=source_type,
             content_type=content_type,
             body=body,
-            metadata=metadata,
+            metadata={"status_code": response.status_code},
         )
 
     def close(self) -> None:
         self._client.close()
-
-
-def _pdf_external_links(reader: PdfReader) -> list[str]:
-    """Return external URI annotation targets without interpreting their semantics."""
-    links: list[str] = []
-    seen: set[str] = set()
-    for page in reader.pages:
-        for annotation_ref in page.get("/Annots", []):
-            try:
-                annotation = annotation_ref.get_object()
-                if annotation.get("/Subtype") != "/Link":
-                    continue
-                action = annotation.get("/A")
-                if not action or action.get("/S") != "/URI":
-                    continue
-                uri = str(action.get("/URI") or "").strip()
-            except (AttributeError, KeyError, TypeError, ValueError):
-                continue
-            if uri and uri not in seen:
-                seen.add(uri)
-                links.append(uri)
-    return links
-
-
-def _pdf_qr_payloads(reader: PdfReader) -> list[str]:
-    """Decode QR codes embedded as page image objects without OCR or semantic inference."""
-    payloads: list[str] = []
-    seen: set[str] = set()
-    for page in reader.pages:
-        for image_key in page.images.keys():
-            try:
-                image_file = page.images[image_key]
-                image = image_file.image
-                if image is None:
-                    continue
-                barcodes = zxingcpp.read_barcodes(image, formats=zxingcpp.BarcodeFormat.QRCode)
-            except (AttributeError, KeyError, RuntimeError, TypeError, ValueError):
-                continue
-            for barcode in barcodes:
-                payload = str(barcode.text or "").strip()
-                if payload and payload not in seen:
-                    seen.add(payload)
-                    payloads.append(payload)
-    return payloads
