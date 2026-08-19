@@ -78,13 +78,17 @@ Where possible, TetherLens should identify an exact or sufficiently specific man
 
 This path can use verified catalogue facts such as:
 
-- mass;
+- operational mass or configuration-specific mass profiles;
 - known geometry;
 - native tether features;
 - materials; and
 - declared product constraints.
 
-Catalogue facts retain their provenance. For physical tool or battery mass, manufacturer evidence is preferred, but a reputable exact-SKU secondary product-detail source may be accepted where manufacturer mass is unavailable or incomplete. Manufacturer-rated capacities, restrictions and compliance claims retain their stricter manufacturer-evidence requirements.
+Catalogue facts retain their provenance. For physical tool-body or battery mass, manufacturer evidence is preferred, but a reputable exact-SKU secondary product-detail source may be accepted where manufacturer mass is unavailable or incomplete. Manufacturer-rated capacities, restrictions and compliance claims retain their stricter manufacturer-evidence requirements.
+
+For a cordless Tool with an interchangeable installed Battery, the resolved catalogue profile must identify a valid `OperationalMassProfile` for the exact Tool/Battery configuration used in the recommendation. The profile must be based on exact Tool and Battery identities, a manufacturer-backed configuration relationship, and accepted primitive mass Claims.
+
+If several compatible Batteries produce several valid profiles, TetherLens must resolve which installed configuration applies before performing load checks. It must not silently choose the lightest, heaviest, first-listed, or otherwise arbitrary Battery, and it must not use bare-tool/body mass as a substitute.
 
 ### Generic-tool path
 
@@ -144,16 +148,16 @@ The MVP can rely on user input rather than automatic scene interpretation.
 
 Candidate configurations may combine:
 
-- tool;
+- resolved Tool configuration, including installed Battery profile where applicable;
 - tool attachment, where needed;
 - tether;
 - anchor attachment, where needed;
 - permitted anchorage method;
 - container, where relevant.
 
-The system should avoid requiring a manually curated exact pairing for every candidate.
+The system should avoid requiring a manually curated exact tethering pairing for every candidate.
 
-Candidate generation should increasingly rely on reusable product facts and interface rules.
+Candidate generation should increasingly rely on reusable product facts, explicit manufacturer configuration relationships, and interface rules.
 
 ## Step 4: apply hard constraints
 
@@ -167,7 +171,27 @@ For every applicable load-bearing component:
 
 Component capacity should come from manufacturer information.
 
-For a catalogued tool, object mass should come from verified physical-mass evidence bound to the exact product identity. Manufacturer evidence is preferred; a reputable exact-SKU secondary source may be accepted where manufacturer mass is unavailable or incomplete. Visual inference, similar-model estimates and unverified aggregate/search pages are not acceptable catalogue mass evidence.
+For a catalogued Tool, `object_mass_used_for_reasoning` must represent the Tool as configured for use.
+
+For a non-battery Tool whose mass is not configuration-dependent, the accepted physical Tool mass may be used directly.
+
+For a cordless Tool with an interchangeable installed Battery:
+
+```text
+accepted tool-body mass
+    +
+accepted exact Battery mass
+    ↓
+validated OperationalMassProfile
+    ↓
+object_mass_used_for_reasoning
+```
+
+The Tool/Battery relationship supporting that profile must come from manufacturer evidence such as explicit compatibility or kit composition. A shared voltage/platform label alone is insufficient.
+
+Physical tool-body and Battery mass must come from verified physical-mass evidence bound to the exact product identities. Manufacturer evidence is preferred; a reputable exact-SKU secondary source may be accepted where manufacturer mass is unavailable or incomplete. Visual inference, similar-model estimates and unverified aggregate/search pages are not acceptable catalogue mass evidence.
+
+If a Tool requires an operational profile and the installed Battery/profile is unresolved, the engine cannot complete the load-capacity check for that candidate. It must not compare component capacity against bare-tool/body mass.
 
 For the generic-tool fallback path, the engine may use a user-confirmed label/document value, a user measurement, or — with clear qualification — a user-estimated mass range. Where a range is used, the upper bound should be used for the load-capacity comparison.
 
@@ -240,7 +264,7 @@ Policy should be evaluated separately from technical viability.
 
 Examples:
 
-- person anchoring permitted only below a configured mass;
+- person anchoring permitted only below a configured operational mass;
 - certain product families prohibited;
 - mixed-brand combinations disallowed by a particular site;
 - specific anchor methods required.
@@ -264,13 +288,15 @@ Examples:
 
 Mandatory facts and relevant contextual properties are well established.
 
+For a cordless Tool this includes a resolved operational profile whose Tool-body and Battery mass dependencies and manufacturer-backed configuration relationship are traceable.
+
 ### Secondary uncertainty
 
 The hard constraints are established, but some secondary property is incomplete.
 
 Example:
 
-- mass known;
+- operational mass known;
 - capacities known;
 - interfaces known;
 - chemical resistance not established.
@@ -291,9 +317,10 @@ Example:
 
 A required fact cannot be established.
 
-Example:
+Examples:
 
 - component capacity unknown;
+- required cordless operational profile unresolved;
 - interface compatibility cannot be determined.
 
 This can require abstention for the affected candidate.
@@ -326,7 +353,7 @@ Use when:
 
 - hard constraints can still be established;
 - the configuration is defensible;
-- secondary evidence is incomplete or the exact combination has not previously been assessed as a named pairing.
+- secondary evidence is incomplete or the exact tethering combination has not previously been assessed as a named pairing.
 
 The limitation should be specific rather than a generic disclaimer.
 
@@ -335,7 +362,7 @@ The limitation should be specific rather than a generic disclaimer.
 Use only when:
 
 - all candidates fail a hard constraint;
-- a required hard-constraint fact cannot be established;
+- a required hard-constraint fact or operational configuration cannot be established;
 - all candidates create an unacceptable hazard; or
 - policy prevents every otherwise viable option and no permitted alternative exists.
 
@@ -358,12 +385,16 @@ Recommendation
   ↓
 Candidate configuration
   ↓
-Rules evaluated
+Resolved Tool operational profile
   ↓
-Claims used
+Derived operational-mass Claim
+  ↓
+Tool-body mass Claim + Battery-mass Claim
   ↓
 Evidence / sources
 ```
+
+alongside the rules, tethering component Claims, and other evidence used by the recommendation.
 
 ## Rules should operate on low-level facts
 
@@ -402,7 +433,7 @@ This keeps the recommendation logic reusable.
 
 ## Mixed-manufacturer reasoning
 
-Brand should not be treated as a compatibility rule by default.
+Brand should not be treated as a tethering compatibility rule by default.
 
 The engine should evaluate:
 
@@ -415,17 +446,20 @@ The engine should evaluate:
 
 Manufacturer endorsement may be shown separately.
 
+The manufacturer-backed relationship requirement for a cordless Tool/Battery operational profile is a configuration-evidence requirement, not a rule that all tethering components must share a brand.
+
 ## Initial rule set for the MVP
 
 The first rule set should stay small.
 
 Likely rules include:
 
-### Hard constraints
+### Hard constraints / deterministic derivation
 
-- object mass must not exceed tether capacity;
-- object mass must not exceed tool-attachment capacity where used;
-- object mass must not exceed anchor-attachment capacity where used;
+- derive operational mass from accepted Tool-body + exact installed Battery mass;
+- object operational mass must not exceed tether capacity;
+- object operational mass must not exceed tool-attachment capacity where used;
+- object operational mass must not exceed anchor-attachment capacity where used;
 - object/contents mass must not exceed container capacity where used;
 - required interfaces must be compatible;
 - explicit manufacturer hard limits must be respected where applicable.
@@ -462,11 +496,12 @@ The goal is to help the worker manage the limitation.
 
 The engine is working if:
 
-- hard constraints are reliably enforced;
+- hard constraints are reliably enforced using configured operational mass where required;
+- cordless Tools with multiple Batteries do not silently collapse to a bare-tool or arbitrary Battery mass;
 - the same tool can produce different recommendations under different context;
 - viable but imperfect options are not unnecessarily rejected;
-- mixed-manufacturer configurations can be evaluated;
+- mixed-manufacturer tethering configurations can be evaluated;
 - evidence limitations are communicated without generic over-warning;
 - policy remains separate from technical suitability;
 - rules can be reused across newly added products; and
-- a recommendation can be traced back to the facts and rules that produced it.
+- a recommendation can be traced back to the facts, configuration relationships, dependencies, and rules that produced it.
