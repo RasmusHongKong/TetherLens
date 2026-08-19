@@ -2,7 +2,7 @@
 
 ## Status
 
-Initial benchmark specification created 2026-08-14 and consolidated 2026-08-18 after the first Hilti and Milwaukee acquisition experiments.
+Initial benchmark specification created 2026-08-14 and consolidated 2026-08-19 after the first Hilti, Milwaukee and manufacturer-document acquisition experiments.
 
 This benchmark tests the main supply-side uncertainty in TetherLens:
 
@@ -163,7 +163,9 @@ Hilti demonstrates a scalable **source-graph adapter**:
 
 The SF 4-22 case is the reference pattern for cordless-tool graph ingestion.
 
-The next distinct Hilti benchmark gap is `2293133`, where the useful evidence appears to require joining the manufacturer product page with manufacturer document/PDF evidence rather than extending the Milwaukee-style cross-source path.
+The `2293133` pass refined the original document-join assumption. Its rated capacity is now available directly on the current manufacturer product page, so a document join is not required for that scalar fact. The remaining distinct Hilti gap is **explicit drop-arrest relationship evidence**: current Hilti online operating instructions can name the required retaining strap and tether, but the deterministic US Technical Library path can return an operating-instruction PDF revision whose extractable evidence does not expose those exact component SKUs.
+
+The adapter now treats manufacturer Technical Library results and operating-instruction PDFs as graph nodes, with model/SKU identity gates and PDF text extraction. Live acquisition therefore proves the document-join path itself; exact relationship claims remain revision-gated and must not be inferred when the acquired document does not state the SKU explicitly.
 
 Likely baseline acquisition tier: **B**.
 
@@ -325,6 +327,6 @@ StopDrop demonstrates that some products remain incomplete because the source ev
 
 Milwaukee demonstrates that the Hilti graph model can be reused even when selected physical facts cross into qualified secondary evidence, provided resolved source identity is verified before evidence priority is assigned.
 
-The Milwaukee `2607-20` development path is now implemented and hardened enough to stop being the active benchmark workstream. The next distinct acquisition challenge is the Hilti `2293133` manufacturer document-join gap.
+The Milwaukee `2607-20` development path is now implemented and hardened enough to stop being the active benchmark workstream. The Hilti manufacturer-document pass has also established deterministic Technical Library discovery and PDF acquisition. The next distinct acquisition challenge is **current-revision operating-instruction selection** so explicit Hilti tool → retaining-strap/tether relationships can be captured without weakening evidence requirements.
 
 See `benchmark-goals.md` for the benchmark success criteria and interpretation rules.
