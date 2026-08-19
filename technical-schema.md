@@ -12,9 +12,10 @@ It does **not** commit TetherLens to a specific database engine, ORM, backend la
 
 Schema v0.1 should make it possible to:
 
-- store a small but structurally diverse catalogue of real tools and tethering components;
+- store a small but structurally diverse catalogue of real tools, supporting configuration products, and tethering components;
 - keep accepted operational product facts fast to query;
 - trace mandatory facts back to claims, evidence, and sources;
+- represent configuration-dependent operational mass without collapsing interchangeable battery options into one tool mass;
 - represent reusable physical interfaces rather than a tool-to-tether compatibility matrix;
 - represent multi-connection and multi-leg tether products;
 - store explicit manufacturer constraints and product relationships without confusing them with generic compatibility;
@@ -47,25 +48,30 @@ These may be added later if validated by the MVP.
 
 ## 1.1 Relational core with product subtypes
 
-All physical catalogue products share a base `product` record and then use one subtype table:
+All physical catalogue products share a base `product` record and then use one subtype table where subtype-specific fields are required:
 
 - `tool`
+- `battery`
 - `tether`
 - `tool_attachment`
 - `anchor_attachment`
 - `container`
 
+`battery` is a supporting configuration product rather than a tethering component. It exists because the installed battery can change the mass of a cordless Tool used by load reasoning.
+
 This avoids both:
 
 - a single sparse product table containing many irrelevant nullable columns; and
-- five unrelated product tables that duplicate identity, manufacturer, lifecycle, and catalogue metadata.
+- unrelated product tables that duplicate identity, manufacturer, lifecycle, and catalogue metadata.
 
 ## 1.2 Accepted operational values are stored directly
 
 Values needed frequently by the recommendation engine are stored in typed operational columns, for example:
 
 ```text
-tool.mass_kg
+tool.body_mass_kg
+battery.mass_kg
+operational_mass_profile.operational_mass_kg
 
 tether.rated_capacity_kg
 
@@ -77,15 +83,31 @@ The recommendation engine should not reconstruct these values by traversing `Cla
 
 The provenance layer exists alongside the operational catalogue and explains why those accepted values are trusted.
 
+For configuration-dependent cordless tools, the engine consumes a specific `operational_mass_profile`; it must not substitute `tool.body_mass_kg` as the load-check mass when an installed battery is required.
+
 ## 1.3 Provenance remains claim-level
 
-`Claim` remains atomic and source-backed.
+`Claim` remains atomic and source-backed where it represents a directly sourced fact.
 
 An accepted operational field is linked to the accepted Claim that currently supports it through `accepted_fact_link`.
 
 Historical, disputed, rejected, and superseded Claims remain preserved even when they are no longer linked to the active operational value.
 
-## 1.4 Physical interfaces are shared across product categories
+Derived Claims may additionally depend on other accepted Claims through `claim_dependency`. This makes the derivation machine-traceable rather than relying on a human-readable note.
+
+For example:
+
+```text
+accepted tool-body mass Claim
+          +
+accepted battery-mass Claim
+          ↓
+accepted operational-mass Claim
+```
+
+The validity of the tool/battery combination itself is represented separately by a manufacturer-backed `declared_relationship`.
+
+## 1.4 Physical interfaces are shared across tethering product categories
 
 The conceptual domain distinguishes:
 
@@ -96,6 +118,8 @@ The conceptual domain distinguishes:
 - container interfaces.
 
 The technical schema implements these through one shared `physical_interface` table with role-specific validation.
+
+A supporting Battery does not require a tethering `physical_interface` merely because it participates in an operational Tool configuration.
 
 This gives the recommendation engine a common vocabulary for connection reasoning without changing the conceptual meaning of the entities.
 
@@ -123,8 +147,11 @@ Recommendation-readiness is derived from:
 
 - the mandatory operational facts available for the product role;
 - accepted Claims supporting those facts;
-- the required evidence quality; and
+- the required evidence quality;
+- valid configuration relationships where applicable; and
 - whether at least one supported interface path can be established for the use being evaluated.
+
+For a cordless Tool that requires an installed interchangeable battery, readiness for load-based reasoning requires at least one valid `operational_mass_profile`. A bare-tool/body mass alone is insufficient.
 
 Readiness may therefore be path-dependent rather than a permanent intrinsic property of a product.
 
@@ -174,6 +201,7 @@ Expandable technical vocabularies such as tool categories, material names, and d
 
 ```text
 tool
+battery
 tether
 tool_attachment
 anchor_attachment
@@ -393,7 +421,10 @@ explicitly_endorsed
 explicitly_restricted
 required_pairing
 kit_relationship
+compatible_configuration
 ```
+
+`compatible_configuration` is intended for manufacturer-backed configuration relationships such as a Tool being valid with a particular Battery. It should not be populated merely from a shared voltage/platform label.
 
 ## `constraint_operator`
 
@@ -563,7 +594,7 @@ Shared identity and lifecycle data for all physical catalogue products.
 
 ### Constraints
 
-- Exactly one subtype row must exist matching `product.product_type` once `record_status = active`.
+- Exactly one subtype row must exist matching `product.product_type` once `record_status = active` where that type has a subtype table in v0.1.
 - A product may remain `draft` while incomplete.
 - Prefer a case-sensitive or normalized uniqueness check on `(manufacturer_id, sku)` where SKU is populated, but allow an explicit ingestion override because manufacturer catalogues may contain regional or legacy SKU ambiguity.
 - `name` must be non-empty.
@@ -584,16 +615,73 @@ Tool-specific operational fields.
 |---|---|---:|---|
 | `product_id` | UUID | no | PK + FK -> `product.id` |
 | `tool_category_code` | TEXT | no | Expandable controlled vocabulary |
-| `mass_kg` | DECIMAL(12,6) | yes | Current accepted evidence-qualified physical mass |
+| `body_mass_kg` | DECIMAL(12,6) | yes | Current accepted physical mass excluding an interchangeable installed Battery where applicable |
+| `requires_operational_profile` | BOOLEAN | no | Default `false`; true when load reasoning requires an installed configuration such as a battery |
 | `native_tether_point_status` | ENUM | no | Default `unknown` |
 
 ### Constraints
 
 - Parent `product.product_type` must equal `tool`.
-- `mass_kg > 0` when populated.
-- `mass_kg` may be null while the catalogue record is being built.
-- A non-null operational `mass_kg` used by recommendation logic must have a matching `accepted_fact_link` to an accepted Claim supported by evidence permitted for physical mass. Manufacturer evidence is preferred; a reputable verified exact-SKU secondary source may be accepted when manufacturer mass is unavailable or incomplete.
+- `body_mass_kg > 0` when populated.
+- `body_mass_kg` may be null while the catalogue record is being built.
+- A non-null operational `body_mass_kg` must have a matching `accepted_fact_link` to an accepted Claim supported by evidence permitted for physical mass. Manufacturer evidence is preferred; a reputable verified exact-SKU secondary source may be accepted when manufacturer mass is unavailable or incomplete.
+- If `requires_operational_profile = false`, `body_mass_kg` may be used directly as the object mass for load reasoning once all other readiness conditions pass.
+- If `requires_operational_profile = true`, `body_mass_kg` is not itself the load-check mass; at least one valid `operational_mass_profile` is required.
 - `native_tether_point_status = observed_absent` does not imply that the tool is untetherable.
+
+---
+
+## 5.3A `battery`
+
+Supporting product fields for an interchangeable Battery used in a Tool operational configuration.
+
+| Field | Type | Null | Constraint / meaning |
+|---|---|---:|---|
+| `product_id` | UUID | no | PK + FK -> `product.id` |
+| `mass_kg` | DECIMAL(12,6) | yes | Current accepted physical battery mass |
+| `platform_code` | TEXT | yes | Manufacturer platform/family identifier where published |
+
+### Constraints
+
+- Parent `product.product_type` must equal `battery`.
+- `mass_kg > 0` when populated.
+- Battery `mass_kg` used in an operational profile requires an `accepted_fact_link` to an accepted Claim supported by evidence permitted for physical mass.
+- Manufacturer evidence is preferred; a reputable verified exact-SKU secondary source may be accepted when manufacturer battery mass is unavailable or incomplete.
+- `platform_code` alone does not establish compatibility with a Tool.
+
+---
+
+## 5.3B `operational_mass_profile`
+
+Represents one exact Tool configuration whose mass is used by load reasoning.
+
+For the current cordless-tool use case:
+
+```text
+tool.body_mass_kg + battery.mass_kg = operational_mass_profile.operational_mass_kg
+```
+
+| Field | Type | Null | Constraint / meaning |
+|---|---|---:|---|
+| `id` | UUID | no | PK |
+| `tool_product_id` | UUID | no | FK -> `tool.product_id` |
+| `battery_product_id` | UUID | no | FK -> `battery.product_id` |
+| `relationship_id` | UUID | no | FK -> `declared_relationship.id` establishing manufacturer-backed Tool/Battery validity |
+| `operational_mass_kg` | DECIMAL(12,6) | no | Derived configured mass used by load checks |
+| `active` | BOOLEAN | no | Default true |
+| `notes` | TEXT | yes | Qualification |
+
+### Constraints
+
+- `operational_mass_kg > 0`.
+- Prefer `UNIQUE(tool_product_id, battery_product_id)` for active profiles unless a future product has materially distinct installed configurations using the same battery identity.
+- `relationship_id` must relate the same Tool and Battery and use a manufacturer-backed relationship type such as `compatible_configuration` or `kit_relationship`.
+- The profile must have an `accepted_fact_link` for `operational_mass_kg` pointing to an accepted Claim with `claim_type = derived`.
+- That derived Claim must depend through `claim_dependency` on the current accepted Tool `body_mass_kg` Claim and current accepted Battery `mass_kg` Claim.
+- The normalized derived value must equal the accepted input masses according to the version-controlled derivation rule.
+- A profile becomes invalid for recommendation use if its Tool/Battery relationship is inactive/superseded, an input mass Claim is superseded without re-derivation, or the derived Claim becomes disputed/superseded.
+
+A Tool may have several active operational profiles, one for each accepted compatible Battery configuration. No profile should be selected silently when the installed Battery is unresolved.
 
 ---
 
@@ -709,7 +797,7 @@ Operational fields for containment products used in a recommendation.
 
 ## 6.1 `physical_interface`
 
-Represents a physical feature or connection interface on a catalogue product.
+Represents a physical feature or connection interface on a tethering catalogue product.
 
 Conceptually this table implements:
 
@@ -736,6 +824,7 @@ Conceptually this table implements:
 | Parent product type | Allowed interface roles |
 |---|---|
 | `tool` | `tool_feature` |
+| `battery` | none in v0.1 |
 | `tether` | `tether_connection` |
 | `tool_attachment` | `tool_attachment_tool_side`, `tool_attachment_tether_side` |
 | `anchor_attachment` | `anchor_attachment_tether_side`, `anchor_attachment_anchor_side` |
@@ -903,6 +992,7 @@ Schema v0.1 uses a polymorphic subject reference because Claims can describe dif
 
 ```text
 product
+operational_mass_profile
 physical_interface
 tether_leg
 connector_spec
@@ -998,17 +1088,53 @@ This table does not store the operational value itself.
   2. write the new accepted operational value; and
   3. move the `accepted_fact_link` to the new accepted Claim.
 
-### Example
+### Examples
 
 ```text
-tool.mass_kg = 1.820000
+tool.body_mass_kg = 1.360777
 
 accepted_fact_link
 - subject_type = product
 - subject_id = <tool product id>
-- property_key = mass_kg
-- claim_id = <accepted evidence-qualified mass claim>
+- property_key = body_mass_kg
+- claim_id = <accepted evidence-qualified tool-body mass claim>
 ```
+
+```text
+operational_mass_profile.operational_mass_kg = 2.086525
+
+accepted_fact_link
+- subject_type = operational_mass_profile
+- subject_id = <profile id>
+- property_key = operational_mass_kg
+- claim_id = <accepted derived operational-mass claim>
+```
+
+---
+
+## 9.5 `claim_dependency`
+
+Records the input Claims used by a derived Claim.
+
+This table represents derivation dependencies, not source Evidence. The primitive input Claims retain their own Evidence records.
+
+| Field | Type | Null | Constraint / meaning |
+|---|---|---:|---|
+| `derived_claim_id` | UUID | no | FK -> `claim.id` |
+| `input_claim_id` | UUID | no | FK -> `claim.id` |
+| `role_code` | TEXT | no | Stable role such as `tool_body_mass` or `battery_mass` |
+| `sequence_no` | SMALLINT | yes | Optional deterministic input order |
+
+### Constraints
+
+- `derived_claim_id` must reference a Claim with `claim_type = derived`.
+- `input_claim_id` must reference an accepted Claim when the derived Claim is accepted for operational use.
+- A Claim must not depend directly or transitively on itself; cycle prevention belongs in the catalogue validator for v0.1.
+- Prefer `UNIQUE(derived_claim_id, input_claim_id, role_code)`.
+- For an accepted `operational_mass_kg` Claim, required roles are initially `tool_body_mass` and `battery_mass`.
+- The validator must verify that those input Claims correspond to the Tool and Battery referenced by the parent `operational_mass_profile`.
+
+This generic table can later support other persisted derivations without creating property-specific dependency columns.
 
 ---
 
@@ -1085,18 +1211,22 @@ This table is **not** a general compatibility matrix.
 
 - `subject_interface_id`, when populated, must belong to `subject_product_id`.
 - `object_interface_id`, when populated, must belong to `object_product_id`.
-- `claim_id` must reference an accepted Claim whose source/evidence supports the declared relationship.
-- No relationship row should be created merely because two products happen to pass generic compatibility rules.
+- `claim_id` must reference an accepted Claim whose manufacturer Evidence supports the declared relationship.
+- A `compatible_configuration` or `kit_relationship` used by an `operational_mass_profile` must relate a Tool to the exact Battery product used by that profile.
+- A shared platform/voltage string alone is not sufficient to create a Tool/Battery compatibility relationship.
+- No relationship row should be created merely because two tethering products happen to pass generic compatibility rules.
 
 ### Typical uses
 
 ```text
 Manufacturer explicitly endorses Attachment A with Tether B
 Manufacturer sells Tool Attachment C and Tether D as a kit
+Manufacturer kit identifies Battery X as installed with Tool Y
+Manufacturer explicitly identifies Battery X as compatible with Tool Y
 Manufacturer explicitly restricts Product E from Product F
 ```
 
-Absence of a row does not imply incompatibility.
+Absence of a row does not imply incompatibility, but a cordless operational profile requires a positive manufacturer-backed Tool/Battery relationship.
 
 ---
 
@@ -1131,7 +1261,14 @@ Metadata and provenance identity for deterministic recommendation logic.
 - `implementation_ref` must resolve to a known code implementation during build/test validation.
 - Rule evidence is attached through `evidence.rule_id`.
 
-### Example
+### Examples
+
+```text
+rule_key = mass.operational.tool_plus_battery
+version = 1
+rule_type = hard_constraint
+implementation_ref = rules.mass.tool_plus_battery.v1
+```
 
 ```text
 rule_key = capacity.component_meets_object_mass
@@ -1151,25 +1288,30 @@ Manufacturer
     │
     └── Product
           │
-          ├── Tool
-          ├── Tether ── TetherLeg
-          ├── ToolAttachment
-          ├── AnchorAttachment
-          └── Container
-          │
+          ├── Tool ───────────────┐
+          ├── Battery ────────────┤
+          │                       ▼
+          │             OperationalMassProfile
+          │                       │
+          ├── Tether ── TetherLeg│
+          ├── ToolAttachment      │
+          ├── AnchorAttachment    │
+          └── Container           │
+          │                       │
           ├── PhysicalInterface ── InterfaceDimension
           │          │
           │          └── ConnectorSpec ── ConnectorDimension
           │
           ├── ProductMaterial
           ├── DeclaredConstraint
-          └── DeclaredRelationship
+          └── DeclaredRelationship ── Tool/Battery configuration basis
 
 Source
   │
   └── Evidence ──> Claim
   │                  │
-  │                  └── AcceptedFactLink ──> current operational fact
+  │                  ├── AcceptedFactLink ──> current operational fact
+  │                  └── ClaimDependency ───> input Claim(s)
   │
   └── Evidence ──> Rule ──> version-controlled implementation
 ```
@@ -1188,6 +1330,8 @@ Example logical result:
 product_id: ...
 baseline_ready: false
 issues:
+  - code: MISSING_OPERATIONAL_MASS_PROFILE
+    property: operational_mass_kg
   - code: MISSING_MANUFACTURER_CAPACITY
     property: rated_capacity_kg
   - code: NO_SUPPORTED_INTERFACE_PATH
@@ -1197,15 +1341,30 @@ issues:
 
 For a catalogued Tool to participate in load-based recommendations:
 
-1. `tool.mass_kg` must be populated.
-2. `mass_kg` must have an `accepted_fact_link`.
-3. The linked Claim must be accepted.
-4. At least one Evidence row for that Claim must satisfy the physical-mass evidence policy: manufacturer evidence is preferred; a reputable verified exact-SKU secondary source may be accepted when manufacturer mass is unavailable or incomplete.
-5. For a particular recommendation path, sufficient physical-interface information must exist to establish a valid tool-side connection directly or through a ToolAttachment.
+1. `tool.body_mass_kg` must be populated.
+2. `body_mass_kg` must have an `accepted_fact_link` to an accepted Claim satisfying the physical-mass evidence policy.
+3. If `requires_operational_profile = false`, `body_mass_kg` is the object's load-reasoning mass.
+4. If `requires_operational_profile = true`, the exact installed configuration must resolve to an active `operational_mass_profile` before load checks run.
+5. Each accepted operational profile must reference an exact Battery product, an active manufacturer-backed Tool/Battery `declared_relationship`, and an accepted derived `operational_mass_kg` Claim.
+6. The derived operational-mass Claim must depend on the current accepted Tool `body_mass_kg` Claim and Battery `mass_kg` Claim, and its value must match the deterministic derivation.
+7. For a particular recommendation path, sufficient physical-interface information must exist to establish a valid tool-side connection directly or through a ToolAttachment.
 
 A native tether point is not mandatory.
 
-## 13.2 Load-bearing component baseline requirements
+A cordless tool requiring an installed Battery is not recommendation-ready merely because its bare/body mass is known. If several valid Battery profiles exist and the installed Battery is unresolved, the engine must resolve the configuration or remain unable to perform the load check; it must not choose a profile arbitrarily.
+
+## 13.2 Battery profile requirements
+
+For a Battery to participate in an operational profile:
+
+1. its exact Product identity/SKU must be established;
+2. `battery.mass_kg` must be populated and linked to an accepted evidence-qualified Claim;
+3. the Tool/Battery relationship used by the profile must be manufacturer-backed; and
+4. the Battery mass Claim must be one of the explicit dependencies of the derived operational-mass Claim.
+
+Battery recommendation-readiness is not evaluated independently as if the Battery were a tethering component; readiness is assessed through the Tool operational profile that uses it.
+
+## 13.3 Load-bearing component baseline requirements
 
 For Tethers, ToolAttachments, AnchorAttachments, and Containers where their rating is applicable:
 
@@ -1214,7 +1373,9 @@ For Tethers, ToolAttachments, AnchorAttachments, and Containers where their rati
 3. The linked accepted Claim must be supported by manufacturer information.
 4. The product must expose the physical interfaces needed by the configuration path.
 
-## 13.3 Interface readiness
+The introduction of Battery/operational-mass structures does **not** weaken the manufacturer-only evidence requirement for component rated capacity.
+
+## 13.4 Interface readiness
 
 A physical connection is recommendation-eligible only when compatibility can be established through at least one accepted route:
 
@@ -1229,9 +1390,9 @@ The interface does not need every possible dimension populated.
 
 It needs the facts required by the rule being applied.
 
-## 13.4 Property-specific source validation
+## 13.5 Property-specific source validation
 
-For physical tool or battery mass, manufacturer evidence is preferred. Acceptable manufacturer Source types are initially:
+For physical tool-body or Battery mass, manufacturer evidence is preferred. Acceptable manufacturer Source types are initially:
 
 ```text
 manufacturer_datasheet
@@ -1242,9 +1403,11 @@ manufacturer_declaration
 
 Where manufacturer mass is unavailable or incomplete, `secondary_published` may support an accepted physical-mass Claim when the resolved source is reputable, verified against the exact SKU/model, and recorded with `evidence_method = qualified_secondary_exact_sku`. Secondary mass must never be represented as manufacturer-stated evidence.
 
+Physical Battery mass is eligible under this policy **only because the Battery is represented as an exact catalogue Product and is incorporated into a specific manufacturer-backed operational profile**. A mass value attached only to a battery family/platform label is insufficient.
+
 For rated capacity of Tethers, ToolAttachments, AnchorAttachments, and Containers, manufacturer evidence remains mandatory. A manufacturer compatibility statement may support compatibility/relationship Claims but should not automatically be treated as the source of a rated load unless it actually states that rating and the review process accepts it as manufacturer technical information.
 
-Internal measurement is acceptable for geometry but not as the normal source of catalogue tool mass or manufacturer-rated component capacity.
+Internal measurement is acceptable for geometry but not as the normal source of catalogue tool/battery mass or manufacturer-rated component capacity.
 
 ---
 
@@ -1257,12 +1420,14 @@ The final physical implementation should enforce as many simple invariants in th
 - all PKs unique and non-null;
 - all explicit FKs valid;
 - masses, capacities, and dimensions positive when populated;
+- active operational profiles unique by Tool/Battery where applicable;
 - tether and leg minimum length must not exceed maximum length;
 - `opening_action_count` valid where populated;
 - Evidence targets exactly one Claim or Rule;
 - known Claims contain exactly one correctly typed value;
 - unknown/not-published/not-established/not-applicable Claims contain no fake value;
 - one current `accepted_fact_link` per operational property;
+- Claim dependency rows unique and non-self-referential at the direct-row level;
 - Rule key/version unique;
 - physical-interface/tether-leg ownership consistent where enforceable.
 
@@ -1271,10 +1436,15 @@ The final physical implementation should enforce as many simple invariants in th
 The following involve cross-table semantics and should initially be enforced in a validation/service layer, even if some later become database triggers:
 
 - product subtype matches `product_type`;
+- Batteries used in profiles have exact catalogue identity and accepted mass Claims;
+- Tool/Battery profile relationship references the same Tool/Battery and is manufacturer-backed;
+- operational-mass derived Claim dependencies correspond to the current accepted Tool body-mass and Battery-mass Claims;
+- operational-mass value equals the deterministic result of its input Claims;
+- no cyclic Claim dependency graph;
 - physical interface role is valid for its parent product type;
 - accepted fact link subject/property matches its Claim;
 - accepted operational value equals normalized accepted Claim value;
-- mandatory tool-mass Claims satisfy the physical-mass evidence policy, and rated-capacity Claims have acceptable manufacturer evidence;
+- mandatory tool/battery-mass Claims satisfy the physical-mass evidence policy, and rated-capacity Claims have acceptable manufacturer evidence;
 - interface facts required by a compatibility rule have sufficient evidence;
 - declared relationship interfaces belong to their declared products;
 - constraint value shape matches `constraint_key`;
@@ -1289,7 +1459,7 @@ TetherLens should favour historical preservation over destructive updates for ev
 
 ## Products
 
-Products referenced by Claims, interfaces, or recommendations should normally be archived rather than deleted.
+Products referenced by Claims, profiles, interfaces, or recommendations should normally be archived rather than deleted.
 
 ## Claims
 
@@ -1305,7 +1475,7 @@ Evidence should only be deleted to correct an ingestion mistake before acceptanc
 
 ## Accepted operational facts
 
-When a manufacturer value changes:
+When an accepted primitive physical value changes:
 
 ```text
 old accepted Claim
@@ -1321,15 +1491,19 @@ new Claim accepted
 update typed operational value
         ↓
 move AcceptedFactLink
+        ↓
+re-derive any dependent operational profiles
 ```
 
-The historical value and source remain traceable.
+A superseded Tool-body or Battery-mass Claim invalidates an operational profile until its derived Claim is recalculated/reviewed against the new accepted input.
+
+The historical value, dependency chain, and source remain traceable.
 
 ---
 
 # 16. Pressure-test configurations
 
-The following synthetic examples test structure only. They are not real product recommendations.
+The following examples test structure only unless explicitly tied to an established benchmark case. They are not tethering recommendations.
 
 ## 16.1 Configuration A: direct tool-to-tether interface
 
@@ -1337,7 +1511,8 @@ The following synthetic examples test structure only. They are not real product 
 
 ```text
 Tool A
-- mass_kg = 1.40
+- body_mass_kg = 1.40
+- requires_operational_profile = false
 - native_tether_point_status = documented_present
 
 PhysicalInterface A1
@@ -1413,7 +1588,8 @@ The schema can represent direct connection and reusable geometric compatibility 
 
 ```text
 Tool D
-- mass_kg = 2.00
+- body_mass_kg = 2.00
+- requires_operational_profile = false
 - native_tether_point_status = observed_absent
 
 PhysicalInterface D1
@@ -1535,13 +1711,74 @@ The model supports two, three, or more tether interfaces and does not require a 
 
 ---
 
+## 16.4 Configuration D: cordless Tool with interchangeable Batteries
+
+This pressure test mirrors the structure already exercised by the Milwaukee ingestion benchmark.
+
+### Catalogue structure
+
+```text
+Tool H
+- sku = 2607-20
+- body_mass_kg = 1.360777
+- requires_operational_profile = true
+
+Battery J
+- sku = 48-11-1828
+- mass_kg = 0.725748
+
+DeclaredRelationship H-J
+- relationship_type = kit_relationship
+- manufacturer-backed Claim establishes H + J configuration
+
+OperationalMassProfile H+J
+- tool_product_id = H
+- battery_product_id = J
+- relationship_id = H-J
+- operational_mass_kg = 2.086525
+
+Derived Claim P
+- subject = OperationalMassProfile H+J
+- property = operational_mass_kg
+- value = 2.086525 kg
+
+ClaimDependency P <- Tool H body-mass Claim
+- role_code = tool_body_mass
+
+ClaimDependency P <- Battery J mass Claim
+- role_code = battery_mass
+```
+
+A second compatible Battery would create a second Battery Product and a second operational profile rather than overwriting `Tool H` with a different mass.
+
+### Engine behaviour
+
+The load rule receives the resolved profile mass:
+
+```text
+object_mass_used_for_reasoning = 2.086525 kg
+```
+
+It does not receive `1.360777 kg` merely because that is the Tool body's mass.
+
+If the worker's installed Battery cannot be resolved among several profiles, the engine must resolve that configuration before applying load-capacity rules or return insufficient mass information for that candidate.
+
+### Schema result
+
+Pass.
+
+The schema can bind physical Battery evidence to an exact SKU, represent manufacturer-backed Tool/Battery validity, retain the primitive Claim dependencies of the derived mass, and preserve multiple operational mass profiles.
+
+---
+
 # 17. Recommended first rule implementations
 
 Schema v0.1 should initially support a deliberately small deterministic rule set.
 
-## Hard constraints
+## Hard constraints / deterministic mass derivation
 
 ```text
+mass.operational.tool_plus_battery
 capacity.tether_meets_object_mass
 capacity.tool_attachment_meets_object_mass
 capacity.anchor_attachment_meets_object_mass
@@ -1549,6 +1786,8 @@ capacity.container_meets_contents_mass
 constraint.explicit_manufacturer_limit
 anchorage.method_viable
 ```
+
+`mass.operational.tool_plus_battery` derives the reusable operational profile value; capacity rules consume that resolved value rather than recreating the derivation independently.
 
 ## Compatibility
 
@@ -1560,6 +1799,8 @@ compat.carabiner_to_ring
 compat.loop_or_cinch_to_tool_feature
 compat.explicit_declared_relationship
 ```
+
+Tool/Battery validity for an operational profile is not inferred through these generic interface rules; it must be manufacturer-backed through `declared_relationship`.
 
 The exact geometry requirements must be determined from real products and validated domain reasoning rather than invented abstractly.
 
@@ -1613,7 +1854,7 @@ Initially static/version-controlled configuration.
 
 ## `CandidateConfiguration`
 
-Ephemeral assembled path through catalogue components and interfaces.
+Ephemeral assembled path through a resolved Tool operational profile and tethering catalogue components/interfaces.
 
 ## `Recommendation`
 
@@ -1632,7 +1873,13 @@ Example conceptual shape:
 ```text
 ResolvedCatalogueTool
 - product identity
-- mass_kg
+- body_mass_kg
+- requires_operational_profile
+- operational_mass_profiles[]
+    - profile_id
+    - battery identity / SKU
+    - operational_mass_kg
+    - relationship basis
 - physical interfaces[]
 - accepted declared constraints[]
 
@@ -1650,9 +1897,11 @@ AvailableAnchorAttachment
 AvailableContainer
 ```
 
+For a resolved cordless configuration, the runtime object should carry one selected profile (or an explicit unresolved-profile state) so load rules cannot accidentally read `body_mass_kg` in place of configured mass.
+
 The repository/data-access layer resolves provenance-backed operational values into this read model.
 
-Evidence is fetched when:
+Evidence/dependencies are fetched when:
 
 - validating the catalogue;
 - explaining a recommendation;
@@ -1667,11 +1916,13 @@ This maintains the architecture's separation between fast operational product da
 
 The first machine-readable seed format should map closely to this schema but should not expose database implementation noise.
 
-A product seed record should be able to express:
+A seed set should be able to express:
 
 ```text
-identity
+product identities, including supporting Batteries
 subtype operational facts
+Tool/Battery manufacturer relationships
+operational mass profiles
 interfaces
 interface dimensions
 connector specs or connector-spec references
@@ -1679,6 +1930,7 @@ materials
 declared constraints / relationships
 sources
 claims + evidence
+claim dependencies for persisted derived facts
 ```
 
 The seed validator should perform the same semantic checks as the database catalogue validator.
@@ -1719,11 +1971,15 @@ Standards declarations can initially be represented through Claims, Sources, Evi
 
 A dedicated standards schema should only be introduced when worker-facing or policy requirements justify it.
 
+## Other configuration-dependent Tool components
+
+Schema v0.1 explicitly models Battery-backed operational profiles because the benchmark has demonstrated that requirement. If another removable component materially changes operational mass, extend the configuration model only when a real product requires it rather than generalizing prematurely to arbitrary assemblies.
+
 ## Persistent derived Claims
 
-The MVP should compute most compatibility and recommendation conclusions at runtime.
+Most compatibility and recommendation conclusions should still be computed at runtime.
 
-Persist derived Claims only when a concrete use case benefits from doing so.
+Operational mass is a deliberate persisted exception because the configured mass is reused by safety-critical load checks and must preserve exact primitive dependencies.
 
 ## Generic rule DSL
 
@@ -1737,37 +1993,40 @@ Version-controlled deterministic code is the default.
 
 The schema is ready for implementation when all of the following are true:
 
-1. A real Batch 1 can represent tools, tethers, attachments, and connectors without schema-specific exceptions.
-2. Tool mass is queryable directly and traceable to an accepted evidence-qualified Claim, while component capacity is queryable directly and traceable to an accepted manufacturer-backed Claim.
-3. Tool features and component connection points can participate in the same interface reasoning model.
-4. Connector specifications can be reused across multiple products.
-5. Multi-leg tethers require data rows rather than schema changes.
-6. Manufacturer pairings/restrictions can be stored without creating a general compatibility matrix.
-7. Missing, not-published, and not-established values cannot be confused with zero or false.
-8. Recommendation-readiness can be calculated from mandatory facts and evidence.
-9. Hard constraints can be implemented deterministically against the typed catalogue.
-10. Adding a second product batch does not require redesigning core tables or manually adding pairwise compatibility rows for most products.
+1. A real Batch 1 can represent tools, supporting Batteries, tethers, attachments, and connectors without schema-specific exceptions.
+2. Tool-body and Battery mass are queryable directly and traceable to accepted evidence-qualified Claims, while component capacity remains traceable to accepted manufacturer-backed Claims.
+3. A cordless Tool can have multiple exact manufacturer-backed Battery configurations without collapsing them into one mass.
+4. Each persisted operational-mass profile is traceable to exact Tool/Battery identities, a valid manufacturer relationship, and explicit primitive Claim dependencies.
+5. Tool features and component connection points can participate in the same interface reasoning model.
+6. Connector specifications can be reused across multiple products.
+7. Multi-leg tethers require data rows rather than schema changes.
+8. Manufacturer pairings/restrictions can be stored without creating a general tethering compatibility matrix.
+9. Missing, not-published, and not-established values cannot be confused with zero or false.
+10. Recommendation-readiness can be calculated from mandatory facts, configuration profiles, and evidence.
+11. Hard constraints can be implemented deterministically against the typed catalogue and use configured operational mass rather than bare-tool mass where required.
+12. Adding a second product batch does not require redesigning core tables or manually adding pairwise tethering compatibility rows for most products.
 
 ---
 
 # 23. Immediate next implementation step
 
-After this specification is accepted, the next work item should be the **seed-data specification and Batch 1 product selection**.
+After this specification is accepted, the next work item should continue validating the schema against the live ingestion benchmark and subsequent seed-data work rather than treating the original pre-benchmark seed plan as frozen.
 
-The seed-data format should be derived from this schema rather than designed independently.
+Batch work should deliberately pressure-test:
 
-Batch 1 should then deliberately pressure-test:
-
+- cordless tools with multiple Battery operational profiles;
+- exact-SKU evidence binding for Tool and Battery physical mass;
+- manufacturer-backed configuration relationships;
 - direct native interfaces;
 - non-native but usable tool geometry;
 - ToolAttachments;
 - different connector geometries and locking/action characteristics;
 - reusable connector specifications;
-- mixed-manufacturer paths;
+- mixed-manufacturer tethering paths;
 - internal geometry measurement;
 - incomplete secondary information; and
 - multi-interface or multi-leg tether structures.
 
-Any schema change discovered during Batch 1 should be judged against the core scalability test:
+Any schema change discovered during Batch work should be judged against the core scalability test:
 
 > Does this change model a reusable low-level fact or structure, or are we beginning to encode one-off application-specific exceptions?
