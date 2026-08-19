@@ -78,7 +78,7 @@ class HiltiAdapter(_BaseHiltiAdapter):
                     raw_value=raw_capacity,
                     source_url=artifact.url,
                     evidence_method="manufacturer_stated",
-                    extractor="hilti.v0.7",
+                    extractor="hilti.v0.8",
                 ))
 
         if identity.product_type == ProductType.TOOL:
@@ -98,7 +98,7 @@ class HiltiAdapter(_BaseHiltiAdapter):
                 value=len(manuals),
                 detail="Hilti operating instructions were discovered through the manufacturer technical library.",
                 source_url=identity.url,
-                extractor="hilti.v0.7",
+                extractor="hilti.v0.8",
             ))
         return observations
 
@@ -140,23 +140,22 @@ class HiltiAdapter(_BaseHiltiAdapter):
     @staticmethod
     def _extract_drop_arrest_pairing(identity: ProductIdentity, artifact: SourceArtifact) -> list[CandidateClaim]:
         model = _tool_model(identity)
-        text = re.sub(r"\s+", " ", page_text(artifact.body))
+        text = _normalized_document_text(artifact)
         if not model or not _contains_model(text, model):
             return []
 
-        sentence = re.search(
-            r"As drop arrester for this product, use only a combination of the Hilti retaining strap(.{0,160}?)"
-            r"and the Hilti tool tether(.{0,80}?)(?:\.|$)",
-            text,
-            re.I,
-        )
-        if not sentence:
+        anchor = re.search(r"(?:fall arrest|drop arrester)", text, re.I)
+        if not anchor:
+            return []
+        window = text[anchor.start():anchor.start() + 1800]
+        if "retaining strap" not in window.lower() or "tool tether" not in window.lower():
             return []
 
-        strap_part, tether_part = sentence.group(1), sentence.group(2)
-        raw = sentence.group(0)
-        strap_match = re.search(r"#\s*(\d{6,})", strap_part)
-        tether_match = re.search(r"#\s*(\d{6,})", tether_part)
+        tether_match = re.search(r"tool tether.{0,120}?#\s*(\d{6,})", window, re.I)
+        strap_match = re.search(r"retaining strap.{0,120}?#\s*(\d{6,})", window, re.I)
+        raw_match = re.search(r"As drop arrester.{0,700}?(?:\.|$)", window, re.I)
+        raw = raw_match.group(0) if raw_match else window[:700]
+
         claims: list[CandidateClaim] = []
         if strap_match:
             claims.append(CandidateClaim(
@@ -168,7 +167,7 @@ class HiltiAdapter(_BaseHiltiAdapter):
                 raw_value=raw,
                 source_url=artifact.url,
                 evidence_method="manufacturer_pairing",
-                extractor="hilti.v0.7",
+                extractor="hilti.v0.8",
             ))
         if tether_match:
             claims.append(CandidateClaim(
@@ -180,7 +179,7 @@ class HiltiAdapter(_BaseHiltiAdapter):
                 raw_value=raw,
                 source_url=artifact.url,
                 evidence_method="manufacturer_pairing",
-                extractor="hilti.v0.7",
+                extractor="hilti.v0.8",
             ))
         return claims
 
@@ -205,6 +204,11 @@ class HiltiAdapter(_BaseHiltiAdapter):
             if match and parse_mass(match.group(1)):
                 return match.group(1).strip()
         return None
+
+
+def _normalized_document_text(artifact: SourceArtifact) -> str:
+    text = artifact.body if artifact.content_type == "application/pdf" else page_text(artifact.body)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def _tool_model(identity: ProductIdentity) -> str | None:
