@@ -30,13 +30,16 @@ jobs:
           pytest -q
       - name: Run live manufacturer benchmark
         run: python scripts/run_batch1_smoke.py
-      - name: Score benchmark against golden expectations
-        if: success()
+      - name: Score Batch 1 against golden expectations
         run: python scripts/score_batch1_results.py
+      - name: Run Batch 2 NLG blind holdout
+        run: python scripts/run_batch2_nlg_blind.py
       - name: Upload benchmark results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: batch1-ingestion-benchmark
-          path: batch1-benchmark-results.json
+          name: ingestion-benchmark-results
+          path: |
+            batch1-benchmark-results.json
+            batch2-nlg-blind-results.json
           if-no-files-found: warn
