@@ -93,6 +93,45 @@ def test_nlg_extracts_load_length_and_connector_features():
     assert out["interface.loop_present"] is True
 
 
+def test_nlg_extracts_reusable_tether_endpoint_and_auto_locking_patterns():
+    html = """
+    <h1>Heavy Duty Bungee Tool Lanyard</h1>
+    <div>Max Load: 20 KG / 44 LBS</div>
+    <div>Dimensions: Extends 80cm to 130cm</div>
+    <p>At one end is a Dyneema loop. At the other end it features an automatic twistlock carabiner.</p>
+    """
+    claims = NLGAdapter().extract(identity("NLG", ProductType.TETHER), [artifact(html)])
+    assert any(c.property_key == "tether.connection_count" and c.value == 2 for c in claims)
+    endpoint_types = {
+        (c.subject_ref, c.value)
+        for c in claims
+        if c.property_key == "interface.type"
+    }
+    assert ("tether_endpoint_1", "loop") in endpoint_types
+    assert ("tether_endpoint_2", "carabiner") in endpoint_types
+    assert any(c.property_key == "connector.locking_mode" and c.value == "auto_locking" for c in claims)
+
+
+def test_nlg_extracts_tool_attachment_geometry_and_lanyard_limit():
+    html = """
+    <h1>Tether Choke</h1>
+    <div>Max Load: 20 KG / 44 LBS</div>
+    <div>Dimensions: 340 mm (L) x 25 mm (W)</div>
+    <div>Max Lanyard Length: 2 m</div>
+    <p>The Tether Choke cinches around a captive handle or hole and provides a V Ring for connection.</p>
+    """
+    claims = NLGAdapter().extract(identity("NLG", ProductType.TOOL_ATTACHMENT), [artifact(html)])
+    out = values(claims)
+    assert out["rated_capacity_kg"] == 20.0
+    assert out["dimensions.length_mm"] == 340.0
+    assert out["dimensions.width_mm"] == 25.0
+    assert out["max_lanyard_length_mm"] == 2000.0
+    assert any(c.property_key == "interface.type" and c.value == "v_ring" for c in claims)
+    assert any(c.property_key == "interface.attachment_method" and c.value == "cinch" for c in claims)
+    features = {c.value for c in claims if c.property_key == "interface.compatible_tool_feature"}
+    assert {"captive_handle", "captive_hole"} <= features
+
+
 def test_hilti_extracts_tether_rating_and_connector():
     html = """
     <h1>Tool lanyard</h1><div>#2261970</div>
