@@ -148,13 +148,18 @@ class HiltiAdapter(_BaseHiltiAdapter):
         if not anchor:
             return []
         window = text[anchor.start():anchor.start() + 1800]
-        if "retaining strap" not in window.lower() or "tool tether" not in window.lower():
+        pairing = re.search(
+            r"retaining strap(?P<strap>.{0,220}?)and the Hilti tool tether(?P<tether>.{0,160}?)(?:\.|$)",
+            window,
+            re.I,
+        )
+        if not pairing:
             return []
 
-        tether_match = re.search(r"tool tether.{0,120}?#\s*(\d{6,})", window, re.I)
-        strap_match = re.search(r"retaining strap.{0,120}?#\s*(\d{6,})", window, re.I)
+        strap_match = re.search(r"#\s*(\d{6,})", pairing.group("strap"))
+        tether_match = re.search(r"#\s*(\d{6,})", pairing.group("tether"))
         raw_match = re.search(r"As drop arrester.{0,700}?(?:\.|$)", window, re.I)
-        raw = raw_match.group(0) if raw_match else window[:700]
+        raw = raw_match.group(0) if raw_match else pairing.group(0)
 
         claims: list[CandidateClaim] = []
         if strap_match:
