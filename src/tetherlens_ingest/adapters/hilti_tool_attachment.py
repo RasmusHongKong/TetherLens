@@ -6,6 +6,7 @@ from urllib.parse import quote_plus, urljoin
 from bs4 import BeautifulSoup
 
 from tetherlens_ingest.models import (
+    AcquisitionObservation,
     CandidateClaim,
     ClaimSubjectType,
     ProductIdentity,
@@ -36,7 +37,11 @@ class HiltiAdapter(_BaseHiltiAdapter):
             return []
 
         requests = list(super().related_sources(identity, artifact))
-        if identity.product_type == ProductType.TOOL and (model := _tool_model(identity)):
+        if (
+            identity.product_type == ProductType.TOOL
+            and (model := _tool_model(identity))
+            and _is_verified_tool_page(identity, artifact, model)
+        ):
             requests.append(SourceRequest(
                 url=f"https://www.hilti.com/technical-library?search=true&text={quote_plus(model)}",
                 metadata={
@@ -83,6 +88,19 @@ class HiltiAdapter(_BaseHiltiAdapter):
                 claims.extend(self._extract_drop_arrest_pairing(identity, artifact))
 
         return _dedupe_claims(claims)
+
+    def observe(self, identity: ProductIdentity, artifacts: list[SourceArtifact]) -> list[AcquisitionObservation]:
+        observations = list(super().observe(identity, artifacts))
+        manuals = [artifact for artifact in artifacts if artifact.metadata.get("role") == "operating_instruction"]
+        if manuals:
+            observations.append(AcquisitionObservation(
+                code="MANUFACTURER_DOCUMENTS_DISCOVERED",
+                value=len(manuals),
+                detail="Hilti operating instructions were discovered through the manufacturer technical library.",
+                source_url=identity.url,
+                extractor="hilti.v0.7",
+            ))
+        return observations
 
     @staticmethod
     def _discover_operating_instructions(identity: ProductIdentity, artifact: SourceArtifact) -> list[SourceRequest]:
@@ -200,6 +218,17 @@ def _contains_model(text: str, model: str) -> bool:
     compact_text = re.sub(r"[\s\u00a0]+", " ", text).upper()
     compact_model = re.sub(r"\s+", " ", model).upper()
     return bool(re.search(rf"(?<![A-Z0-9]){re.escape(compact_model)}(?![A-Z0-9])", compact_text))
+
+
+def _is_verified_tool_page(identity: ProductIdentity, artifact: SourceArtifact, model: str) -> bool:
+    if artifact.source_type != SourceType.MANUFACTURER_WEBPAGE:
+        return False
+    text = page_text(artifact.body)
+    if not _contains_model(text, model):
+        return False
+    if identity.sku and not re.search(rf"#\s*{re.escape(identity.sku)}\b", text):
+        return False
+    return True
 
 
 def _dedupe_claims(claims: list[CandidateClaim]) -> list[CandidateClaim]:
