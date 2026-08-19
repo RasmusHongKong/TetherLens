@@ -1,0 +1,57 @@
+{
+  "version": "0.1",
+  "description": "Expected manufacturer-backed claims for the first frozen NLG unseen cohort. Frozen after the blind v0.1 run and before the reusable v0.3 extractor pass. Only verified claims are required; additional extracted claims are reported for review rather than failed in this first enrichment pass.",
+  "products": {
+    "101370": {
+      "expected_claims": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 3.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "min_length_mm", "value": 100.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "max_length_mm", "value": 1700.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "tether.connection_count", "value": 2},
+        {"subject_type": "physical_interface", "subject_ref": "tether_endpoint_1", "property_key": "interface.type", "value": "carabiner"},
+        {"subject_type": "physical_interface", "subject_ref": "tether_endpoint_2", "property_key": "interface.type", "value": "carabiner"},
+        {"subject_type": "connector_spec", "subject_ref": "tether_connector", "property_key": "connector.opening_action_count", "value": 2},
+        {"subject_type": "connector_spec", "subject_ref": "tether_connector", "property_key": "connector.swivel", "value": true}
+      ]
+    },
+    "101373": {
+      "expected_claims": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 20.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "min_length_mm", "value": 800.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "max_length_mm", "value": 1300.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "tether.connection_count", "value": 2},
+        {"subject_type": "physical_interface", "subject_ref": "tether_endpoint_1", "property_key": "interface.type", "value": "loop"},
+        {"subject_type": "physical_interface", "subject_ref": "tether_endpoint_2", "property_key": "interface.type", "value": "carabiner"},
+        {"subject_type": "connector_spec", "subject_ref": "tether_connector", "property_key": "connector.locking_mode", "value": "auto_locking"}
+      ]
+    },
+    "101361": {
+      "expected_claims": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 1.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "dimensions.length_mm", "value": 60.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "dimensions.width_mm", "value": 12.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "max_lanyard_length_mm", "value": 2000.0},
+        {"subject_type": "physical_interface", "subject_ref": "lanyard_interface", "property_key": "interface.type", "value": "d_ring"},
+        {"subject_type": "physical_interface", "subject_ref": "tool_attachment_interface", "property_key": "interface.attachment_method", "value": "tether_tape"}
+      ]
+    },
+    "101367": {
+      "expected_claims": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 20.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "dimensions.length_mm", "value": 340.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "dimensions.width_mm", "value": 25.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "max_lanyard_length_mm", "value": 2000.0},
+        {"subject_type": "physical_interface", "subject_ref": "lanyard_interface", "property_key": "interface.type", "value": "v_ring"},
+        {"subject_type": "physical_interface", "subject_ref": "tool_attachment_interface", "property_key": "interface.attachment_method", "value": "cinch"},
+        {"subject_type": "physical_interface", "subject_ref": "tool_attachment_interface", "property_key": "interface.compatible_tool_feature", "value": "captive_handle"},
+        {"subject_type": "physical_interface", "subject_ref": "tool_attachment_interface", "property_key": "interface.compatible_tool_feature", "value": "captive_hole"}
+      ]
+    },
+    "101602": {
+      "expected_claims": [
+        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 10.0},
+        {"subject_type": "physical_interface", "subject_ref": "lanyard_interface", "property_key": "interface.type", "value": "shackle"}
+      ]
+    }
+  }
+}
