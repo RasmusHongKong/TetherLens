@@ -108,6 +108,26 @@ class NLGAdapter(ManufacturerAdapter):
                     self._claim("max_length_mm", lengths[1], "mm", length_raw, artifact.url),
                 ])
 
+            if identity.product_type == ProductType.TETHER:
+                claims.extend(self._extract_tether_interfaces(text, artifact.url))
+
+            if identity.product_type == ProductType.TOOL_ATTACHMENT:
+                claims.extend(self._extract_tool_attachment_interfaces(text, artifact.url))
+
+            # NLG commonly publishes fixed product dimensions and a separate maximum
+            # permitted lanyard length for attachment products. Keep these distinct
+            # from tether extension length.
+            if dimensions := _dimension_pair_mm(text):
+                raw, length_mm, width_mm = dimensions
+                claims.extend([
+                    self._claim("dimensions.length_mm", length_mm, "mm", raw, artifact.url),
+                    self._claim("dimensions.width_mm", width_mm, "mm", raw, artifact.url),
+                ])
+
+            if max_lanyard := _max_lanyard_length_mm(text):
+                raw, value_mm = max_lanyard
+                claims.append(self._claim("max_lanyard_length_mm", value_mm, "mm", raw, artifact.url))
+
             # Opening-action terminology is only mapped to the tether connector on
             # tether product pages. A triple-action belt buckle is not a connector.
             if identity.product_type == ProductType.TETHER:
@@ -118,6 +138,17 @@ class NLGAdapter(ManufacturerAdapter):
                         actions,
                         None,
                         _first_action_phrase(text),
+                        artifact.url,
+                        ClaimSubjectType.CONNECTOR_SPEC,
+                        "tether_connector",
+                    ))
+
+                if re.search(r"automatic\s+(?:twist[- ]?lock|twistlock)\s+carabiner|auto(?:matic)?[- ]locking\s+carabiner", text, re.I):
+                    claims.append(self._claim(
+                        "connector.locking_mode",
+                        "auto_locking",
+                        None,
+                        _first_matching_line(text, r"automatic|auto(?:matic)?[- ]locking"),
                         artifact.url,
                         ClaimSubjectType.CONNECTOR_SPEC,
                         "tether_connector",
@@ -163,6 +194,142 @@ class NLGAdapter(ManufacturerAdapter):
                     ))
         return _dedupe(claims)
 
+    def _extract_tether_interfaces(self, text: str, url: str) -> list[CandidateClaim]:
+        claims: list[CandidateClaim] = []
+
+        dual_carabiner = re.search(r"dual.{0,40}(?:rotobiner|carabiner)|(?:rotobiner|carabiner).{0,40}dual", text, re.I | re.S)
+        loop_and_carabiner = re.search(
+            r"(?:one|an?)\s+end.{0,180}?(?:dyneema[^\n]{0,30})?loop.{0,220}?(?:other|another)\s+(?:end\s+)?(?:it\s+)?(?:features?\s+)?(?:a\s+)?[^\n]{0,80}?carabiner",
+            text,
+            re.I | re.S,
+        )
+
+        if dual_carabiner:
+            claims.append(self._claim("tether.connection_count", 2, None, dual_carabiner.group(0), url))
+            for endpoint in ("tether_endpoint_1", "tether_endpoint_2"):
+                claims.append(self._claim(
+                    "interface.type",
+                    "carabiner",
+                    None,
+                    dual_carabiner.group(0),
+                    url,
+                    ClaimSubjectType.PHYSICAL_INTERFACE,
+                    endpoint,
+                ))
+        elif loop_and_carabiner:
+            claims.append(self._claim("tether.connection_count", 2, None, loop_and_carabiner.group(0), url))
+            claims.extend([
+                self._claim(
+                    "interface.type",
+                    "loop",
+                    None,
+                    loop_and_carabiner.group(0),
+                    url,
+                    ClaimSubjectType.PHYSICAL_INTERFACE,
+                    "tether_endpoint_1",
+                ),
+                self._claim(
+                    "interface.type",
+                    "carabiner",
+                    None,
+                    loop_and_carabiner.group(0),
+                    url,
+                    ClaimSubjectType.PHYSICAL_INTERFACE,
+                    "tether_endpoint_2",
+                ),
+            ])
+
+        return claims
+
+    def _extract_tool_attachment_interfaces(self, text: str, url: str) -> list[CandidateClaim]:
+        claims: list[CandidateClaim] = []
+
+        interface_type: str | None = None
+        raw_interface: str | None = None
+        if match := re.search(r"\bD[ -]?Ring\b", text, re.I):
+            interface_type, raw_interface = "d_ring", match.group(0)
+        elif match := re.search(r"\bV\s*Ring\b", text, re.I):
+            interface_type, raw_interface = "v_ring", match.group(0)
+        elif match := re.search(r"\bTether\s+Shackle\b|\bshackle\b", text, re.I):
+            interface_type, raw_interface = "shackle", match.group(0)
+
+        if interface_type:
+            claims.append(self._claim(
+                "interface.type",
+                interface_type,
+                None,
+                raw_interface,
+                url,
+                ClaimSubjectType.PHYSICAL_INTERFACE,
+                "lanyard_interface",
+            ))
+
+        if match := re.search(r"(?:paired|used)\s+with\s+Tether\s+Tape|Tether\s+Tape.{0,60}(?:D[ -]?Ring|D Ring)", text, re.I | re.S):
+            claims.append(self._claim(
+                "interface.attachment_method",
+                "tether_tape",
+                None,
+                match.group(0),
+                url,
+                ClaimSubjectType.PHYSICAL_INTERFACE,
+                "tool_attachment_interface",
+            ))
+
+        if match := re.search(r"cinch(?:ed|es|ing)?\s+around\s+(?:a\s+)?captive\s+handle\s+or\s+hole", text, re.I):
+            claims.append(self._claim(
+                "interface.attachment_method",
+                "cinch",
+                None,
+                match.group(0),
+                url,
+                ClaimSubjectType.PHYSICAL_INTERFACE,
+                "tool_attachment_interface",
+            ))
+            claims.extend([
+                self._claim(
+                    "interface.compatible_tool_feature",
+                    "captive_handle",
+                    None,
+                    match.group(0),
+                    url,
+                    ClaimSubjectType.PHYSICAL_INTERFACE,
+                    "tool_attachment_interface",
+                ),
+                self._claim(
+                    "interface.compatible_tool_feature",
+                    "captive_hole",
+                    None,
+                    match.group(0),
+                    url,
+                    ClaimSubjectType.PHYSICAL_INTERFACE,
+                    "tool_attachment_interface",
+                ),
+            ])
+
+        if match := re.search(r"tapered\s+tools?|narrower\s+mid[- ]section|\bwaist\b", text, re.I):
+            claims.append(self._claim(
+                "interface.compatible_tool_feature",
+                "tapered_profile",
+                None,
+                match.group(0),
+                url,
+                ClaimSubjectType.PHYSICAL_INTERFACE,
+                "tool_attachment_interface",
+            ))
+
+        if match := re.search(r"pre[- ]manufactured\s+hole", text, re.I):
+            claims.append(self._claim(
+                "interface.compatible_tool_feature",
+                "pre_manufactured_hole",
+                None,
+                match.group(0),
+                url,
+                ClaimSubjectType.PHYSICAL_INTERFACE,
+                "tool_attachment_interface",
+            ))
+
+        return claims
+
     @staticmethod
     def _claim(
         key: str,
@@ -181,7 +348,7 @@ class NLGAdapter(ManufacturerAdapter):
             unit=unit,
             raw_value=raw,
             source_url=url,
-            extractor="nlg.v0.2",
+            extractor="nlg.v0.3",
         )
 
 
@@ -193,6 +360,34 @@ def _first_length_range(text: str) -> str | None:
 def _first_action_phrase(text: str) -> str | None:
     m = re.search(r"(?:single|dual|double|triple|one|two|three)[ -]?(?:stage|action)", text, re.I)
     return m.group(0) if m else None
+
+
+def _first_matching_line(text: str, pattern: str) -> str | None:
+    return next((line for line in text.splitlines() if re.search(pattern, line, re.I)), None)
+
+
+def _dimension_pair_mm(text: str) -> tuple[str, float, float] | None:
+    match = re.search(
+        r"Dimensions\s*:\s*(\d+(?:\.\d+)?)\s*mm\s*\(L\)\s*[x×]\s*(\d+(?:\.\d+)?)\s*mm\s*\(W\)",
+        text,
+        re.I,
+    )
+    if not match:
+        return None
+    return match.group(0), float(match.group(1)), float(match.group(2))
+
+
+def _max_lanyard_length_mm(text: str) -> tuple[str, float] | None:
+    match = re.search(r"Max\s+Lanyard\s+Length\s*:\s*([^\n]+)", text, re.I)
+    if not match:
+        return None
+    metric = re.search(r"(\d+(?:\.\d+)?)\s*(mm|cm|m)\b", match.group(1), re.I)
+    if not metric:
+        return None
+    value = float(metric.group(1))
+    unit = metric.group(2).lower()
+    factor = {"mm": 1.0, "cm": 10.0, "m": 1000.0}[unit]
+    return match.group(0), value * factor
 
 
 def _dedupe_identities(identities: list[ProductIdentity]) -> list[ProductIdentity]:
