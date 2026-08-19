@@ -1,0 +1,63 @@
+{
+  "version": "0.1",
+  "description": "Frozen NLG unseen-SKU cohort for first-pass catalogue generalization. Product identities and broad product types were selected before inspecting first-pass extraction output; this file is not an extraction answer key.",
+  "frozen_at": "2026-08-19",
+  "manufacturer": "NLG",
+  "development_skus": ["101372", "101363", "101420", "101423"],
+  "collection_urls": [
+    "https://neverletgo.com/collections/tool-lanyards/products.json?limit=250",
+    "https://neverletgo.com/collections/tether-points/products.json?limit=250"
+  ],
+  "products": [
+    {
+      "sku": "101370",
+      "name": "Coil Tool Lanyard",
+      "product_type": "tether",
+      "url": "https://neverletgo.com/products/coil-tool-lanyard",
+      "manufacturer_ids": {
+        "id": "8171541692696",
+        "variant_id": "44651708121368"
+      }
+    },
+    {
+      "sku": "101373",
+      "name": "Heavy Duty Bungee Tool Lanyard",
+      "product_type": "tether",
+      "url": "https://neverletgo.com/products/heavy-duty-bungee-tool-lanyard",
+      "manufacturer_ids": {
+        "id": "8171541987608",
+        "variant_id": "44651714314520"
+      }
+    },
+    {
+      "sku": "101361",
+      "name": "Small D Ring Tool Tether",
+      "product_type": "tool_attachment",
+      "url": "https://neverletgo.com/products/small-d-ring-tool-tether",
+      "manufacturer_ids": {
+        "id": "8171540906264",
+        "variant_id": "44651699863832"
+      }
+    },
+    {
+      "sku": "101367",
+      "name": "Tether Choke™",
+      "product_type": "tool_attachment",
+      "url": "https://neverletgo.com/products/tether-choke",
+      "manufacturer_ids": {
+        "id": "8171541430552",
+        "variant_id": "44651707498776"
+      }
+    },
+    {
+      "sku": "101602",
+      "name": "Tether Shackle, Medium",
+      "product_type": "tool_attachment",
+      "url": "https://neverletgo.com/products/tether-shackle-medium",
+      "manufacturer_ids": {
+        "id": "8177152360728",
+        "variant_id": "44686330659096"
+      }
+    }
+  ]
+}
