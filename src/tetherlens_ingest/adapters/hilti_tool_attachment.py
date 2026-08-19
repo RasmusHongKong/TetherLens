@@ -20,6 +20,9 @@ from .common import page_text
 from .hilti import HiltiAdapter as _BaseHiltiAdapter
 
 
+_DOCUMENT_ROLES = {"document_index", "operating_instruction"}
+
+
 class HiltiAdapter(_BaseHiltiAdapter):
     """Hilti adapter with ToolAttachment facts and manufacturer-document relationships."""
 
@@ -45,7 +48,14 @@ class HiltiAdapter(_BaseHiltiAdapter):
         return _dedupe_requests(requests)
 
     def extract(self, identity: ProductIdentity, artifacts: list[SourceArtifact]) -> list[CandidateClaim]:
-        claims = list(super().extract(identity, artifacts))
+        # The legacy Hilti extractor treats every non-battery artifact as the product page.
+        # Keep manufacturer documents out of that path so referenced component SKUs cannot
+        # be mistaken for the tool's own manufacturer item code.
+        base_artifacts = [
+            artifact for artifact in artifacts
+            if str(artifact.metadata.get("role") or "primary") not in _DOCUMENT_ROLES
+        ]
+        claims = list(super().extract(identity, base_artifacts))
 
         if identity.product_type == ProductType.TOOL_ATTACHMENT:
             for artifact in artifacts:
