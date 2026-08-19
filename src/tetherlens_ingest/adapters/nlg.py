@@ -126,7 +126,18 @@ class NLGAdapter(ManufacturerAdapter):
 
             if max_lanyard := _max_lanyard_length_mm(text):
                 raw, value_mm = max_lanyard
-                claims.append(self._claim("max_lanyard_length_mm", value_mm, "mm", raw, artifact.url))
+                if identity.product_type == ProductType.CONTAINER:
+                    claims.append(self._claim(
+                        "max_lanyard_length_mm",
+                        value_mm,
+                        "mm",
+                        raw,
+                        artifact.url,
+                        ClaimSubjectType.PHYSICAL_INTERFACE,
+                        "internal_anchor",
+                    ))
+                elif identity.product_type == ProductType.TOOL_ATTACHMENT:
+                    claims.append(self._claim("max_lanyard_length_mm", value_mm, "mm", raw, artifact.url))
 
             # Opening-action terminology is only mapped to the tether connector on
             # tether product pages. A triple-action belt buckle is not a connector.
@@ -179,7 +190,8 @@ class NLGAdapter(ManufacturerAdapter):
                 ))
 
             # The MEWP Bag page distinguishes the overall bag rating from the load
-            # of each internal tether point. Preserve those as separate subjects.
+            # and lanyard-length constraint of each internal tether point. Preserve
+            # those as interface claims rather than bag-level properties.
             if identity.product_type == ProductType.CONTAINER:
                 anchor_match = re.search(r"(?:anchor|daisy chain).{0,80}?(\d+(?:\.\d+)?)\s*(kg|lb)s?", text, re.I | re.S)
                 if anchor_match and (q := parse_mass(anchor_match.group(0))):
@@ -197,9 +209,31 @@ class NLGAdapter(ManufacturerAdapter):
     def _extract_tether_interfaces(self, text: str, url: str) -> list[CandidateClaim]:
         claims: list[CandidateClaim] = []
 
-        dual_carabiner = re.search(r"dual.{0,40}(?:rotobiner|carabiner)|(?:rotobiner|carabiner).{0,40}dual", text, re.I | re.S)
-        loop_and_carabiner = re.search(
-            r"(?:one|an?)\s+end.{0,180}?(?:dyneema[^\n]{0,30})?loop.{0,220}?(?:other|another)\s+(?:end\s+)?(?:it\s+)?(?:features?\s+)?(?:a\s+)?[^\n]{0,80}?carabiner",
+        # Quantity words must directly describe the connector noun. This deliberately
+        # excludes phrases such as "a dual action carabiner", where "dual" describes
+        # the opening action rather than the number of carabiners.
+        dual_carabiner = re.search(
+            r"\b(?:dual|double|twin|two)\s+(?:360\s*[°º]\s*)?(?:rotobiners?|carabiners?)\b",
+            text,
+            re.I,
+        )
+        loop_to_carabiner = re.search(
+            r"(?:one|an?)\s+end.{0,180}?(?:dyneema[^\n]{0,30})?loop.{0,220}?(?:other|another)\s+(?:end\s+)?(?:it\s+)?(?:features?\s+)?(?:a\s+)?[^\n]{0,80}?(?:rotobiner|carabiner)",
+            text,
+            re.I | re.S,
+        )
+        carabiner_to_loop = re.search(
+            r"(?:one|an?)\s+end.{0,180}?(?:rotobiner|carabiner).{0,220}?(?:other|another)\s+(?:end\s+)?(?:it\s+)?(?:features?\s+)?(?:a\s+)?[^\n]{0,80}?loop",
+            text,
+            re.I | re.S,
+        )
+        carabiner_one_end_to_loop_other = re.search(
+            r"(?:rotobiner|carabiner).{0,140}?(?:at\s+)?(?:the\s+)?one\s+end.{0,240}?loop.{0,140}?(?:at\s+)?(?:the\s+)?other\s+end",
+            text,
+            re.I | re.S,
+        )
+        loop_one_end_to_carabiner_other = re.search(
+            r"loop.{0,140}?(?:at\s+)?(?:the\s+)?one\s+end.{0,240}?(?:rotobiner|carabiner).{0,140}?(?:at\s+)?(?:the\s+)?other\s+end",
             text,
             re.I | re.S,
         )
@@ -216,14 +250,16 @@ class NLGAdapter(ManufacturerAdapter):
                     ClaimSubjectType.PHYSICAL_INTERFACE,
                     endpoint,
                 ))
-        elif loop_and_carabiner:
-            claims.append(self._claim("tether.connection_count", 2, None, loop_and_carabiner.group(0), url))
+        elif loop_to_carabiner or loop_one_end_to_carabiner_other:
+            match = loop_to_carabiner or loop_one_end_to_carabiner_other
+            raw = match.group(0) if match else None
+            claims.append(self._claim("tether.connection_count", 2, None, raw, url))
             claims.extend([
                 self._claim(
                     "interface.type",
                     "loop",
                     None,
-                    loop_and_carabiner.group(0),
+                    raw,
                     url,
                     ClaimSubjectType.PHYSICAL_INTERFACE,
                     "tether_endpoint_1",
@@ -232,7 +268,31 @@ class NLGAdapter(ManufacturerAdapter):
                     "interface.type",
                     "carabiner",
                     None,
-                    loop_and_carabiner.group(0),
+                    raw,
+                    url,
+                    ClaimSubjectType.PHYSICAL_INTERFACE,
+                    "tether_endpoint_2",
+                ),
+            ])
+        elif carabiner_to_loop or carabiner_one_end_to_loop_other:
+            match = carabiner_to_loop or carabiner_one_end_to_loop_other
+            raw = match.group(0) if match else None
+            claims.append(self._claim("tether.connection_count", 2, None, raw, url))
+            claims.extend([
+                self._claim(
+                    "interface.type",
+                    "carabiner",
+                    None,
+                    raw,
+                    url,
+                    ClaimSubjectType.PHYSICAL_INTERFACE,
+                    "tether_endpoint_1",
+                ),
+                self._claim(
+                    "interface.type",
+                    "loop",
+                    None,
+                    raw,
                     url,
                     ClaimSubjectType.PHYSICAL_INTERFACE,
                     "tether_endpoint_2",
