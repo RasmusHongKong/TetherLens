@@ -56,9 +56,6 @@ class HiltiAdapter(_BaseHiltiAdapter):
         return _dedupe_requests(requests)
 
     def extract(self, identity: ProductIdentity, artifacts: list[SourceArtifact]) -> list[CandidateClaim]:
-        # The legacy Hilti extractor treats every non-battery artifact as the product page.
-        # Keep manufacturer documents and online manuals out of that path so referenced
-        # component SKUs cannot be mistaken for the tool's own manufacturer item code.
         base_artifacts = [
             artifact for artifact in artifacts
             if str(artifact.metadata.get("role") or "primary") not in _DOCUMENT_ROLES
@@ -157,7 +154,15 @@ class HiltiAdapter(_BaseHiltiAdapter):
         if not model or not _contains_model(text, model):
             return []
 
-        document_id = _embedded_online_manual_id(text)
+        evidence_strings = [text]
+        links = artifact.metadata.get("document_links")
+        if isinstance(links, list):
+            evidence_strings.extend(str(link) for link in links)
+
+        document_id = next(
+            (document_id for value in evidence_strings if (document_id := _embedded_online_manual_id(value))),
+            None,
+        )
         if not document_id or not (url := _online_manual_url(identity, document_id)):
             return []
 
@@ -231,9 +236,6 @@ class HiltiAdapter(_BaseHiltiAdapter):
         if "retaining strap" not in text.lower():
             return None
 
-        # Hilti's option line currently renders as e.g. "1x 15lb (6.8kg) Retaining strap assy".
-        # Prefer the manufacturer's metric value when both units are published rather than
-        # converting the rounded imperial marketing value back to kg.
         patterns = (
             r"\d+(?:\.\d+)?\s*lb[s]?\s*\(\s*(\d+(?:\.\d+)?\s*kg)\s*\)\s*Retaining strap",
             r"Retaining strap.{0,100}?\d+(?:\.\d+)?\s*lb[s]?\s*\(\s*(\d+(?:\.\d+)?\s*kg)\s*\)",
@@ -247,8 +249,6 @@ class HiltiAdapter(_BaseHiltiAdapter):
 
 
 def _embedded_online_manual_id(text: str) -> str | None:
-    # Hilti operating-instruction PDFs expose paired documentation IDs in the QR-link
-    # text, e.g. "id=2272252&id=2272254". The second ID is the web-rendered manual ID.
     pair = re.search(
         r"id\s*=\s*(\d{6,})\s*(?:&|&amp;)\s*id\s*=\s*(\d{6,})",
         text,
@@ -257,15 +257,12 @@ def _embedded_online_manual_id(text: str) -> str | None:
     if pair:
         return pair.group(2)
 
-    # PDF text extraction can insert whitespace or punctuation between query components.
     pair = re.search(r"id\s*=\s*(\d{6,}).{0,80}?id\s*=\s*(\d{6,})", text, re.I)
     return pair.group(2) if pair else None
 
 
 def _online_manual_url(identity: ProductIdentity, document_id: str) -> str | None:
     host = urlparse(identity.url).netloc.lower()
-    # The current benchmark uses Hilti USA; its content route is W1/US/en. Keep this
-    # market mapping explicit instead of guessing locale paths for other Hilti domains.
     if host in {"hilti.com", "www.hilti.com"}:
         return f"https://www.hilti.com/content/hilti/W1/US/en/op-man.html/{document_id}/en"
     return None
