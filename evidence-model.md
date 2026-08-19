@@ -25,6 +25,12 @@ and:
 
 Evidence is therefore a reusable relationship that supports either a claim or a rule.
 
+Where a derived Claim is persisted for operational reuse, it may additionally depend on other Claims:
+
+`input Claims -> derived Claim`
+
+That dependency is distinct from Evidence. The input Claims retain their own source Evidence; the dependency records which accepted facts were used by the derivation.
+
 ## Guiding principles
 
 ### 1. Evidence supports facts and rules
@@ -43,7 +49,9 @@ For example:
 
 - rated capacity from a datasheet;
 - material from a product webpage;
-- connector geometry from an internal measurement.
+- connector geometry from an internal measurement;
+- tool-body mass from one exact-SKU source; and
+- battery mass from another exact-SKU source.
 
 TetherLens should be able to trace each fact independently.
 
@@ -65,9 +73,11 @@ Structured field evidence may be more useful than a manufacturer brochure for pr
 
 Manufacturer-rated capacities, restrictions and compliance declarations should come from manufacturer evidence.
 
-Physical tool and battery mass should be established from trustworthy evidence bound to the exact product identity. Manufacturer evidence is preferred, but a reputable exact-SKU secondary source may be accepted when manufacturer mass is unavailable or incomplete.
+Physical tool-body and battery mass should be established from trustworthy evidence bound to the exact product identity. Manufacturer evidence is preferred, but a reputable exact-SKU secondary source may be accepted when manufacturer mass is unavailable or incomplete.
 
 Physical mass should not be visually inferred, estimated from a similar model, or taken from an unverified search/aggregate result for persistent catalogue use.
+
+For a cordless Tool with an interchangeable Battery, these primitive physical-mass Claims are not themselves sufficient to establish the mass used by load reasoning. TetherLens must also establish a manufacturer-backed Tool/Battery configuration relationship and derive an operational-mass Claim/profile for the exact combination.
 
 ### 5. Missing secondary evidence should constrain inference, not automatically block a recommendation
 
@@ -75,11 +85,13 @@ Unknown material composition may prevent a chemical-resistance conclusion.
 
 It should not necessarily prevent a baseline load-and-interface recommendation.
 
-### 6. Do not require exact combination-level validation where reusable facts and rules are sufficient
+### 6. Do not require exact tethering combination-level validation where reusable facts and rules are sufficient
 
 The evidence model should support reasoning from component properties and interface rules.
 
 This avoids an unscalable manual compatibility matrix.
+
+This principle does not mean that interchangeable configuration products may be combined arbitrarily. Where a Tool's operational mass depends on an installed Battery, the Tool/Battery relationship itself should be manufacturer-backed because it establishes that the physical configuration whose mass is being derived is valid.
 
 ## Source
 
@@ -173,6 +185,35 @@ Suggested values:
 - `disputed`
 - `superseded`
 
+## Claim dependency
+
+`ClaimDependency` records which Claims were inputs to a persisted derived Claim.
+
+It is required when TetherLens persists a derived value that is itself used as an operational safety input, such as a cordless Tool operational mass.
+
+Suggested MVP fields:
+
+```text
+ClaimDependency
+- derived_claim_id
+- input_claim_id
+- role_code
+- sequence_no              [optional]
+```
+
+For example:
+
+```text
+Tool body mass Claim = 1.360777 kg
+Battery 48-11-1828 mass Claim = 0.725748 kg
+        ↓
+Operational mass Claim = 2.086525 kg
+```
+
+The operational Claim should have dependencies identifying the exact body-mass and battery-mass Claims. If either accepted primitive Claim is superseded, the dependent operational Claim/profile must be re-derived before recommendation use.
+
+A human-readable derivation note or list of source URLs is not a substitute for these structured dependencies where the derived value is persisted as a mandatory operational fact.
+
 ## Evidence
 
 `Evidence` records why TetherLens accepts or considers a Claim or Rule.
@@ -212,6 +253,8 @@ Evidence
 - `structured_field_observation`
 
 The exact vocabulary can evolve.
+
+`derived_from_claims` describes the method for a derived Claim; the specific input Claims should be represented through `ClaimDependency` when that derivation is persisted for operational use.
 
 ## Rule
 
@@ -253,16 +296,18 @@ rule_type:
   hard_constraint
 
 inputs:
-  object.mass
+  object.operational_mass
   component.rated_capacity
 
 condition:
-  component.rated_capacity >= object.mass
+  component.rated_capacity >= object.operational_mass
 
 outcome:
   pass -> continue
   fail -> exclude configuration
 ```
+
+For a cordless catalogue Tool, `object.operational_mass` should resolve from the applicable valid Tool/Battery profile rather than bare-tool mass.
 
 ### Example: snagging preference
 
@@ -286,11 +331,11 @@ outcome:
 
 ## Mandatory claim evidence
 
-### Tool mass
+### Tool and Battery physical mass
 
 Required evidence:
 
-- trustworthy physical-mass evidence bound to the exact tool or battery identity.
+- trustworthy physical-mass evidence bound to the exact Tool or Battery identity.
 
 Preferred examples:
 
@@ -310,6 +355,21 @@ Not acceptable as the normal catalogue source:
 - a secondary search/aggregate page whose resolved identity is not the expected exact product.
 
 Secondary physical-mass evidence must remain labelled as secondary evidence; it must never be represented as manufacturer-stated evidence.
+
+### Cordless operational mass
+
+For a cordless Tool requiring an installed interchangeable Battery, the mandatory mass used by load reasoning is a derived configuration fact.
+
+An accepted operational-mass profile should require:
+
+- an accepted exact Tool-body mass Claim;
+- an accepted exact Battery-mass Claim;
+- a manufacturer-backed Tool/Battery relationship such as explicit compatibility or kit composition; and
+- a derived operational-mass Claim whose structured dependencies point to those primitive mass Claims.
+
+If several Batteries are valid, several operational-mass Claims/profiles may be valid. The recommendation workflow must resolve which profile applies rather than treating any one as a universal Tool mass.
+
+If the installed profile cannot be resolved, bare-tool mass must not be substituted for load reasoning.
 
 ### Rated capacity
 
@@ -446,6 +506,8 @@ Suggested values:
 
 TetherLens should not infer an explicit restriction merely because a manufacturer only markets its own ecosystem.
 
+A manufacturer-backed Tool/Battery relationship used to establish an operational configuration is a specific product-configuration fact, not a general rule that all tethering components must be from one manufacturer.
+
 ## Rule evidence
 
 Rules should also be evidence-backed.
@@ -478,6 +540,8 @@ A request to a manufacturer domain does not automatically make the resolved resp
 
 For properties where evidence priority is defined, reconciliation should be evaluated at the **highest applicable verified priority**. Lower-priority disagreement remains part of the provenance record but does not automatically block a claim when a higher-priority verified source decisively establishes the value.
 
+For an operational-mass profile, primitive Tool-body and Battery mass Claims should each be reconciled under this rule before the derived profile is accepted. A conflict in a required highest-priority primitive Claim blocks or invalidates the dependent profile until reconciled.
+
 ## Conflicting evidence
 
 The MVP should preserve conflicting evidence rather than discard it.
@@ -492,31 +556,47 @@ Where sources disagree:
 
 Mandatory safety facts should not be silently resolved by convenience, request order, or unverified source labels.
 
+Dependent operational Claims must not remain silently active after one of their required primitive inputs becomes disputed or superseded.
+
 ## Derived claims and dependency
 
 Where a claim is derived, TetherLens should retain enough information to explain the derivation.
 
-Example:
+Example runtime-only derivation:
 
 ```text
 Connector A gate opening = 18 mm
 Attachment B required clearance = 12 mm
 Compatibility Rule 7 applies
         ↓
-Derived claim:
+Derived conclusion:
 Connector A can engage Attachment B
 ```
 
-The MVP may compute this at runtime rather than persist a complete dependency graph.
+Many recommendation conclusions can remain runtime-only and do not require a persisted dependency graph.
+
+Where a derived Claim is persisted as a reusable operational fact, however, its dependency chain should be structured. Cordless operational mass is the current MVP example:
+
+```text
+Tool-body mass Claim ──┐
+                      ├──> Operational-mass Claim
+Battery-mass Claim ───┘
+
+Manufacturer Tool/Battery relationship -> OperationalMassProfile validity
+```
+
+This distinction keeps the evidence model lightweight for ordinary runtime reasoning while preserving deterministic traceability for derived values used repeatedly by safety-critical load checks.
 
 ## Evidence-model success criteria
 
 The model is successful if:
 
 - every mandatory fact used in a recommendation can be traced to a source;
+- persisted derived operational facts can be traced to their exact accepted input Claims;
+- exact Tool/Battery configuration validity can be traced to manufacturer evidence;
 - the same source can support many claims;
 - one product can use different sources for different properties;
 - missing secondary data does not force false precision;
 - rules can cite why they exist;
-- conflicting evidence can be represented without data loss; and
+- conflicting evidence can be represented without data loss and invalidates dependent operational facts where necessary; and
 - evidence capture remains simple enough for catalogue ingestion to scale.
