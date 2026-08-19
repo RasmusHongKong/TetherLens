@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from io import BytesIO
 from typing import Protocol
 
 import httpx
+from pypdf import PdfReader
 
 from .models import SourceArtifact, SourceType
 
@@ -24,12 +26,15 @@ class HttpxFetcher:
         response.raise_for_status()
         content_type = response.headers.get("content-type", "application/octet-stream").split(";", 1)[0]
         if content_type == "application/pdf":
-            raise ValueError("PDF acquisition is supported as a source channel, but PDF text extraction is not implemented in v0.1")
+            reader = PdfReader(BytesIO(response.content))
+            body = "\n".join(page.extract_text() or "" for page in reader.pages)
+        else:
+            body = response.text
         return SourceArtifact(
             url=str(response.url),
             source_type=source_type,
             content_type=content_type,
-            body=response.text,
+            body=body,
             metadata={"status_code": response.status_code},
         )
 
