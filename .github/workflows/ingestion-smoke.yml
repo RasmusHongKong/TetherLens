@@ -30,6 +30,8 @@ jobs:
           pytest -q
       - name: Probe NLG catalogue
         run: python scripts/probe_nlg_catalogue.py
+      - name: Run blind NLG unseen benchmark
+        run: python scripts/run_nlg_unseen.py
       - name: Run live manufacturer benchmark
         run: python scripts/run_batch1_smoke.py
       - name: Score benchmark against golden expectations
@@ -43,4 +45,5 @@ jobs:
           path: |
             batch1-benchmark-results.json
             nlg-catalogue-probe.json
+            nlg-unseen-results.json
           if-no-files-found: warn
