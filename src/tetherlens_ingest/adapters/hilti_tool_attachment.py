@@ -100,6 +100,18 @@ class HiltiAdapter(_BaseHiltiAdapter):
                 source_url=identity.url,
                 extractor="hilti.v0.9",
             ))
+            external_link_count = sum(
+                len(links)
+                for artifact in manuals
+                if isinstance((links := artifact.metadata.get("document_links")), list)
+            )
+            observations.append(AcquisitionObservation(
+                code="MANUFACTURER_DOCUMENT_EXTERNAL_LINKS",
+                value=external_link_count,
+                detail="Count of external URI link annotations extracted from Hilti operating-instruction PDFs.",
+                source_url=identity.url,
+                extractor="hilti.v0.9",
+            ))
 
         online_manuals = [artifact for artifact in artifacts if artifact.metadata.get("role") == "online_operating_instruction"]
         if online_manuals:
