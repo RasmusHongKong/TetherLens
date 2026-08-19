@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 
 from tetherlens_ingest.adapters import NLGAdapter
 from tetherlens_ingest.http import HttpxFetcher
@@ -11,6 +12,7 @@ DEFAULT_COLLECTIONS = [
     "https://neverletgo.com/collections/tool-lanyards/products.json?limit=250",
     "https://neverletgo.com/collections/tether-points/products.json?limit=250",
 ]
+DEFAULT_OUTPUT = Path("nlg-catalogue-probe.json")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -22,6 +24,12 @@ def build_parser() -> argparse.ArgumentParser:
         nargs="*",
         default=DEFAULT_COLLECTIONS,
         help="Collection products.json URLs to inspect.",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=DEFAULT_OUTPUT,
+        help="Write the probe payload to this JSON file.",
     )
     return parser
 
@@ -57,7 +65,10 @@ def main() -> None:
     finally:
         fetcher.close()
 
-    print(json.dumps({"manufacturer": "NLG", "collections": records}, indent=2))
+    payload = {"manufacturer": "NLG", "collections": records}
+    args.output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    print(json.dumps(payload, indent=2))
+    print(f"Catalogue probe written to {args.output}")
 
 
 if __name__ == "__main__":
