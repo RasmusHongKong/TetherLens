@@ -1,6 +1,6 @@
 {
-  "version": "0.4",
-  "description": "Batch 1 benchmark contract. Extraction precision is strict by default: every extracted claim is scored unless explicitly listed in ignored_claims. Version 0.4 adds explicit tether connection-point topology expectations, including manufacturer-stated reversible endpoint roles.",
+  "version": "0.5",
+  "description": "Batch 1 benchmark contract. Extraction precision is strict by default: every extracted claim is scored unless explicitly listed in ignored_claims. Version 0.5 adds primitive ToolAttachment attachment-method semantics while retaining explicit tether connection-point topology expectations.",
   "products": {
     "NLG:101372": {
       "expected_claims": [
@@ -36,13 +36,15 @@
       "expected_claims": [
         {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 3.0},
         {"subject_type": "physical_interface", "subject_ref": "rotating_interface", "property_key": "connector.swivel", "value": true},
-        {"subject_type": "physical_interface", "subject_ref": "loop_interface", "property_key": "interface.loop_present", "value": true}
+        {"subject_type": "physical_interface", "subject_ref": "loop_interface", "property_key": "interface.loop_present", "value": true},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "attachment_method_code", "value": "cinch"}
       ],
       "forbidden_claims": [],
       "ignored_claims": [],
       "recommendation_data": {
         "baseline_requirements": [
-          {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 3.0}], "gap_if_missing": "public_fact_missing"}
+          {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 3.0}], "gap_if_missing": "public_fact_missing"},
+          {"name": "attachment_method", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "attachment_method_code", "value": "cinch"}], "gap_if_missing": "public_fact_missing"}
         ],
         "known_gaps": [
           {"category": "internal_measurement", "field": "d_ring_geometry", "detail": "Generic connector engagement still needs D-ring/interface geometry."}
