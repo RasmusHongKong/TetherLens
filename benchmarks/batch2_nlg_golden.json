@@ -1,6 +1,6 @@
 {
-  "version": "0.2",
-  "description": "Batch 2 NLG post-blind golden contract. Defined only after blind run 130 completed under the frozen NLG rules. Version 0.2 promotes source-backed recommendation constraints into extraction expectations after the blind baseline was locked.",
+  "version": "0.3",
+  "description": "Batch 2 NLG post-blind contract. Blind run 130 remains immutable. Version 0.3 promotes generic post-blind constraints while treating the Adjustable Wristband usage-limit discrepancy as an unresolved manufacturer evidence conflict rather than accepted golden truth.",
   "blind_reference": {
     "workflow_run_id": 32273707247,
     "artifact_id": 9373169405,
@@ -10,159 +10,137 @@
   },
   "products": {
     "NLG:101434": {
-      "evidence_urls": ["https://neverletgo.com/products/extended-bungee-tool-lanyard"],
       "expected_claims": [
-        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 5.0},
-        {"subject_type": "product", "subject_ref": "self", "property_key": "min_length_mm", "value": 1000.0},
-        {"subject_type": "product", "subject_ref": "self", "property_key": "max_length_mm", "value": 2100.0},
-        {"subject_type": "product", "subject_ref": "self", "property_key": "tether.connection_count", "value": 2}
+        {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":5.0},
+        {"subject_type":"product","subject_ref":"self","property_key":"min_length_mm","value":1000.0},
+        {"subject_type":"product","subject_ref":"self","property_key":"max_length_mm","value":2100.0},
+        {"subject_type":"product","subject_ref":"self","property_key":"tether.connection_count","value":2}
       ],
-      "forbidden_claims": [],
-      "ignored_claims": [],
+      "forbidden_claims": [], "ignored_claims": [],
       "recommendation_data": {
         "baseline_requirements": [
-          {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 5.0}], "gap_if_missing": "extraction_gap"},
-          {"name": "connection_count", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "tether.connection_count", "value": 2}], "gap_if_missing": "extraction_gap", "detail": "Dual Quick Clips establish two usable tether connection points."}
+          {"name":"rated_capacity","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":5.0}],"gap_if_missing":"extraction_gap"},
+          {"name":"connection_count","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"tether.connection_count","value":2}],"gap_if_missing":"extraction_gap"}
         ],
-        "known_gaps": [
-          {"category": "claim_vocabulary_gap", "field": "connection_point_interfaces", "detail": "The domain model supports connection_points[], but current NLG claims do not preserve each Quick Clip endpoint and role separately."}
-        ]
+        "known_gaps": [{"category":"claim_vocabulary_gap","field":"connection_point_interfaces","detail":"Quick Clip endpoints and roles are not yet structured separately."}]
       }
     },
     "NLG:101756": {
-      "evidence_urls": ["https://neverletgo.com/products/retractable-lanyard-double-carabiner"],
       "expected_claims": [
-        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 3.0},
-        {"subject_type": "product", "subject_ref": "self", "property_key": "min_length_mm", "value": 200.0},
-        {"subject_type": "product", "subject_ref": "self", "property_key": "max_length_mm", "value": 1350.0},
-        {"subject_type": "connector_spec", "subject_ref": "tether_connector", "property_key": "connector.swivel", "value": true},
-        {"subject_type": "product", "subject_ref": "self", "property_key": "tether.connection_count", "value": 2}
+        {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":3.0},
+        {"subject_type":"product","subject_ref":"self","property_key":"min_length_mm","value":200.0},
+        {"subject_type":"product","subject_ref":"self","property_key":"max_length_mm","value":1350.0},
+        {"subject_type":"connector_spec","subject_ref":"tether_connector","property_key":"connector.swivel","value":true},
+        {"subject_type":"product","subject_ref":"self","property_key":"tether.connection_count","value":2}
       ],
-      "forbidden_claims": [],
-      "ignored_claims": [],
+      "forbidden_claims": [], "ignored_claims": [],
       "recommendation_data": {
         "baseline_requirements": [
-          {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 3.0}], "gap_if_missing": "extraction_gap"},
-          {"name": "connection_count", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "tether.connection_count", "value": 2}], "gap_if_missing": "extraction_gap", "detail": "The page identifies an integral anchor-side carabiner and a tool-side Rotobiner."}
+          {"name":"rated_capacity","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":3.0}],"gap_if_missing":"extraction_gap"},
+          {"name":"connection_count","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"tether.connection_count","value":2}],"gap_if_missing":"extraction_gap"}
         ],
         "known_gaps": [
-          {"category": "claim_vocabulary_gap", "field": "connection_point_interfaces", "detail": "The two different connector endpoints should be retained separately rather than collapsed into one generic tether_connector subject."},
-          {"category": "public_fact_ambiguous", "field": "connector_locking_mode", "detail": "The page states an integral locking carabiner but does not unambiguously distinguish manual-locking from auto-locking."}
+          {"category":"claim_vocabulary_gap","field":"connection_point_interfaces","detail":"Anchor-side integral carabiner and tool-side Rotobiner are not yet separate connection-point subjects."},
+          {"category":"public_fact_ambiguous","field":"connector_locking_mode","detail":"The page says locking carabiner without resolving manual versus automatic locking."}
         ]
       }
     },
     "NLG:101691": {
-      "evidence_urls": ["https://neverletgo.com/products/angle-grinder-bracket"],
       "expected_claims": [
-        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 3.0},
-        {"subject_type": "product", "subject_ref": "self", "property_key": "max_lanyard_length_mm", "value": 2000.0}
+        {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":3.0},
+        {"subject_type":"product","subject_ref":"self","property_key":"max_lanyard_length_mm","value":2000.0}
       ],
-      "forbidden_claims": [],
-      "ignored_claims": [],
+      "forbidden_claims": [], "ignored_claims": [],
       "recommendation_data": {
         "baseline_requirements": [
-          {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 3.0}], "gap_if_missing": "extraction_gap"},
-          {"name": "max_lanyard_length", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "max_lanyard_length_mm", "value": 2000.0}], "gap_if_missing": "extraction_gap", "detail": "Manufacturer specification limits paired lanyard length to 200 cm."}
+          {"name":"rated_capacity","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":3.0}],"gap_if_missing":"extraction_gap"},
+          {"name":"max_lanyard_length","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"max_lanyard_length_mm","value":2000.0}],"gap_if_missing":"extraction_gap"}
         ],
-        "known_gaps": [
-          {"category": "claim_vocabulary_gap", "field": "attachment_method", "detail": "Manufacturer states that the bracket attaches via the grinder handle to create the tether point."}
-        ]
+        "known_gaps": [{"category":"claim_vocabulary_gap","field":"attachment_method","detail":"Handle-based bracket attachment is not yet structured."}]
       }
     },
     "NLG:101481": {
-      "evidence_urls": ["https://neverletgo.com/products/mini-adhesive-d-ring"],
       "expected_claims": [
-        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 1.0},
-        {"subject_type": "product", "subject_ref": "self", "property_key": "max_lanyard_length_mm", "value": 1200.0}
+        {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":1.0},
+        {"subject_type":"product","subject_ref":"self","property_key":"max_lanyard_length_mm","value":1200.0}
       ],
-      "forbidden_claims": [],
-      "ignored_claims": [],
+      "forbidden_claims": [], "ignored_claims": [],
       "recommendation_data": {
         "baseline_requirements": [
-          {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 1.0}], "gap_if_missing": "extraction_gap"},
-          {"name": "max_lanyard_length", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "max_lanyard_length_mm", "value": 1200.0}], "gap_if_missing": "extraction_gap", "detail": "Manufacturer specification limits paired lanyard length to 120 cm."}
+          {"name":"rated_capacity","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":1.0}],"gap_if_missing":"extraction_gap"},
+          {"name":"max_lanyard_length","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"max_lanyard_length_mm","value":1200.0}],"gap_if_missing":"extraction_gap"}
         ],
-        "known_gaps": [
-          {"category": "claim_vocabulary_gap", "field": "attachment_method", "detail": "3M adhesive attachment and surface-dependent adhesion are recommendation-relevant manufacturer constraints."}
-        ]
+        "known_gaps": [{"category":"claim_vocabulary_gap","field":"attachment_method","detail":"Adhesive attachment and surface restrictions are not yet structured."}]
       }
     },
     "NLG:101365": {
-      "evidence_urls": ["https://neverletgo.com/products/wristband"],
       "expected_claims": [
-        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 3.0},
-        {"subject_type": "physical_interface", "subject_ref": "wrist_anchor", "property_key": "max_recommended_attached_mass_kg", "value": 1.0}
+        {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":3.0}
       ],
       "forbidden_claims": [],
-      "ignored_claims": [],
+      "ignored_claims": [
+        {"subject_type":"physical_interface","subject_ref":"wrist_anchor","property_key":"max_recommended_attached_mass_kg"}
+      ],
       "recommendation_data": {
         "baseline_requirements": [
-          {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 3.0}], "gap_if_missing": "extraction_gap"},
-          {"name": "max_recommended_attached_mass", "any_of": [{"subject_type": "physical_interface", "subject_ref": "wrist_anchor", "property_key": "max_recommended_attached_mass_kg", "value": 1.0}], "gap_if_missing": "extraction_gap", "detail": "NLG recommends no more than 1 kg attached to the wrist despite the product's 3 kg certified max load."}
+          {"name":"rated_capacity","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":3.0}],"gap_if_missing":"extraction_gap"}
         ],
-        "known_gaps": []
+        "known_gaps": [
+          {"category":"evidence_conflict","field":"max_recommended_attached_mass_kg","detail":"Current NLG product-page copy states a 1 kg wrist recommendation while a current NLG datasheet states 1.5 kg. Neither value is accepted for recommendation logic until same-priority manufacturer evidence is reconciled."}
+        ]
       }
     },
     "NLG:101705": {
-      "evidence_urls": ["https://neverletgo.com/products/comfort-belt"],
       "expected_claims": [
-        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 30.0},
-        {"subject_type": "physical_interface", "subject_ref": "bottom_d_ring", "property_key": "rated_capacity_kg", "value": 3.0},
-        {"subject_type": "product", "subject_ref": "self", "property_key": "max_lanyard_length_mm", "value": 2000.0}
+        {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":30.0},
+        {"subject_type":"physical_interface","subject_ref":"bottom_d_ring","property_key":"rated_capacity_kg","value":3.0},
+        {"subject_type":"product","subject_ref":"self","property_key":"max_lanyard_length_mm","value":2000.0}
       ],
       "forbidden_claims": [
-        {"subject_type": "product", "subject_ref": "self", "property_key": "min_length_mm"},
-        {"subject_type": "product", "subject_ref": "self", "property_key": "max_length_mm"},
-        {"property_key": "connector.opening_action_count"}
+        {"subject_type":"product","subject_ref":"self","property_key":"min_length_mm"},
+        {"subject_type":"product","subject_ref":"self","property_key":"max_length_mm"},
+        {"property_key":"connector.opening_action_count"}
       ],
       "ignored_claims": [],
       "recommendation_data": {
         "baseline_requirements": [
-          {"name": "overall_rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 30.0}], "gap_if_missing": "extraction_gap"},
-          {"name": "bottom_d_ring_capacity", "any_of": [{"subject_type": "physical_interface", "subject_ref": "bottom_d_ring", "property_key": "rated_capacity_kg", "value": 3.0}], "gap_if_missing": "extraction_gap", "detail": "Bottom D-rings are explicitly rated to 3 kg; top D-rings are for braces."},
-          {"name": "max_lanyard_length", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "max_lanyard_length_mm", "value": 2000.0}], "gap_if_missing": "extraction_gap", "detail": "Manufacturer specification limits paired lanyard length to 200 cm."}
+          {"name":"overall_rated_capacity","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":30.0}],"gap_if_missing":"extraction_gap"},
+          {"name":"bottom_d_ring_capacity","any_of":[{"subject_type":"physical_interface","subject_ref":"bottom_d_ring","property_key":"rated_capacity_kg","value":3.0}],"gap_if_missing":"extraction_gap"},
+          {"name":"max_lanyard_length","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"max_lanyard_length_mm","value":2000.0}],"gap_if_missing":"extraction_gap"}
         ],
         "known_gaps": []
       }
     },
     "NLG:101520": {
-      "evidence_urls": ["https://neverletgo.com/products/ascent-pouch"],
       "expected_claims": [
-        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 5.0},
-        {"subject_type": "physical_interface", "subject_ref": "internal_anchor", "property_key": "rated_capacity_kg", "value": 5.0},
-        {"subject_type": "product", "subject_ref": "self", "property_key": "max_lanyard_length_mm", "value": 2000.0}
+        {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":5.0},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor","property_key":"rated_capacity_kg","value":5.0},
+        {"subject_type":"product","subject_ref":"self","property_key":"max_lanyard_length_mm","value":2000.0}
       ],
-      "forbidden_claims": [],
-      "ignored_claims": [],
+      "forbidden_claims": [], "ignored_claims": [],
       "recommendation_data": {
         "baseline_requirements": [
-          {"name": "container_rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 5.0}], "gap_if_missing": "extraction_gap"},
-          {"name": "internal_anchor_rated_capacity", "any_of": [{"subject_type": "physical_interface", "subject_ref": "internal_anchor", "property_key": "rated_capacity_kg", "value": 5.0}], "gap_if_missing": "extraction_gap"},
-          {"name": "max_lanyard_length", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "max_lanyard_length_mm", "value": 2000.0}], "gap_if_missing": "extraction_gap", "detail": "Manufacturer specification limits paired lanyard length to 200 cm."}
+          {"name":"container_rated_capacity","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":5.0}],"gap_if_missing":"extraction_gap"},
+          {"name":"internal_anchor_rated_capacity","any_of":[{"subject_type":"physical_interface","subject_ref":"internal_anchor","property_key":"rated_capacity_kg","value":5.0}],"gap_if_missing":"extraction_gap"},
+          {"name":"max_lanyard_length","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"max_lanyard_length_mm","value":2000.0}],"gap_if_missing":"extraction_gap"}
         ],
-        "known_gaps": [
-          {"category": "claim_vocabulary_gap", "field": "internal_anchor_count", "detail": "Manufacturer states four integrated internal anchor points."}
-        ]
+        "known_gaps": [{"category":"claim_vocabulary_gap","field":"internal_anchor_count","detail":"Four integrated internal anchor points are not yet structured as count/topology."}]
       }
     },
     "NLG:101492": {
-      "evidence_urls": ["https://neverletgo.com/products/tall-tool-bag"],
       "expected_claims": [
-        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 20.0},
-        {"subject_type": "physical_interface", "subject_ref": "internal_anchor", "property_key": "rated_capacity_kg", "value": 5.0},
-        {"subject_type": "product", "subject_ref": "self", "property_key": "max_lanyard_length_mm", "value": 2000.0}
+        {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":20.0},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor","property_key":"rated_capacity_kg","value":5.0},
+        {"subject_type":"product","subject_ref":"self","property_key":"max_lanyard_length_mm","value":2000.0}
       ],
-      "forbidden_claims": [],
-      "ignored_claims": [],
+      "forbidden_claims": [], "ignored_claims": [],
       "recommendation_data": {
         "baseline_requirements": [
-          {"name": "container_rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 20.0}], "gap_if_missing": "extraction_gap"},
-          {"name": "internal_anchor_rated_capacity", "any_of": [{"subject_type": "physical_interface", "subject_ref": "internal_anchor", "property_key": "rated_capacity_kg", "value": 5.0}], "gap_if_missing": "extraction_gap"},
-          {"name": "max_lanyard_length", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "max_lanyard_length_mm", "value": 2000.0}], "gap_if_missing": "extraction_gap", "detail": "Manufacturer specification limits paired lanyard length to 200 cm."}
+          {"name":"container_rated_capacity","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":20.0}],"gap_if_missing":"extraction_gap"},
+          {"name":"internal_anchor_rated_capacity","any_of":[{"subject_type":"physical_interface","subject_ref":"internal_anchor","property_key":"rated_capacity_kg","value":5.0}],"gap_if_missing":"extraction_gap"},
+          {"name":"max_lanyard_length","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"max_lanyard_length_mm","value":2000.0}],"gap_if_missing":"extraction_gap"}
         ],
-        "known_gaps": [
-          {"category": "claim_vocabulary_gap", "field": "anchor_topology", "detail": "Manufacturer describes six integrated internal anchor points plus external load-rated/tool-holder interfaces; topology is not currently structured."}
-        ]
+        "known_gaps": [{"category":"claim_vocabulary_gap","field":"anchor_topology","detail":"Internal and external anchor/tool-holder topology is not yet structured."}]
       }
     }
   }
