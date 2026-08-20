@@ -86,7 +86,7 @@ def test_nlg_extracts_wrist_use_limit_separately_from_product_rating():
     html = """
     <h1>Adjustable Wristband</h1>
     <div>Max Load: 3 KG</div>
-    <div>Recommended maximum tool weight attached to the wrist is 1 KG.</div>
+    <div>Expert Tip: Based on medical research, NLG recommend that the maximum weight attached to the wrist is 1kg.</div>
     """
     claims = NLGAdapter().extract(identity("NLG", ProductType.ANCHOR_ATTACHMENT), [artifact(html)])
     keyed = {(claim.subject_ref, claim.property_key): claim.value for claim in claims}
