@@ -143,7 +143,8 @@ class NLGAdapter(ManufacturerAdapter):
                 ))
 
             # A manufacturer usage recommendation is not the same thing as a rated
-            # capacity. Keep the wrist-use limit as its own claim and subject.
+            # capacity. Preserve the webpage statement as a candidate claim; evidence
+            # reconciliation may still reject it if another first-party source conflicts.
             if identity.product_type == ProductType.ANCHOR_ATTACHMENT and (wrist_limit := _wrist_recommended_mass(text)):
                 claims.append(self._claim(
                     "max_recommended_attached_mass_kg",
@@ -216,7 +217,7 @@ def _tether_connection_count(identity: ProductIdentity, text: str) -> int | None
 def _max_lanyard_length_mm(text: str) -> tuple[float, str] | None:
     match = re.search(
         r"\bMax(?:imum)?\s+Lanyard\s+Length\s*:\s*"
-        r"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>mm|cm|m|in(?:ches)?|inch|inches|\")\b?",
+        r"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>mm|cm|m|inches|inch|in|\")",
         text,
         re.I,
     )
@@ -240,8 +241,8 @@ def _bottom_d_ring_capacity(text: str) -> tuple[float, str] | None:
 
 def _wrist_recommended_mass(text: str) -> tuple[float, str] | None:
     match = re.search(
-        r"\b(?:recommended\s+maximum|maximum(?:\s+recommended)?)\s+(?:tool\s+)?weight"
-        r".{0,100}?\bwrist\b.{0,50}?\d+(?:\.\d+)?\s*(?:kg|kgs?|lb|lbs?)\b",
+        r"\brecommend\b.{0,60}?\bmaximum\s+weight\b.{0,100}?\bwrist\b.{0,40}?"
+        r"\d+(?:\.\d+)?\s*(?:kg|kgs?|lb|lbs?)\b",
         text,
         re.I | re.S,
     )
