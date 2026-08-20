@@ -62,3 +62,27 @@ def test_nlg_collection_discovery_falls_back_to_product_level_sku_and_dedupes():
     assert len(identities) == 1
     assert identities[0].sku == "101010"
     assert identities[0].url == "https://neverletgo.com/products/example-tether-point"
+
+
+def test_nlg_collection_discovery_resolves_bare_site_relative_url_from_root():
+    payload = {
+        "products": [
+            {
+                "id": 1001,
+                "title": "Example Tool Lanyard",
+                "url": "products/example-tool-lanyard",
+                "sku": "101011",
+            }
+        ]
+    }
+    source = SourceArtifact(
+        url="https://neverletgo.com/collections/tool-lanyards/products.json?limit=250",
+        source_type=SourceType.MANUFACTURER_JSON,
+        content_type="application/json",
+        body=json.dumps(payload),
+    )
+
+    identities = NLGAdapter().discover_collection(source)
+
+    assert len(identities) == 1
+    assert identities[0].url == "https://neverletgo.com/products/example-tool-lanyard"
