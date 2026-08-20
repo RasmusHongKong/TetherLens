@@ -74,6 +74,19 @@ def test_nlg_does_not_treat_double_action_as_two_connectors():
     assert not any(c.subject_type == ClaimSubjectType.TETHER_CONNECTION_POINT for c in claims)
 
 
+def test_nlg_preserves_non_tether_loop_as_physical_interface():
+    html = """
+    <h1>360 D Ring Loop Tool Tether</h1>
+    <div>Max Load: 3 KG</div>
+    <div>360° rotating interface</div>
+    <div>loop tool tether</div>
+    """
+    claims = NLGAdapter().extract(identity("NLG", ProductType.TOOL_ATTACHMENT), [artifact(html)])
+    keyed = keyed_values(claims)
+    assert keyed[("physical_interface", "loop_interface", "interface.loop_present")] is True
+    assert not any(c.subject_type == ClaimSubjectType.TETHER_CONNECTION_POINT for c in claims)
+
+
 def test_nlg_extracts_max_lanyard_length_as_pairing_constraint():
     html = """
     <h1>Angle Grinder Bracket</h1>
