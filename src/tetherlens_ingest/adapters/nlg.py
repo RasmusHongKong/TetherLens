@@ -115,6 +115,23 @@ class NLGAdapter(ManufacturerAdapter):
                     subject_ref,
                 ))
 
+            # Loops on non-tether products remain physical interfaces. Tether loops
+            # are represented by explicit TetherConnectionPoint subjects instead.
+            if identity.product_type != ProductType.TETHER and re.search(
+                r"climbing cord loop|loop allows|loop tool tether",
+                text,
+                re.I,
+            ):
+                claims.append(self._claim(
+                    "interface.loop_present",
+                    True,
+                    None,
+                    "loop",
+                    artifact.url,
+                    ClaimSubjectType.PHYSICAL_INTERFACE,
+                    "loop_interface",
+                ))
+
             # "Max Lanyard Length" is a pairing/use constraint on an attachment,
             # anchor or container. It is deliberately distinct from a tether's own
             # physical min/max length.
