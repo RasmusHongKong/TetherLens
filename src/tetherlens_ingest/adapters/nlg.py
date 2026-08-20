@@ -39,7 +39,10 @@ class NLGAdapter(ManufacturerAdapter):
                 url = f"/products/{handle}"
             if not title or not url:
                 continue
-            url = urljoin(artifact.url, str(url))
+            url_text = str(url)
+            if not url_text.startswith(("http://", "https://")):
+                url_text = "/" + url_text.lstrip("/")
+            url = urljoin(artifact.url, url_text)
 
             product_id = row.get("id")
             variants = row.get("variants")
