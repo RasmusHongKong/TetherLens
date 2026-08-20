@@ -32,10 +32,12 @@ jobs:
         run: python scripts/run_batch1_smoke.py
       - name: Score Batch 1 against golden expectations
         run: python scripts/score_batch1_results.py
-      - name: Run Batch 2 NLG blind holdout
-        run: python scripts/run_batch2_nlg_blind.py
       - name: Score immutable Batch 2 blind baseline
         run: python scripts/score_batch2_nlg_results.py --write-scored batch2-nlg-blind-score.json
+      - name: Run Batch 2 NLG post-blind evaluation
+        run: python scripts/run_batch2_nlg_evaluation.py
+      - name: Score Batch 2 post-blind evaluation
+        run: python scripts/score_batch2_nlg_results.py batch2-nlg-evaluation-results.json --write-scored batch2-nlg-evaluation-score.json
       - name: Upload benchmark results
         if: always()
         uses: actions/upload-artifact@v4
@@ -43,6 +45,7 @@ jobs:
           name: ingestion-benchmark-results
           path: |
             batch1-benchmark-results.json
-            batch2-nlg-blind-results.json
             batch2-nlg-blind-score.json
+            batch2-nlg-evaluation-results.json
+            batch2-nlg-evaluation-score.json
           if-no-files-found: warn
