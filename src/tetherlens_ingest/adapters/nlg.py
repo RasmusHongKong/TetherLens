@@ -4,6 +4,7 @@ import json
 import re
 from collections.abc import Iterable
 from typing import Any
+from urllib.parse import urljoin
 
 from tetherlens_ingest.models import CandidateClaim, ClaimSubjectType, ProductIdentity, ProductType, SourceArtifact
 from tetherlens_ingest.normalize import length_to_mm, opening_action_count, parse_length_range_mm, parse_mass
@@ -35,19 +36,53 @@ class NLGAdapter(ManufacturerAdapter):
             url = row.get("url") or row.get("product_url")
             handle = row.get("handle")
             if not url and handle:
-                url = f"https://neverletgo.com/products/{handle}"
+                url = f"/products/{handle}"
             if not title or not url:
                 continue
+            url = urljoin(artifact.url, str(url))
+
+            product_id = row.get("id")
+            variants = row.get("variants")
+            variant_rows = variants if isinstance(variants, list) else []
+            sku_variants = [
+                variant
+                for variant in variant_rows
+                if isinstance(variant, dict) and variant.get("sku")
+            ]
+
+            if sku_variants:
+                for variant in sku_variants:
+                    manufacturer_ids = {}
+                    if product_id is not None:
+                        manufacturer_ids["id"] = str(product_id)
+                    if variant.get("id") is not None:
+                        manufacturer_ids["variant_id"] = str(variant["id"])
+                    identities.append(
+                        ProductIdentity(
+                            manufacturer=self.manufacturer,
+                            name=str(title),
+                            sku=str(variant["sku"]),
+                            url=url,
+                            manufacturer_ids=manufacturer_ids,
+                        )
+                    )
+                continue
+
+            manufacturer_ids = {
+                key: str(row[key])
+                for key in ("id", "variant_id")
+                if row.get(key) is not None
+            }
             identities.append(
                 ProductIdentity(
                     manufacturer=self.manufacturer,
                     name=str(title),
                     sku=str(row.get("sku")) if row.get("sku") else None,
-                    url=str(url),
-                    manufacturer_ids={k: str(row[k]) for k in ("id", "variant_id") if row.get(k) is not None},
+                    url=url,
+                    manufacturer_ids=manufacturer_ids,
                 )
             )
-        return identities
+        return _dedupe_identities(identities)
 
     def extract(self, identity: ProductIdentity, artifacts: list[SourceArtifact]) -> list[CandidateClaim]:
         claims: list[CandidateClaim] = []
@@ -415,6 +450,17 @@ def _first_length_range(text: str) -> str | None:
 def _first_action_phrase(text: str) -> str | None:
     m = re.search(r"(?:single|dual|double|triple|one|two|three)[ -]?(?:stage|action)", text, re.I)
     return m.group(0) if m else None
+
+
+def _dedupe_identities(identities: list[ProductIdentity]) -> list[ProductIdentity]:
+    seen: set[tuple[str, str | None]] = set()
+    out: list[ProductIdentity] = []
+    for identity in identities:
+        key = (identity.url, identity.sku)
+        if key not in seen:
+            out.append(identity)
+            seen.add(key)
+    return out
 
 
 def _dedupe(claims: list[CandidateClaim]) -> list[CandidateClaim]:
