@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from typing import Any
 
 from tetherlens_ingest.models import CandidateClaim, ClaimSubjectType, ProductIdentity, ProductType, SourceArtifact
-from tetherlens_ingest.normalize import opening_action_count, parse_length_range_mm, parse_mass
+from tetherlens_ingest.normalize import length_to_mm, opening_action_count, parse_length_range_mm, parse_mass
 from .base import ManufacturerAdapter
 from .common import page_text
 
@@ -82,6 +82,16 @@ class NLGAdapter(ManufacturerAdapter):
                         "tether_connector",
                     ))
 
+                connection_count = _tether_connection_count(identity, text)
+                if connection_count:
+                    claims.append(self._claim(
+                        "tether.connection_count",
+                        connection_count,
+                        None,
+                        "dual/double tether connection terminology",
+                        artifact.url,
+                    ))
+
             if re.search(r"360\s*[°º].{0,20}(?:rot|swivel)|(?:rot|swivel).{0,20}360\s*[°º]", text, re.I | re.S):
                 subject_type = ClaimSubjectType.CONNECTOR_SPEC if identity.product_type == ProductType.TETHER else ClaimSubjectType.PHYSICAL_INTERFACE
                 subject_ref = "tether_connector" if identity.product_type == ProductType.TETHER else "rotating_interface"
@@ -106,7 +116,46 @@ class NLGAdapter(ManufacturerAdapter):
                     "loop_interface",
                 ))
 
-            # The MEWP Bag page distinguishes the overall bag rating from the load
+            # "Max Lanyard Length" is a pairing/use constraint on an attachment,
+            # anchor or container. It is deliberately distinct from a tether's own
+            # physical min/max length.
+            if identity.product_type != ProductType.TETHER and (lanyard_limit := _max_lanyard_length_mm(text)):
+                claims.append(self._claim(
+                    "max_lanyard_length_mm",
+                    lanyard_limit[0],
+                    "mm",
+                    lanyard_limit[1],
+                    artifact.url,
+                ))
+
+            # Preserve an interface-specific rating separately from a belt's overall
+            # load. This phrase-based rule is intentionally scoped to an explicitly
+            # named bottom D-ring interface rather than any nearby load value.
+            if bottom_d_ring := _bottom_d_ring_capacity(text):
+                claims.append(self._claim(
+                    "rated_capacity_kg",
+                    bottom_d_ring[0],
+                    "kg",
+                    bottom_d_ring[1],
+                    artifact.url,
+                    ClaimSubjectType.PHYSICAL_INTERFACE,
+                    "bottom_d_ring",
+                ))
+
+            # A manufacturer usage recommendation is not the same thing as a rated
+            # capacity. Keep the wrist-use limit as its own claim and subject.
+            if identity.product_type == ProductType.ANCHOR_ATTACHMENT and (wrist_limit := _wrist_recommended_mass(text)):
+                claims.append(self._claim(
+                    "max_recommended_attached_mass_kg",
+                    wrist_limit[0],
+                    "kg",
+                    wrist_limit[1],
+                    artifact.url,
+                    ClaimSubjectType.PHYSICAL_INTERFACE,
+                    "wrist_anchor",
+                ))
+
+            # NLG container pages distinguish the overall bag rating from the load
             # of each internal tether point. Preserve those as separate subjects.
             if identity.product_type == ProductType.CONTAINER:
                 anchor_match = re.search(r"(?:anchor|daisy chain).{0,80}?(\d+(?:\.\d+)?)\s*(kg|lb)s?", text, re.I | re.S)
@@ -140,8 +189,65 @@ class NLGAdapter(ManufacturerAdapter):
             unit=unit,
             raw_value=raw,
             source_url=url,
-            extractor="nlg.v0.2",
+            extractor="nlg.v0.3",
         )
+
+
+def _tether_connection_count(identity: ProductIdentity, text: str) -> int | None:
+    search_text = f"{identity.name or ''}\n{text}"
+    # Do not confuse "double-action" / "dual-action" gate terminology with
+    # a count of connectors. Count only explicit multiplicity/interface wording.
+    if re.search(
+        r"\b(?:dual|double|twin)(?![-\s]+action\b)\s+(?:\w+[\s™®-]+){0,2}"
+        r"(?:carabiners?|connectors?|quick\s*clips?|attachment\s+points?)\b",
+        search_text,
+        re.I,
+    ):
+        return 2
+    if re.search(
+        r"\b(?:carabiners?|connectors?|quick\s*clips?)\b.{0,40}\b(?:at|on)\s+(?:each|both)\s+ends?\b",
+        search_text,
+        re.I | re.S,
+    ):
+        return 2
+    return None
+
+
+def _max_lanyard_length_mm(text: str) -> tuple[float, str] | None:
+    match = re.search(
+        r"\bMax(?:imum)?\s+Lanyard\s+Length\s*:\s*"
+        r"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>mm|cm|m|in(?:ches)?|inch|inches|\")\b?",
+        text,
+        re.I,
+    )
+    if not match:
+        return None
+    value = round(length_to_mm(float(match.group("value")), match.group("unit")), 3)
+    return value, match.group(0)
+
+
+def _bottom_d_ring_capacity(text: str) -> tuple[float, str] | None:
+    match = re.search(
+        r"\bbottom\s+d[\s-]*rings?\b.{0,80}?\bload\s+rating\s*:?\s*"
+        r"\d+(?:\.\d+)?\s*(?:kg|kgs?|lb|lbs?)\b",
+        text,
+        re.I | re.S,
+    )
+    if not match or not (quantity := parse_mass(match.group(0))):
+        return None
+    return quantity.value, match.group(0)
+
+
+def _wrist_recommended_mass(text: str) -> tuple[float, str] | None:
+    match = re.search(
+        r"\b(?:recommended\s+maximum|maximum(?:\s+recommended)?)\s+(?:tool\s+)?weight"
+        r".{0,100}?\bwrist\b.{0,50}?\d+(?:\.\d+)?\s*(?:kg|kgs?|lb|lbs?)\b",
+        text,
+        re.I | re.S,
+    )
+    if not match or not (quantity := parse_mass(match.group(0))):
+        return None
+    return quantity.value, match.group(0)
 
 
 def _first_length_range(text: str) -> str | None:
