@@ -1,5 +1,5 @@
 from tetherlens_ingest.adapters import HiltiAdapter, MilwaukeeAdapter, NLGAdapter, StopDropAdapter
-from tetherlens_ingest.models import ProductIdentity, ProductType, SourceArtifact, SourceType
+from tetherlens_ingest.models import ClaimSubjectType, IngestionResult, ProductIdentity, ProductType, SourceArtifact, SourceType
 
 
 def artifact(body: str, url="https://example.test/product") -> SourceArtifact:
@@ -14,7 +14,11 @@ def values(claims):
     return {c.property_key: c.value for c in claims}
 
 
-def test_nlg_extracts_load_length_and_connector_features():
+def keyed_values(claims):
+    return {(c.subject_type.value, c.subject_ref, c.property_key): c.value for c in claims}
+
+
+def test_nlg_extracts_load_length_and_heterogeneous_endpoint_features():
     html = """
     <h1>Bungee Tool Lanyard</h1>
     <div>Max Load: 5 KG / 11 LBS</div>
@@ -22,27 +26,40 @@ def test_nlg_extracts_load_length_and_connector_features():
     <div>360° Rotobiner with two-stage locking gate</div>
     <div>climbing cord loop</div>
     """
-    out = values(NLGAdapter().extract(identity("NLG", ProductType.TETHER), [artifact(html)]))
+    claims = NLGAdapter().extract(identity("NLG", ProductType.TETHER), [artifact(html)])
+    out = values(claims)
+    keyed = keyed_values(claims)
     assert out["rated_capacity_kg"] == 5.0
     assert out["min_length_mm"] == 800.0
     assert out["max_length_mm"] == 1200.0
-    assert out["connector.opening_action_count"] == 2
-    assert out["connector.swivel"] is True
-    assert out["interface.loop_present"] is True
+    assert out["tether.connection_count"] == 2
+    assert keyed[("tether_connection_point", "connection_point_1", "connection_point.interface_type")] == "carabiner"
+    assert keyed[("tether_connection_point", "connection_point_1", "connection_point.connector_spec_ref")] == "rotobiner"
+    assert keyed[("tether_connection_point", "connection_point_2", "connection_point.interface_type")] == "loop"
+    assert keyed[("connector_spec", "rotobiner", "connector.opening_action_count")] == 2
+    assert keyed[("connector_spec", "rotobiner", "connector.swivel")] is True
+    assert not any(c.property_key == "connection_point.role" for c in claims)
 
 
-def test_nlg_extracts_tether_connection_count_from_general_connector_wording():
+def test_nlg_extracts_explicit_endpoint_roles_and_distinct_connector_specs():
     html = """
     <h1>Heavy Duty Retractable Lanyard, Double Carabiner</h1>
     <div>Max Load: 3 KG</div>
-    <div>Integral carabiner for belt or anchor and Rotobiner for tool attachment.</div>
+    <div>Integral carabiner for belt or anchor and 360° Rotobiner for tool attachment.</div>
     """
     claims = NLGAdapter().extract(
         identity("NLG", ProductType.TETHER, "Heavy Duty Retractable Lanyard, Double Carabiner"),
         [artifact(html)],
     )
-    out = values(claims)
-    assert out["tether.connection_count"] == 2
+    keyed = keyed_values(claims)
+    assert values(claims)["tether.connection_count"] == 2
+    assert keyed[("tether_connection_point", "anchor_side", "connection_point.role")] == "anchor_side"
+    assert keyed[("tether_connection_point", "anchor_side", "connection_point.interface_type")] == "carabiner"
+    assert keyed[("tether_connection_point", "anchor_side", "connection_point.connector_spec_ref")] == "anchor_carabiner"
+    assert keyed[("tether_connection_point", "tool_side", "connection_point.role")] == "tool_side"
+    assert keyed[("tether_connection_point", "tool_side", "connection_point.connector_spec_ref")] == "tool_rotobiner"
+    assert keyed[("connector_spec", "tool_rotobiner", "connector.swivel")] is True
+    assert ("connector_spec", "anchor_carabiner", "connector.swivel") not in keyed
 
 
 def test_nlg_does_not_treat_double_action_as_two_connectors():
@@ -51,8 +68,10 @@ def test_nlg_does_not_treat_double_action_as_two_connectors():
     <div>Max Load: 3 KG</div>
     <div>double-action locking gate</div>
     """
-    out = values(NLGAdapter().extract(identity("NLG", ProductType.TETHER), [artifact(html)]))
+    claims = NLGAdapter().extract(identity("NLG", ProductType.TETHER), [artifact(html)])
+    out = values(claims)
     assert "tether.connection_count" not in out
+    assert not any(c.subject_type == ClaimSubjectType.TETHER_CONNECTION_POINT for c in claims)
 
 
 def test_nlg_extracts_max_lanyard_length_as_pairing_constraint():
@@ -94,17 +113,23 @@ def test_nlg_extracts_wrist_use_limit_separately_from_product_rating():
     assert keyed[("wrist_anchor", "max_recommended_attached_mass_kg")] == 1.0
 
 
-def test_hilti_extracts_tether_rating_and_connector():
+def test_hilti_extracts_tether_rating_and_shared_connector_topology():
     html = """
     <h1>Tool lanyard</h1><div>#2261970</div>
     <div>Maximum load</div><div>14.99 lb</div>
     <div>Self-locking carabiner</div><div>double carabiner</div>
     """
-    out = values(HiltiAdapter().extract(identity("Hilti", ProductType.TETHER), [artifact(html)]))
+    claims = HiltiAdapter().extract(identity("Hilti", ProductType.TETHER), [artifact(html)])
+    out = values(claims)
+    keyed = keyed_values(claims)
     assert out["rated_capacity_kg"] == 6.79935
     assert out["manufacturer_item_code"] == "2261970"
     assert out["connector.locking_mode"] == "auto_locking"
     assert out["tether.connection_count"] == 2
+    for point_ref in ("connection_point_1", "connection_point_2"):
+        assert keyed[("tether_connection_point", point_ref, "connection_point.interface_type")] == "carabiner"
+        assert keyed[("tether_connection_point", point_ref, "connection_point.connector_spec_ref")] == "tether_connector"
+    assert not any(c.property_key == "connection_point.role" for c in claims)
 
 
 def test_hilti_operational_mass_includes_battery():
@@ -112,7 +137,7 @@ def test_hilti_operational_mass_includes_battery():
     assert HiltiAdapter.operational_mass(1.30, 0.76) == 2.06
 
 
-def test_stopdrop_extracts_sparse_variant_pair():
+def test_stopdrop_extracts_sparse_variant_pair_and_shared_connector_topology():
     html = """
     <h1>BLACK WIRE COIL TOOL LANYARD</h1>
     <div>with 2 locking screwgate carabiner</div>
@@ -120,9 +145,27 @@ def test_stopdrop_extracts_sparse_variant_pair():
     """
     claims = StopDropAdapter().extract(identity("StopDrop", ProductType.TETHER), [artifact(html)])
     out = values(claims)
+    keyed = keyed_values(claims)
     assert out["variant.length_mm"] == 1000.0
     assert out["variant.rated_capacity_kg"] == 3.0
     assert out["connector.locking_mode"] == "manual_locking"
+    for point_ref in ("connection_point_1", "connection_point_2"):
+        assert keyed[("tether_connection_point", point_ref, "connection_point.interface_type")] == "carabiner"
+        assert keyed[("tether_connection_point", point_ref, "connection_point.connector_spec_ref")] == "tether_connector"
+
+
+def test_ingestion_result_can_select_repeated_endpoint_properties():
+    claims = NLGAdapter().extract(
+        identity("NLG", ProductType.TETHER),
+        [artifact("<div>360° Rotobiner</div><div>climbing cord loop</div>")],
+    )
+    result = IngestionResult(identity=identity("NLG", ProductType.TETHER), claims=claims)
+    interface_claims = result.claims_for(
+        "connection_point.interface_type",
+        subject_type=ClaimSubjectType.TETHER_CONNECTION_POINT,
+    )
+    assert {claim.value for claim in interface_claims} == {"carabiner", "loop"}
+    assert result.claims_for("connection_point.interface_type", subject_ref="connection_point_2")[0].value == "loop"
 
 
 def test_milwaukee_keeps_dynamic_specs_as_observation_not_product_claim():
