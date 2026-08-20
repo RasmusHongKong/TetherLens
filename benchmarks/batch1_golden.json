@@ -1,6 +1,6 @@
 {
-  "version": "0.3",
-  "description": "Batch 1 benchmark contract. Extraction precision is strict by default: every extracted claim is scored unless explicitly listed in ignored_claims. Version 0.3 adds explicit tether connection-point topology expectations.",
+  "version": "0.4",
+  "description": "Batch 1 benchmark contract. Extraction precision is strict by default: every extracted claim is scored unless explicitly listed in ignored_claims. Version 0.4 adds explicit tether connection-point topology expectations, including manufacturer-stated reversible endpoint roles.",
   "products": {
     "NLG:101372": {
       "expected_claims": [
@@ -11,19 +11,21 @@
         {"subject_type": "connector_spec", "subject_ref": "rotobiner", "property_key": "connector.swivel", "value": true},
         {"subject_type": "product", "subject_ref": "self", "property_key": "tether.connection_count", "value": 2},
         {"subject_type": "tether_connection_point", "subject_ref": "connection_point_1", "property_key": "connection_point.interface_type", "value": "carabiner"},
+        {"subject_type": "tether_connection_point", "subject_ref": "connection_point_1", "property_key": "connection_point.role", "value": "either"},
         {"subject_type": "tether_connection_point", "subject_ref": "connection_point_1", "property_key": "connection_point.connector_spec_ref", "value": "rotobiner"},
-        {"subject_type": "tether_connection_point", "subject_ref": "connection_point_2", "property_key": "connection_point.interface_type", "value": "loop"}
+        {"subject_type": "tether_connection_point", "subject_ref": "connection_point_2", "property_key": "connection_point.interface_type", "value": "loop"},
+        {"subject_type": "tether_connection_point", "subject_ref": "connection_point_2", "property_key": "connection_point.role", "value": "either"}
       ],
-      "forbidden_claims": [
-        {"subject_type": "tether_connection_point", "property_key": "connection_point.role"}
-      ],
+      "forbidden_claims": [],
       "ignored_claims": [],
       "recommendation_data": {
         "baseline_requirements": [
           {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 5.0}], "gap_if_missing": "public_fact_missing"},
           {"name": "connection_count", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "tether.connection_count", "value": 2}], "gap_if_missing": "public_fact_missing"},
           {"name": "carabiner_endpoint", "any_of": [{"subject_type": "tether_connection_point", "subject_ref": "connection_point_1", "property_key": "connection_point.interface_type", "value": "carabiner"}], "gap_if_missing": "public_fact_missing"},
-          {"name": "loop_endpoint", "any_of": [{"subject_type": "tether_connection_point", "subject_ref": "connection_point_2", "property_key": "connection_point.interface_type", "value": "loop"}], "gap_if_missing": "public_fact_missing"}
+          {"name": "carabiner_endpoint_role", "any_of": [{"subject_type": "tether_connection_point", "subject_ref": "connection_point_1", "property_key": "connection_point.role", "value": "either"}], "gap_if_missing": "public_fact_missing"},
+          {"name": "loop_endpoint", "any_of": [{"subject_type": "tether_connection_point", "subject_ref": "connection_point_2", "property_key": "connection_point.interface_type", "value": "loop"}], "gap_if_missing": "public_fact_missing"},
+          {"name": "loop_endpoint_role", "any_of": [{"subject_type": "tether_connection_point", "subject_ref": "connection_point_2", "property_key": "connection_point.role", "value": "either"}], "gap_if_missing": "public_fact_missing"}
         ],
         "known_gaps": [
           {"category": "internal_measurement", "field": "connector_geometry", "detail": "Generic cross-brand connector fit still needs gate/internal geometry."}
