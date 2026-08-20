@@ -39,7 +39,27 @@ class StopDropAdapter(ManufacturerAdapter):
                 ))
 
             if re.search(r"2\s+locking\s+screwgate\s+carabiner", text, re.I):
-                claims.append(self._claim("tether.connection_count", 2, None, "2 locking screwgate carabiner", artifact.url))
+                raw = "2 locking screwgate carabiner"
+                claims.append(self._claim("tether.connection_count", 2, None, raw, artifact.url))
+                for point_ref in ("connection_point_1", "connection_point_2"):
+                    claims.append(self._claim(
+                        "connection_point.interface_type",
+                        "carabiner",
+                        None,
+                        raw,
+                        artifact.url,
+                        ClaimSubjectType.TETHER_CONNECTION_POINT,
+                        point_ref,
+                    ))
+                    claims.append(self._claim(
+                        "connection_point.connector_spec_ref",
+                        "tether_connector",
+                        None,
+                        raw,
+                        artifact.url,
+                        ClaimSubjectType.TETHER_CONNECTION_POINT,
+                        point_ref,
+                    ))
                 claims.append(self._claim(
                     "connector.locking_mode",
                     "manual_locking",
@@ -80,7 +100,7 @@ class StopDropAdapter(ManufacturerAdapter):
             unit=unit,
             raw_value=raw,
             source_url=url,
-            extractor="stopdrop.v0.2",
+            extractor="stopdrop.v0.3",
         )
 
 
