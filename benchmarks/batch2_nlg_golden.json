@@ -1,6 +1,6 @@
 {
-  "version": "0.4",
-  "description": "Batch 2 NLG post-blind contract. Blind run 130 remains immutable. Version 0.4 adds explicit tether connection-point subjects and endpoint semantics while preserving the unresolved Adjustable Wristband manufacturer evidence conflict.",
+  "version": "0.5",
+  "description": "Batch 2 NLG post-blind contract. Blind run 130 remains immutable. Version 0.5 adds explicit tether connection-point subjects, endpoint semantics, and connector-scoped 360-degree swivel evidence while preserving the unresolved Adjustable Wristband manufacturer evidence conflict.",
   "blind_reference": {
     "workflow_run_id": 32273707247,
     "artifact_id": 9373169405,
@@ -15,6 +15,7 @@
         {"subject_type":"product","subject_ref":"self","property_key":"min_length_mm","value":1000.0},
         {"subject_type":"product","subject_ref":"self","property_key":"max_length_mm","value":2100.0},
         {"subject_type":"product","subject_ref":"self","property_key":"tether.connection_count","value":2},
+        {"subject_type":"connector_spec","subject_ref":"quick_clip","property_key":"connector.swivel","value":true},
         {"subject_type":"tether_connection_point","subject_ref":"connection_point_1","property_key":"connection_point.interface_type","value":"clip"},
         {"subject_type":"tether_connection_point","subject_ref":"connection_point_1","property_key":"connection_point.connector_spec_ref","value":"quick_clip"},
         {"subject_type":"tether_connection_point","subject_ref":"connection_point_2","property_key":"connection_point.interface_type","value":"clip"},
