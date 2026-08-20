@@ -11,6 +11,9 @@ from .base import ManufacturerAdapter
 from .common import page_text
 
 
+_FULL_ROTATION = r"360\s*(?:[°º]|degrees?)"
+
+
 class NLGAdapter(ManufacturerAdapter):
     manufacturer = "NLG"
 
@@ -67,9 +70,29 @@ class NLGAdapter(ManufacturerAdapter):
                     self._claim("max_length_mm", lengths[1], "mm", length_raw, artifact.url),
                 ])
 
-            # Opening-action terminology is only mapped to the tether connector on
-            # tether product pages. A triple-action belt buckle is not a connector.
             if identity.product_type == ProductType.TETHER:
+                topology_claims = _tether_topology_claims(identity, text, artifact.url)
+                claims.extend(topology_claims)
+
+                connection_count = _tether_connection_count(identity, text)
+                topology_count = len({
+                    claim.subject_ref
+                    for claim in topology_claims
+                    if claim.subject_type == ClaimSubjectType.TETHER_CONNECTION_POINT
+                    and claim.property_key == "connection_point.interface_type"
+                })
+                if topology_count >= 2:
+                    connection_count = max(connection_count or 0, topology_count)
+                if connection_count:
+                    claims.append(self._claim(
+                        "tether.connection_count",
+                        connection_count,
+                        None,
+                        "explicit tether endpoint/multiplicity terminology",
+                        artifact.url,
+                    ))
+
+                connector_ref = _tether_connector_subject_ref(text)
                 actions = opening_action_count(text)
                 if actions:
                     claims.append(self._claim(
@@ -79,33 +102,41 @@ class NLGAdapter(ManufacturerAdapter):
                         _first_action_phrase(text),
                         artifact.url,
                         ClaimSubjectType.CONNECTOR_SPEC,
-                        "tether_connector",
+                        connector_ref,
                     ))
 
-                connection_count = _tether_connection_count(identity, text)
-                if connection_count:
+                if swivel_ref := _tether_swivel_connector_subject_ref(text):
                     claims.append(self._claim(
-                        "tether.connection_count",
-                        connection_count,
+                        "connector.swivel",
+                        True,
                         None,
-                        "dual/double tether connection terminology",
+                        "360 degree connector rotation",
                         artifact.url,
+                        ClaimSubjectType.CONNECTOR_SPEC,
+                        swivel_ref,
                     ))
-
-            if re.search(r"360\s*[°º].{0,20}(?:rot|swivel)|(?:rot|swivel).{0,20}360\s*[°º]", text, re.I | re.S):
-                subject_type = ClaimSubjectType.CONNECTOR_SPEC if identity.product_type == ProductType.TETHER else ClaimSubjectType.PHYSICAL_INTERFACE
-                subject_ref = "tether_connector" if identity.product_type == ProductType.TETHER else "rotating_interface"
+            elif re.search(
+                rf"{_FULL_ROTATION}.{{0,20}}(?:rot|swivel)|(?:rot|swivel).{{0,20}}{_FULL_ROTATION}",
+                text,
+                re.I | re.S,
+            ):
                 claims.append(self._claim(
                     "connector.swivel",
                     True,
                     None,
                     "360 degree rotating/swivel interface",
                     artifact.url,
-                    subject_type,
-                    subject_ref,
+                    ClaimSubjectType.PHYSICAL_INTERFACE,
+                    "rotating_interface",
                 ))
 
-            if re.search(r"climbing cord loop|loop allows|loop tool tether", text, re.I):
+            # Loops on non-tether products remain physical interfaces. Tether loops
+            # are represented by explicit TetherConnectionPoint subjects instead.
+            if identity.product_type != ProductType.TETHER and re.search(
+                r"climbing cord loop|loop allows|loop tool tether",
+                text,
+                re.I,
+            ):
                 claims.append(self._claim(
                     "interface.loop_present",
                     True,
@@ -190,8 +221,133 @@ class NLGAdapter(ManufacturerAdapter):
             unit=unit,
             raw_value=raw,
             source_url=url,
-            extractor="nlg.v0.3",
+            extractor="nlg.v0.5",
         )
+
+
+def _tether_topology_claims(identity: ProductIdentity, text: str, url: str) -> list[CandidateClaim]:
+    search_text = f"{identity.name or ''}\n{text}"
+    claims: list[CandidateClaim] = []
+
+    def point(ref: str, interface_type: str, raw: str, role: str | None = None, connector_spec_ref: str | None = None) -> None:
+        claims.append(NLGAdapter._claim(
+            "connection_point.interface_type",
+            interface_type,
+            None,
+            raw,
+            url,
+            ClaimSubjectType.TETHER_CONNECTION_POINT,
+            ref,
+        ))
+        if role:
+            claims.append(NLGAdapter._claim(
+                "connection_point.role",
+                role,
+                None,
+                raw,
+                url,
+                ClaimSubjectType.TETHER_CONNECTION_POINT,
+                ref,
+            ))
+        if connector_spec_ref:
+            claims.append(NLGAdapter._claim(
+                "connection_point.connector_spec_ref",
+                connector_spec_ref,
+                None,
+                raw,
+                url,
+                ClaimSubjectType.TETHER_CONNECTION_POINT,
+                ref,
+            ))
+
+    # Role is only emitted when the copy itself establishes which endpoint is for
+    # the anchor/belt and which is for tool attachment.
+    explicit_roles = re.search(
+        r"integral\s+carabiner.{0,50}(?:belt|anchor).{0,80}rotobiner.{0,50}tool\s+attachment",
+        text,
+        re.I | re.S,
+    )
+    if explicit_roles:
+        raw = explicit_roles.group(0)
+        point("anchor_side", "carabiner", raw, "anchor_side", "anchor_carabiner")
+        point("tool_side", "carabiner", raw, "tool_side", "tool_rotobiner")
+        return claims
+
+    has_loop = bool(re.search(r"climbing cord loop|loop allows|loop tool tether", search_text, re.I))
+    has_rotobiner = bool(re.search(r"\brotobiner\b", search_text, re.I))
+    if has_loop and has_rotobiner:
+        rotobiner_role = "either" if _interface_supports_either_role(search_text, r"\brotobiner\b") else None
+        loop_role = "either" if _interface_supports_either_role(
+            search_text,
+            r"(?:climbing\s+cord\s+loop|cord\s+loop|\bloop\b)",
+        ) else None
+        point("connection_point_1", "carabiner", "Rotobiner", rotobiner_role, "rotobiner")
+        point("connection_point_2", "loop", "loop", loop_role)
+        return claims
+
+    if re.search(
+        r"\b(?:dual|double|twin)(?![-\s]+action\b)\s+(?:\w+[\s™®-]+){0,2}quick\s*clips?\b",
+        search_text,
+        re.I,
+    ):
+        point("connection_point_1", "clip", "dual/double quick clips", connector_spec_ref="quick_clip")
+        point("connection_point_2", "clip", "dual/double quick clips", connector_spec_ref="quick_clip")
+        return claims
+
+    if re.search(
+        r"\b(?:dual|double|twin)(?![-\s]+action\b)\s+(?:\w+[\s™®-]+){0,2}carabiners?\b",
+        search_text,
+        re.I,
+    ) or re.search(r"\bcarabiners?\b.{0,40}\b(?:at|on)\s+(?:each|both)\s+ends?\b", search_text, re.I | re.S):
+        point("connection_point_1", "carabiner", "double/dual carabiner", connector_spec_ref="tether_connector")
+        point("connection_point_2", "carabiner", "double/dual carabiner", connector_spec_ref="tether_connector")
+
+    return claims
+
+
+def _interface_supports_either_role(text: str, interface_pattern: str) -> bool:
+    for match in re.finditer(interface_pattern, text, re.I | re.S):
+        window = text[match.start():match.end() + 220]
+        if (
+            re.search(r"\b(?:attach\w*|connect\w*)\b", window, re.I)
+            and re.search(r"\btool\b", window, re.I)
+            and re.search(r"\banchor\b", window, re.I)
+            and re.search(r"\bor\b", window, re.I)
+        ):
+            return True
+    return False
+
+
+def _tether_swivel_connector_subject_ref(text: str) -> str | None:
+    connector_patterns = (
+        (r"\brotobiner\b", _tether_connector_subject_ref(text)),
+        (r"\bquick\s*clips?\b", "quick_clip"),
+        (r"\bcarabiners?\b", "tether_connector"),
+        (r"\bconnectors?\b", "tether_connector"),
+    )
+    for connector_pattern, subject_ref in connector_patterns:
+        if re.search(
+            rf"(?:{_FULL_ROTATION}.{{0,24}}{connector_pattern}|{connector_pattern}.{{0,24}}{_FULL_ROTATION})",
+            text,
+            re.I | re.S,
+        ):
+            return subject_ref
+
+    if re.search(
+        rf"{_FULL_ROTATION}.{{0,24}}(?:rotat|swivel)|(?:rotat|swivel).{{0,24}}{_FULL_ROTATION}",
+        text,
+        re.I | re.S,
+    ):
+        return _tether_connector_subject_ref(text)
+    return None
+
+
+def _tether_connector_subject_ref(text: str) -> str:
+    if re.search(r"rotobiner.{0,50}tool\s+attachment", text, re.I | re.S):
+        return "tool_rotobiner"
+    if re.search(r"\brotobiner\b", text, re.I):
+        return "rotobiner"
+    return "tether_connector"
 
 
 def _tether_connection_count(identity: ProductIdentity, text: str) -> int | None:

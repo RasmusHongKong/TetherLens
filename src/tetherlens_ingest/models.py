@@ -27,6 +27,7 @@ class ClaimSubjectType(StrEnum):
     PRODUCT = "product"
     PRODUCT_VARIANT = "product_variant"
     PHYSICAL_INTERFACE = "physical_interface"
+    TETHER_CONNECTION_POINT = "tether_connection_point"
     CONNECTOR_SPEC = "connector_spec"
     RELATED_PRODUCT = "related_product"
     OPERATIONAL_PROFILE = "operational_profile"
@@ -94,3 +95,17 @@ class IngestionResult(BaseModel):
 
     def claim(self, property_key: str) -> CandidateClaim | None:
         return next((c for c in self.claims if c.property_key == property_key), None)
+
+    def claims_for(
+        self,
+        property_key: str,
+        subject_type: ClaimSubjectType | None = None,
+        subject_ref: str | None = None,
+    ) -> list[CandidateClaim]:
+        return [
+            claim
+            for claim in self.claims
+            if claim.property_key == property_key
+            and (subject_type is None or claim.subject_type == subject_type)
+            and (subject_ref is None or claim.subject_ref == subject_ref)
+        ]

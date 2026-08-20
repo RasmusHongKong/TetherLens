@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from tetherlens_ingest.models import CandidateClaim, ClaimSubjectType, ProductIdentity, SourceArtifact
+from tetherlens_ingest.models import CandidateClaim, ClaimSubjectType, ProductIdentity, ProductType, SourceArtifact
 from tetherlens_ingest.normalize import length_to_mm, mass_to_kg
 from .base import ManufacturerAdapter
 from .common import page_text
@@ -38,8 +38,32 @@ class StopDropAdapter(ManufacturerAdapter):
                     variant_ref,
                 ))
 
-            if re.search(r"2\s+locking\s+screwgate\s+carabiner", text, re.I):
-                claims.append(self._claim("tether.connection_count", 2, None, "2 locking screwgate carabiner", artifact.url))
+            if identity.product_type == ProductType.TETHER and re.search(
+                r"2\s+locking\s+screwgate\s+carabiner",
+                text,
+                re.I,
+            ):
+                raw = "2 locking screwgate carabiner"
+                claims.append(self._claim("tether.connection_count", 2, None, raw, artifact.url))
+                for point_ref in ("connection_point_1", "connection_point_2"):
+                    claims.append(self._claim(
+                        "connection_point.interface_type",
+                        "carabiner",
+                        None,
+                        raw,
+                        artifact.url,
+                        ClaimSubjectType.TETHER_CONNECTION_POINT,
+                        point_ref,
+                    ))
+                    claims.append(self._claim(
+                        "connection_point.connector_spec_ref",
+                        "tether_connector",
+                        None,
+                        raw,
+                        artifact.url,
+                        ClaimSubjectType.TETHER_CONNECTION_POINT,
+                        point_ref,
+                    ))
                 claims.append(self._claim(
                     "connector.locking_mode",
                     "manual_locking",
@@ -80,7 +104,7 @@ class StopDropAdapter(ManufacturerAdapter):
             unit=unit,
             raw_value=raw,
             source_url=url,
-            extractor="stopdrop.v0.2",
+            extractor="stopdrop.v0.4",
         )
 
 

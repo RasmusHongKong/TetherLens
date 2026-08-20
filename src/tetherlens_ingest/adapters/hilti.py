@@ -92,7 +92,27 @@ class HiltiAdapter(ManufacturerAdapter):
                         ClaimSubjectType.CONNECTOR_SPEC, "tether_connector",
                     ))
                 if re.search(r"double carabiner", text, re.I):
-                    claims.append(self._claim("tether.connection_count", 2, None, "double carabiner", artifact.url))
+                    raw = "double carabiner"
+                    claims.append(self._claim("tether.connection_count", 2, None, raw, artifact.url))
+                    for point_ref in ("connection_point_1", "connection_point_2"):
+                        claims.append(self._claim(
+                            "connection_point.interface_type",
+                            "carabiner",
+                            None,
+                            raw,
+                            artifact.url,
+                            ClaimSubjectType.TETHER_CONNECTION_POINT,
+                            point_ref,
+                        ))
+                        claims.append(self._claim(
+                            "connection_point.connector_spec_ref",
+                            "tether_connector",
+                            None,
+                            raw,
+                            artifact.url,
+                            ClaimSubjectType.TETHER_CONNECTION_POINT,
+                            point_ref,
+                        ))
                 actions = opening_action_count(text)
                 if actions:
                     claims.append(self._claim(
@@ -116,7 +136,7 @@ class HiltiAdapter(ManufacturerAdapter):
                         source_url=primary_url,
                         supporting_source_urls=[battery_claim.source_url],
                         evidence_method="derived",
-                        extractor="hilti.v0.5",
+                        extractor="hilti.v0.6",
                     ))
 
         return _dedupe(claims)
@@ -140,7 +160,7 @@ class HiltiAdapter(ManufacturerAdapter):
                 value=discovered_count,
                 detail="Hilti battery source edges were discovered from first-party relationship data in the tool page.",
                 source_url=identity.url,
-                extractor="hilti.v0.5",
+                extractor="hilti.v0.6",
             ))
         if seeded_count:
             observations.append(AcquisitionObservation(
@@ -148,7 +168,7 @@ class HiltiAdapter(ManufacturerAdapter):
                 value=seeded_count,
                 detail="Missing battery source edges were filled from pre-verified benchmark seeds; automatic relationship discovery is incomplete.",
                 source_url=identity.url,
-                extractor="hilti.v0.5",
+                extractor="hilti.v0.6",
             ))
 
         for artifact in battery_artifacts:
@@ -158,7 +178,7 @@ class HiltiAdapter(ManufacturerAdapter):
                     value=str(artifact.metadata.get("battery_model") or "battery"),
                     detail="Related Hilti battery page was fetched but no parseable manufacturer weight was recovered.",
                     source_url=artifact.url,
-                    extractor="hilti.v0.5",
+                    extractor="hilti.v0.6",
                 ))
         return observations
 
@@ -336,7 +356,7 @@ class HiltiAdapter(ManufacturerAdapter):
             unit=unit,
             raw_value=raw,
             source_url=url,
-            extractor="hilti.v0.5",
+            extractor="hilti.v0.6",
         )
 
 
