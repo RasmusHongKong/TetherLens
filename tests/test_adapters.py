@@ -6,8 +6,8 @@ def artifact(body: str, url="https://example.test/product") -> SourceArtifact:
     return SourceArtifact(url=url, source_type=SourceType.MANUFACTURER_WEBPAGE, content_type="text/html", body=body)
 
 
-def identity(manufacturer: str, product_type=ProductType.UNKNOWN) -> ProductIdentity:
-    return ProductIdentity(manufacturer=manufacturer, product_type=product_type, url="https://example.test/product")
+def identity(manufacturer: str, product_type=ProductType.UNKNOWN, name: str | None = None) -> ProductIdentity:
+    return ProductIdentity(manufacturer=manufacturer, product_type=product_type, name=name, url="https://example.test/product")
 
 
 def values(claims):
@@ -29,6 +29,69 @@ def test_nlg_extracts_load_length_and_connector_features():
     assert out["connector.opening_action_count"] == 2
     assert out["connector.swivel"] is True
     assert out["interface.loop_present"] is True
+
+
+def test_nlg_extracts_tether_connection_count_from_general_connector_wording():
+    html = """
+    <h1>Heavy Duty Retractable Lanyard, Double Carabiner</h1>
+    <div>Max Load: 3 KG</div>
+    <div>Integral carabiner for belt or anchor and Rotobiner for tool attachment.</div>
+    """
+    claims = NLGAdapter().extract(
+        identity("NLG", ProductType.TETHER, "Heavy Duty Retractable Lanyard, Double Carabiner"),
+        [artifact(html)],
+    )
+    out = values(claims)
+    assert out["tether.connection_count"] == 2
+
+
+def test_nlg_does_not_treat_double_action_as_two_connectors():
+    html = """
+    <h1>Single carabiner tether</h1>
+    <div>Max Load: 3 KG</div>
+    <div>double-action locking gate</div>
+    """
+    out = values(NLGAdapter().extract(identity("NLG", ProductType.TETHER), [artifact(html)]))
+    assert "tether.connection_count" not in out
+
+
+def test_nlg_extracts_max_lanyard_length_as_pairing_constraint():
+    html = """
+    <h1>Angle Grinder Bracket</h1>
+    <div>Max Load: 3 KG</div>
+    <div>Max Lanyard Length: 200 CM / 78 IN</div>
+    """
+    out = values(NLGAdapter().extract(identity("NLG", ProductType.TOOL_ATTACHMENT), [artifact(html)]))
+    assert out["rated_capacity_kg"] == 3.0
+    assert out["max_lanyard_length_mm"] == 2000.0
+    assert "max_length_mm" not in out
+
+
+def test_nlg_extracts_interface_scoped_bottom_d_ring_rating():
+    html = """
+    <h1>Comfort Safety Belt</h1>
+    <div>Max Load: 30 KG</div>
+    <div>Bottom D Rings load rating: 3 KG</div>
+    <div>Dimensions: 76cm to 127cm</div>
+    """
+    claims = NLGAdapter().extract(identity("NLG", ProductType.ANCHOR_ATTACHMENT), [artifact(html)])
+    keyed = {(claim.subject_ref, claim.property_key): claim.value for claim in claims}
+    assert keyed[("self", "rated_capacity_kg")] == 30.0
+    assert keyed[("bottom_d_ring", "rated_capacity_kg")] == 3.0
+    assert ("self", "min_length_mm") not in keyed
+    assert ("self", "max_length_mm") not in keyed
+
+
+def test_nlg_extracts_wrist_use_limit_separately_from_product_rating():
+    html = """
+    <h1>Adjustable Wristband</h1>
+    <div>Max Load: 3 KG</div>
+    <div>Recommended maximum tool weight attached to the wrist is 1 KG.</div>
+    """
+    claims = NLGAdapter().extract(identity("NLG", ProductType.ANCHOR_ATTACHMENT), [artifact(html)])
+    keyed = {(claim.subject_ref, claim.property_key): claim.value for claim in claims}
+    assert keyed[("self", "rated_capacity_kg")] == 3.0
+    assert keyed[("wrist_anchor", "max_recommended_attached_mass_kg")] == 1.0
 
 
 def test_hilti_extracts_tether_rating_and_connector():
