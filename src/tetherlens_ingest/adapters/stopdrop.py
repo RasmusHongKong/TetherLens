@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from tetherlens_ingest.models import CandidateClaim, ClaimSubjectType, ProductIdentity, SourceArtifact
+from tetherlens_ingest.models import CandidateClaim, ClaimSubjectType, ProductIdentity, ProductType, SourceArtifact
 from tetherlens_ingest.normalize import length_to_mm, mass_to_kg
 from .base import ManufacturerAdapter
 from .common import page_text
@@ -38,7 +38,11 @@ class StopDropAdapter(ManufacturerAdapter):
                     variant_ref,
                 ))
 
-            if re.search(r"2\s+locking\s+screwgate\s+carabiner", text, re.I):
+            if identity.product_type == ProductType.TETHER and re.search(
+                r"2\s+locking\s+screwgate\s+carabiner",
+                text,
+                re.I,
+            ):
                 raw = "2 locking screwgate carabiner"
                 claims.append(self._claim("tether.connection_count", 2, None, raw, artifact.url))
                 for point_ref in ("connection_point_1", "connection_point_2"):
@@ -100,7 +104,7 @@ class StopDropAdapter(ManufacturerAdapter):
             unit=unit,
             raw_value=raw,
             source_url=url,
-            extractor="stopdrop.v0.3",
+            extractor="stopdrop.v0.4",
         )
 
 
