@@ -1,0 +1,46 @@
+{
+  "benchmark": "batch2-nlg-blind-holdout",
+  "phase": "blind_first_run",
+  "workflow_run_id": 32273707247,
+  "artifact_id": 9373169405,
+  "artifact_digest": "sha256:51a5aa2cab4b76a4b0d9f2db9869b47ac53ab3a60272621d5daf3188dc4f342e",
+  "generated_at": "2026-08-19T16:04:04.211955+00:00",
+  "golden_answers_present": false,
+  "adapter_changes_allowed_before_inspection": false,
+  "freeze": {"base_commit": "48f45e58182da7085f907305967df83ac244ca11", "verified": true},
+  "catalogue": {"sha256": "e0f3e94f2b01ab66805829ee7032522061722cf159a1dd152b3c61c348946074", "product_count": 141},
+  "results": [
+    {"manufacturer":"NLG","case_id":"nlg-b2-01","sku":"101434","catalogue_title":"Extended Bungee Tool Lanyard","product_type":"tether","acquisition_succeeded":true,"claims":[
+      {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":5.0,"unit":"kg","raw_value":"5 KG / 11 LBS","source_url":"https://neverletgo.com/products/extended-bungee-tool-lanyard","evidence_method":"manufacturer_stated","extractor":"nlg.v0.2"},
+      {"subject_type":"product","subject_ref":"self","property_key":"min_length_mm","value":1000.0,"unit":"mm","raw_value":"100cm to 210cm","source_url":"https://neverletgo.com/products/extended-bungee-tool-lanyard","evidence_method":"manufacturer_stated","extractor":"nlg.v0.2"},
+      {"subject_type":"product","subject_ref":"self","property_key":"max_length_mm","value":2100.0,"unit":"mm","raw_value":"100cm to 210cm","source_url":"https://neverletgo.com/products/extended-bungee-tool-lanyard","evidence_method":"manufacturer_stated","extractor":"nlg.v0.2"}
+    ]},
+    {"manufacturer":"NLG","case_id":"nlg-b2-02","sku":"101756","catalogue_title":"Heavy Duty Retractable Lanyard, Double Carabiner","product_type":"tether","acquisition_succeeded":true,"claims":[
+      {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":3.0,"unit":"kg","raw_value":"3 KG / 6.6 LBS","source_url":"https://neverletgo.com/products/retractable-lanyard-double-carabiner","evidence_method":"manufacturer_stated","extractor":"nlg.v0.2"},
+      {"subject_type":"product","subject_ref":"self","property_key":"min_length_mm","value":200.0,"unit":"mm","raw_value":"20cm to 135cm","source_url":"https://neverletgo.com/products/retractable-lanyard-double-carabiner","evidence_method":"manufacturer_stated","extractor":"nlg.v0.2"},
+      {"subject_type":"product","subject_ref":"self","property_key":"max_length_mm","value":1350.0,"unit":"mm","raw_value":"20cm to 135cm","source_url":"https://neverletgo.com/products/retractable-lanyard-double-carabiner","evidence_method":"manufacturer_stated","extractor":"nlg.v0.2"},
+      {"subject_type":"connector_spec","subject_ref":"tether_connector","property_key":"connector.swivel","value":true,"unit":null,"raw_value":"360 degree rotating/swivel interface","source_url":"https://neverletgo.com/products/retractable-lanyard-double-carabiner","evidence_method":"manufacturer_stated","extractor":"nlg.v0.2"}
+    ]},
+    {"manufacturer":"NLG","case_id":"nlg-b2-03","sku":"101691","catalogue_title":"Angle Grinder Bracket","product_type":"tool_attachment","acquisition_succeeded":true,"claims":[
+      {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":3.0,"unit":"kg","raw_value":"3 KG / 6.6 LBS","source_url":"https://neverletgo.com/products/angle-grinder-bracket","evidence_method":"manufacturer_stated","extractor":"nlg.v0.2"}
+    ]},
+    {"manufacturer":"NLG","case_id":"nlg-b2-04","sku":"101481","catalogue_title":"Mini Adhesive D Ring","product_type":"tool_attachment","acquisition_succeeded":true,"claims":[
+      {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":1.0,"unit":"kg","raw_value":"1 KG / 2.2 LBS","source_url":"https://neverletgo.com/products/mini-adhesive-d-ring","evidence_method":"manufacturer_stated","extractor":"nlg.v0.2"}
+    ]},
+    {"manufacturer":"NLG","case_id":"nlg-b2-05","sku":"101365","catalogue_title":"Adjustable Wristband","product_type":"anchor_attachment","acquisition_succeeded":true,"claims":[
+      {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":3.0,"unit":"kg","raw_value":"3 KG / 6.6 LBS","source_url":"https://neverletgo.com/products/wristband","evidence_method":"manufacturer_stated","extractor":"nlg.v0.2"}
+    ]},
+    {"manufacturer":"NLG","case_id":"nlg-b2-06","sku":"101705","catalogue_title":"Comfort Safety Belt","product_type":"anchor_attachment","acquisition_succeeded":true,"claims":[
+      {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":30.0,"unit":"kg","raw_value":"30 KG / 66 LBS","source_url":"https://neverletgo.com/products/comfort-belt","evidence_method":"manufacturer_stated","extractor":"nlg.v0.2"}
+    ]},
+    {"manufacturer":"NLG","case_id":"nlg-b2-07","sku":"101520","catalogue_title":"Ascent™ Pouch","product_type":"container","acquisition_succeeded":true,"claims":[
+      {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":5.0,"unit":"kg","raw_value":"5 KG / 11 LBS","source_url":"https://neverletgo.com/products/ascent-pouch","evidence_method":"manufacturer_stated","extractor":"nlg.v0.2"},
+      {"subject_type":"physical_interface","subject_ref":"internal_anchor","property_key":"rated_capacity_kg","value":5.0,"unit":"kg","raw_value":"Anchor Point / Daisy Chain Max Load: 5 KG","source_url":"https://neverletgo.com/products/ascent-pouch","evidence_method":"manufacturer_stated","extractor":"nlg.v0.2"}
+    ]},
+    {"manufacturer":"NLG","case_id":"nlg-b2-08","sku":"101492","catalogue_title":"Tall Tool Bag","product_type":"container","acquisition_succeeded":true,"claims":[
+      {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":20.0,"unit":"kg","raw_value":"20 KG / 44 LBS","source_url":"https://neverletgo.com/products/tall-tool-bag","evidence_method":"manufacturer_stated","extractor":"nlg.v0.2"},
+      {"subject_type":"physical_interface","subject_ref":"internal_anchor","property_key":"rated_capacity_kg","value":5.0,"unit":"kg","raw_value":"Anchor Point / Daisy Chain Max Load: 5 KG","source_url":"https://neverletgo.com/products/tall-tool-bag","evidence_method":"manufacturer_stated","extractor":"nlg.v0.2"}
+    ]}
+  ],
+  "summary": {"attempted":8,"acquired":8,"failed":0,"total_claims":15,"products_with_claims":8,"products_with_readiness_issues":0,"elapsed_ms":5019,"claim_key_counts":{"connector.swivel":1,"max_length_mm":2,"min_length_mm":2,"rated_capacity_kg":10},"acquisition_observation_codes":{},"readiness_issue_codes":{}}
+}

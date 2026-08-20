@@ -1,0 +1,76 @@
+{
+  "version": "0.1",
+  "benchmark": "batch2-nlg-blind-holdout",
+  "manufacturer": "NLG",
+  "purpose": "Unseen catalogue holdout for measuring NLG adapter generalization before any Batch 2 adapter changes.",
+  "selection_basis": {
+    "catalogue_url": "https://neverletgo.com/collections/all/products.json?limit=250",
+    "selected_from": "catalogue metadata only",
+    "golden_answers_defined_before_first_run": false,
+    "batch1_exclusions": [
+      "Bungee Tool Lanyard",
+      "360 D Ring Loop Tool Tether",
+      "Superlight Safety Tool Belt",
+      "MEWP Bag"
+    ]
+  },
+  "freeze": {
+    "base_commit": "48f45e58182da7085f907305967df83ac244ca11",
+    "git_blob_shas": {
+      "src/tetherlens_ingest/adapters/nlg.py": "99d29e1f2a6fe5db9d1a650a5f00f238a77cdcf6",
+      "src/tetherlens_ingest/adapters/common.py": "ed12978147932c367c537ea1908e935d59516e60",
+      "src/tetherlens_ingest/normalize.py": "12829a7252ccece8b47a219f25734e3ce40b6828",
+      "src/tetherlens_ingest/runner.py": "4db9651d2d365a58f769864c10a90c69db74c5b0"
+    }
+  },
+  "cases": [
+    {
+      "case_id": "nlg-b2-01",
+      "catalogue_title": "Extended Bungee Tool Lanyard",
+      "product_type": "tether"
+    },
+    {
+      "case_id": "nlg-b2-02",
+      "catalogue_title": "Heavy Duty Retractable Lanyard, Double Carabiner",
+      "product_type": "tether"
+    },
+    {
+      "case_id": "nlg-b2-03",
+      "catalogue_title": "Angle Grinder Bracket",
+      "product_type": "tool_attachment"
+    },
+    {
+      "case_id": "nlg-b2-04",
+      "catalogue_title": "Mini Adhesive D Ring",
+      "product_type": "tool_attachment"
+    },
+    {
+      "case_id": "nlg-b2-05",
+      "catalogue_title": "Adjustable Wristband",
+      "product_type": "anchor_attachment"
+    },
+    {
+      "case_id": "nlg-b2-06",
+      "catalogue_title": "Comfort Safety Belt",
+      "product_type": "anchor_attachment"
+    },
+    {
+      "case_id": "nlg-b2-07",
+      "catalogue_title": "Ascent&trade; Pouch",
+      "product_type": "container"
+    },
+    {
+      "case_id": "nlg-b2-08",
+      "catalogue_title": "Tall Tool Bag",
+      "product_type": "container"
+    }
+  ],
+  "protocol": [
+    "Do not change the frozen NLG rule files before inspecting the first run.",
+    "Resolve case identities from the live NLG catalogue endpoint before fetching any product-detail page.",
+    "Do not define expected claims or tune extraction based on these products before the first run.",
+    "Record the resolved cohort and catalogue snapshot hash before extraction.",
+    "Treat the first run as observational: do not score it against golden expectations.",
+    "After inspecting the first run, create a separate Batch 2 golden contract from independently verified evidence and only then consider adapter changes."
+  ]
+}
