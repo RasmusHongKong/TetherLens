@@ -197,7 +197,6 @@ def _angle_grinder_applicability(text: str) -> str | None:
         r"\b(?:designed|suitable|intended|made)\b.{0,90}\bangle\s+grinders?\b",
         r"\b(?:attach|install|fit)\w*\b.{0,90}\bangle\s+grinders?\b",
         r"\b(?:create|provide)\w*\b.{0,80}\btether\s+point\b.{0,80}\bangle\s+grinders?\b",
-        r"\bangle\s+grinders?\b.{0,90}\b(?:handle|bracket|attachment)\b",
     )
     return _first_evidence(text, patterns)
 
