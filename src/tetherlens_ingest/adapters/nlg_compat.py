@@ -266,7 +266,7 @@ def _minimum_bond_time_hours(text: str) -> tuple[float, str] | None:
     if not match or _match_is_negated(text, match):
         return None
     value = float(match.group("value") or match.group("value2"))
-    return value, re.sub(r"\s+", " ", match.group("raw")).strip()
+    return value, re.sub(r"\s+", " ", match.group(0)).strip()
 
 
 def _pre_use_attachment_test(text: str) -> str | None:
@@ -293,24 +293,49 @@ def _first_evidence(
 def _match_is_negated(text: str, match: re.Match[str]) -> bool:
     """Return whether a positive-looking match is negated in its local clause.
 
-    Look left only within the current sentence/line so a negation in an earlier
-    statement cannot suppress later positive evidence. `not only` is additive,
-    rather than prohibitive, so it is explicitly removed from the local context.
+    Inspect both sides of the match within the current clause. This catches both
+    prefix negation ("not suitable for angle grinders") and trailing qualifiers
+    ("use on curved surfaces is not supported") without letting negation in a
+    different sentence suppress valid evidence. `not only` is additive rather
+    than prohibitive and is ignored.
     """
-    boundary = max(
+    left_boundary = max(
         text.rfind(".", 0, match.start()),
         text.rfind("!", 0, match.start()),
         text.rfind("?", 0, match.start()),
+        text.rfind(";", 0, match.start()),
         text.rfind("\n", 0, match.start()),
     )
-    context = re.sub(r"\s+", " ", text[boundary + 1:match.end()]).strip()
-    context = re.sub(r"\bnot\s+only\b", "", context, flags=re.I)
-    return bool(re.search(
+    right_candidates = [
+        index for index in (
+            text.find(".", match.end()),
+            text.find("!", match.end()),
+            text.find("?", match.end()),
+            text.find(";", match.end()),
+            text.find("\n", match.end()),
+        )
+        if index >= 0
+    ]
+    right_boundary = min(right_candidates) if right_candidates else len(text)
+
+    prefix = re.sub(r"\s+", " ", text[left_boundary + 1:match.end()]).strip()
+    suffix = re.sub(r"\s+", " ", text[match.start():right_boundary]).strip()
+    prefix = re.sub(r"\bnot\s+only\b", "", prefix, flags=re.I)
+    suffix = re.sub(r"\bnot\s+only\b", "", suffix, flags=re.I)
+
+    prefix_negated = bool(re.search(
         r"\b(?:not|never|cannot|can't|do\s+not|don't|does\s+not|doesn't|"
         r"must\s+not|should\s+not|is\s+not|isn't|are\s+not|aren't)\b.{0,100}$",
-        context,
+        prefix,
         re.I | re.S,
     ))
+    trailing_negated = bool(re.search(
+        r"^.{0,120}\b(?:is|are|was|were|be|being)?\s*(?:not|never)\s+"
+        r"(?:supported|required|recommended|suitable|compatible|permitted|allowed|intended)\b",
+        suffix,
+        re.I | re.S,
+    ))
+    return prefix_negated or trailing_negated
 
 
 def _dedupe_requests(requests: list[SourceRequest]) -> list[SourceRequest]:
