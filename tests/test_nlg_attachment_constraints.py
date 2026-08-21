@@ -69,6 +69,11 @@ def test_negated_curved_surface_capability_is_not_emitted():
     assert not any(key[0] == "supported_surface_profile" for key in claims)
 
 
+def test_trailing_negation_rejects_curved_surface_capability():
+    claims = claim_map("Use on curved surfaces is not supported.", sku="101481")
+    assert not any(key[0] == "supported_surface_profile" for key in claims)
+
+
 def test_negated_flat_surface_instruction_is_not_emitted_as_requirement():
     claims = claim_map(
         "Do not attach the D Ring to a flat surface.",
@@ -76,6 +81,26 @@ def test_negated_flat_surface_instruction_is_not_emitted_as_requirement():
         source_type=SourceType.MANUFACTURER_DOCUMENT,
     )
     assert not any(key[0] == "installation_surface_profile" for key in claims)
+
+
+def test_trailing_negation_rejects_pre_use_test_requirement():
+    claims = claim_map(
+        "A test of the tether point before use is not required.",
+        sku="101481",
+        source_type=SourceType.MANUFACTURER_DOCUMENT,
+    )
+    assert not any(key[0] == "pre_use_attachment_test_required" for key in claims)
+
+
+def test_number_led_bond_time_returns_raw_evidence():
+    claims = claim_map(
+        "24 hours to fully bond.",
+        sku="101481",
+        source_type=SourceType.MANUFACTURER_DOCUMENT,
+    )
+    bond = claims[("minimum_bond_time_h", "24.0")]
+    assert bond.raw_value == "24 hours to fully bond"
+    assert bond.constraint_operator == ConstraintOperator.GTE
 
 
 def test_adhesive_instructions_emit_atomic_installation_constraints():
