@@ -19,14 +19,32 @@ def identity() -> ProductIdentity:
     )
 
 
-def method_value(body: str) -> str | None:
+def method_claim(body: str):
     claims = NLGAdapter().extract(identity(), [artifact(body)])
-    claim = next((c for c in claims if c.property_key == "attachment_method_code"), None)
+    return next((c for c in claims if c.property_key == "attachment_method_code"), None)
+
+
+def method_value(body: str) -> str | None:
+    claim = method_claim(body)
     return str(claim.value) if claim else None
 
 
 def test_nlg_normalizes_adhesive_attachment():
     assert method_value("The D ring uses 3M adhesive technology to bond to the tool surface.") == "adhesive"
+
+
+def test_nlg_prefers_contextual_adhesive_evidence_over_product_title():
+    body = """
+    <h1>Mini Adhesive D Ring</h1>
+    <div>Free shipping on qualifying orders.</div>
+    <p>The D ring uses 3M adhesive technology to bond permanently to the tool surface.</p>
+    """
+    claim = method_claim(body)
+    assert claim is not None
+    assert claim.value == "adhesive"
+    assert "uses 3M adhesive technology" in claim.raw_value
+    assert "bond permanently to the tool surface" in claim.raw_value
+    assert "Free shipping" not in claim.raw_value
 
 
 def test_nlg_does_not_treat_adhesive_free_tape_as_adhesive_attachment():
