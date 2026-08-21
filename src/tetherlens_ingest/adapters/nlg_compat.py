@@ -225,8 +225,8 @@ def _flat_surface_installation_requirement(text: str) -> str | None:
 def _required_surface_conditions(text: str) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
     clean = _first_evidence(text, (
-        r"\bsurface\b.{0,80}\b(?:must\s+be|should\s+be|is)\s+clean\b",
-        r"\bclean\s+(?:the\s+)?(?:tool\s+)?surface\b",
+        r"\bsurfaces?\b.{0,80}\b(?:must\s+be|should\s+be|is|are)\s+clean\b",
+        r"\bclean\s+(?:the\s+)?(?:tool\s+)?surfaces?\b",
     ))
     if clean:
         out.append(("clean", clean))
@@ -242,9 +242,9 @@ def _required_surface_conditions(text: str) -> list[tuple[str, str]]:
 
 def _removable_part_prohibition(text: str) -> str | None:
     patterns = (
-        r"\b(?:do\s+not|never|must\s+not)\b.{0,120}\b(?:battery\s+compartment\s+)?(?:door|cover)\b",
-        r"\b(?:battery\s+compartment\s+)?(?:door|cover)\b.{0,120}\b(?:can|may)\s+(?:come|be\s+removed|detach)\b",
-        r"\bremovable\b.{0,60}\b(?:door|cover|part)\b",
+        r"\b(?:do\s+not|never|must\s+not)\b.{0,180}\b(?:doors?|covers?)\b",
+        r"\b(?:doors?|covers?)\b.{0,160}\b(?:can|may)\s+(?:come|be\s+removed|detach)\b",
+        r"\bremovable\b.{0,80}\b(?:doors?|covers?|parts?)\b",
     )
     return _first_evidence(text, patterns)
 
@@ -264,8 +264,8 @@ def _minimum_bond_time_hours(text: str) -> tuple[float, str] | None:
 
 def _pre_use_attachment_test(text: str) -> str | None:
     patterns = (
-        r"\btest\b.{0,100}\b(?:attachment|tether\s+point|d[\s-]?ring)\b.{0,80}\bbefore\s+use\b",
-        r"\bbefore\s+use\b.{0,100}\btest\b.{0,100}\b(?:attachment|tether\s+point|d[\s-]?ring)\b",
+        r"\btest\b.{0,100}\b(?:attachment|tether\s+point|d[\s-]?ring)\b.{0,120}\bbefore\b.{0,80}\buse\b",
+        r"\bbefore\b.{0,80}\buse\b.{0,120}\btest\b.{0,100}\b(?:attachment|tether\s+point|d[\s-]?ring)\b",
     )
     return _first_evidence(text, patterns)
 
