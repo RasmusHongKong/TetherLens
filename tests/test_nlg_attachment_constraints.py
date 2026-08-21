@@ -59,6 +59,25 @@ def test_bare_angle_grinder_product_title_does_not_create_declared_scope():
     assert not any(key[0] == "applicable_tool_category_code" for key in claims)
 
 
+def test_negated_angle_grinder_applicability_is_not_emitted():
+    claims = claim_map("This attachment is not suitable for angle grinders.")
+    assert not any(key[0] == "applicable_tool_category_code" for key in claims)
+
+
+def test_negated_curved_surface_capability_is_not_emitted():
+    claims = claim_map("This attachment is not for curved surfaces.", sku="101481")
+    assert not any(key[0] == "supported_surface_profile" for key in claims)
+
+
+def test_negated_flat_surface_instruction_is_not_emitted_as_requirement():
+    claims = claim_map(
+        "Do not attach the D Ring to a flat surface.",
+        sku="101481",
+        source_type=SourceType.MANUFACTURER_DOCUMENT,
+    )
+    assert not any(key[0] == "installation_surface_profile" for key in claims)
+
+
 def test_adhesive_instructions_emit_atomic_installation_constraints():
     body = """
     Attach the D Ring to a flat surface on the tool. The surface must be clean and grease-free.
@@ -81,6 +100,26 @@ def test_adhesive_instructions_emit_atomic_installation_constraints():
         if claim.claim_type == ClaimType.DECLARED_CONSTRAINT
     }
     assert expected <= actual
+
+
+def test_neutral_removable_part_mention_does_not_create_prohibition():
+    claims = claim_map(
+        "The tool has a removable battery cover for servicing.",
+        sku="101481",
+        source_type=SourceType.MANUFACTURER_DOCUMENT,
+    )
+    assert not any(key[0] == "prohibited_tool_part_type" for key in claims)
+
+
+def test_explicit_removable_part_prohibition_is_preserved():
+    claims = claim_map(
+        "Do not attach the tether point to a removable battery cover.",
+        sku="101481",
+        source_type=SourceType.MANUFACTURER_DOCUMENT,
+    )
+    prohibited = claims[("prohibited_tool_part_type", "removable_cover_or_door")]
+    assert prohibited.claim_type == ClaimType.DECLARED_CONSTRAINT
+    assert prohibited.constraint_operator == ConstraintOperator.PROHIBITS
 
 
 def test_curved_surface_capability_remains_distinct_from_flat_installation_requirement():
