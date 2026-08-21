@@ -1,20 +1,22 @@
 {
-  "version": "1.0",
-  "description": "Source-graph and generalized NLG constraint expectations layered onto the Batch 1 golden contract.",
+  "version": "1.1",
+  "description": "Source-graph and generalized NLG constraint expectations layered onto the Batch 1 golden contract. Version 1.1 carries primitive ToolAttachment attachment-method semantics through the NLG source-graph overlay.",
   "products": {
     "NLG:101363": {
       "expected_claims": [
         {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 3.0},
         {"subject_type": "physical_interface", "subject_ref": "rotating_interface", "property_key": "connector.swivel", "value": true},
         {"subject_type": "physical_interface", "subject_ref": "loop_interface", "property_key": "interface.loop_present", "value": true},
-        {"subject_type": "product", "subject_ref": "self", "property_key": "max_lanyard_length_mm", "value": 2000.0}
+        {"subject_type": "product", "subject_ref": "self", "property_key": "max_lanyard_length_mm", "value": 2000.0},
+        {"subject_type": "product", "subject_ref": "self", "property_key": "attachment_method_code", "value": "cinch"}
       ],
       "forbidden_claims": [],
       "ignored_claims": [],
       "recommendation_data": {
         "baseline_requirements": [
           {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 3.0}], "gap_if_missing": "public_fact_missing"},
-          {"name": "max_lanyard_length", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "max_lanyard_length_mm", "value": 2000.0}], "gap_if_missing": "public_fact_missing"}
+          {"name": "max_lanyard_length", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "max_lanyard_length_mm", "value": 2000.0}], "gap_if_missing": "public_fact_missing"},
+          {"name": "attachment_method", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "attachment_method_code", "value": "cinch"}], "gap_if_missing": "public_fact_missing"}
         ],
         "known_gaps": [
           {"category": "internal_measurement", "field": "d_ring_geometry", "detail": "Generic connector engagement still needs D-ring/interface geometry."}

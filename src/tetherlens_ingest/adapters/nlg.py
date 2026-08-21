@@ -10,6 +10,7 @@ from tetherlens_ingest.models import CandidateClaim, ClaimSubjectType, ProductId
 from tetherlens_ingest.normalize import length_to_mm, opening_action_count, parse_length_range_mm, parse_mass
 from .base import ManufacturerAdapter
 from .common import page_text
+from .nlg_attachment import attachment_method_code, attachment_method_evidence
 
 
 _FULL_ROTATION = r"360\s*(?:[°º]|degrees?)"
@@ -197,6 +198,17 @@ class NLGAdapter(ManufacturerAdapter):
                     artifact.url,
                 ))
 
+            # ToolAttachment retention is a reusable primitive mechanism, separate
+            # from tool geometry, companion products and installation constraints.
+            if identity.product_type == ProductType.TOOL_ATTACHMENT and (method := attachment_method_code(text)):
+                claims.append(self._claim(
+                    "attachment_method_code",
+                    method,
+                    None,
+                    attachment_method_evidence(text, method),
+                    artifact.url,
+                ))
+
             # Preserve an interface-specific rating separately from a belt's overall
             # load. This phrase-based rule is intentionally scoped to an explicitly
             # named bottom D-ring interface rather than any nearby load value.
@@ -259,7 +271,7 @@ class NLGAdapter(ManufacturerAdapter):
             unit=unit,
             raw_value=raw,
             source_url=url,
-            extractor="nlg.v0.5",
+            extractor="nlg.v0.6",
         )
 
 
