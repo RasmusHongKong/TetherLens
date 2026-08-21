@@ -293,11 +293,12 @@ def _first_evidence(
 def _match_is_negated(text: str, match: re.Match[str]) -> bool:
     """Return whether a positive-looking match is negated in its local clause.
 
-    Inspect both sides of the match within the current clause. This catches both
-    prefix negation ("not suitable for angle grinders") and trailing qualifiers
-    ("use on curved surfaces is not supported") without letting negation in a
-    different sentence suppress valid evidence. `not only` is additive rather
-    than prohibitive and is ignored.
+    Inspect both sides of the match. Prefix negation is checked within the current
+    sentence/line, while trailing negation must be the predicate immediately after
+    the matched phrase. This catches both "not suitable for angle grinders" and
+    "use on curved surfaces is not supported" without borrowing a negation from a
+    later coordinated clause. `not only` is additive rather than prohibitive and is
+    ignored.
     """
     left_boundary = max(
         text.rfind(".", 0, match.start()),
@@ -319,7 +320,7 @@ def _match_is_negated(text: str, match: re.Match[str]) -> bool:
     right_boundary = min(right_candidates) if right_candidates else len(text)
 
     prefix = re.sub(r"\s+", " ", text[left_boundary + 1:match.end()]).strip()
-    suffix = re.sub(r"\s+", " ", text[match.start():right_boundary]).strip()
+    suffix = re.sub(r"\s+", " ", text[match.end():right_boundary]).strip()
     prefix = re.sub(r"\bnot\s+only\b", "", prefix, flags=re.I)
     suffix = re.sub(r"\bnot\s+only\b", "", suffix, flags=re.I)
 
@@ -330,7 +331,7 @@ def _match_is_negated(text: str, match: re.Match[str]) -> bool:
         re.I | re.S,
     ))
     trailing_negated = bool(re.search(
-        r"^.{0,120}\b(?:is|are|was|were|be|being)?\s*(?:not|never)\s+"
+        r"^(?:(?:is|are|was|were|be|being)\s+)?(?:not|never)\s+"
         r"(?:supported|required|recommended|suitable|compatible|permitted|allowed|intended)\b",
         suffix,
         re.I | re.S,
