@@ -33,6 +33,24 @@ class ClaimSubjectType(StrEnum):
     OPERATIONAL_PROFILE = "operational_profile"
 
 
+class ClaimType(StrEnum):
+    DIRECT = "direct"
+    MEASURED = "measured"
+    DECLARED_CONSTRAINT = "declared_constraint"
+    DERIVED = "derived"
+
+
+class ConstraintOperator(StrEnum):
+    EQ = "eq"
+    NEQ = "neq"
+    LT = "lt"
+    LTE = "lte"
+    GT = "gt"
+    GTE = "gte"
+    REQUIRES = "requires"
+    PROHIBITS = "prohibits"
+
+
 class ProductIdentity(BaseModel):
     manufacturer: str
     product_type: ProductType = ProductType.UNKNOWN
@@ -69,6 +87,10 @@ class CandidateClaim(BaseModel):
     supporting_source_urls: list[str] = Field(default_factory=list)
     evidence_method: str = "manufacturer_stated"
     extractor: str
+    # Transitional ingestion metadata. Existing adapters can remain unclassified
+    # while new structured constraints map explicitly to the persisted Claim model.
+    claim_type: ClaimType | None = None
+    constraint_operator: ConstraintOperator | None = None
 
 
 class AcquisitionObservation(BaseModel):
