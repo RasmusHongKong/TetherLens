@@ -2,40 +2,6 @@ from __future__ import annotations
 
 import re
 
-from tetherlens_ingest.models import ProductIdentity, ProductType, SourceArtifact
-
-from .common import page_text
-from .nlg import NLGAdapter as _BaseNLGAdapter
-
-
-class NLGAdapter(_BaseNLGAdapter):
-    """NLG adapter with normalized primitive ToolAttachment retention semantics."""
-
-    def extract(self, identity: ProductIdentity, artifacts: list[SourceArtifact]):
-        claims = super().extract(identity, artifacts)
-        if identity.product_type != ProductType.TOOL_ATTACHMENT:
-            return claims
-
-        for artifact in artifacts:
-            if "json" in artifact.content_type:
-                continue
-            text = page_text(artifact.body)
-            method = attachment_method_code(text)
-            if method and not any(
-                claim.subject_ref == "self"
-                and claim.property_key == "attachment_method_code"
-                and claim.value == method
-                for claim in claims
-            ):
-                claims.append(self._claim(
-                    "attachment_method_code",
-                    method,
-                    None,
-                    _attachment_method_evidence(text, method),
-                    artifact.url,
-                ))
-        return claims
-
 
 def attachment_method_code(text: str) -> str | None:
     """Return the primary primitive mechanism retaining a ToolAttachment on a tool.
@@ -106,16 +72,7 @@ def attachment_method_code(text: str) -> str | None:
     return None
 
 
-def _without_negative_adhesive_phrases(text: str) -> str:
-    return re.sub(
-        r"\b(?:no|without)\s+adhesive\b|\badhesive[-\s]?(?:free|less)\b",
-        " ",
-        text,
-        flags=re.I,
-    )
-
-
-def _attachment_method_evidence(text: str, method: str) -> str:
+def attachment_method_evidence(text: str, method: str) -> str:
     if method == "adhesive":
         return _adhesive_evidence(text)
 
@@ -131,11 +88,24 @@ def _attachment_method_evidence(text: str, method: str) -> str:
     return re.sub(r"\s+", " ", match.group(0)).strip()
 
 
+def _without_negative_adhesive_phrases(text: str) -> str:
+    return re.sub(
+        r"\b(?:no|without)\s+adhesive\b|\badhesive[-\s]?(?:free|less)\b",
+        " ",
+        text,
+        flags=re.I,
+    )
+
+
 def _adhesive_evidence(text: str) -> str:
     collapsed = re.sub(r"\s+", " ", text).strip()
     candidates: list[tuple[int, int, str]] = []
     for match in re.finditer(r"\b(?:3m\s+)?adhesive\b", collapsed, re.I):
-        left = max(collapsed.rfind(".", 0, match.start()), collapsed.rfind("!", 0, match.start()), collapsed.rfind("?", 0, match.start()))
+        left = max(
+            collapsed.rfind(".", 0, match.start()),
+            collapsed.rfind("!", 0, match.start()),
+            collapsed.rfind("?", 0, match.start()),
+        )
         right_positions = [
             position
             for position in (
@@ -153,7 +123,11 @@ def _adhesive_evidence(text: str) -> str:
         score = 0
         if re.search(r"\b3m\s+adhesive\b", sentence, re.I):
             score += 2
-        if re.search(r"\b(?:use|uses|using|with|via|bond|bonds|bonding|attach|attaches|surface|technology|pad|permanent|permanently)\b", sentence, re.I):
+        if re.search(
+            r"\b(?:use|uses|using|with|via|bond|bonds|bonding|attach|attaches|surface|technology|pad|permanent|permanently)\b",
+            sentence,
+            re.I,
+        ):
             score += 3
         if re.search(r"\b(?:shipping|orders?|free shipping)\b", sentence, re.I):
             score -= 4
