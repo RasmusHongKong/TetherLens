@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 from bs4 import BeautifulSoup
 
@@ -54,13 +54,17 @@ class NLGAdapter(BaseNLGAdapter):
 
         # NLG currently exposes product instructions under a stable first-party
         # SKU path. Use this as a generic manufacturer-document fallback when the
-        # storefront omits the download link from rendered HTML.
+        # storefront omits the download link from rendered HTML. If the page already
+        # supplied the same SKU document with a cache-busting query string, do not
+        # fetch it again under the canonical path.
         if identity.sku and re.fullmatch(r"\d{6}", identity.sku):
-            requests.append(SourceRequest(
-                url=f"https://go.neverletgo.com/hubfs/Product/Instructions/{identity.sku}.pdf",
-                source_type=SourceType.MANUFACTURER_DOCUMENT,
-                metadata={"role": "product_instructions", "relationship_basis": "manufacturer_sku_path"},
-            ))
+            instruction_path = f"/hubfs/Product/Instructions/{identity.sku}.pdf"
+            if not any(urlsplit(request.url).path == instruction_path for request in requests):
+                requests.append(SourceRequest(
+                    url=f"https://go.neverletgo.com{instruction_path}",
+                    source_type=SourceType.MANUFACTURER_DOCUMENT,
+                    metadata={"role": "product_instructions", "relationship_basis": "manufacturer_sku_path"},
+                ))
 
         return _dedupe_requests(requests)
 
@@ -187,10 +191,12 @@ def _constraint_claim(
 
 
 def _angle_grinder_applicability(text: str) -> str | None:
+    # Product titles or related-product cards are not sufficient on their own.
+    # Require contextual copy that actually scopes the attachment to angle grinders.
     patterns = (
-        r"\bangle\s+grinder\s+bracket\b",
         r"\b(?:designed|suitable|intended|made)\b.{0,90}\bangle\s+grinders?\b",
         r"\b(?:attach|install|fit)\w*\b.{0,90}\bangle\s+grinders?\b",
+        r"\b(?:create|provide)\w*\b.{0,80}\btether\s+point\b.{0,80}\bangle\s+grinders?\b",
         r"\bangle\s+grinders?\b.{0,90}\b(?:handle|bracket|attachment)\b",
     )
     return _first_evidence(text, patterns)
