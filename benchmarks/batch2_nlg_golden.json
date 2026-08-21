@@ -1,6 +1,6 @@
 {
-  "version": "0.6",
-  "description": "Batch 2 NLG post-blind contract. Blind run 130 remains immutable. Version 0.6 adds primitive ToolAttachment attachment-method semantics while preserving independent geometry, surface/application and evidence gaps.",
+  "version": "0.7",
+  "description": "Batch 2 NLG post-blind contract. Blind run 130 remains immutable. Version 0.7 adds reusable ToolAttachment applicability and installation-constraint semantics while preserving the NLG 101481 surface-profile evidence tension.",
   "blind_reference": {
     "workflow_run_id": 32273707247,
     "artifact_id": 9373169405,
@@ -71,35 +71,50 @@
       "expected_claims": [
         {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":3.0},
         {"subject_type":"product","subject_ref":"self","property_key":"max_lanyard_length_mm","value":2000.0},
-        {"subject_type":"product","subject_ref":"self","property_key":"attachment_method_code","value":"mechanical_capture"}
+        {"subject_type":"product","subject_ref":"self","property_key":"attachment_method_code","value":"mechanical_capture"},
+        {"subject_type":"product","subject_ref":"self","property_key":"applicable_tool_category_code","value":"angle_grinder"},
+        {"subject_type":"product","subject_ref":"self","property_key":"required_tool_feature_type","value":"handle"}
       ],
       "forbidden_claims": [], "ignored_claims": [],
       "recommendation_data": {
         "baseline_requirements": [
           {"name":"rated_capacity","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":3.0}],"gap_if_missing":"extraction_gap"},
           {"name":"max_lanyard_length","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"max_lanyard_length_mm","value":2000.0}],"gap_if_missing":"extraction_gap"},
-          {"name":"attachment_method","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"attachment_method_code","value":"mechanical_capture"}],"gap_if_missing":"extraction_gap"}
+          {"name":"attachment_method","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"attachment_method_code","value":"mechanical_capture"}],"gap_if_missing":"extraction_gap"},
+          {"name":"applicable_tool_category","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"applicable_tool_category_code","value":"angle_grinder"}],"gap_if_missing":"extraction_gap"},
+          {"name":"required_tool_feature","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"required_tool_feature_type","value":"handle"}],"gap_if_missing":"extraction_gap"}
         ],
-        "known_gaps": [
-          {"category":"claim_vocabulary_gap","field":"required_tool_geometry","detail":"The handle requirement is not yet represented as a reusable tool-geometry compatibility claim."}
-        ]
+        "known_gaps": []
       }
     },
     "NLG:101481": {
       "expected_claims": [
         {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":1.0},
         {"subject_type":"product","subject_ref":"self","property_key":"max_lanyard_length_mm","value":1200.0},
-        {"subject_type":"product","subject_ref":"self","property_key":"attachment_method_code","value":"adhesive"}
+        {"subject_type":"product","subject_ref":"self","property_key":"attachment_method_code","value":"adhesive"},
+        {"subject_type":"product","subject_ref":"self","property_key":"supported_surface_profile","value":"curved"},
+        {"subject_type":"product","subject_ref":"self","property_key":"installation_surface_profile","value":"flat"},
+        {"subject_type":"product","subject_ref":"self","property_key":"required_surface_condition","value":"clean"},
+        {"subject_type":"product","subject_ref":"self","property_key":"required_surface_condition","value":"grease_free"},
+        {"subject_type":"product","subject_ref":"self","property_key":"prohibited_tool_part_type","value":"removable_cover_or_door"},
+        {"subject_type":"product","subject_ref":"self","property_key":"minimum_bond_time_h","value":24.0},
+        {"subject_type":"product","subject_ref":"self","property_key":"pre_use_attachment_test_required","value":true}
       ],
       "forbidden_claims": [], "ignored_claims": [],
       "recommendation_data": {
         "baseline_requirements": [
           {"name":"rated_capacity","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":1.0}],"gap_if_missing":"extraction_gap"},
           {"name":"max_lanyard_length","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"max_lanyard_length_mm","value":1200.0}],"gap_if_missing":"extraction_gap"},
-          {"name":"attachment_method","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"attachment_method_code","value":"adhesive"}],"gap_if_missing":"extraction_gap"}
+          {"name":"attachment_method","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"attachment_method_code","value":"adhesive"}],"gap_if_missing":"extraction_gap"},
+          {"name":"installation_surface_profile","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"installation_surface_profile","value":"flat"}],"gap_if_missing":"extraction_gap"},
+          {"name":"surface_clean","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"required_surface_condition","value":"clean"}],"gap_if_missing":"extraction_gap"},
+          {"name":"surface_grease_free","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"required_surface_condition","value":"grease_free"}],"gap_if_missing":"extraction_gap"},
+          {"name":"not_removable_cover_or_door","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"prohibited_tool_part_type","value":"removable_cover_or_door"}],"gap_if_missing":"extraction_gap"},
+          {"name":"minimum_bond_time","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"minimum_bond_time_h","value":24.0}],"gap_if_missing":"extraction_gap"},
+          {"name":"pre_use_attachment_test","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"pre_use_attachment_test_required","value":true}],"gap_if_missing":"extraction_gap"}
         ],
         "known_gaps": [
-          {"category":"claim_vocabulary_gap","field":"attachment_constraints","detail":"Eligible surface/material, removable-part restrictions and adhesive application/cure requirements are not yet structured."}
+          {"category":"evidence_scope_tension","field":"surface_profile","detail":"Current NLG descriptive copy says the adhesive D Ring can work on curved surfaces while current product instructions prescribe installation on a flat surface. Recommendation eligibility follows the prescriptive installation constraint; the broader curved-surface capability remains retained but does not expand eligibility until reconciled."}
         ]
       }
     },
