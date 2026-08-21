@@ -198,7 +198,7 @@ def _angle_grinder_applicability(text: str) -> str | None:
         r"\b(?:attach|install|fit)\w*\b.{0,90}\bangle\s+grinders?\b",
         r"\b(?:create|provide)\w*\b.{0,80}\btether\s+point\b.{0,80}\bangle\s+grinders?\b",
     )
-    return _first_evidence(text, patterns)
+    return _first_evidence(text, patterns, reject_negated=True)
 
 
 def _handle_requirement(text: str) -> str | None:
@@ -207,7 +207,7 @@ def _handle_requirement(text: str) -> str | None:
         r"\b(?:attach\w*|secure\w*|fit\w*|install\w*)\b.{0,100}\b(?:angle\s+grinder(?:'s)?\s+)?handle\b",
         r"\bangle\s+grinder(?:'s)?\s+handle\b",
     )
-    return _first_evidence(text, patterns)
+    return _first_evidence(text, patterns, reject_negated=True)
 
 
 def _curved_surface_capability(text: str) -> str | None:
@@ -216,7 +216,7 @@ def _curved_surface_capability(text: str) -> str | None:
         r"\bworks?\b.{0,60}\bcurved\s+surfaces?\b",
         r"\bcurved\s+surfaces?\b.{0,60}\b(?:suitable|compatible|works?)\b",
     )
-    return _first_evidence(text, patterns)
+    return _first_evidence(text, patterns, reject_negated=True)
 
 
 def _flat_surface_installation_requirement(text: str) -> str | None:
@@ -224,7 +224,7 @@ def _flat_surface_installation_requirement(text: str) -> str | None:
         r"\b(?:attach|apply|install|place|position)\w*\b.{0,90}\b(?:a\s+)?flat\s+surface\b",
         r"\bflat\s+surface\b.{0,90}\b(?:attach|apply|install|place|position)\w*\b",
     )
-    return _first_evidence(text, patterns)
+    return _first_evidence(text, patterns, reject_negated=True)
 
 
 def _required_surface_conditions(text: str) -> list[tuple[str, str]]:
@@ -232,24 +232,26 @@ def _required_surface_conditions(text: str) -> list[tuple[str, str]]:
     clean = _first_evidence(text, (
         r"\bsurfaces?\b.{0,80}\b(?:must\s+be|should\s+be|is|are)\s+clean\b",
         r"\bclean\s+(?:the\s+)?(?:tool\s+)?surfaces?\b",
-    ))
+    ), reject_negated=True)
     if clean:
         out.append(("clean", clean))
 
     grease_free = _first_evidence(text, (
         r"\b(?:grease[-\s]?free|free\s+(?:from|of)\s+grease)\b",
         r"\bremove\b.{0,50}\bgrease\b",
-    ))
+    ), reject_negated=True)
     if grease_free:
         out.append(("grease_free", grease_free))
     return out
 
 
 def _removable_part_prohibition(text: str) -> str | None:
+    # A neutral mention of a removable cover/door is not a restriction. Require
+    # explicit prohibitive installation language or an explicit detachment hazard.
     patterns = (
-        r"\b(?:do\s+not|never|must\s+not)\b.{0,180}\b(?:doors?|covers?)\b",
-        r"\b(?:doors?|covers?)\b.{0,160}\b(?:can|may)\s+(?:come|be\s+removed|detach)\b",
-        r"\bremovable\b.{0,80}\b(?:doors?|covers?|parts?)\b",
+        r"\b(?:do\s+not|never|must\s+not|avoid)\b.{0,100}\b(?:attach|apply|install|place|position|stick)\w*\b.{0,140}\b(?:doors?|covers?|removable\s+(?:doors?|covers?|parts?))\b",
+        r"\b(?:do\s+not|never|must\s+not|avoid)\b.{0,180}\bremovable\s+(?:doors?|covers?|parts?)\b",
+        r"\b(?:doors?|covers?)\b.{0,120}\b(?:can|may)\s+(?:come\s+off|detach|separate)\b.{0,100}\b(?:tool|attachment|tether\s+point)\b",
     )
     return _first_evidence(text, patterns)
 
@@ -261,7 +263,7 @@ def _minimum_bond_time_hours(text: str) -> tuple[float, str] | None:
         text,
         re.I | re.S,
     )
-    if not match:
+    if not match or _match_is_negated(text, match):
         return None
     value = float(match.group("value") or match.group("value2"))
     return value, re.sub(r"\s+", " ", match.group("raw")).strip()
@@ -272,15 +274,43 @@ def _pre_use_attachment_test(text: str) -> str | None:
         r"\btest\b.{0,100}\b(?:attachment|tether\s+point|d[\s-]?ring)\b.{0,120}\bbefore\b.{0,80}\buse\b",
         r"\bbefore\b.{0,80}\buse\b.{0,120}\btest\b.{0,100}\b(?:attachment|tether\s+point|d[\s-]?ring)\b",
     )
-    return _first_evidence(text, patterns)
+    return _first_evidence(text, patterns, reject_negated=True)
 
 
-def _first_evidence(text: str, patterns: tuple[str, ...]) -> str | None:
+def _first_evidence(
+    text: str,
+    patterns: tuple[str, ...],
+    *,
+    reject_negated: bool = False,
+) -> str | None:
     for pattern in patterns:
         match = re.search(pattern, text, re.I | re.S)
-        if match:
+        if match and (not reject_negated or not _match_is_negated(text, match)):
             return re.sub(r"\s+", " ", match.group(0)).strip()
     return None
+
+
+def _match_is_negated(text: str, match: re.Match[str]) -> bool:
+    """Return whether a positive-looking match is negated in its local clause.
+
+    Look left only within the current sentence/line so a negation in an earlier
+    statement cannot suppress later positive evidence. `not only` is additive,
+    rather than prohibitive, so it is explicitly removed from the local context.
+    """
+    boundary = max(
+        text.rfind(".", 0, match.start()),
+        text.rfind("!", 0, match.start()),
+        text.rfind("?", 0, match.start()),
+        text.rfind("\n", 0, match.start()),
+    )
+    context = re.sub(r"\s+", " ", text[boundary + 1:match.end()]).strip()
+    context = re.sub(r"\bnot\s+only\b", "", context, flags=re.I)
+    return bool(re.search(
+        r"\b(?:not|never|cannot|can't|do\s+not|don't|does\s+not|doesn't|"
+        r"must\s+not|should\s+not|is\s+not|isn't|are\s+not|aren't)\b.{0,100}$",
+        context,
+        re.I | re.S,
+    ))
 
 
 def _dedupe_requests(requests: list[SourceRequest]) -> list[SourceRequest]:
