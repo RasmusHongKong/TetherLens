@@ -117,13 +117,20 @@ def _without_negative_adhesive_phrases(text: str) -> str:
 
 def _attachment_method_evidence(text: str, method: str) -> str:
     patterns = {
-        "adhesive": r".{0,40}\b(?:3m\s+)?adhesive\b.{0,80}",
-        "mechanical_capture": r".{0,50}\b(?:bracket|attachment)\b.{0,150}\bhandle\b.{0,50}",
-        "through_feature": r".{0,50}\b(?:pass|feed|thread)\w*\b.{0,180}\b(?:hole|handle|eye)\b.{0,80}",
-        "cinch": r".{0,50}\b(?:cinch|cinched|cinching|choke)\b.{0,120}",
-        "wrap": r".{0,50}\bwrap(?:s|ped|ping)?\b.{0,120}\b(?:around|round)\b.{0,50}",
+        "adhesive": (
+            # Prefer explanatory installation/bonding copy over a product-title
+            # occurrence such as "Mini Adhesive D Ring".
+            r".{0,60}\b(?:uses?|using|with|via)\b.{0,80}\b(?:3m\s+)?adhesive\b.{0,100}",
+            r".{0,50}\b(?:3m\s+)?adhesive\b.{0,100}\b(?:bond|attach|surface|technology|pad|permanent)\w*\b.{0,50}",
+            r".{0,40}\b(?:3m\s+)?adhesive\b.{0,80}",
+        ),
+        "mechanical_capture": (r".{0,50}\b(?:bracket|attachment)\b.{0,150}\bhandle\b.{0,50}",),
+        "through_feature": (r".{0,50}\b(?:pass|feed|thread)\w*\b.{0,180}\b(?:hole|handle|eye)\b.{0,80}",),
+        "cinch": (r".{0,50}\b(?:cinch|cinched|cinching|choke)\b.{0,120}",),
+        "wrap": (r".{0,50}\bwrap(?:s|ped|ping)?\b.{0,120}\b(?:around|round)\b.{0,50}",),
     }
-    match = re.search(patterns[method], text, re.I | re.S)
-    if not match:
-        return method
-    return re.sub(r"\s+", " ", match.group(0)).strip()
+    for pattern in patterns[method]:
+        match = re.search(pattern, text, re.I | re.S)
+        if match:
+            return re.sub(r"\s+", " ", match.group(0)).strip()
+    return method
