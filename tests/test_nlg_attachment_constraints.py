@@ -54,6 +54,11 @@ def test_handle_geometry_does_not_create_angle_grinder_scope_by_itself():
     assert not any(key[0] == "applicable_tool_category_code" for key in claims)
 
 
+def test_bare_angle_grinder_product_title_does_not_create_declared_scope():
+    claims = claim_map("Related products: Angle Grinder Bracket")
+    assert not any(key[0] == "applicable_tool_category_code" for key in claims)
+
+
 def test_adhesive_instructions_emit_atomic_installation_constraints():
     body = """
     Attach the D Ring to a flat surface on the tool. The surface must be clean and grease-free.
@@ -98,18 +103,19 @@ def test_curved_surface_capability_remains_distinct_from_flat_installation_requi
     assert flat.constraint_operator == ConstraintOperator.REQUIRES
 
 
-def test_nlg_discovers_product_instruction_document_from_page_link():
+def test_nlg_discovers_product_instruction_document_from_page_link_without_duplicate_fallback():
     body = """
     <html><body>
-      <a href="https://go.neverletgo.com/hubfs/Product/Instructions/101481.pdf">Product Instructions</a>
+      <a href="https://go.neverletgo.com/hubfs/Product/Instructions/101481.pdf?cache=1">Product Instructions</a>
     </body></html>
     """
     requests = NLGAdapter().related_sources(identity("101481"), artifact(body))
 
     instruction_requests = [request for request in requests if request.metadata.get("role") == "product_instructions"]
-    assert instruction_requests
+    assert len(instruction_requests) == 1
     assert instruction_requests[0].source_type == SourceType.MANUFACTURER_DOCUMENT
-    assert instruction_requests[0].url.endswith("/Product/Instructions/101481.pdf")
+    assert instruction_requests[0].metadata.get("relationship_basis") == "page_link"
+    assert instruction_requests[0].url.endswith("/Product/Instructions/101481.pdf?cache=1")
 
 
 def test_nlg_adds_generic_sku_instruction_path_fallback():
