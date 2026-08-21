@@ -30,7 +30,10 @@ def method_value(body: str) -> str | None:
 
 
 def test_nlg_normalizes_adhesive_attachment():
-    assert method_value("The D ring uses 3M adhesive technology to bond to the tool surface.") == "adhesive"
+    claim = method_claim("The D ring uses 3M adhesive technology to bond to the tool surface.")
+    assert claim is not None
+    assert claim.value == "adhesive"
+    assert claim.extractor == "nlg.v0.6"
 
 
 def test_nlg_prefers_contextual_adhesive_evidence_over_product_title():
