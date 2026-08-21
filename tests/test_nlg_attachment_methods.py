@@ -50,8 +50,28 @@ def test_nlg_prefers_contextual_adhesive_evidence_over_product_title():
     assert "Free shipping" not in claim.raw_value
 
 
+def test_nlg_ignores_related_adhesive_product_on_cinch_page():
+    body = """
+    <p>The attachment cinches around the captive handle.</p>
+    <aside>Related products: Mini Adhesive D Ring</aside>
+    """
+    assert method_value(body) == "cinch"
+
+
+def test_nlg_ignores_related_adhesive_product_on_mechanical_capture_page():
+    body = """
+    <p>The rigid bracket attaches to the tool by the side handle.</p>
+    <aside>Related products: Mini Adhesive D Ring</aside>
+    """
+    assert method_value(body) == "mechanical_capture"
+
+
 def test_nlg_does_not_treat_adhesive_free_tape_as_adhesive_attachment():
     assert method_value("This self-fusing tether tape is adhesive-free and wraps around the tool.") == "wrap"
+
+
+def test_nlg_does_not_treat_non_adhesive_tape_as_adhesive_attachment():
+    assert method_value("This non-adhesive tether tape wraps around the tool.") == "wrap"
 
 
 def test_nlg_normalizes_handle_bracket_as_mechanical_capture():
@@ -82,5 +102,5 @@ def test_nlg_does_not_emit_attachment_method_for_non_tool_attachment():
         product_type=ProductType.TETHER,
         url="https://example.test/product",
     )
-    claims = NLGAdapter().extract(ident, [artifact("The product uses adhesive technology.")])
+    claims = NLGAdapter().extract(ident, [artifact("The product uses adhesive technology to bond to the tool surface.")])
     assert not any(c.property_key == "attachment_method_code" for c in claims)
