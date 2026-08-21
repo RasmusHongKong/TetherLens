@@ -74,6 +74,22 @@ def test_trailing_negation_rejects_curved_surface_capability():
     assert not any(key[0] == "supported_surface_profile" for key in claims)
 
 
+def test_unrelated_later_negative_clause_does_not_suppress_curved_capability():
+    claims = claim_map(
+        "Use on curved surfaces is supported, but a test before use is not required.",
+        sku="101481",
+    )
+    assert ("supported_surface_profile", "curved") in claims
+
+
+def test_unrelated_comma_clause_does_not_suppress_curved_capability():
+    claims = claim_map(
+        "Use on curved surfaces is supported, installation on removable covers is not allowed.",
+        sku="101481",
+    )
+    assert ("supported_surface_profile", "curved") in claims
+
+
 def test_negated_flat_surface_instruction_is_not_emitted_as_requirement():
     claims = claim_map(
         "Do not attach the D Ring to a flat surface.",
