@@ -252,6 +252,26 @@ def test_invalid_physical_dimensions_are_rejected(invalid: float):
         )
 
 
+@pytest.mark.parametrize("invalid", [True, False, math.inf, -math.inf, math.nan, "8.0"])
+def test_invalid_dimension_predicate_operands_are_rejected(invalid):
+    with pytest.raises(ValidationError):
+        FeaturePredicate(
+            property_key="dimension:hole_diameter",
+            operator=ComparisonOperator.EQ,
+            value=invalid,
+        )
+
+
+def test_finite_numeric_dimension_predicate_operand_is_accepted():
+    predicate = FeaturePredicate(
+        property_key="dimension:hole_diameter",
+        operator=ComparisonOperator.GTE,
+        value=0.0,
+    )
+
+    assert predicate.value == 0.0
+
+
 def test_manufacturer_assessments_preserve_multiple_issuers_without_aggregation():
     assessment = CandidateAssessment(
         technical_status=TechnicalStatus.COMPATIBLE,
