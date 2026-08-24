@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import math
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 ScalarValue = str | int | float | bool
@@ -65,6 +66,12 @@ class PolicyStatus(StrEnum):
     UNRESOLVED = "unresolved"
 
 
+class EligibilityStatus(StrEnum):
+    ELIGIBLE = "eligible"
+    INELIGIBLE = "ineligible"
+    UNRESOLVED = "unresolved"
+
+
 class ToolInterfaceFeature(BaseModel):
     """One concrete physical feature on a resolved tool.
 
@@ -79,6 +86,23 @@ class ToolInterfaceFeature(BaseModel):
     location_description: str | None = None
     dimensions_mm: dict[str, float] = Field(default_factory=dict)
     attributes: dict[str, ScalarValue] = Field(default_factory=dict)
+
+    @field_validator("dimensions_mm", mode="before")
+    @classmethod
+    def validate_dimensions_mm(cls, dimensions: Any) -> Any:
+        """Reject malformed physical measurements at the model boundary."""
+        if not isinstance(dimensions, dict):
+            return dimensions
+        for key, value in dimensions.items():
+            if isinstance(value, bool):
+                raise ValueError(f"dimension {key!r} must be a finite positive number")
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"dimension {key!r} must be a finite positive number") from exc
+            if not math.isfinite(numeric) or numeric <= 0:
+                raise ValueError(f"dimension {key!r} must be a finite positive number")
+        return dimensions
 
 
 class FeaturePredicate(BaseModel):
@@ -148,8 +172,12 @@ class EligibilityMatch(BaseModel):
 
 
 class EligibilityEvaluation(BaseModel):
-    eligible: bool
+    status: EligibilityStatus
     matches: list[EligibilityMatch] = Field(default_factory=list)
+
+    @property
+    def eligible(self) -> bool:
+        return self.status == EligibilityStatus.ELIGIBLE
 
 
 class ManufacturerAssessment(BaseModel):
@@ -174,38 +202,72 @@ def evaluate_attachment_eligibility(
     features: list[ToolInterfaceFeature],
 ) -> EligibilityEvaluation:
     matches: list[EligibilityMatch] = []
+    saw_unresolved = False
 
     for path_index, path in enumerate(eligibility.paths):
         for feature in features:
-            if not all(_predicate_matches(feature, predicate) for predicate in path.requirements):
-                continue
-            if any(_predicate_matches(feature, predicate) for predicate in path.prohibitions):
-                continue
-            matches.append(
-                EligibilityMatch(
-                    path_index=path_index,
-                    binding_name=path.binding_name,
-                    feature_id=feature.feature_id,
+            path_result = _evaluate_path(path, feature)
+            if path_result == _PredicateResult.MATCH:
+                matches.append(
+                    EligibilityMatch(
+                        path_index=path_index,
+                        binding_name=path.binding_name,
+                        feature_id=feature.feature_id,
+                    )
                 )
-            )
+            elif path_result == _PredicateResult.UNRESOLVED:
+                saw_unresolved = True
 
-    return EligibilityEvaluation(eligible=bool(matches), matches=matches)
+    if matches:
+        status = EligibilityStatus.ELIGIBLE
+    elif saw_unresolved:
+        status = EligibilityStatus.UNRESOLVED
+    else:
+        status = EligibilityStatus.INELIGIBLE
+
+    return EligibilityEvaluation(status=status, matches=matches)
 
 
-def _predicate_matches(feature: ToolInterfaceFeature, predicate: FeaturePredicate) -> bool:
+def _evaluate_path(path: EligibilityPath, feature: ToolInterfaceFeature) -> "_PredicateResult":
+    requirement_results = [_predicate_result(feature, predicate) for predicate in path.requirements]
+
+    # A known failed requirement makes this feature/path pair definitively fail,
+    # regardless of any other missing facts.
+    if _PredicateResult.MISMATCH in requirement_results:
+        return _PredicateResult.MISMATCH
+
+    prohibition_results = [_predicate_result(feature, predicate) for predicate in path.prohibitions]
+
+    # A known prohibition also makes the pair definitively fail.
+    if _PredicateResult.MATCH in prohibition_results:
+        return _PredicateResult.MISMATCH
+
+    # Unknown required or prohibited facts must never be interpreted as clearance.
+    if (
+        _PredicateResult.UNRESOLVED in requirement_results
+        or _PredicateResult.UNRESOLVED in prohibition_results
+    ):
+        return _PredicateResult.UNRESOLVED
+
+    return _PredicateResult.MATCH
+
+
+def _predicate_result(feature: ToolInterfaceFeature, predicate: FeaturePredicate) -> "_PredicateResult":
     actual = _feature_value(feature, predicate.property_key)
     if actual is _MISSING:
-        return False
-    return _compare(actual, predicate.operator, predicate.value)
+        return _PredicateResult.UNRESOLVED
+    if _compare(actual, predicate.operator, predicate.value):
+        return _PredicateResult.MATCH
+    return _PredicateResult.MISMATCH
 
 
 def _feature_value(feature: ToolInterfaceFeature, property_key: str) -> Any:
     if property_key == "feature_kind":
         return feature.feature_kind.value
     if property_key == "feature_role":
-        return feature.feature_role.value
+        return _MISSING if feature.feature_role == FeatureRole.UNKNOWN else feature.feature_role.value
     if property_key == "captive_state":
-        return feature.captive_state.value
+        return _MISSING if feature.captive_state == CaptiveState.UNKNOWN else feature.captive_state.value
     if property_key == "location_description":
         return feature.location_description if feature.location_description is not None else _MISSING
     if property_key.startswith("dimension:"):
@@ -235,6 +297,12 @@ def _compare(actual: Any, operator: ComparisonOperator, expected: ScalarValue) -
     if operator == ComparisonOperator.GTE:
         return actual >= expected
     return False
+
+
+class _PredicateResult(StrEnum):
+    MATCH = "match"
+    MISMATCH = "mismatch"
+    UNRESOLVED = "unresolved"
 
 
 _MISSING = object()
