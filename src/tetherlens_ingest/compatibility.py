@@ -125,7 +125,7 @@ class FeaturePredicate(BaseModel):
     value: ScalarValue
 
     @model_validator(mode="after")
-    def validate_property_key(self) -> "FeaturePredicate":
+    def validate_predicate(self) -> "FeaturePredicate":
         allowed = {
             "feature_kind",
             "feature_role",
@@ -135,6 +135,10 @@ class FeaturePredicate(BaseModel):
         if self.property_key in allowed:
             return self
         if self.property_key.startswith("dimension:") and len(self.property_key) > len("dimension:"):
+            if isinstance(self.value, bool) or not isinstance(self.value, (int, float)):
+                raise ValueError("dimension predicate value must be a finite non-boolean number")
+            if not math.isfinite(float(self.value)):
+                raise ValueError("dimension predicate value must be a finite non-boolean number")
             return self
         if self.property_key.startswith("attribute:") and len(self.property_key) > len("attribute:"):
             return self
