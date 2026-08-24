@@ -6,7 +6,7 @@ Reusable claim semantics for ToolAttachment applicability, required tool geometr
 
 This document complements `attachment-method-vocabulary.md` and `tool-anatomy-selection-semantics.md`.
 
-`attachment_method_code` continues to describe only the primary physical retention mechanism. Tool anatomy, dimensional fit, technical suitability, manufacturer position, and policy are represented independently.
+`attachment_method_code` continues to describe only the primary physical retention mechanism. Tool anatomy, dimensional fit, technical suitability, manufacturer assessments, and policy are represented independently.
 
 Where older wording treated manufacturer-declared application scope as a universal technical exclusion, `tool-anatomy-selection-semantics.md` now governs: manufacturer instructions must be preserved, but brand/category declarations do not automatically prove physical incompatibility.
 
@@ -19,30 +19,36 @@ A ToolAttachment may depend on several independent facts:
 3. **Operational behaviour** — whole-tool rotation, working-part rotation, articulated handles, or other validated behaviours may affect viability.
 4. **Installation constraints** — surface condition, prohibited attachment locations, cure time, companion products, pre-use checks, or related requirements.
 5. **Rated capacity and paired-product limits** — ordinary load and lanyard constraints remain separate mandatory checks.
-6. **Manufacturer position** — the manufacturer may require, endorse, support, discourage, or prohibit a particular configuration.
+6. **Manufacturer assessments** — each issuing manufacturer may require, endorse, support, discourage, or prohibit a particular configuration or relationship.
 7. **Policy** — a site or organisation may impose stricter combination requirements than the technical compatibility rules.
 
 These axes are complementary.
 
-The recommendation engine should derive technical compatibility primarily from low-level physical facts. Manufacturer position should normally qualify the result rather than replace the physical analysis, unless the source establishes a genuine technical prohibition or requirement that cannot be represented by lower-level facts.
+The recommendation engine should derive technical compatibility primarily from low-level physical facts. Manufacturer assessments should normally qualify the result rather than replace the physical analysis, unless the source establishes a genuine technical prohibition or requirement that cannot be represented by lower-level facts.
 
 ## Geometry-first reasoning
 
 Prefer reusable predicates such as:
 
 ```text
-feature_kind = through_opening
-captive_state = captive
+bind feature = one ToolInterfaceFeature
+where:
+  feature.feature_kind = through_opening
+  feature.captive_state = captive
 ```
 
 or:
 
 ```text
-feature_kind = narrowed_section
-section_diameter within published limits
+bind feature = one ToolInterfaceFeature
+where:
+  feature.feature_kind = narrowed_section
+  feature.section_diameter within published limits
 ```
 
 rather than product-specific compatibility entries.
+
+Every feature-local predicate in one path must evaluate against the same bound feature instance. Geometry, captive state, dimensions, role, location, surface profile, structural state, and feature-local prohibitions must not be joined from unrelated tool features.
 
 Tool category may still matter when function/behaviour cannot be reduced to geometry, but category references in manufacturer material must not automatically become closed hard whitelists.
 
@@ -74,7 +80,7 @@ pre_use_attachment_test_required
 
 These keys are transitional. The next schema increment should migrate geometry-bearing properties toward the normalized feature model in `tool-anatomy-selection-semantics.md` rather than expanding `required_tool_feature_type` into a second anatomy ontology.
 
-## Alternative geometry paths
+## Alternative geometry paths and subject scoping
 
 Atomic constraints cannot safely represent alternatives by emitting several independent `requires` claims.
 
@@ -103,33 +109,87 @@ paths:
 prohibitions: AND NOT
 ```
 
-The source claims remain atomic; the rule/eligibility layer composes their logical relationship.
+Each path must also bind the `ToolInterfaceFeature` subject used by its feature-local predicates.
 
-## Manufacturer position is not technical compatibility
+Canonical example:
+
+```text
+paths:
+  - bind feature = one ToolInterfaceFeature
+    where:
+      feature.feature_kind = handle
+      feature.captive_state = captive
+
+  - bind feature = one ToolInterfaceFeature
+    where:
+      feature.feature_kind = through_opening
+      feature.captive_state = captive
+```
+
+A non-captive handle plus a separate captive opening does not satisfy the first path. A dimensional predicate on the handle cannot use the dimension of the opening. A location-specific or removable-part prohibition likewise applies to the feature in scope unless the source states a tool-wide prohibition.
+
+The source claims remain atomic; the rule/eligibility layer composes their logical relationship and subject scope.
+
+## Manufacturer assessment is not technical compatibility
 
 Brand should not be a compatibility predicate by default.
 
 A manufacturer may specify its own product combination because that is the combination it has designed, tested, documented, or chosen to support. TetherLens should preserve that statement without silently inferring that every alternative brand is physically incompatible.
 
-A candidate may therefore legitimately have:
+Manufacturer position must be retained **per issuing manufacturer and scope**, not collapsed into one scalar candidate status.
+
+Conceptually:
+
+```text
+ManufacturerAssessment
+  issuer_manufacturer_id
+  scope
+  position
+  claim_or_evidence_ref
+```
+
+A useful position vocabulary is:
+
+```text
+explicitly_required
+explicitly_endorsed
+explicitly_compatible
+contrary_to_manufacturer_instruction
+explicitly_prohibited
+```
+
+`no_statement` is normally derived when no applicable assessment exists from the manufacturer being queried rather than stored as evidence.
+
+A mixed-brand candidate may therefore legitimately have:
 
 ```text
 technical_status = compatible
-manufacturer_status = contrary_to_manufacturer_instruction
+
+manufacturer_assessments:
+  - issuer = tool manufacturer
+    scope = tool_to_attachment
+    position = contrary_to_manufacturer_instruction
+
+  - issuer = attachment manufacturer
+    scope = attachment_to_tool_class
+    position = explicitly_compatible
+
 policy_status = permitted
 ```
 
-or:
+Neither assessment overwrites the other.
+
+A site policy may query a particular issuer, for example:
 
 ```text
-technical_status = compatible
-manufacturer_status = explicitly_endorsed
-policy_status = permitted
+require tool-manufacturer endorsement
+require attachment-manufacturer approval
+allow technically compatible mixed-brand systems
 ```
 
-A site policy may separately disallow the first configuration.
+Do not derive a default aggregate manufacturer status. Aggregation is only valid where a policy or presentation rule explicitly defines how issuer-scoped assessments should be combined.
 
-The catalogue should record only what the source establishes. It should not record speculative motives such as vendor lock-in.
+The catalogue should record only what each source establishes. It should not record speculative motives such as vendor lock-in.
 
 ### Endorsement versus prohibition
 
@@ -139,21 +199,21 @@ The following statements are materially different:
 Use attachment X.
 ```
 
-This may establish endorsement.
+This may establish endorsement from the issuing manufacturer.
 
 ```text
 Use only attachment X.
 ```
 
-This establishes a manufacturer instruction whose alternatives conflict with that instruction, but it does not by itself prove that attachment Y is physically incompatible.
+This establishes an instruction from the issuing manufacturer whose alternatives conflict with that manufacturer's instruction, but it does not by itself prove that attachment Y is physically incompatible.
 
 ```text
 Do not use attachment Y because it can detach from this housing.
 ```
 
-This establishes a technical prohibition whose scope may justify a hard constraint.
+This establishes a manufacturer prohibition and may also support a technical hard constraint where the scope and causal basis are sufficiently clear.
 
-The evidence model should preserve the source wording and scope so the recommendation layer can distinguish these cases.
+The evidence model should preserve issuer, wording, scope, and source so the recommendation layer can distinguish these cases.
 
 ## NLG 101691 Angle Grinder Bracket
 
@@ -170,10 +230,12 @@ required_tool_feature_type = handle
 The next implementation pass should decide which part of the category statement is:
 
 - a technical eligibility requirement that cannot be reduced further;
-- manufacturer-supported scope; or
+- manufacturer-supported scope from the issuing manufacturer; or
 - descriptive/application wording.
 
 Until that is established, the source-backed category statement should be preserved without allowing geometry alone to erase it or allowing the category alone to manufacture a physical incompatibility claim.
+
+Any handle-specific fit predicates must bind to one handle feature instance.
 
 ## NLG 101481 Mini Adhesive D Ring
 
@@ -189,6 +251,8 @@ pre_use_attachment_test_required = true
 ```
 
 These are independent constraints and should not be collapsed into one free-text `attachment_constraints` value.
+
+Where these predicates concern the installation surface, they must be evaluated against the same bound surface feature. For example, a flat removable cover plus a separate fixed curved housing must not be combined into an apparently valid `flat + fixed` installation zone.
 
 ### Flat versus curved manufacturer wording
 
@@ -220,18 +284,18 @@ The following cases now anchor the next implementation pass:
 Manufacturer guidance supports a genuine alternative geometry expression:
 
 ```text
-captive handle
+one bound feature that is a captive handle
 OR
-captive through-opening
+one bound feature that is a captive through-opening
 ```
 
-This is the canonical test case for bounded OR-path semantics.
+This is the canonical test case for bounded OR-path semantics and feature-instance binding.
 
 ### Hilti SF 4-22 + retaining strap 2293133
 
 Hilti provides a manufacturer-specified tool/attachment/tether configuration and identifies accessory-installation openings used by the retaining strap.
 
-This case should preserve the Hilti instruction as manufacturer position while allowing technical evaluation of other candidates from geometry, dimensions, capacity, installation, and interface facts.
+This case should preserve the Hilti instruction as an issuer-scoped manufacturer assessment while allowing technical evaluation of other candidates from geometry, dimensions, capacity, installation, and interface facts.
 
 The physical feature should normalize toward:
 
@@ -242,13 +306,15 @@ feature_role = accessory_mount
 
 rather than becoming a manufacturer-specific interface type.
 
+A different attachment manufacturer may simultaneously state that its product is compatible with the relevant tool class or geometry. Both assessments must remain available to policy and explanation logic.
+
 ### Ergodyne web ToolAttachment + companion tape/wrap
 
 This case shows that a tool-side attachment solution can require multiple physical products.
 
 Candidate configuration semantics should therefore support a runtime ToolAttachment assembly or `tool_attachment_components[]` rather than assuming exactly one ToolAttachment product.
 
-Substituting another companion product requires sufficient evidence for the resulting installed assembly; apparent fit alone is insufficient.
+Substituting another companion product requires sufficient evidence for the resulting installed assembly; apparent fit alone is insufficient. Manufacturer assessments of the original and substituted assemblies remain issuer-scoped.
 
 ## Wider tool-selection design evidence
 
