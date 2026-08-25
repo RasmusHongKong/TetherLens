@@ -54,6 +54,13 @@ _BLOCK_TAGS = {
     "ul",
 }
 
+_RING = r"d[\s-]?rings?"
+_TETHER_POINT = r"(?:an?\s+|the\s+)?(?:secure\s+|ultra[-\s]?secure\s+|permanent\s+)?tether\s+point"
+_LANYARD = r"(?:an?\s+|the\s+)?(?:tool\s+)?lanyards?"
+_RING_SUBJECT = rf"(?:(?:the|this|our|a)\s+)?{_RING}"
+_MODIFIER_TOKEN = r"(?!(?:and|but|while|whereas)\b)[\w°/%+.-]+"
+_RING_COMPLEMENT = rf"(?:{_MODIFIER_TOKEN}\s+){{0,4}}{_RING}"
+
 
 class NLGAdapter(BaseNLGAdapter):
     """Add explicit ToolAttachment-provided tether-side interfaces.
@@ -65,7 +72,7 @@ class NLGAdapter(BaseNLGAdapter):
     its tether-side D-ring.
     """
 
-    extractor = "nlg.v0.9"
+    extractor = "nlg.v0.10"
 
     def extract(
         self,
@@ -109,31 +116,99 @@ class NLGAdapter(BaseNLGAdapter):
 
 
 def _provided_ring_evidence(html: str) -> str | None:
-    """Return strong local evidence that a D-ring is the provided tether interface.
+    """Return a tightly bound positive D-ring tether-interface assertion.
 
-    A product title, a bare ``D Ring`` feature label, or a generic navigation mention
-    is insufficient. Inline HTML is normalized into its rendered clause while block
-    elements remain hard boundaries. The same sentence/clause must link the D-ring to
-    creation of a tether point or to a lanyard connection.
+    A product title, bare ``D Ring`` label, or co-occurrence of ring/lanyard terms is
+    insufficient. HTML is normalized into rendered clauses, then each clause is split
+    at strong subject-switch/title boundaries. The remaining grammar accepts only a
+    few positive relation shapes in which the D-ring is explicitly the subject or the
+    local complement of the tether-point/lanyard relation. Negative wrappers therefore
+    do not need a clause-wide token blacklist, and a later predicate owned by another
+    subject cannot be accidentally attributed to the D-ring.
     """
 
-    ring = r"d[\s-]?rings?"
-    tether_point = r"(?:secure\s+|ultra[-\s]?secure\s+|permanent\s+)?tether\s+point"
-    lanyard = r"(?:tool\s+)?lanyards?"
-    gap = r"[^.!?;]"
-    patterns = (
-        rf"\b{ring}\b{gap}{{0,120}}\b(?:create|provide|form|make)\w*\b{gap}{{0,100}}\b{tether_point}\b",
-        rf"\b{tether_point}\b{gap}{{0,80}}\b(?:with|using|via|through)\b{gap}{{0,80}}\b{ring}\b",
-        rf"\b{ring}\b{gap}{{0,120}}\b(?:attach|connect|clip|hook)\w*\b{gap}{{0,80}}\b{lanyard}\b",
-    )
-
     for clause in _rendered_clauses(html):
-        for pattern in patterns:
-            match = re.search(pattern, clause, re.I)
-            if match is None or _ring_relation_is_negated(clause, match):
-                continue
-            return re.sub(r"\s+", " ", match.group(0)).strip()
+        for segment in _relation_segments(clause):
+            if evidence := _positive_ring_relation_evidence(segment):
+                return evidence
     return None
+
+
+def _positive_ring_relation_evidence(segment: str) -> str | None:
+    """Recognize one conservative positive relation with local subject binding."""
+
+    text = re.sub(r"\s+", " ", segment).strip().rstrip(".!?;").strip()
+    if not text:
+        return None
+
+    subject_match = re.match(
+        rf"^(?P<subject>{_RING_SUBJECT})\b(?P<predicates>.*)$",
+        text,
+        re.I,
+    )
+    if subject_match is not None:
+        predicates = subject_match.group("predicates").strip()
+        coordinator = r"(?:^|(?:,\s*)?\b(?:and|but)\s+)"
+        relation_patterns = (
+            rf"{coordinator}(?P<relation>(?:creates?|provides?|forms?|makes?)\s+{_TETHER_POINT})\b",
+            rf"{coordinator}(?P<relation>(?:attaches?|connects?|clips?|hooks?)\s+(?:directly\s+)?(?:(?:to|with)\s+)?{_LANYARD})\b",
+        )
+        for pattern in relation_patterns:
+            if relation_match := re.search(pattern, predicates, re.I):
+                return f"{subject_match.group('subject')} {relation_match.group('relation')}"
+
+    usage_match = re.fullmatch(
+        rf"(?P<relation>(?:use|using)\s+(?:the\s+)?{_RING}\s+to\s+(?:attach|connect|clip|hook)\w*\s+(?:directly\s+)?(?:(?:to|with)\s+)?{_LANYARD})",
+        text,
+        re.I,
+    )
+    if usage_match is not None:
+        return usage_match.group("relation")
+
+    # ``Avoid snagging by using the D Ring...`` still contains a positive local
+    # instrumental relation: avoidance governs ``snagging``, not D-ring use. Requiring
+    # the explicit ``by using`` construction keeps this distinct from ``Avoid using``.
+    by_using_match = re.search(
+        rf"\b(?P<relation>by\s+using\s+(?:the\s+)?{_RING}\s+to\s+(?:attach|connect|clip|hook)\w*\s+(?:directly\s+)?(?:(?:to|with)\s+)?{_LANYARD})\b",
+        text,
+        re.I,
+    )
+    if by_using_match is not None:
+        return by_using_match.group("relation")
+
+    tether_point_match = re.fullmatch(
+        rf"(?P<relation>{_TETHER_POINT}\s+(?:with|using|via|through)\s+{_RING_COMPLEMENT})",
+        text,
+        re.I,
+    )
+    if tether_point_match is not None:
+        return tether_point_match.group("relation")
+
+    return None
+
+
+def _relation_segments(clause: str) -> list[str]:
+    """Split boundaries that should not share a relation subject.
+
+    ``while``/``whereas`` commonly introduce a contrasting subject. Em/en dashes and
+    colons commonly separate a title/feature label from the actual assertion. Ordinary
+    ``and``/``but`` stay intact so a D-ring subject can govern a coordinated predicate,
+    e.g. ``does not require drilling and creates a secure tether point``.
+    """
+
+    segments = re.split(r"\s+[—–]\s+|:\s+", clause)
+    out: list[str] = []
+    for segment in segments:
+        out.extend(
+            piece.strip(" ,")
+            for piece in re.split(
+                r"\s*,?\s*\b(?:while|whereas)\b\s*",
+                segment,
+                flags=re.I,
+            )
+            if piece.strip(" ,")
+        )
+    return out
 
 
 def _rendered_clauses(html: str) -> list[str]:
@@ -169,46 +244,6 @@ def _rendered_clauses(html: str) -> list[str]:
             if clause.strip()
         )
     return clauses
-
-
-def _ring_relation_is_negated(clause: str, match: re.Match[str]) -> bool:
-    """Reject explicit prohibition of the matched D-ring relationship."""
-
-    matched = match.group(0)
-    if re.search(
-        r"\b(?:no|not|without|never|cannot|can't|doesn't|does\s+not|prohibited|forbidden|unsafe|unsuitable|avoided?)\b",
-        matched,
-        re.I,
-    ):
-        return True
-
-    ring_match = re.search(r"\bd[\s-]?rings?\b", matched, re.I)
-    if ring_match is None:
-        return False
-
-    ring_end = match.start() + ring_match.end()
-    before_ring = clause[:ring_end]
-    ring = r"d[\s-]?rings?"
-    relation = r"(?:use|using|attach|attaching|connect|connecting|clip|clipping|hook|hooking)"
-    permission = r"(?:permitted|allowed|approved|authorized|acceptable|safe|suitable|recommended)"
-
-    pre_ring_prohibitions = (
-        rf"\b(?:(?:do(?:es)?|must|should|may|can|shall)\s+not|don't|doesn't|mustn't|shouldn't|can't|shan't)\b[^.!?;]{{0,100}}\b{relation}\b[^.!?;]{{0,50}}\b(?:the\s+)?{ring}\b",
-        rf"\b(?:(?:is|are|was|were|be|been|being)\s+not|isn't|aren't|wasn't|weren't)\s+{permission}\b[^.!?;]{{0,100}}\b(?:to\s+)?{relation}\b[^.!?;]{{0,50}}\b(?:the\s+)?{ring}\b",
-        rf"\bnot\s+{permission}\b[^.!?;]{{0,100}}\b(?:to\s+)?{relation}\b[^.!?;]{{0,50}}\b(?:the\s+)?{ring}\b",
-        rf"\b(?:never|cannot|can't)\b[^.!?;]{{0,100}}\b{relation}\b[^.!?;]{{0,50}}\b(?:the\s+)?{ring}\b",
-        rf"\b(?:prohibited|forbidden|unsafe|unsuitable)\b[^.!?;]{{0,100}}\b(?:to\s+)?{relation}\b[^.!?;]{{0,50}}\b(?:the\s+)?{ring}\b",
-        rf"\bavoid\b\s+(?:directly\s+)?\b{relation}\b[^.!?;]{{0,50}}\b(?:the\s+)?{ring}\b",
-        rf"\bwithout\b[^.!?;]{{0,60}}\b(?:using\s+)?(?:the\s+)?{ring}\b",
-    )
-    if any(re.search(pattern, before_ring, re.I) for pattern in pre_ring_prohibitions):
-        return True
-
-    post_ring_prohibitions = (
-        rf"\b(?:use|using)\s+of\s+(?:the\s+)?{ring}\b[^.!?;]{{0,100}}\b(?:is|are|was|were|remains?)\s+(?:not\s+{permission}|prohibited|forbidden|unsafe|unsuitable)\b",
-        rf"\b(?:use|using)\s+(?:of\s+)?(?:the\s+)?{ring}\b[^.!?;]{{0,120}}\b(?:should|must)\s+be\s+avoided\b",
-    )
-    return any(re.search(pattern, clause, re.I) for pattern in post_ring_prohibitions)
 
 
 def _dedupe_claims(claims: list[CandidateClaim]) -> list[CandidateClaim]:
