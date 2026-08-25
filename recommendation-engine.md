@@ -37,6 +37,8 @@ Apply hard constraints
       ↓
 Remove non-viable candidates
       ↓
+Resolve conditional verification steps
+      ↓
 Apply contextual rules
       ↓
 Rank remaining candidates
@@ -60,7 +62,7 @@ Context determines which viable candidate is best for the current task.
 
 ### 3. Evidence -> confidence and qualification
 
-Evidence determines what TetherLens is entitled to claim about the result and what uncertainty should be communicated.
+Evidence determines what TetherLens is entitled to claim about the result and what uncertainty or runtime verification should be communicated.
 
 ### 4. Policy -> permission
 
@@ -157,7 +159,7 @@ Candidate configurations may combine:
 
 The system should avoid requiring a manually curated exact tethering pairing for every candidate.
 
-Candidate generation should increasingly rely on reusable product facts, explicit manufacturer configuration relationships, and interface rules.
+Candidate generation should increasingly rely on reusable product facts, explicit manufacturer configuration relationships, interface rules, and controlled runtime verification where catalogue evidence cannot economically establish every physical fit in advance.
 
 ## Step 4: apply hard constraints
 
@@ -199,18 +201,48 @@ Runtime user-provided mass should affect the recommendation's qualification/conf
 
 ### Interface compatibility
 
-Each required connection must have sufficient compatibility evidence.
+Each required physical connection must have an **acceptable compatibility basis**.
 
-This may come from:
+Detailed dimensional proof is one possible basis, but it is not a universal catalogue requirement. The compatibility model is defined in `connection-compatibility.md`.
 
-- published dimensions;
-- internal measurement;
-- explicit manufacturer pairing;
-- kit relationships;
-- observed/confirmed tool geometry evaluated by a validated attachment rule; or
-- validated reusable interface rules.
+Initial technical connection states are:
 
-The engine should not treat `no manufacturer-documented tether point` as equivalent to `no tethering method`. A valid path may use another captive feature, a controlled loop/cinch method, or a suitable ToolAttachment.
+```text
+compatible
+incompatible
+requires_verification
+unresolved
+```
+
+Initial compatibility bases are:
+
+```text
+manufacturer_declared
+validated_geometry
+validated_interface_class
+runtime_verification
+none
+```
+
+A connection may therefore be established through:
+
+- explicit manufacturer compatibility or prescribed system relationships;
+- a validated reusable geometry rule using published or accepted measured dimensions;
+- a validated reusable interface class based on primitive physical facts; or
+- a validated bounded runtime verification procedure applied to the actual equipment.
+
+The engine must **not** infer compatibility from interface names alone. `carabiner + ring`, for example, is topology that may select an applicable rule, not proof of engagement.
+
+`requires_verification` is a conditional but usable technical state. It should be returned only when:
+
+- endpoint and target topology/roles are plausible;
+- no accepted evidence proves incompatibility;
+- catalogue evidence is insufficient to establish complete physical engagement; and
+- a validated bounded field-verification procedure exists for that connection family.
+
+`unresolved` remains blocking when no accepted compatibility basis or validated verification path exists.
+
+For tools, this does **not** require a manufacturer-documented tether point. A valid path may use another captive feature, a controlled loop/cinch method, or a suitable ToolAttachment.
 
 ### Explicit product limits
 
@@ -230,9 +262,35 @@ For lighter tools, person anchoring may be appropriate where:
 
 The exact person-anchoring threshold should be policy-driven rather than hard-coded globally.
 
+## Step 4a: resolve required runtime verification
+
+A candidate with a `requires_verification` connection is not yet ready for unconditional use.
+
+TetherLens should present the validated verification procedure for that connection family and require the worker to verify the actual assembled connection before the candidate is treated as usable.
+
+A field-verification procedure must be bounded and observable. It must not reduce to a generic confirmation such as "looks safe" or "does it fit?".
+
+Depending on the validated rule, checks may include whether:
+
+- the connector installs onto the intended interface normally;
+- the gate closes completely;
+- the locking mechanism fully engages where applicable;
+- the interface does not obstruct or capture the gate;
+- the connector can settle into an intended loaded orientation;
+- the connection does not force obvious cross-loading or unstable seating; and
+- adjacent hardware does not interfere with gate or locking operation.
+
+The exact checklist must come from the versioned rule for the relevant connection family.
+
+If the runtime check fails, that candidate connection becomes unusable for the session and the engine should evaluate another candidate if available.
+
+A successful runtime check is session/configuration evidence. It must not silently become a persistent universal catalogue Claim that the two product SKUs are compatible.
+
+Computer vision may later assist these checks, but machine-observed criteria should replace worker confirmation only after each criterion has been separately validated.
+
 ## Step 5: rank viable configurations by context
 
-Once non-viable candidates are removed, context should influence ranking.
+Once non-viable candidates are removed and any required runtime verification has been satisfied, context should influence ranking.
 
 Examples:
 
@@ -290,6 +348,16 @@ Mandatory facts and relevant contextual properties are well established.
 
 For a cordless Tool this includes a resolved operational profile whose Tool-body and Battery mass dependencies and manufacturer-backed configuration relationship are traceable.
 
+For a physical connection, strong support may come from an accepted manufacturer declaration or a validated rule whose required primitive facts are established.
+
+### Conditional runtime verification
+
+Catalogue facts establish a plausible connection path, but final physical fit must be checked on the actual components.
+
+This is represented by `requires_verification`, not by pretending the catalogue has complete geometry and not by treating the connection as generically unresolved.
+
+The recommendation should state exactly what must be checked before use.
+
 ### Secondary uncertainty
 
 The hard constraints are established, but some secondary property is incomplete.
@@ -298,7 +366,7 @@ Example:
 
 - operational mass known;
 - capacities known;
-- interfaces known;
+- interfaces established or field-verified;
 - chemical resistance not established.
 
 The recommendation may remain usable with a clear limitation.
@@ -315,13 +383,14 @@ Example:
 
 ### Insufficient hard-constraint information
 
-A required fact cannot be established.
+A required fact cannot be established and no validated runtime verification path can close the gap.
 
 Examples:
 
 - component capacity unknown;
 - required cordless operational profile unresolved;
-- interface compatibility cannot be determined.
+- connection topology ambiguous;
+- interface compatibility has no acceptable basis and no validated field-verification procedure.
 
 This can require abstention for the affected candidate.
 
@@ -332,7 +401,8 @@ This can require abstention for the affected candidate.
 Use when:
 
 - hard constraints pass;
-- the configuration is well suited to context;
+- all required physical connections are established or any required runtime verification has been successfully completed;
+- the configuration is well suited to context; and
 - no material qualification changes how the worker should interpret the result.
 
 ### Recommended with constraints
@@ -341,11 +411,12 @@ Use when:
 
 - hard constraints pass;
 - the configuration is viable;
-- one or more practical limitations should be actively managed.
+- one or more practical limitations should be actively managed; or
+- a specific runtime verification must be completed before use.
 
 Example:
 
-> This tether has sufficient capacity and compatible attachments, but its length increases snagging potential around pipework. Keep the tether path clear and use a shorter alternative if one becomes available.
+> This configuration meets the published load requirements. Before use, connect the carabiner to the D-ring and confirm that the gate closes and locks fully, the ring does not obstruct the gate, and the connector settles without obvious cross-loading.
 
 ### Limited-confidence recommendation
 
@@ -357,12 +428,15 @@ Use when:
 
 The limitation should be specific rather than a generic disclaimer.
 
+A validated runtime verification requirement should not automatically make a result "limited confidence"; it is a separate technical condition with an explicit procedure.
+
 ### No suitable recommendation
 
 Use only when:
 
 - all candidates fail a hard constraint;
 - a required hard-constraint fact or operational configuration cannot be established;
+- an interface remains unresolved and no validated runtime verification can close the gap;
 - all candidates create an unacceptable hazard; or
 - policy prevents every otherwise viable option and no permitted alternative exists.
 
@@ -374,8 +448,10 @@ At minimum:
 
 - selected configuration;
 - key reason it is viable;
+- compatibility basis for each required physical connection;
+- any runtime verification that must be completed;
 - key reason it ranked highest;
-- important caution;
+- important caution; and
 - policy conflict, where relevant.
 
 Internally, the engine should be able to trace:
@@ -394,7 +470,19 @@ Tool-body mass Claim + Battery-mass Claim
 Evidence / sources
 ```
 
-alongside the rules, tethering component Claims, and other evidence used by the recommendation.
+alongside:
+
+```text
+Connection evaluation
+  ↓
+compatibility status + basis
+  ↓
+accepted Claims / validated Rule
+  ↓
+optional session verification observations
+```
+
+and the other tethering component Claims, rules and policy evidence used by the recommendation.
 
 ## Rules should operate on low-level facts
 
@@ -429,6 +517,24 @@ IF tether.suitable_for_hot_work = false
 THEN exclude
 ```
 
+For connection reasoning, prefer:
+
+```text
+accepted primitive interface facts
+        +
+validated connection rule
+        ↓
+compatibility status + basis
+```
+
+over:
+
+```text
+IF endpoint.type = carabiner
+AND target.type = ring
+THEN compatible
+```
+
 This keeps the recommendation logic reusable.
 
 ## Mixed-manufacturer reasoning
@@ -439,10 +545,12 @@ The engine should evaluate:
 
 - rated capacities;
 - interfaces;
-- geometry;
+- geometry where available;
+- accepted compatibility bases;
 - explicit restrictions;
 - product facts;
-- relevant reusable rules.
+- relevant reusable rules; and
+- controlled runtime verification where applicable.
 
 Manufacturer endorsement may be shown separately.
 
@@ -461,7 +569,8 @@ Likely rules include:
 - object operational mass must not exceed tool-attachment capacity where used;
 - object operational mass must not exceed anchor-attachment capacity where used;
 - object/contents mass must not exceed container capacity where used;
-- required interfaces must be compatible;
+- required interfaces must have an acceptable compatibility basis;
+- failed runtime connection verification invalidates that candidate for the session;
 - explicit manufacturer hard limits must be respected where applicable.
 
 ### Context preferences
@@ -474,13 +583,14 @@ Likely rules include:
 
 - warn where a viable tether creates increased snagging potential;
 - warn where relevant secondary environmental information is not established;
-- surface manufacturer restrictions or non-endorsement where material to the decision.
+- surface manufacturer restrictions or non-endorsement where material to the decision;
+- present required runtime connection verification as an actionable pre-use condition.
 
 The rule set should expand only when real use cases justify it.
 
 ## User-facing wording principle
 
-Cautions should be actionable.
+Cautions and verification requirements should be actionable.
 
 Avoid:
 
@@ -489,6 +599,14 @@ Avoid:
 Prefer:
 
 > The tether is long enough to create additional snagging potential around the pipework. Keep excess tether clear of obstructions and use a shorter option if available.
+
+Avoid:
+
+> Check that the connector fits.
+
+Prefer a validated bounded procedure such as:
+
+> Attach the connector to the intended ring. Confirm that the gate closes and locks fully, the ring does not obstruct the gate, and the connector can settle without obvious cross-loading.
 
 The goal is to help the worker manage the limitation.
 
@@ -501,7 +619,10 @@ The engine is working if:
 - the same tool can produce different recommendations under different context;
 - viable but imperfect options are not unnecessarily rejected;
 - mixed-manufacturer tethering configurations can be evaluated;
+- missing public connector dimensions do not automatically force catalogue-wide abstention when another acceptable compatibility basis exists;
+- `requires_verification` is kept distinct from both `compatible` and genuinely `unresolved`;
+- runtime field verification remains session/configuration evidence rather than universal catalogue compatibility;
 - evidence limitations are communicated without generic over-warning;
 - policy remains separate from technical suitability;
 - rules can be reused across newly added products; and
-- a recommendation can be traced back to the facts, configuration relationships, dependencies, and rules that produced it.
+- a recommendation can be traced back to the facts, compatibility bases, configuration relationships, dependencies, runtime observations and rules that produced it.
