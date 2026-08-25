@@ -12,7 +12,7 @@ class NLGAdapter(BaseNLGAdapter):
 
     Tool-side installation eligibility remains owned by ``nlg_compat``. This layer
     records only a distinct tether-side interface when the manufacturer copy itself
-    states that a D-ring/ring provides or accepts a tether/lanyard connection.
+    identifies a D-ring/ring as the tether point or connection interface.
     """
 
     extractor = "nlg.v0.9"
@@ -58,22 +58,24 @@ class NLGAdapter(BaseNLGAdapter):
 
 
 def _provided_ring_evidence(text: str) -> str | None:
-    """Require an explicit local relation between a ring and tether/lanyard use.
+    """Require an explicit statement identifying the ring as the tether interface.
 
-    A bare ``D Ring`` label or product-name occurrence is insufficient. The same
-    statement must connect the ring to a tether/lanyard or explicitly describe it as
-    the connection/tether point being provided.
+    Product names, generic ``D Ring`` labels, and nearby tether terminology are not
+    sufficient. The statement itself must relate the ring to the tether point or
+    connection point being provided.
     """
 
     ring = r"(?:d[\s-]?rings?|rings?)"
-    tether = r"(?:tool\s+)?(?:tethers?|lanyards?)"
-    relation = r"(?:attach|connect|clip|hook|secure|provide|create|accept|use)\w*"
     gap = r"[^.!?;\n]"
     patterns = (
-        rf"\b{ring}\b{gap}{{0,100}}\b{relation}\b{gap}{{0,100}}\b{tether}\b",
-        rf"\b{tether}\b{gap}{{0,100}}\b{relation}\b{gap}{{0,100}}\b{ring}\b",
+        # e.g. "secure tether point with 360° rotating D-ring"
+        rf"\b(?:secure\s+)?tether\s+point\b{gap}{{0,80}}\bwith\b{gap}{{0,80}}\b{ring}\b",
+        # e.g. "the D-ring provides/creates/forms a tether point"
         rf"\b{ring}\b{gap}{{0,80}}\b(?:provides?|creates?|forms?|acts?\s+as)\b"
         rf"{gap}{{0,60}}\b(?:a\s+)?(?:tether\s+point|connection\s+point)\b",
+        # e.g. "connection point provided by the D-ring"
+        rf"\b(?:tether\s+point|connection\s+point)\b{gap}{{0,80}}\b"
+        rf"(?:provided|created|formed)\s+by\b{gap}{{0,60}}\b{ring}\b",
     )
 
     for pattern in patterns:
