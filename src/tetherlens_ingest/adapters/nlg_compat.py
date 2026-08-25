@@ -27,7 +27,7 @@ class NLGAdapter(BaseNLGAdapter):
     attachment-method workstream without coupling those semantics to individual SKUs.
     """
 
-    extractor = "nlg.v0.7"
+    extractor = "nlg.v0.8"
 
     def related_sources(self, identity: ProductIdentity, source_artifact: SourceArtifact) -> list[SourceRequest]:
         if identity.product_type != ProductType.TOOL_ATTACHMENT:
@@ -82,6 +82,17 @@ class NLGAdapter(BaseNLGAdapter):
 
 def _tool_attachment_constraint_claims(text: str, url: str, extractor: str) -> list[CandidateClaim]:
     claims: list[CandidateClaim] = []
+
+    if captive_feature := _captive_feature_attachment_evidence(text):
+        claims.append(CandidateClaim(
+            property_key="attachment_selection_class",
+            value="captive_feature_attachment",
+            raw_value=captive_feature,
+            source_url=url,
+            evidence_method="manufacturer_stated",
+            extractor=extractor,
+            claim_type=ClaimType.DIRECT,
+        ))
 
     if category := _angle_grinder_applicability(text):
         claims.append(_constraint_claim(
@@ -188,6 +199,34 @@ def _constraint_claim(
         claim_type=ClaimType.DECLARED_CONSTRAINT,
         constraint_operator=operator,
     )
+
+
+def _captive_feature_attachment_evidence(text: str) -> str | None:
+    """Recognize an explicit captive-handle OR captive-opening installation scope.
+
+    The alternative must be expressed in one local clause. Separate unrelated
+    mentions of a handle and a hole must not be combined into an OR eligibility rule.
+    """
+
+    feature_a = r"(?:captive\s+)?handles?"
+    feature_b = r"(?:captive\s+)?(?:holes?|through[-\s]?openings?|openings?|eyes?)"
+    action = r"(?:attach|connect|cinch|loop|fit|install|secure|use)\w*"
+    patterns = (
+        rf"\b{action}\b.{{0,120}}\b{feature_a}\b.{{0,80}}\bor\b.{{0,80}}\b{feature_b}\b",
+        rf"\b{action}\b.{{0,120}}\b{feature_b}\b.{{0,80}}\bor\b.{{0,80}}\b{feature_a}\b",
+        rf"\b{feature_a}\b.{{0,80}}\bor\b.{{0,80}}\b{feature_b}\b.{{0,120}}\b{action}\b",
+        rf"\b{feature_b}\b.{{0,80}}\bor\b.{{0,80}}\b{feature_a}\b.{{0,120}}\b{action}\b",
+    )
+    evidence = _first_evidence(text, patterns, reject_negated=True)
+    if evidence is None:
+        return None
+
+    # At least one explicit captive qualifier is required. This prevents a generic
+    # "handle or hole" marketing phrase from silently acquiring the safety-relevant
+    # captive requirement encoded by the reusable selection class.
+    if not re.search(r"\bcaptive\b", evidence, re.I):
+        return None
+    return evidence
 
 
 def _angle_grinder_applicability(text: str) -> str | None:
