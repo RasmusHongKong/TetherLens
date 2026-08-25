@@ -143,6 +143,15 @@ def test_nlg_subject_switch_does_not_attribute_loop_lanyard_relation_to_d_ring()
         assert resolve_connection_interfaces(nlg_attachment_claims(body)) == [], body
 
 
+def test_nlg_nested_coordination_stops_d_ring_subject_before_loop_relation():
+    ambiguous = (
+        "The D Ring is decorative and the reinforced loop is load-rated and creates a secure tether point.",
+        "The D Ring is decorative but reinforced loop is load-rated and connects a tool lanyard.",
+    )
+    for body in ambiguous:
+        assert resolve_connection_interfaces(nlg_attachment_claims(body)) == [], body
+
+
 def test_nlg_negation_is_scoped_to_predicate_not_entire_ring_sentence():
     interfaces = resolve_connection_interfaces(nlg_attachment_claims("The D Ring does not require drilling and creates a secure tether point."))
     assert len(interfaces) == 1
