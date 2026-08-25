@@ -204,29 +204,27 @@ def _constraint_claim(
 def _captive_feature_attachment_evidence(text: str) -> str | None:
     """Recognize an explicit captive-handle OR captive-opening installation scope.
 
-    The alternative must be expressed in one local clause. Separate unrelated
-    mentions of a handle and a hole must not be combined into an OR eligibility rule.
+    The action and feature alternative must remain inside one sentence/line-level
+    clause. ``captive`` must qualify the coordinated tool-feature phrase itself;
+    an unrelated captive loop or connector elsewhere in the clause is insufficient.
+    A leading modifier such as ``captive hole or handle`` is treated as applying to
+    the coordinated noun phrase, while ``handle or captive hole`` is not widened to
+    a captive-handle alternative.
     """
 
-    feature_a = r"(?:captive\s+)?handles?"
-    feature_b = r"(?:captive\s+)?(?:holes?|through[-\s]?openings?|openings?|eyes?)"
+    handle = r"handles?"
+    opening = r"(?:holes?|through[-\s]?openings?|openings?|eyes?)"
+    captive_handle_or_opening = rf"captive\s+{handle}\s+or\s+(?:captive\s+)?{opening}"
+    captive_opening_or_handle = rf"captive\s+{opening}\s+or\s+(?:captive\s+)?{handle}"
     action = r"(?:attach|connect|cinch|loop|fit|install|secure|use)\w*"
+    clause_gap = r"[^.!?;\n]"
     patterns = (
-        rf"\b{action}\b.{{0,120}}\b{feature_a}\b.{{0,80}}\bor\b.{{0,80}}\b{feature_b}\b",
-        rf"\b{action}\b.{{0,120}}\b{feature_b}\b.{{0,80}}\bor\b.{{0,80}}\b{feature_a}\b",
-        rf"\b{feature_a}\b.{{0,80}}\bor\b.{{0,80}}\b{feature_b}\b.{{0,120}}\b{action}\b",
-        rf"\b{feature_b}\b.{{0,80}}\bor\b.{{0,80}}\b{feature_a}\b.{{0,120}}\b{action}\b",
+        rf"\b{action}\b{clause_gap}{{0,140}}\b{captive_handle_or_opening}\b",
+        rf"\b{action}\b{clause_gap}{{0,140}}\b{captive_opening_or_handle}\b",
+        rf"\b{captive_handle_or_opening}\b{clause_gap}{{0,140}}\b{action}\b",
+        rf"\b{captive_opening_or_handle}\b{clause_gap}{{0,140}}\b{action}\b",
     )
-    evidence = _first_evidence(text, patterns, reject_negated=True)
-    if evidence is None:
-        return None
-
-    # At least one explicit captive qualifier is required. This prevents a generic
-    # "handle or hole" marketing phrase from silently acquiring the safety-relevant
-    # captive requirement encoded by the reusable selection class.
-    if not re.search(r"\bcaptive\b", evidence, re.I):
-        return None
-    return evidence
+    return _first_evidence(text, patterns, reject_negated=True)
 
 
 def _angle_grinder_applicability(text: str) -> str | None:
