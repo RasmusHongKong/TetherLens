@@ -77,6 +77,41 @@ def test_incomplete_physical_interface_claims_do_not_become_connection_interface
     assert resolve_connection_interfaces(claims) == []
 
 
+def test_nlg_explicit_d_ring_tether_point_resolves_as_provided_interface():
+    claims = NLGAdapter().extract(
+        ProductIdentity(
+            manufacturer="NLG",
+            product_type=ProductType.TOOL_ATTACHMENT,
+            name="D Ring Attachment",
+            sku="example",
+            url="https://example.test/nlg/attachment",
+        ),
+        [artifact("The D Ring creates a secure tether point to attach a tool lanyard.")],
+    )
+
+    interfaces = resolve_connection_interfaces(claims)
+
+    assert len(interfaces) == 1
+    assert interfaces[0].interface_id == "tether_side_ring"
+    assert interfaces[0].role == ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE
+    assert interfaces[0].interface_type == "ring"
+
+
+def test_nlg_bare_d_ring_or_loop_evidence_does_not_invent_provided_interface():
+    claims = NLGAdapter().extract(
+        ProductIdentity(
+            manufacturer="NLG",
+            product_type=ProductType.TOOL_ATTACHMENT,
+            name="D Ring Loop Tool Tether",
+            sku="example",
+            url="https://example.test/nlg/attachment",
+        ),
+        [artifact("Climbing cord loop allows quick cinching. D Ring construction.")],
+    )
+
+    assert resolve_connection_interfaces(claims) == []
+
+
 def test_tether_endpoint_claims_resolve_to_runtime_connection_interfaces():
     claims = NLGAdapter().extract(
         ProductIdentity(
@@ -177,11 +212,22 @@ def test_klein_nlg_attachment_tether_vertical_slice_stops_at_missing_engagement_
             sku="101363",
             url="https://example.test/nlg/101363",
         ),
-        [artifact("Create a tether point on any tool with a captive hole or handle and cinch it around the tool.")],
+        [
+            artifact(
+                "The D Ring creates a secure tether point to attach a tool lanyard. "
+                "Create a tether point on any tool with a captive hole or handle and cinch it around the tool."
+            )
+        ],
     )
     eligibility = resolve_attachment_eligibility(attachment_claims)
     assert eligibility is not None
     assert evaluate_attachment_eligibility(eligibility, features).status == EligibilityStatus.ELIGIBLE
+
+    attachment_interfaces = resolve_connection_interfaces(attachment_claims)
+    assert len(attachment_interfaces) == 1
+    attachment_interface = attachment_interfaces[0]
+    assert attachment_interface.role == ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE
+    assert attachment_interface.interface_type == "ring"
 
     tether_claims = NLGAdapter().extract(
         ProductIdentity(
@@ -194,7 +240,6 @@ def test_klein_nlg_attachment_tether_vertical_slice_stops_at_missing_engagement_
         [artifact("Integral carabiner connects to the belt anchor while the Rotobiner provides tool attachment. Max Load: 3 kg.")],
     )
 
-    attachment_interface = resolve_connection_interfaces(provided_ring_claims())[0]
     tether_interfaces = resolve_connection_interfaces(tether_claims)
     tool_endpoint = next(
         interface for interface in tether_interfaces if interface.tether_side == TetherSide.TOOL_SIDE
