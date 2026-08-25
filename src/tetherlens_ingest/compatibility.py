@@ -94,13 +94,11 @@ class ToolInterfaceFeature(BaseModel):
         if not isinstance(dimensions, dict):
             return dimensions
         for key, value in dimensions.items():
-            if isinstance(value, bool):
-                raise ValueError(f"dimension {key!r} must be a finite positive number")
-            try:
-                numeric = float(value)
-            except (TypeError, ValueError) as exc:
-                raise ValueError(f"dimension {key!r} must be a finite positive number") from exc
-            if not math.isfinite(numeric) or numeric <= 0:
+            numeric = _coerce_finite_number(
+                value,
+                error_message=f"dimension {key!r} must be a finite positive number",
+            )
+            if numeric <= 0:
                 raise ValueError(f"dimension {key!r} must be a finite positive number")
         return dimensions
 
@@ -132,17 +130,19 @@ class FeaturePredicate(BaseModel):
             "captive_state",
             "location_description",
         }
-        if self.property_key in allowed:
-            return self
-        if self.property_key.startswith("dimension:") and len(self.property_key) > len("dimension:"):
-            if isinstance(self.value, bool) or not isinstance(self.value, (int, float)):
-                raise ValueError("dimension predicate value must be a finite non-boolean number")
-            if not math.isfinite(float(self.value)):
-                raise ValueError("dimension predicate value must be a finite non-boolean number")
-            return self
-        if self.property_key.startswith("attribute:") and len(self.property_key) > len("attribute:"):
-            return self
-        raise ValueError(f"unsupported feature-local property_key: {self.property_key}")
+        is_dimension = self.property_key.startswith("dimension:") and len(self.property_key) > len("dimension:")
+        is_attribute = self.property_key.startswith("attribute:") and len(self.property_key) > len("attribute:")
+
+        if self.property_key not in allowed and not is_dimension and not is_attribute:
+            raise ValueError(f"unsupported feature-local property_key: {self.property_key}")
+
+        if is_dimension or self.operator in _ORDERED_OPERATORS:
+            _coerce_finite_number(
+                self.value,
+                error_message="ordered predicate value must be a finite non-boolean number",
+            )
+
+        return self
 
 
 class EligibilityPath(BaseModel):
@@ -235,18 +235,14 @@ def evaluate_attachment_eligibility(
 def _evaluate_path(path: EligibilityPath, feature: ToolInterfaceFeature) -> "_PredicateResult":
     requirement_results = [_predicate_result(feature, predicate) for predicate in path.requirements]
 
-    # A known failed requirement makes this feature/path pair definitively fail,
-    # regardless of any other missing facts.
     if _PredicateResult.MISMATCH in requirement_results:
         return _PredicateResult.MISMATCH
 
     prohibition_results = [_predicate_result(feature, predicate) for predicate in path.prohibitions]
 
-    # A known prohibition also makes the pair definitively fail.
     if _PredicateResult.MATCH in prohibition_results:
         return _PredicateResult.MISMATCH
 
-    # Unknown required or prohibited facts must never be interpreted as clearance.
     if (
         _PredicateResult.UNRESOLVED in requirement_results
         or _PredicateResult.UNRESOLVED in prohibition_results
@@ -260,9 +256,7 @@ def _predicate_result(feature: ToolInterfaceFeature, predicate: FeaturePredicate
     actual = _feature_value(feature, predicate.property_key)
     if actual is _MISSING:
         return _PredicateResult.UNRESOLVED
-    if _compare(actual, predicate.operator, predicate.value):
-        return _PredicateResult.MATCH
-    return _PredicateResult.MISMATCH
+    return _compare(actual, predicate.operator, predicate.value)
 
 
 def _feature_value(feature: ToolInterfaceFeature, property_key: str) -> Any:
@@ -281,26 +275,55 @@ def _feature_value(feature: ToolInterfaceFeature, property_key: str) -> Any:
     return _MISSING
 
 
-def _compare(actual: Any, operator: ComparisonOperator, expected: ScalarValue) -> bool:
-    if operator == ComparisonOperator.EQ:
-        return actual == expected
-    if operator == ComparisonOperator.NEQ:
-        return actual != expected
+def _compare(actual: Any, operator: ComparisonOperator, expected: ScalarValue) -> "_PredicateResult":
+    if _is_nonfinite_number(actual) or _is_nonfinite_number(expected):
+        return _PredicateResult.UNRESOLVED
 
-    if not isinstance(actual, (int, float)) or isinstance(actual, bool):
-        return False
-    if not isinstance(expected, (int, float)) or isinstance(expected, bool):
-        return False
+    if operator == ComparisonOperator.EQ:
+        return _PredicateResult.MATCH if actual == expected else _PredicateResult.MISMATCH
+    if operator == ComparisonOperator.NEQ:
+        return _PredicateResult.MATCH if actual != expected else _PredicateResult.MISMATCH
+
+    if not _is_orderable_number(actual) or not _is_orderable_number(expected):
+        return _PredicateResult.UNRESOLVED
 
     if operator == ComparisonOperator.LT:
-        return actual < expected
-    if operator == ComparisonOperator.LTE:
-        return actual <= expected
-    if operator == ComparisonOperator.GT:
-        return actual > expected
-    if operator == ComparisonOperator.GTE:
-        return actual >= expected
-    return False
+        matched = actual < expected
+    elif operator == ComparisonOperator.LTE:
+        matched = actual <= expected
+    elif operator == ComparisonOperator.GT:
+        matched = actual > expected
+    elif operator == ComparisonOperator.GTE:
+        matched = actual >= expected
+    else:
+        return _PredicateResult.UNRESOLVED
+
+    return _PredicateResult.MATCH if matched else _PredicateResult.MISMATCH
+
+
+def _coerce_finite_number(value: Any, *, error_message: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(error_message)
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(error_message) from exc
+    if not math.isfinite(numeric):
+        raise ValueError(error_message)
+    return numeric
+
+
+def _is_orderable_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and not _is_nonfinite_number(value)
+
+
+def _is_nonfinite_number(value: Any) -> bool:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return not math.isfinite(float(value))
+    except OverflowError:
+        return True
 
 
 class _PredicateResult(StrEnum):
@@ -308,5 +331,12 @@ class _PredicateResult(StrEnum):
     MISMATCH = "mismatch"
     UNRESOLVED = "unresolved"
 
+
+_ORDERED_OPERATORS = {
+    ComparisonOperator.LT,
+    ComparisonOperator.LTE,
+    ComparisonOperator.GT,
+    ComparisonOperator.GTE,
+}
 
 _MISSING = object()

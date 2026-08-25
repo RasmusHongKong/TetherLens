@@ -311,3 +311,45 @@ def test_klein_accepts_direct_handle_relation_for_tether_hole_location():
     features = resolve_tool_interface_features(claims)
     assert len(features) == 1
     assert features[0].location_description == "handle"
+
+
+@pytest.mark.parametrize(
+    "copy",
+    [
+        "This tool does not have a tether hole.",
+        "The handle has no tether hole.",
+        "Tether hole: No",
+        "Tethering hole - absent",
+        "Not equipped with a dedicated tether hole.",
+        "Supplied without an integrated tether hole.",
+    ],
+)
+def test_klein_rejects_explicitly_negated_tether_hole_statements(copy: str):
+    claims = KleinAdapter().extract(
+        ProductIdentity(
+            manufacturer="Klein Tools",
+            product_type=ProductType.TOOL,
+            url="https://example.test/klein/generic",
+        ),
+        [artifact(copy)],
+    )
+
+    assert not any(
+        claim.subject_type == ClaimSubjectType.PHYSICAL_INTERFACE for claim in claims
+    )
+
+
+def test_klein_unrelated_negative_wording_does_not_suppress_affirmative_tether_hole():
+    claims = KleinAdapter().extract(
+        ProductIdentity(
+            manufacturer="Klein Tools",
+            product_type=ProductType.TOOL,
+            url="https://example.test/klein/generic",
+        ),
+        [artifact("No special tool is required; the handle features an integrated tether hole.")],
+    )
+
+    features = resolve_tool_interface_features(claims)
+    assert len(features) == 1
+    assert features[0].feature_kind == FeatureKind.THROUGH_OPENING
+    assert features[0].feature_role == FeatureRole.TETHER_INTERFACE

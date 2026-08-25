@@ -25,7 +25,7 @@ class KleinAdapter(ManufacturerAdapter):
     """
 
     manufacturer = "Klein Tools"
-    extractor = "klein.v0.1"
+    extractor = "klein.v0.2"
 
     def extract(
         self,
@@ -103,7 +103,7 @@ class KleinAdapter(ManufacturerAdapter):
 
 
 def _tether_hole_evidence(text: str) -> str | None:
-    """Return a tether-hole statement without crossing sentence or line boundaries."""
+    """Return affirmative tether-hole evidence within one statement boundary."""
 
     statement_gap = r"[^.!?;\n]"
     patterns = (
@@ -112,9 +112,38 @@ def _tether_hole_evidence(text: str) -> str | None:
     )
     for pattern in patterns:
         match = re.search(pattern, text, re.I)
-        if match:
-            return re.sub(r"\s+", " ", match.group(0)).strip()
+        if not match:
+            continue
+        evidence = re.sub(r"\s+", " ", match.group(0)).strip()
+        if _negates_tether_hole_statement(evidence):
+            continue
+        return evidence
     return None
+
+
+def _negates_tether_hole_statement(evidence: str) -> bool:
+    """Reject explicit absence without treating unrelated negative wording as negation."""
+
+    tether_feature = (
+        r"(?:tether(?:ing)?\s+hole|"
+        r"hole[^.!?;\n]{0,40}\bfor\s+(?:tool\s+)?tether(?:ing)?)"
+    )
+    modifier = r"(?:an?\s+|any\s+)?(?:integrated\s+|built[-\s]?in\s+|dedicated\s+)?"
+    negations = (
+        rf"\b(?:does?|did)(?:\s+not|n't)\s+"
+        rf"(?:have|include|feature|incorporate|provide|contain)\s+{modifier}{tether_feature}\b",
+        rf"\b(?:has|have|had|includes?|features?|incorporates?|provides?|contains?)\s+"
+        rf"no\s+{modifier}{tether_feature}\b",
+        rf"\bwithout\s+{modifier}{tether_feature}\b",
+        rf"\bno\s+{modifier}{tether_feature}\b",
+        rf"\bnot\s+(?:equipped|fitted|supplied|provided)\s+with\s+"
+        rf"{modifier}{tether_feature}\b",
+        rf"\b{tether_feature}\b\s*(?::|=|-)?\s*"
+        rf"(?:no|none|false|absent|not\s+(?:available|present|provided|included)|n/?a)\b",
+        rf"\b{tether_feature}\b[^.!?;\n]{{0,20}}\b(?:is\s+)?not\s+"
+        rf"(?:available|present|provided|included)\b",
+    )
+    return any(re.search(pattern, evidence, re.I) for pattern in negations)
 
 
 def _handle_location(evidence: str) -> bool:

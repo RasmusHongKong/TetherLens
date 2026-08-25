@@ -218,6 +218,66 @@ def test_known_prohibited_fact_makes_path_ineligible():
     assert result.status == EligibilityStatus.INELIGIBLE
 
 
+def test_unusable_ordered_prohibition_value_is_unresolved_not_cleared():
+    rule = AttachmentEligibility(
+        paths=[
+            EligibilityPath(
+                requirements=[FeaturePredicate(property_key="feature_kind", value="surface")],
+                prohibitions=[
+                    FeaturePredicate(
+                        property_key="attribute:load_capacity",
+                        operator=ComparisonOperator.LT,
+                        value=5.0,
+                    )
+                ],
+            )
+        ]
+    )
+
+    result = evaluate_attachment_eligibility(
+        rule,
+        [
+            ToolInterfaceFeature(
+                feature_id="surface-1",
+                feature_kind=FeatureKind.SURFACE,
+                attributes={"load_capacity": "unknown"},
+            )
+        ],
+    )
+
+    assert result.status == EligibilityStatus.UNRESOLVED
+    assert result.eligible is False
+
+
+def test_nonfinite_ordered_attribute_value_is_unresolved():
+    rule = AttachmentEligibility(
+        paths=[
+            EligibilityPath(
+                requirements=[
+                    FeaturePredicate(
+                        property_key="attribute:load_capacity",
+                        operator=ComparisonOperator.GTE,
+                        value=5.0,
+                    )
+                ]
+            )
+        ]
+    )
+
+    result = evaluate_attachment_eligibility(
+        rule,
+        [
+            ToolInterfaceFeature(
+                feature_id="surface-1",
+                feature_kind=FeatureKind.SURFACE,
+                attributes={"load_capacity": math.nan},
+            )
+        ],
+    )
+
+    assert result.status == EligibilityStatus.UNRESOLVED
+
+
 def test_missing_dimension_produces_unresolved_numeric_requirement():
     rule = AttachmentEligibility(
         paths=[
@@ -242,8 +302,8 @@ def test_missing_dimension_produces_unresolved_numeric_requirement():
     assert result.eligible is False
 
 
-@pytest.mark.parametrize("invalid", [-1.0, 0.0, math.inf, -math.inf, math.nan])
-def test_invalid_physical_dimensions_are_rejected(invalid: float):
+@pytest.mark.parametrize("invalid", [-1.0, 0.0, math.inf, -math.inf, math.nan, 10**1000])
+def test_invalid_physical_dimensions_are_rejected(invalid):
     with pytest.raises(ValidationError):
         ToolInterfaceFeature(
             feature_id="bad-feature",
@@ -252,12 +312,22 @@ def test_invalid_physical_dimensions_are_rejected(invalid: float):
         )
 
 
-@pytest.mark.parametrize("invalid", [True, False, math.inf, -math.inf, math.nan, "8.0"])
+@pytest.mark.parametrize("invalid", [True, False, math.inf, -math.inf, math.nan, "8.0", 10**1000])
 def test_invalid_dimension_predicate_operands_are_rejected(invalid):
     with pytest.raises(ValidationError):
         FeaturePredicate(
             property_key="dimension:hole_diameter",
             operator=ComparisonOperator.EQ,
+            value=invalid,
+        )
+
+
+@pytest.mark.parametrize("invalid", [True, False, math.inf, -math.inf, math.nan, "5.0", 10**1000])
+def test_invalid_ordered_attribute_predicate_operands_are_rejected(invalid):
+    with pytest.raises(ValidationError):
+        FeaturePredicate(
+            property_key="attribute:load_capacity",
+            operator=ComparisonOperator.LT,
             value=invalid,
         )
 
