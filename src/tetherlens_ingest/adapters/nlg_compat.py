@@ -19,6 +19,42 @@ from .common import page_text
 from .nlg import NLGAdapter as BaseNLGAdapter
 
 
+_BLOCK_BOUNDARY_TAGS = (
+    "address",
+    "article",
+    "aside",
+    "blockquote",
+    "br",
+    "dd",
+    "div",
+    "dl",
+    "dt",
+    "fieldset",
+    "figcaption",
+    "figure",
+    "footer",
+    "form",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "header",
+    "hr",
+    "li",
+    "main",
+    "nav",
+    "ol",
+    "p",
+    "pre",
+    "section",
+    "table",
+    "tr",
+    "ul",
+)
+
+
 class NLGAdapter(BaseNLGAdapter):
     """NLG adapter extension for ToolAttachment applicability and installation constraints.
 
@@ -75,15 +111,53 @@ class NLGAdapter(BaseNLGAdapter):
 
         for artifact in artifacts:
             text = page_text(artifact.body)
-            claims.extend(_tool_attachment_constraint_claims(text, artifact.url, self.extractor))
+            captive_text = _clause_aware_page_text(artifact.body)
+            claims.extend(
+                _tool_attachment_constraint_claims(
+                    text,
+                    artifact.url,
+                    self.extractor,
+                    captive_text=captive_text,
+                )
+            )
 
         return _dedupe_claims(claims)
 
 
-def _tool_attachment_constraint_claims(text: str, url: str, extractor: str) -> list[CandidateClaim]:
+def _clause_aware_page_text(html: str) -> str:
+    """Preserve block boundaries while keeping inline-marked text in one clause.
+
+    ``page_text`` intentionally separates every stripped string with a newline, which
+    is useful for label/value extraction but makes inline tags look like clause breaks.
+    Compatibility evidence needs a stricter distinction: block elements remain newline
+    boundaries, while inline elements such as ``strong`` and ``span`` are joined with
+    ordinary whitespace.
+    """
+
+    soup = BeautifulSoup(html, "html.parser")
+    for tag in soup.find_all(_BLOCK_BOUNDARY_TAGS):
+        if tag.name == "br":
+            tag.replace_with("\n")
+            continue
+        tag.insert_before("\n")
+        tag.insert_after("\n")
+
+    text = soup.get_text(" ", strip=False)
+    text = re.sub(r"[^\S\n]+", " ", text)
+    text = re.sub(r" *\n+ *", "\n", text)
+    return text.strip()
+
+
+def _tool_attachment_constraint_claims(
+    text: str,
+    url: str,
+    extractor: str,
+    *,
+    captive_text: str | None = None,
+) -> list[CandidateClaim]:
     claims: list[CandidateClaim] = []
 
-    if captive_feature := _captive_feature_attachment_evidence(text):
+    if captive_feature := _captive_feature_attachment_evidence(captive_text or text):
         claims.append(CandidateClaim(
             property_key="attachment_selection_class",
             value="captive_feature_attachment",
@@ -216,7 +290,7 @@ def _captive_feature_attachment_evidence(text: str) -> str | None:
     opening = r"(?:holes?|through[-\s]?openings?|openings?|eyes?)"
     captive_handle_or_opening = rf"captive\s+{handle}\s+or\s+(?:captive\s+)?{opening}"
     captive_opening_or_handle = rf"captive\s+{opening}\s+or\s+(?:captive\s+)?{handle}"
-    action = r"(?:attach|connect|cinch|loop|fit|install|secure|use)\w*"
+    action = r"(?:attach|connect|cinch|loop|fit|install|secure|use|create|provide)\w*"
     clause_gap = r"[^.!?;\n]"
     patterns = (
         rf"\b{action}\b{clause_gap}{{0,140}}\b{captive_handle_or_opening}\b",
