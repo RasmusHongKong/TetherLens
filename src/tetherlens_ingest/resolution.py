@@ -11,6 +11,11 @@ from .compatibility import (
     FeatureRole,
     ToolInterfaceFeature,
 )
+from .connection import (
+    ConnectionInterface,
+    ConnectionInterfaceRole,
+    TetherSide,
+)
 from .models import CandidateClaim, ClaimSubjectType
 from .normalize import length_to_mm
 
@@ -22,6 +27,15 @@ FEATURE_LOCATION_KEY = "feature.location_description"
 FEATURE_DIMENSION_PREFIX = "feature.dimension."
 FEATURE_ATTRIBUTE_PREFIX = "feature.attribute."
 ATTACHMENT_SELECTION_CLASS_KEY = "attachment_selection_class"
+
+INTERFACE_TYPE_KEY = "interface.type"
+INTERFACE_ROLE_KEY = "interface.role"
+INTERFACE_CONNECTOR_SPEC_REF_KEY = "interface.connector_spec_ref"
+INTERFACE_DIMENSION_PREFIX = "interface.dimension."
+INTERFACE_ATTRIBUTE_PREFIX = "interface.attribute."
+TETHER_INTERFACE_TYPE_KEY = "connection_point.interface_type"
+TETHER_SIDE_KEY = "connection_point.role"
+TETHER_CONNECTOR_SPEC_REF_KEY = "connection_point.connector_spec_ref"
 
 
 class ClaimResolutionError(ValueError):
@@ -146,6 +160,106 @@ def resolve_attachment_eligibility(claims: list[CandidateClaim]) -> AttachmentEl
     )
 
 
+def resolve_connection_interfaces(claims: list[CandidateClaim]) -> list[ConnectionInterface]:
+    """Resolve accepted connection-interface claims without merging distinct subjects.
+
+    ToolAttachment-provided interfaces use ``physical_interface`` subjects with
+    explicit ``interface.role`` and ``interface.type`` claims. Tether endpoints use
+    the already-established ``tether_connection_point`` subjects. Both normalize to
+    the same runtime shape while retaining their different structural roles.
+    """
+
+    interfaces: list[ConnectionInterface] = []
+    physical_groups: dict[str, list[CandidateClaim]] = defaultdict(list)
+    tether_groups: dict[str, list[CandidateClaim]] = defaultdict(list)
+
+    for claim in claims:
+        if claim.subject_type == ClaimSubjectType.PHYSICAL_INTERFACE and _is_connection_interface_claim(
+            claim.property_key
+        ):
+            physical_groups[claim.subject_ref].append(claim)
+        elif claim.subject_type == ClaimSubjectType.TETHER_CONNECTION_POINT and claim.property_key in {
+            TETHER_INTERFACE_TYPE_KEY,
+            TETHER_SIDE_KEY,
+            TETHER_CONNECTOR_SPEC_REF_KEY,
+        }:
+            tether_groups[claim.subject_ref].append(claim)
+
+    for interface_id, interface_claims in physical_groups.items():
+        type_claim = _single_claim(interface_claims, INTERFACE_TYPE_KEY)
+        role_claim = _single_claim(interface_claims, INTERFACE_ROLE_KEY)
+        if type_claim is None or role_claim is None:
+            continue
+
+        connector_claim = _single_claim(interface_claims, INTERFACE_CONNECTOR_SPEC_REF_KEY)
+        dimensions_mm: dict[str, float] = {}
+        attributes: dict[str, str | int | float | bool] = {}
+        for claim in interface_claims:
+            if claim.property_key.startswith(INTERFACE_DIMENSION_PREFIX):
+                code = claim.property_key.removeprefix(INTERFACE_DIMENSION_PREFIX)
+                if code:
+                    _set_unique_dimension(
+                        dimensions_mm,
+                        code,
+                        _dimension_to_mm(claim),
+                        interface_id,
+                    )
+            elif claim.property_key.startswith(INTERFACE_ATTRIBUTE_PREFIX):
+                code = claim.property_key.removeprefix(INTERFACE_ATTRIBUTE_PREFIX)
+                if code:
+                    _set_unique(attributes, code, claim.value, interface_id)
+
+        try:
+            role = ConnectionInterfaceRole(str(role_claim.value))
+        except ValueError as exc:
+            raise ClaimResolutionError(
+                f"unsupported connection interface role on {interface_id!r}: {role_claim.value!r}"
+            ) from exc
+
+        interfaces.append(
+            ConnectionInterface(
+                interface_id=interface_id,
+                role=role,
+                interface_type=str(type_claim.value),
+                connector_spec_ref=(
+                    str(connector_claim.value) if connector_claim is not None else None
+                ),
+                dimensions_mm=dimensions_mm,
+                attributes=attributes,
+            )
+        )
+
+    for interface_id, interface_claims in tether_groups.items():
+        type_claim = _single_claim(interface_claims, TETHER_INTERFACE_TYPE_KEY)
+        if type_claim is None:
+            continue
+        side_claim = _single_claim(interface_claims, TETHER_SIDE_KEY)
+        connector_claim = _single_claim(interface_claims, TETHER_CONNECTOR_SPEC_REF_KEY)
+
+        try:
+            tether_side = (
+                TetherSide(str(side_claim.value)) if side_claim is not None else TetherSide.UNKNOWN
+            )
+        except ValueError as exc:
+            raise ClaimResolutionError(
+                f"unsupported tether-side value on {interface_id!r}: {side_claim.value!r}"
+            ) from exc
+
+        interfaces.append(
+            ConnectionInterface(
+                interface_id=interface_id,
+                role=ConnectionInterfaceRole.TETHER_CONNECTION,
+                interface_type=str(type_claim.value),
+                tether_side=tether_side,
+                connector_spec_ref=(
+                    str(connector_claim.value) if connector_claim is not None else None
+                ),
+            )
+        )
+
+    return interfaces
+
+
 def _is_feature_claim(property_key: str) -> bool:
     return property_key in {
         FEATURE_KIND_KEY,
@@ -153,6 +267,14 @@ def _is_feature_claim(property_key: str) -> bool:
         FEATURE_CAPTIVE_STATE_KEY,
         FEATURE_LOCATION_KEY,
     } or property_key.startswith((FEATURE_DIMENSION_PREFIX, FEATURE_ATTRIBUTE_PREFIX))
+
+
+def _is_connection_interface_claim(property_key: str) -> bool:
+    return property_key in {
+        INTERFACE_TYPE_KEY,
+        INTERFACE_ROLE_KEY,
+        INTERFACE_CONNECTOR_SPEC_REF_KEY,
+    } or property_key.startswith((INTERFACE_DIMENSION_PREFIX, INTERFACE_ATTRIBUTE_PREFIX))
 
 
 def _single_claim(

@@ -1,12 +1,14 @@
 {
-  "version": "1.2",
-  "description": "Source-graph and generalized NLG constraint expectations layered onto the Batch 1 golden contract. Version 1.2 adds reusable captive-feature ToolAttachment selection semantics for NLG 101363.",
+  "version": "1.3",
+  "description": "Source-graph and generalized NLG constraint expectations layered onto the Batch 1 golden contract. Version 1.3 adds evidence-backed ToolAttachment-provided tether-side ring topology for NLG 101363.",
   "products": {
     "NLG:101363": {
       "expected_claims": [
         {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 3.0},
         {"subject_type": "physical_interface", "subject_ref": "rotating_interface", "property_key": "connector.swivel", "value": true},
         {"subject_type": "physical_interface", "subject_ref": "loop_interface", "property_key": "interface.loop_present", "value": true},
+        {"subject_type": "physical_interface", "subject_ref": "tether_side_ring", "property_key": "interface.role", "value": "tool_attachment_tether_side"},
+        {"subject_type": "physical_interface", "subject_ref": "tether_side_ring", "property_key": "interface.type", "value": "ring"},
         {"subject_type": "product", "subject_ref": "self", "property_key": "max_lanyard_length_mm", "value": 2000.0},
         {"subject_type": "product", "subject_ref": "self", "property_key": "attachment_method_code", "value": "cinch"},
         {"subject_type": "product", "subject_ref": "self", "property_key": "attachment_selection_class", "value": "captive_feature_attachment"}
@@ -18,7 +20,9 @@
           {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 3.0}], "gap_if_missing": "public_fact_missing"},
           {"name": "max_lanyard_length", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "max_lanyard_length_mm", "value": 2000.0}], "gap_if_missing": "public_fact_missing"},
           {"name": "attachment_method", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "attachment_method_code", "value": "cinch"}], "gap_if_missing": "public_fact_missing"},
-          {"name": "attachment_selection_class", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "attachment_selection_class", "value": "captive_feature_attachment"}], "gap_if_missing": "public_fact_missing", "detail": "Current NLG copy states that 101363 creates a tether point on a tool with a captive hole or handle."}
+          {"name": "attachment_selection_class", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "attachment_selection_class", "value": "captive_feature_attachment"}], "gap_if_missing": "public_fact_missing", "detail": "Current NLG copy states that 101363 creates a tether point on a tool with a captive hole or handle."},
+          {"name": "provided_tether_interface_role", "any_of": [{"subject_type": "physical_interface", "subject_ref": "tether_side_ring", "property_key": "interface.role", "value": "tool_attachment_tether_side"}], "gap_if_missing": "public_fact_missing"},
+          {"name": "provided_tether_interface_type", "any_of": [{"subject_type": "physical_interface", "subject_ref": "tether_side_ring", "property_key": "interface.type", "value": "ring"}], "gap_if_missing": "public_fact_missing"}
         ],
         "known_gaps": [
           {"category": "internal_measurement", "field": "d_ring_geometry", "detail": "Generic connector engagement still needs D-ring/interface geometry."}
