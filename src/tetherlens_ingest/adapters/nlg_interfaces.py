@@ -103,6 +103,16 @@ _AFFIRMATIVE_INTRO_CONTENT_FORBIDDEN = re.compile(
     re.I,
 )
 
+# Instrumental ``by using`` wording is accepted only when the whole assertion is a
+# bounded positive hazard-avoidance purpose. It must not be extracted as a positive
+# substring from an arbitrary governing predicate such as ``Do not secure tools by
+# using ...``. This narrow form preserves legitimate anti-snag/tangle guidance without
+# introducing a general-purpose polarity parser.
+_POSITIVE_INSTRUMENTAL_PURPOSE = (
+    r"(?:avoid|prevent|minimi[sz]e|reduce)\s+"
+    r"(?:snagging|tangling|entanglement|twisting)"
+)
+
 
 class NLGAdapter(BaseNLGAdapter):
     """Add explicit ToolAttachment-provided tether-side interfaces.
@@ -203,11 +213,9 @@ def _positive_ring_relation_evidence(segment: str) -> str | None:
     if usage_match is not None:
         return usage_match.group("relation")
 
-    # ``Avoid snagging by using the D Ring...`` still contains a positive local
-    # instrumental relation: avoidance governs ``snagging``, not D-ring use. Requiring
-    # the explicit ``by using`` construction keeps this distinct from ``Avoid using``.
-    by_using_match = re.search(
-        rf"\b(?P<relation>by\s+using\s+(?:the\s+)?{_RING}\s+to\s+(?:attach|connect|clip|hook)\w*\s+(?:directly\s+)?(?:(?:to|with)\s+)?{_LANYARD})\b",
+    by_using_match = re.fullmatch(
+        rf"{_POSITIVE_INSTRUMENTAL_PURPOSE}\s+"
+        rf"(?P<relation>by\s+using\s+(?:the\s+)?{_RING}\s+to\s+(?:attach|connect|clip|hook)\w*\s+(?:directly\s+)?(?:(?:to|with)\s+)?{_LANYARD})",
         text,
         re.I,
     )
