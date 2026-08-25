@@ -7,7 +7,14 @@ from tetherlens_ingest.connection import (
     TetherSide,
     evaluate_endpoint_engagement,
 )
-from tetherlens_ingest.models import ProductIdentity, ProductType, SourceArtifact, SourceType
+from tetherlens_ingest.models import (
+    CandidateClaim,
+    ClaimSubjectType,
+    ProductIdentity,
+    ProductType,
+    SourceArtifact,
+    SourceType,
+)
 from tetherlens_ingest.resolution import (
     resolve_attachment_eligibility,
     resolve_connection_interfaces,
@@ -24,24 +31,30 @@ def artifact(body: str, *, url: str = "https://example.test/product") -> SourceA
     )
 
 
-def test_nlg_tool_attachment_extracts_explicit_provided_ring_interface():
-    claims = NLGAdapter().extract(
-        ProductIdentity(
-            manufacturer="NLG",
-            product_type=ProductType.TOOL_ATTACHMENT,
-            name="360 D Ring Loop Tool Tether",
-            sku="101363",
-            url="https://example.test/nlg/101363",
+def provided_ring_claims() -> list[CandidateClaim]:
+    return [
+        CandidateClaim(
+            subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+            subject_ref="tether_side_ring",
+            property_key="interface.role",
+            value="tool_attachment_tether_side",
+            source_url="https://example.test/attachment",
+            extractor="test",
         ),
-        [
-            artifact(
-                "Create a tether point on any tool with a captive hole or handle and cinch it around the tool. "
-                "The D Ring provides a connection point for a tool lanyard."
-            )
-        ],
-    )
+        CandidateClaim(
+            subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+            subject_ref="tether_side_ring",
+            property_key="interface.type",
+            value="ring",
+            source_url="https://example.test/attachment",
+            extractor="test",
+        ),
+    ]
 
-    interfaces = resolve_connection_interfaces(claims)
+
+def test_provided_ring_claims_resolve_to_distinct_connection_interface():
+    interfaces = resolve_connection_interfaces(provided_ring_claims())
+
     assert len(interfaces) == 1
     interface = interfaces[0]
     assert interface.interface_id == "tether_side_ring"
@@ -49,31 +62,17 @@ def test_nlg_tool_attachment_extracts_explicit_provided_ring_interface():
     assert interface.interface_type == "ring"
 
 
-def test_nlg_does_not_invent_provided_ring_from_product_name_alone():
-    claims = NLGAdapter().extract(
-        ProductIdentity(
-            manufacturer="NLG",
-            product_type=ProductType.TOOL_ATTACHMENT,
-            name="360 D Ring Loop Tool Tether",
-            sku="101363",
-            url="https://example.test/nlg/101363",
-        ),
-        [artifact("Create a tether point on any tool with a captive hole or handle.")],
-    )
-
-    assert resolve_connection_interfaces(claims) == []
-
-
-def test_nlg_does_not_invent_provided_interface_from_bare_d_ring_label():
-    claims = NLGAdapter().extract(
-        ProductIdentity(
-            manufacturer="NLG",
-            product_type=ProductType.TOOL_ATTACHMENT,
-            name="Generic Attachment",
-            url="https://example.test/nlg/generic",
-        ),
-        [artifact("D Ring")],
-    )
+def test_incomplete_physical_interface_claims_do_not_become_connection_interface():
+    claims = [
+        CandidateClaim(
+            subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+            subject_ref="ambiguous_ring",
+            property_key="interface.type",
+            value="ring",
+            source_url="https://example.test/attachment",
+            extractor="test",
+        )
+    ]
 
     assert resolve_connection_interfaces(claims) == []
 
@@ -114,11 +113,7 @@ def test_tool_side_endpoint_to_attachment_ring_is_unresolved_without_geometry():
         tether_side=TetherSide.TOOL_SIDE,
         connector_spec_ref="rotobiner",
     )
-    target = ConnectionInterface(
-        interface_id="provided_ring",
-        role=ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE,
-        interface_type="ring",
-    )
+    target = resolve_connection_interfaces(provided_ring_claims())[0]
 
     result = evaluate_endpoint_engagement(endpoint, target)
 
@@ -134,11 +129,7 @@ def test_anchor_side_only_endpoint_cannot_serve_tool_attachment_interface():
         interface_type="carabiner",
         tether_side=TetherSide.ANCHOR_SIDE,
     )
-    target = ConnectionInterface(
-        interface_id="provided_ring",
-        role=ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE,
-        interface_type="ring",
-    )
+    target = resolve_connection_interfaces(provided_ring_claims())[0]
 
     result = evaluate_endpoint_engagement(endpoint, target)
 
@@ -147,11 +138,7 @@ def test_anchor_side_only_endpoint_cannot_serve_tool_attachment_interface():
 
 
 def test_connection_evaluation_is_identity_agnostic_for_equivalent_topology():
-    target = ConnectionInterface(
-        interface_id="generic_ring",
-        role=ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE,
-        interface_type="ring",
-    )
+    target = resolve_connection_interfaces(provided_ring_claims())[0]
     first = ConnectionInterface(
         interface_id="brand_a_endpoint",
         role=ConnectionInterfaceRole.TETHER_CONNECTION,
@@ -190,12 +177,7 @@ def test_klein_nlg_attachment_tether_vertical_slice_stops_at_missing_engagement_
             sku="101363",
             url="https://example.test/nlg/101363",
         ),
-        [
-            artifact(
-                "Create a tether point on any tool with a captive hole or handle and cinch it around the tool. "
-                "The D Ring provides a connection point for a tool lanyard."
-            )
-        ],
+        [artifact("Create a tether point on any tool with a captive hole or handle and cinch it around the tool.")],
     )
     eligibility = resolve_attachment_eligibility(attachment_claims)
     assert eligibility is not None
@@ -209,15 +191,10 @@ def test_klein_nlg_attachment_tether_vertical_slice_stops_at_missing_engagement_
             sku="example",
             url="https://example.test/nlg/tether",
         ),
-        [
-            artifact(
-                "Integral carabiner connects to the belt anchor while the Rotobiner provides tool attachment. "
-                "Max Load: 3 kg."
-            )
-        ],
+        [artifact("Integral carabiner connects to the belt anchor while the Rotobiner provides tool attachment. Max Load: 3 kg.")],
     )
 
-    attachment_interface = resolve_connection_interfaces(attachment_claims)[0]
+    attachment_interface = resolve_connection_interfaces(provided_ring_claims())[0]
     tether_interfaces = resolve_connection_interfaces(tether_claims)
     tool_endpoint = next(
         interface for interface in tether_interfaces if interface.tether_side == TetherSide.TOOL_SIDE
