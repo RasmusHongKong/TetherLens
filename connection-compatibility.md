@@ -85,7 +85,9 @@ Examples include:
 - interface type or role is ambiguous;
 - the applicable field-verification procedure has not been validated;
 - critical geometry or operating semantics are unknown in a way that cannot safely be checked in the field; or
-- accepted evidence is conflicting.
+- accepted authoritative evidence is conflicting and cannot yet be reconciled.
+
+A disagreement between an explicit manufacturer compatibility declaration and a generic TetherLens derived rule is handled separately under **Manufacturer precedence and contradiction review** below; it does not automatically make the operative connection state `unresolved`.
 
 ---
 
@@ -143,9 +145,45 @@ Use when no acceptable compatibility basis is available.
 
 ---
 
+## Manufacturer precedence and contradiction review
+
+An explicit, correctly scoped manufacturer compatibility declaration is more authoritative for that declared product/interface relationship than a generic TetherLens geometry or interface-class rule.
+
+If a manufacturer explicitly approves a connection and a reusable TetherLens rule independently derives `incompatible`, TetherLens should:
+
+1. retain `compatible` as the operative connection status with basis `manufacturer_declared`;
+2. preserve the contradictory derived result and its inputs;
+3. raise an internal review signal for possible data-binding, rule-scope, dimensional, revision or manufacturer-guidance issues; and
+4. avoid silently rewriting either source of evidence.
+
+The review signal should be able to record at least:
+
+```text
+operative_status = compatible
+operative_basis = manufacturer_declared
+contradiction_present = true
+review_status = needs_review
+contradicting_rule = <rule id/version>
+contradicting_result = incompatible
+```
+
+This precedence applies only to explicit, accepted, correctly scoped manufacturer compatibility evidence. A generic marketing statement or loosely related product-family language is not sufficient.
+
+Conflicting **authoritative manufacturer evidence** remains fail-closed. Examples include:
+
+- one accepted manufacturer document explicitly permits the connection while another accepted applicable document explicitly prohibits it;
+- two applicable revisions provide incompatible instructions and recency/supersession has not been resolved; or
+- the identity/scope binding of the manufacturer declaration is itself disputed.
+
+Those cases should remain `unresolved` until the authoritative conflict is reconciled.
+
+An internal derived contradiction should also trigger review when it is so physically extreme that it suggests a likely identity or evidence-binding error. Even then, the generic rule should not silently override a correctly scoped explicit manufacturer approval; the catalogue/rule inconsistency should be investigated.
+
+---
+
 ## Evaluation order
 
-Connection evaluation should remain conservative and short-circuit on established incompatibility or compatibility, not merely because an earlier basis was applicable but inconclusive.
+Connection evaluation should remain conservative, preserve authoritative manufacturer evidence, and continue past inconclusive generic bases.
 
 Recommended order:
 
@@ -155,19 +193,34 @@ resolve endpoint + target topology
 role / tether-side incompatibility?
         → incompatible
         ↓
-explicit applicable prohibition?
+collect applicable authoritative manufacturer prohibitions / approvals
+        ↓
+conflicting authoritative manufacturer evidence?
+        → unresolved
+        ↓
+explicit applicable manufacturer prohibition?
         → incompatible
         ↓
-explicit accepted compatibility?
-        → compatible / manufacturer_declared
+explicit accepted manufacturer compatibility?
+        → operative compatible / manufacturer_declared
+        → still evaluate generic rules for contradiction-review signals
         ↓
 validated geometry rule applicable?
-        → conclusive compatible or incompatible? return it
+        → conclusive result? retain it
         → otherwise continue
         ↓
 validated interface-class rule applicable?
-        → conclusive compatible or incompatible? return it
+        → conclusive result? retain it
         → otherwise continue
+        ↓
+manufacturer_declared operative result exists?
+        → return compatible and attach any contradiction-review signal
+        ↓
+generic conclusive incompatible result exists?
+        → incompatible
+        ↓
+generic conclusive compatible result exists?
+        → compatible
         ↓
 validated bounded field-verification path available?
         → requires_verification
@@ -175,9 +228,11 @@ validated bounded field-verification path available?
 unresolved
 ```
 
-An individual compatibility basis may be applicable yet unable to conclude because its required evidence is missing, incomplete or insufficient. That intermediate lack of conclusion must **not** terminate evaluation. For example, a geometry rule whose required measurements are unavailable should fall through to any applicable interface-class or runtime-verification basis.
+An individual generic compatibility basis may be applicable yet unable to conclude because its required evidence is missing, incomplete or insufficient. That intermediate lack of conclusion must **not** terminate evaluation. For example, a geometry rule whose required measurements are unavailable should fall through to any applicable interface-class or runtime-verification basis.
 
-`unresolved` is therefore the final result only after all applicable accepted bases and validated field-verification paths have been exhausted without a conclusive outcome.
+Where no manufacturer declaration controls the result, conflicting conclusive generic results should fail closed rather than choosing whichever rule happened to run first.
+
+`unresolved` is therefore the final result only after applicable evidence has been reconciled and all usable bases and validated field-verification paths have been exhausted without a defensible operative outcome.
 
 A type-name pairing such as `carabiner + ring` is not by itself a compatibility basis.
 
@@ -242,6 +297,8 @@ Catalogue-level conclusions may depend on:
 - validated Rules; and
 - explicit product/interface relationships.
 
+Contradictory generic derived results should remain traceable even when a manufacturer declaration controls the operative connection status.
+
 Runtime field observations are session-level context unless they later enter a separate reviewed evidence-ingestion process.
 
 A worker's successful check of Product A connected to Product B must not silently create a universal accepted Claim that Product A and Product B are compatible.
@@ -259,6 +316,8 @@ A candidate configuration may remain recommendable when one or more connections 
 
 `unresolved` remains blocking where no acceptable verification path exists.
 
+A manufacturer-declared compatible connection may remain recommendable despite a contradictory generic derived rule, but the contradiction should create an internal review signal and remain explainable in provenance.
+
 This gives TetherLens a useful middle ground between:
 
 - unsafe type-name assumptions; and
@@ -268,6 +327,6 @@ This gives TetherLens a useful middle ground between:
 
 ## Design principle
 
-> **Model the strongest defensible compatibility basis available; do not manufacture geometric certainty where the market does not publish it.**
+> **Model the strongest defensible compatibility basis available; preserve contradictions rather than letting weaker generic reasoning silently override explicit manufacturer guidance.**
 
 Geometry, declared compatibility, reusable interface classes and controlled runtime verification are complementary evidence paths rather than competing architectures.
