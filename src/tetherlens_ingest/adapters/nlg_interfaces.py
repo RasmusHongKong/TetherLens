@@ -58,16 +58,22 @@ class NLGAdapter(BaseNLGAdapter):
 
 
 def _provided_ring_evidence(text: str) -> str | None:
-    """Require an explicit local relation between a ring and tether/lanyard use."""
+    """Require an explicit local relation between a ring and tether/lanyard use.
 
-    ring = r"d[\s-]?rings?|rings?"
+    A bare ``D Ring`` label or product-name occurrence is insufficient. The same
+    statement must connect the ring to a tether/lanyard or explicitly describe it as
+    the connection/tether point being provided.
+    """
+
+    ring = r"(?:d[\s-]?rings?|rings?)"
     tether = r"(?:tool\s+)?(?:tethers?|lanyards?)"
     relation = r"(?:attach|connect|clip|hook|secure|provide|create|accept|use)\w*"
     gap = r"[^.!?;\n]"
     patterns = (
         rf"\b{ring}\b{gap}{{0,100}}\b{relation}\b{gap}{{0,100}}\b{tether}\b",
         rf"\b{tether}\b{gap}{{0,100}}\b{relation}\b{gap}{{0,100}}\b{ring}\b",
-        rf"\b{ring}\b{gap}{{0,100}}\b(?:tether\s+point|connection\s+point)\b",
+        rf"\b{ring}\b{gap}{{0,80}}\b(?:provides?|creates?|forms?|acts?\s+as)\b"
+        rf"{gap}{{0,60}}\b(?:a\s+)?(?:tether\s+point|connection\s+point)\b",
     )
 
     for pattern in patterns:
