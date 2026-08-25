@@ -45,14 +45,22 @@ Apply policy
       ↓
 Select highest-ranked permitted candidate
       ↓
-Resolve any required runtime verification
+Requires runtime verification?
+      ↓ yes
+Emit Recommended with constraints
++ exact pre-use verification procedure
       ↓
-If verification fails, reject candidate and try next ranked permitted candidate
+Worker assembles/checks selected configuration
+      ↓
+pass → mark verification condition satisfied
+fail → reject candidate and try next ranked permitted candidate
       ↓
 Assess evidence limitations
       ↓
-Produce recommendation + cautions
+Produce/update recommendation state + cautions
 ```
+
+A conditional recommendation should therefore exist **before** the worker obtains or assembles the configuration. Runtime verification determines whether its pre-use condition is satisfied; it is not a prerequisite for telling the worker what configuration TetherLens recommends obtaining and checking.
 
 ## Four recommendation dimensions
 
@@ -237,6 +245,8 @@ A connection may therefore be established through:
 
 The engine must **not** infer compatibility from interface names alone. `carabiner + ring`, for example, is topology that may select an applicable rule, not proof of engagement.
 
+Explicit, correctly scoped manufacturer compatibility takes precedence over contradictory generic TetherLens geometry or interface-class reasoning for that declared relationship. The contradictory derived result should still be retained and flagged for internal review. Conflicting authoritative manufacturer evidence remains fail-closed until reconciled, as defined in `connection-compatibility.md`.
+
 `requires_verification` is a conditional but usable technical state. It should be returned only when:
 
 - endpoint and target topology/roles are plausible;
@@ -316,11 +326,24 @@ without pretending the configuration itself is technically unsafe.
 
 A policy-prohibited candidate should not trigger runtime assembly or verification merely because its connection topology was otherwise plausible.
 
-## Step 6a: verify the selected candidate where required
+## Step 6a: emit the selected recommendation
 
-After hard constraints, contextual ranking and policy have identified the highest-ranked permitted candidate, TetherLens should resolve any `requires_verification` connections for **that candidate**.
+After hard constraints, contextual ranking and policy identify the highest-ranked permitted candidate, TetherLens should emit the recommendation **before** requiring physical verification.
 
-A candidate with a `requires_verification` connection is not yet ready for unconditional use. TetherLens should present the validated verification procedure for that connection family and require the worker to verify the actual assembled connection before the candidate is treated as usable.
+If every required connection is already established, the result may be `Recommended` or another appropriate recommendation state based on contextual limitations.
+
+If one or more selected-candidate connections are `requires_verification`, the result should be `Recommended with constraints` and should include:
+
+- the selected configuration;
+- the exact connection(s) requiring verification;
+- the validated verification procedure for each connection family; and
+- an explicit statement that the configuration must not be put into use unless the verification passes.
+
+This conditional recommendation gives the worker enough information to obtain and assemble the intended configuration. Runtime verification then resolves the pre-use condition; it does not retroactively create the recommendation.
+
+## Step 6b: resolve the selected candidate's verification condition
+
+After the worker has the selected configuration available, TetherLens should resolve any pending runtime verification for **that candidate**.
 
 A field-verification procedure must be bounded and observable. It must not reduce to a generic confirmation such as "looks safe" or "does it fit?".
 
@@ -336,7 +359,17 @@ Depending on the validated rule, checks may include whether:
 
 The exact checklist must come from the versioned rule for the relevant connection family.
 
-If the runtime check fails, that candidate connection/configuration becomes unusable for the session. The engine should then fall back to the next highest-ranked permitted candidate and request verification only if that candidate also requires it.
+Suggested verification-status states are:
+
+```text
+pending
+passed
+failed
+```
+
+If verification passes, mark the condition `passed` for the current session/configuration. The original conditional recommendation remains traceable; the UI may present the configuration as verified/ready for use without pretending the catalogue had pre-established that physical fit.
+
+If verification fails, mark the selected candidate unusable for the session and fall back to the next highest-ranked permitted candidate. Emit that candidate's recommendation first, and request verification only if that candidate also requires it.
 
 This avoids requiring the worker to obtain or assemble lower-ranked alternatives unnecessarily.
 
@@ -364,7 +397,7 @@ Catalogue facts establish a plausible connection path, but final physical fit mu
 
 This is represented by `requires_verification`, not by pretending the catalogue has complete geometry and not by treating the connection as generically unresolved.
 
-The recommendation should state exactly what must be checked before use.
+The conditional recommendation should state exactly what must be checked before use and track whether the verification remains `pending`, has `passed`, or has `failed` for the current session/configuration.
 
 ### Secondary uncertainty
 
@@ -374,7 +407,7 @@ Example:
 
 - operational mass known;
 - capacities known;
-- interfaces established or field-verified;
+- interfaces established or field-verifiable;
 - chemical resistance not established.
 
 The recommendation may remain usable with a clear limitation.
@@ -409,7 +442,7 @@ This can require abstention for the affected candidate.
 Use when:
 
 - hard constraints pass;
-- all required physical connections are established or any required runtime verification has been successfully completed;
+- all required physical connections are catalogue-established or any required runtime verification has already passed for the current session/configuration;
 - the configuration is well suited to context; and
 - no material qualification changes how the worker should interpret the result.
 
@@ -418,13 +451,17 @@ Use when:
 Use when:
 
 - hard constraints pass;
-- the configuration is viable;
+- the configuration is the highest-ranked permitted viable candidate;
 - one or more practical limitations should be actively managed; or
 - a specific runtime verification must be completed before use.
+
+This state may be emitted while verification is still `pending`. It tells the worker what to obtain/assemble and exactly what must pass before use.
 
 Example:
 
 > This configuration meets the published load requirements. Before use, connect the carabiner to the D-ring and confirm that the gate closes and locks fully, the ring does not obstruct the gate, and the connector settles without obvious cross-loading.
+
+If the required verification later fails, the conditional recommendation is rejected for the session and TetherLens should move to the next ranked permitted candidate.
 
 ### Limited-confidence recommendation
 
@@ -458,6 +495,7 @@ At minimum:
 - key reason it is viable;
 - compatibility basis for each required physical connection;
 - any runtime verification that must be completed;
+- current verification status where applicable;
 - key reason it ranked highest;
 - important caution; and
 - policy conflict, where relevant.
@@ -487,7 +525,9 @@ compatibility status + basis
   ↓
 accepted Claims / validated Rule
   ↓
-optional session verification observations
+manufacturer/generic contradiction review signal where present
+  ↓
+optional session verification status + observations
 ```
 
 and the other tethering component Claims, rules and policy evidence used by the recommendation.
@@ -628,9 +668,11 @@ The engine is working if:
 - viable but imperfect options are not unnecessarily rejected;
 - mixed-manufacturer tethering configurations can be evaluated;
 - missing public connector dimensions do not automatically force catalogue-wide abstention when another acceptable compatibility basis exists;
+- explicit manufacturer compatibility remains authoritative over contradictory generic derived rules while contradictions stay visible for review;
 - `requires_verification` is kept distinct from both `compatible` and genuinely `unresolved`;
+- `Recommended with constraints` can be emitted while runtime verification is still pending;
 - runtime field verification remains session/configuration evidence rather than universal catalogue compatibility;
 - evidence limitations are communicated without generic over-warning;
 - policy remains separate from technical suitability;
 - rules can be reused across newly added products; and
-- a recommendation can be traced back to the facts, compatibility bases, configuration relationships, dependencies, runtime observations and rules that produced it.
+- a recommendation can be traced back to the facts, compatibility bases, configuration relationships, dependencies, review signals, runtime observations and rules that produced it.
