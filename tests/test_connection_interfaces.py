@@ -64,6 +64,20 @@ def test_nlg_does_not_invent_provided_ring_from_product_name_alone():
     assert resolve_connection_interfaces(claims) == []
 
 
+def test_nlg_does_not_invent_provided_interface_from_bare_d_ring_label():
+    claims = NLGAdapter().extract(
+        ProductIdentity(
+            manufacturer="NLG",
+            product_type=ProductType.TOOL_ATTACHMENT,
+            name="Generic Attachment",
+            url="https://example.test/nlg/generic",
+        ),
+        [artifact("D Ring")],
+    )
+
+    assert resolve_connection_interfaces(claims) == []
+
+
 def test_tether_endpoint_claims_resolve_to_runtime_connection_interfaces():
     claims = NLGAdapter().extract(
         ProductIdentity(
