@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 
-from .adapters import HiltiAdapter, MilwaukeeAdapter, NLGAdapter, StopDropAdapter
+from .adapters import HiltiAdapter, KleinAdapter, MilwaukeeAdapter, NLGAdapter, StopDropAdapter
 from .http import HttpxFetcher
 from .models import ProductIdentity, ProductType
 from .runner import IngestionRunner
@@ -11,6 +11,7 @@ from .runner import IngestionRunner
 ADAPTERS = {
     "nlg": NLGAdapter,
     "hilti": HiltiAdapter,
+    "klein": KleinAdapter,
     "stopdrop": StopDropAdapter,
     "milwaukee": MilwaukeeAdapter,
 }
