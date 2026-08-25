@@ -42,7 +42,7 @@ def test_klein_6826ins_to_nlg_101363_vertical_slice_uses_resolved_feature_semant
     )
     klein_claims = KleinAdapter().extract(
         klein_identity,
-        [artifact("The insulated screwdriver has an integrated tether hole in the handle.")],
+        [artifact("The tether hole in the handle provides added safety when working at height.")],
     )
 
     features = resolve_tool_interface_features(klein_claims)
@@ -64,8 +64,8 @@ def test_klein_6826ins_to_nlg_101363_vertical_slice_uses_resolved_feature_semant
         nlg_identity,
         [
             artifact(
-                "Cinch the loop around a captive handle or through a captive hole "
-                "to create a tether point. Max Load: 3 kg."
+                "Create a tether point on any tool with a captive hole or handle and "
+                "cinch it around the tool itself. Max Load: 3 kg."
             )
         ],
     )
