@@ -145,7 +145,7 @@ Use when no acceptable compatibility basis is available.
 
 ## Evaluation order
 
-Connection evaluation should remain conservative and short-circuit on established incompatibility.
+Connection evaluation should remain conservative and short-circuit on established incompatibility or compatibility, not merely because an earlier basis was applicable but inconclusive.
 
 Recommended order:
 
@@ -162,16 +162,22 @@ explicit accepted compatibility?
         → compatible / manufacturer_declared
         ↓
 validated geometry rule applicable?
-        → compatible | incompatible | unresolved
+        → conclusive compatible or incompatible? return it
+        → otherwise continue
         ↓
 validated interface-class rule applicable?
-        → compatible | incompatible | unresolved
+        → conclusive compatible or incompatible? return it
+        → otherwise continue
         ↓
 validated bounded field-verification path available?
         → requires_verification
         ↓
 unresolved
 ```
+
+An individual compatibility basis may be applicable yet unable to conclude because its required evidence is missing, incomplete or insufficient. That intermediate lack of conclusion must **not** terminate evaluation. For example, a geometry rule whose required measurements are unavailable should fall through to any applicable interface-class or runtime-verification basis.
+
+`unresolved` is therefore the final result only after all applicable accepted bases and validated field-verification paths have been exhausted without a conclusive outcome.
 
 A type-name pairing such as `carabiner + ring` is not by itself a compatibility basis.
 
