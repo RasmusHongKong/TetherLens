@@ -103,17 +103,24 @@ _AFFIRMATIVE_INTRO_CONTENT_FORBIDDEN = re.compile(
     re.I,
 )
 
+_COORDINATED_SUBJECT_PREDICATE = (
+    r"(?:is|are|was|were|has|have|had|does|do|did|"
+    r"can|cannot|could|may|might|must|should|shall|will|would|"
+    r"connect\w*|attach\w*|clip\w*|hook\w*|creat\w*|provid\w*|form\w*|mak\w*)"
+)
+
 # A coordinated predicate may continue to share the D-ring subject (``does not require
 # drilling and creates ...``), but that subject ownership ends when a conjunct
-# explicitly introduces another subject. Determiner/pronoun-headed conjuncts are clear
-# switches; bare domain interface heads cover compact copy such as ``reinforced loop is
-# load-rated and creates ...``. Failing closed here is preferable to rebinding a later
-# tether relation to the D-ring.
+# explicitly introduces another subject with its own finite predicate. Requiring the
+# predicate prevents target-object wording such as ``creates a secure tether point``
+# from being mistaken for a bare ``tether`` subject.
 _EXPLICIT_COORDINATED_SUBJECT = re.compile(
     rf"^(?:"
-    rf"(?:the|this|that|these|those|a|an|our|my|your|its|their|his|her)\s+{_WORD}"
-    rf"|(?:it|they|we|you|he|she)\b"
-    rf"|(?:{_WORD}\s+){{0,3}}(?:loop|strap|cord|lanyard|tether|connector|carabiner|clip|hook|bracket)\b"
+    rf"(?:the|this|that|these|those|a|an|our|my|your|its|their|his|her)\s+"
+    rf"(?:{_WORD}\s+){{0,4}}{_COORDINATED_SUBJECT_PREDICATE}\b"
+    rf"|(?:it|they|we|you|he|she)\s+{_COORDINATED_SUBJECT_PREDICATE}\b"
+    rf"|(?:{_WORD}\s+){{0,3}}(?:loop|strap|cord|lanyard|tether|connector|carabiner|clip|hook|bracket)\s+"
+    rf"{_COORDINATED_SUBJECT_PREDICATE}\b"
     rf")",
     re.I,
 )
