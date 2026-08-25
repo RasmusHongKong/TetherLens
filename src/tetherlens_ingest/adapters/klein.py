@@ -118,14 +118,15 @@ def _tether_hole_evidence(text: str) -> str | None:
 
 
 def _handle_location(evidence: str) -> bool:
-    """Require an explicit local relation between the tether hole and the handle."""
+    """Require the tether-hole phrase itself to be explicitly located in the handle."""
 
     tether_hole = r"tether(?:ing)?\s+hole"
-    patterns = (
-        rf"\b{tether_hole}\b[^.!?;\n]{{0,40}}\b(?:in|on|within|through)\s+(?:the\s+)?handle\b",
-        rf"\bhandle\b[^.!?;\n]{{0,40}}\b(?:with|has|having|includes?|incorporates?|features?)\b[^.!?;\n]{{0,40}}\b(?:an?\s+)?{tether_hole}\b",
+    direct_location = (
+        rf"\b{tether_hole}\b\s+(?:is\s+)?(?:located\s+)?(?:in|on|within|through)\s+(?:the\s+)?handle\b",
+        rf"\b(?:an?\s+)?{tether_hole}\b\s+(?:is\s+)?(?:built|integrated|formed|provided)\s+(?:in|into|on|within|through)\s+(?:the\s+)?handle\b",
+        rf"\bhandle\b\s+(?:has|includes?|incorporates?|features?)\s+(?:an?\s+)?(?:integrated\s+|built[-\s]?in\s+)?{tether_hole}\b",
     )
-    return any(re.search(pattern, evidence, re.I) for pattern in patterns)
+    return any(re.search(pattern, evidence, re.I) for pattern in direct_location)
 
 
 def _dedupe(claims: list[CandidateClaim]) -> list[CandidateClaim]:
