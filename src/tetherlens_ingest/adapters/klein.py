@@ -103,19 +103,29 @@ class KleinAdapter(ManufacturerAdapter):
 
 
 def _tether_hole_evidence(text: str) -> str | None:
+    """Return a tether-hole statement without crossing sentence or line boundaries."""
+
+    statement_gap = r"[^.!?;\n]"
     patterns = (
-        r".{0,80}\b(?:integrated|built[-\s]?in|dedicated)?\s*tether(?:ing)?\s+hole\b.{0,100}",
-        r".{0,80}\bhole\b.{0,50}\bfor\s+(?:tool\s+)?tether(?:ing)?\b.{0,100}",
+        rf"{statement_gap}{{0,80}}\b(?:integrated|built[-\s]?in|dedicated)?\s*tether(?:ing)?\s+hole\b{statement_gap}{{0,100}}",
+        rf"{statement_gap}{{0,80}}\bhole\b{statement_gap}{{0,50}}\bfor\s+(?:tool\s+)?tether(?:ing)?\b{statement_gap}{{0,100}}",
     )
     for pattern in patterns:
-        match = re.search(pattern, text, re.I | re.S)
+        match = re.search(pattern, text, re.I)
         if match:
             return re.sub(r"\s+", " ", match.group(0)).strip()
     return None
 
 
 def _handle_location(evidence: str) -> bool:
-    return bool(re.search(r"\bhandle\b", evidence, re.I))
+    """Require an explicit local relation between the tether hole and the handle."""
+
+    tether_hole = r"tether(?:ing)?\s+hole"
+    patterns = (
+        rf"\b{tether_hole}\b[^.!?;\n]{{0,40}}\b(?:in|on|within|through)\s+(?:the\s+)?handle\b",
+        rf"\bhandle\b[^.!?;\n]{{0,40}}\b(?:with|has|having|includes?|incorporates?|features?)\b[^.!?;\n]{{0,40}}\b(?:an?\s+)?{tether_hole}\b",
+    )
+    return any(re.search(pattern, evidence, re.I) for pattern in patterns)
 
 
 def _dedupe(claims: list[CandidateClaim]) -> list[CandidateClaim]:
