@@ -172,24 +172,39 @@ def _rendered_clauses(html: str) -> list[str]:
 
 
 def _ring_relation_is_negated(clause: str, match: re.Match[str]) -> bool:
-    """Reject explicit negation governing the matched D-ring relationship."""
+    """Reject explicit prohibition of the matched D-ring relationship."""
 
     matched = match.group(0)
     if re.search(
-        r"\b(?:no|not|without|never|cannot|can't|doesn't|does\s+not)\b",
+        r"\b(?:no|not|without|never|cannot|can't|doesn't|does\s+not|prohibited|forbidden|unsafe|unsuitable)\b",
         matched,
         re.I,
     ):
         return True
 
-    prefix = clause[: match.end()]
+    ring_match = re.search(r"\bd[\s-]?rings?\b", matched, re.I)
+    if ring_match is None:
+        return False
+
+    ring_end = match.start() + ring_match.end()
+    before_ring = clause[:ring_end]
     ring = r"d[\s-]?rings?"
-    pre_ring_prohibition = rf"\b(?:do\s+not|don't|never|cannot|can't|must\s+not|should\s+not)\b[^.!?;]{{0,80}}\b(?:use\s+)?(?:the\s+)?{ring}\b"
-    without_ring = rf"\bwithout\b[^.!?;]{{0,40}}\b(?:using\s+)?(?:the\s+)?{ring}\b"
-    return bool(
-        re.search(pre_ring_prohibition, prefix, re.I)
-        or re.search(without_ring, prefix, re.I)
+    relation = r"(?:use|using|attach|attaching|connect|connecting|clip|clipping|hook|hooking)"
+    permission = r"(?:permitted|allowed|approved|authorized|acceptable|safe|suitable|recommended)"
+
+    pre_ring_prohibitions = (
+        rf"\b(?:do|must|should|may|can)\s+not\b[^.!?;]{{0,100}}\b{relation}\b[^.!?;]{{0,50}}\b(?:the\s+)?{ring}\b",
+        rf"\b(?:is|are|was|were|be|been|being)\s+not\s+{permission}\b[^.!?;]{{0,100}}\b(?:to\s+)?{relation}\b[^.!?;]{{0,50}}\b(?:the\s+)?{ring}\b",
+        rf"\bnot\s+{permission}\b[^.!?;]{{0,100}}\b(?:to\s+)?{relation}\b[^.!?;]{{0,50}}\b(?:the\s+)?{ring}\b",
+        rf"\b(?:never|cannot|can't)\b[^.!?;]{{0,100}}\b{relation}\b[^.!?;]{{0,50}}\b(?:the\s+)?{ring}\b",
+        rf"\b(?:prohibited|forbidden|unsafe|unsuitable)\b[^.!?;]{{0,100}}\b(?:to\s+)?{relation}\b[^.!?;]{{0,50}}\b(?:the\s+)?{ring}\b",
+        rf"\bwithout\b[^.!?;]{{0,60}}\b(?:using\s+)?(?:the\s+)?{ring}\b",
     )
+    if any(re.search(pattern, before_ring, re.I) for pattern in pre_ring_prohibitions):
+        return True
+
+    post_ring_prohibition = rf"\b(?:use|using)\s+of\s+(?:the\s+)?{ring}\b[^.!?;]{{0,100}}\b(?:is|are|was|were|remains?)\s+(?:not\s+{permission}|prohibited|forbidden|unsafe|unsuitable)\b"
+    return bool(re.search(post_ring_prohibition, clause, re.I))
 
 
 def _dedupe_claims(claims: list[CandidateClaim]) -> list[CandidateClaim]:
