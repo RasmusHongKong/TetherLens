@@ -220,6 +220,48 @@ def test_nlg_does_not_join_captive_connector_copy_to_feature_alternatives_in_lat
     )
 
 
+def test_nlg_preserves_valid_captive_feature_clause_across_inline_markup():
+    claims = NLGAdapter().extract(
+        ProductIdentity(
+            manufacturer="NLG",
+            product_type=ProductType.TOOL_ATTACHMENT,
+            url="https://example.test/nlg/generic",
+        ),
+        [
+            artifact(
+                "<p>Create a tether point on any tool with a "
+                "<strong>captive hole or handle</strong> and cinch it around the tool.</p>"
+            )
+        ],
+    )
+
+    assert any(
+        claim.property_key == "attachment_selection_class"
+        and claim.value == "captive_feature_attachment"
+        for claim in claims
+    )
+
+
+def test_nlg_keeps_block_boundaries_when_inline_text_is_preserved():
+    claims = NLGAdapter().extract(
+        ProductIdentity(
+            manufacturer="NLG",
+            product_type=ProductType.TOOL_ATTACHMENT,
+            url="https://example.test/nlg/generic",
+        ),
+        [
+            artifact(
+                "<p>Attach the captive loop to the D-ring.</p>"
+                "<p>The tool chart lists a handle or hole.</p>"
+            )
+        ],
+    )
+
+    assert not any(
+        claim.property_key == "attachment_selection_class" for claim in claims
+    )
+
+
 def test_klein_does_not_borrow_handle_location_from_adjacent_copy():
     claims = KleinAdapter().extract(
         ProductIdentity(
@@ -234,3 +276,38 @@ def test_klein_does_not_borrow_handle_location_from_adjacent_copy():
     assert len(features) == 1
     assert features[0].feature_kind == FeatureKind.THROUGH_OPENING
     assert features[0].location_description is None
+
+
+def test_klein_does_not_treat_handle_with_grip_as_tether_hole_relation():
+    claims = KleinAdapter().extract(
+        ProductIdentity(
+            manufacturer="Klein Tools",
+            product_type=ProductType.TOOL,
+            url="https://example.test/klein/generic",
+        ),
+        [
+            artifact(
+                "Comfortable handle with insulated grip, plus an integrated tether hole at the shaft end"
+            )
+        ],
+    )
+
+    features = resolve_tool_interface_features(claims)
+    assert len(features) == 1
+    assert features[0].feature_kind == FeatureKind.THROUGH_OPENING
+    assert features[0].location_description is None
+
+
+def test_klein_accepts_direct_handle_relation_for_tether_hole_location():
+    claims = KleinAdapter().extract(
+        ProductIdentity(
+            manufacturer="Klein Tools",
+            product_type=ProductType.TOOL,
+            url="https://example.test/klein/generic",
+        ),
+        [artifact("The handle features an integrated tether hole for working at height.")],
+    )
+
+    features = resolve_tool_interface_features(claims)
+    assert len(features) == 1
+    assert features[0].location_description == "handle"
