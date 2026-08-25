@@ -1,0 +1,99 @@
+from __future__ import annotations
+
+import re
+
+from tetherlens_ingest.models import CandidateClaim, ClaimSubjectType, ProductIdentity, ProductType, SourceArtifact
+from .common import page_text
+from .nlg_compat import NLGAdapter as BaseNLGAdapter
+
+
+class NLGAdapter(BaseNLGAdapter):
+    """Add explicit ToolAttachment-provided connection interfaces.
+
+    Tool-side installation eligibility remains owned by ``nlg_compat``. This layer
+    records only a distinct tether-side interface when the manufacturer copy itself
+    states that a D-ring/ring provides or accepts a tether/lanyard connection.
+    """
+
+    extractor = "nlg.v0.9"
+
+    def extract(
+        self,
+        identity: ProductIdentity,
+        artifacts: list[SourceArtifact],
+    ) -> list[CandidateClaim]:
+        claims = list(super().extract(identity, artifacts))
+        if identity.product_type != ProductType.TOOL_ATTACHMENT:
+            return claims
+
+        for artifact in artifacts:
+            text = page_text(artifact.body)
+            if evidence := _provided_ring_evidence(text):
+                claims.extend(
+                    [
+                        CandidateClaim(
+                            subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+                            subject_ref="tether_side_ring",
+                            property_key="interface.role",
+                            value="tool_attachment_tether_side",
+                            raw_value=evidence,
+                            source_url=artifact.url,
+                            evidence_method="manufacturer_stated",
+                            extractor=self.extractor,
+                        ),
+                        CandidateClaim(
+                            subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+                            subject_ref="tether_side_ring",
+                            property_key="interface.type",
+                            value="ring",
+                            raw_value=evidence,
+                            source_url=artifact.url,
+                            evidence_method="manufacturer_stated",
+                            extractor=self.extractor,
+                        ),
+                    ]
+                )
+
+        return _dedupe_claims(claims)
+
+
+def _provided_ring_evidence(text: str) -> str | None:
+    """Require an explicit local relation between a ring and tether/lanyard use."""
+
+    ring = r"d[\s-]?rings?|rings?"
+    tether = r"(?:tool\s+)?(?:tethers?|lanyards?)"
+    relation = r"(?:attach|connect|clip|hook|secure|provide|create|accept|use)\w*"
+    gap = r"[^.!?;\n]"
+    patterns = (
+        rf"\b{ring}\b{gap}{{0,100}}\b{relation}\b{gap}{{0,100}}\b{tether}\b",
+        rf"\b{tether}\b{gap}{{0,100}}\b{relation}\b{gap}{{0,100}}\b{ring}\b",
+        rf"\b{ring}\b{gap}{{0,100}}\b(?:tether\s+point|connection\s+point)\b",
+    )
+
+    for pattern in patterns:
+        match = re.search(pattern, text, re.I)
+        if not match:
+            continue
+        evidence = re.sub(r"\s+", " ", match.group(0)).strip()
+        if re.search(r"\b(?:no|not|without|never|cannot|can't|doesn't|does\s+not)\b", evidence, re.I):
+            continue
+        return evidence
+    return None
+
+
+def _dedupe_claims(claims: list[CandidateClaim]) -> list[CandidateClaim]:
+    out: list[CandidateClaim] = []
+    seen: set[tuple[str, str, str, str, str]] = set()
+    for claim in claims:
+        key = (
+            claim.subject_type.value,
+            claim.subject_ref,
+            claim.property_key,
+            str(claim.value),
+            claim.unit or "",
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(claim)
+    return out
