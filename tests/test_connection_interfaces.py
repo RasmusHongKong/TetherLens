@@ -52,6 +52,19 @@ def provided_ring_claims() -> list[CandidateClaim]:
     ]
 
 
+def nlg_attachment_claims(body: str) -> list[CandidateClaim]:
+    return NLGAdapter().extract(
+        ProductIdentity(
+            manufacturer="NLG",
+            product_type=ProductType.TOOL_ATTACHMENT,
+            name="D Ring Attachment",
+            sku="example",
+            url="https://example.test/nlg/attachment",
+        ),
+        [artifact(f"<p>{body}</p>")],
+    )
+
+
 def test_provided_ring_claims_resolve_to_distinct_connection_interface():
     interfaces = resolve_connection_interfaces(provided_ring_claims())
 
@@ -78,18 +91,9 @@ def test_incomplete_physical_interface_claims_do_not_become_connection_interface
 
 
 def test_nlg_explicit_d_ring_tether_point_resolves_as_provided_interface():
-    claims = NLGAdapter().extract(
-        ProductIdentity(
-            manufacturer="NLG",
-            product_type=ProductType.TOOL_ATTACHMENT,
-            name="D Ring Attachment",
-            sku="example",
-            url="https://example.test/nlg/attachment",
-        ),
-        [artifact("The D Ring creates a secure tether point to attach a tool lanyard.")],
+    interfaces = resolve_connection_interfaces(
+        nlg_attachment_claims("The D Ring creates a secure tether point to attach a tool lanyard.")
     )
-
-    interfaces = resolve_connection_interfaces(claims)
 
     assert len(interfaces) == 1
     assert interfaces[0].interface_id == "tether_side_ring"
@@ -132,18 +136,9 @@ def test_nlg_block_boundary_does_not_join_unrelated_ring_and_tether_point_copy()
 
 
 def test_nlg_pre_ring_negation_blocks_prohibited_lanyard_relation():
-    claims = NLGAdapter().extract(
-        ProductIdentity(
-            manufacturer="NLG",
-            product_type=ProductType.TOOL_ATTACHMENT,
-            name="D Ring Attachment",
-            sku="example",
-            url="https://example.test/nlg/attachment",
-        ),
-        [artifact("<p>Do not use the D Ring to attach a tool lanyard.</p>")],
-    )
-
-    assert resolve_connection_interfaces(claims) == []
+    assert resolve_connection_interfaces(
+        nlg_attachment_claims("Do not use the D Ring to attach a tool lanyard.")
+    ) == []
 
 
 def test_nlg_pre_ring_permission_and_safety_prohibitions_block_interface_claims():
@@ -154,18 +149,7 @@ def test_nlg_pre_ring_permission_and_safety_prohibitions_block_interface_claims(
     )
 
     for body in prohibited:
-        claims = NLGAdapter().extract(
-            ProductIdentity(
-                manufacturer="NLG",
-                product_type=ProductType.TOOL_ATTACHMENT,
-                name="D Ring Attachment",
-                sku="example",
-                url="https://example.test/nlg/attachment",
-            ),
-            [artifact(f"<p>{body}</p>")],
-        )
-
-        assert resolve_connection_interfaces(claims) == [], body
+        assert resolve_connection_interfaces(nlg_attachment_claims(body)) == [], body
 
 
 def test_nlg_avoidance_prohibitions_block_interface_claims():
@@ -175,33 +159,13 @@ def test_nlg_avoidance_prohibitions_block_interface_claims():
     )
 
     for body in prohibited:
-        claims = NLGAdapter().extract(
-            ProductIdentity(
-                manufacturer="NLG",
-                product_type=ProductType.TOOL_ATTACHMENT,
-                name="D Ring Attachment",
-                sku="example",
-                url="https://example.test/nlg/attachment",
-            ),
-            [artifact(f"<p>{body}</p>")],
-        )
-
-        assert resolve_connection_interfaces(claims) == [], body
+        assert resolve_connection_interfaces(nlg_attachment_claims(body)) == [], body
 
 
 def test_nlg_avoidance_of_other_hazard_does_not_suppress_positive_ring_guidance():
-    claims = NLGAdapter().extract(
-        ProductIdentity(
-            manufacturer="NLG",
-            product_type=ProductType.TOOL_ATTACHMENT,
-            name="D Ring Attachment",
-            sku="example",
-            url="https://example.test/nlg/attachment",
-        ),
-        [artifact("<p>Avoid snagging by using the D Ring to attach a tool lanyard.</p>")],
+    interfaces = resolve_connection_interfaces(
+        nlg_attachment_claims("Avoid snagging by using the D Ring to attach a tool lanyard.")
     )
-
-    interfaces = resolve_connection_interfaces(claims)
 
     assert len(interfaces) == 1
     assert interfaces[0].role == ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE
@@ -209,22 +173,58 @@ def test_nlg_avoidance_of_other_hazard_does_not_suppress_positive_ring_guidance(
 
 
 def test_nlg_unrelated_pre_ring_negation_does_not_suppress_positive_relation():
-    claims = NLGAdapter().extract(
-        ProductIdentity(
-            manufacturer="NLG",
-            product_type=ProductType.TOOL_ATTACHMENT,
-            name="D Ring Attachment",
-            sku="example",
-            url="https://example.test/nlg/attachment",
-        ),
-        [artifact("<p>This is not a disposable component; the D Ring creates a secure tether point.</p>")],
+    interfaces = resolve_connection_interfaces(
+        nlg_attachment_claims("This is not a disposable component; the D Ring creates a secure tether point.")
     )
-
-    interfaces = resolve_connection_interfaces(claims)
 
     assert len(interfaces) == 1
     assert interfaces[0].role == ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE
     assert interfaces[0].interface_type == "ring"
+
+
+def test_nlg_subject_switch_does_not_attribute_loop_lanyard_relation_to_d_ring():
+    ambiguous = (
+        "The D Ring is for ID tags, while the reinforced loop connects a tool lanyard.",
+        "The D Ring is for ID tags and the reinforced loop connects a tool lanyard.",
+    )
+
+    for body in ambiguous:
+        assert resolve_connection_interfaces(nlg_attachment_claims(body)) == [], body
+
+
+def test_nlg_negation_is_scoped_to_predicate_not_entire_ring_sentence():
+    interfaces = resolve_connection_interfaces(
+        nlg_attachment_claims(
+            "The D Ring does not require drilling and creates a secure tether point."
+        )
+    )
+
+    assert len(interfaces) == 1
+    assert interfaces[0].role == ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE
+    assert interfaces[0].interface_type == "ring"
+
+
+def test_nlg_direct_negation_of_tether_relation_emits_no_interface():
+    prohibited = (
+        "The D Ring does not create a secure tether point.",
+        "The D Ring does not connect to a tool lanyard.",
+    )
+
+    for body in prohibited:
+        assert resolve_connection_interfaces(nlg_attachment_claims(body)) == [], body
+
+
+def test_nlg_positive_usage_and_reversed_tether_point_forms_are_supported():
+    positive = (
+        "Use the D Ring to attach a tool lanyard.",
+        "Secure tether point with 360° rotating D-ring.",
+    )
+
+    for body in positive:
+        interfaces = resolve_connection_interfaces(nlg_attachment_claims(body))
+        assert len(interfaces) == 1, body
+        assert interfaces[0].role == ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE
+        assert interfaces[0].interface_type == "ring"
 
 
 def test_nlg_bare_d_ring_or_loop_evidence_does_not_invent_provided_interface():
