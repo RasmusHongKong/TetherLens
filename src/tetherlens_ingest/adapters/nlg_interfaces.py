@@ -103,6 +103,21 @@ _AFFIRMATIVE_INTRO_CONTENT_FORBIDDEN = re.compile(
     re.I,
 )
 
+# A coordinated predicate may continue to share the D-ring subject (``does not require
+# drilling and creates ...``), but that subject ownership ends when a conjunct
+# explicitly introduces another subject. Determiner/pronoun-headed conjuncts are clear
+# switches; bare domain interface heads cover compact copy such as ``reinforced loop is
+# load-rated and creates ...``. Failing closed here is preferable to rebinding a later
+# tether relation to the D-ring.
+_EXPLICIT_COORDINATED_SUBJECT = re.compile(
+    rf"^(?:"
+    rf"(?:the|this|that|these|those|a|an|our|my|your|its|their|his|her)\s+{_WORD}"
+    rf"|(?:it|they|we|you|he|she)\b"
+    rf"|(?:{_WORD}\s+){{0,3}}(?:loop|strap|cord|lanyard|tether|connector|carabiner|clip|hook|bracket)\b"
+    rf")",
+    re.I,
+)
+
 # Instrumental ``by using`` wording is accepted only when the whole assertion is a
 # bounded positive hazard-avoidance purpose. It must not be extracted as a positive
 # substring from an arbitrary governing predicate such as ``Do not secure tools by
@@ -195,7 +210,7 @@ def _positive_ring_relation_evidence(segment: str) -> str | None:
 
     subject_match = _bound_ring_subject(text)
     if subject_match is not None:
-        predicates = text[subject_match.end() :].strip()
+        predicates = _ring_owned_predicates(text[subject_match.end() :].strip())
         coordinator = r"(?:^|(?:,\s*)?\b(?:and|but)\s+)"
         relation_patterns = (
             rf"{coordinator}(?P<relation>(?:creates?|provides?|forms?|makes?)\s+{_TETHER_POINT})\b",
@@ -231,6 +246,25 @@ def _positive_ring_relation_evidence(segment: str) -> str | None:
         return tether_point_match.group("relation")
 
     return None
+
+
+def _ring_owned_predicates(predicates: str) -> str:
+    """Return the predicate span still owned by the bound D-ring subject.
+
+    Coordinated predicates may share the original subject, but once a later conjunct
+    introduces an explicit subject, subsequent conjuncts belong to that new subject and
+    must not be searched as D-ring evidence.
+    """
+
+    parts = re.split(r"((?:,\s*)?\b(?:and|but)\b\s+)", predicates, flags=re.I)
+    owned = parts[0].strip()
+    for index in range(1, len(parts), 2):
+        coordinator = parts[index]
+        conjunct = parts[index + 1].strip()
+        if _EXPLICIT_COORDINATED_SUBJECT.match(conjunct):
+            break
+        owned = f"{owned} {coordinator}{conjunct}".strip()
+    return owned
 
 
 def _bound_ring_subject(text: str) -> re.Match[str] | None:
