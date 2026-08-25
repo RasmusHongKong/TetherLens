@@ -63,27 +63,41 @@ def resolve_tool_interface_features(claims: list[CandidateClaim]) -> list[ToolIn
                 code = claim.property_key.removeprefix(FEATURE_DIMENSION_PREFIX)
                 if not code:
                     continue
-                dimensions_mm[code] = _dimension_to_mm(claim)
+                _set_unique_dimension(
+                    dimensions_mm,
+                    code,
+                    _dimension_to_mm(claim),
+                    feature_id,
+                )
             elif claim.property_key.startswith(FEATURE_ATTRIBUTE_PREFIX):
                 code = claim.property_key.removeprefix(FEATURE_ATTRIBUTE_PREFIX)
                 if not code:
                     continue
                 _set_unique(attributes, code, claim.value, feature_id)
 
+        try:
+            feature_kind = FeatureKind(str(kind_claim.value))
+            feature_role = (
+                FeatureRole(str(role_claim.value))
+                if role_claim is not None
+                else FeatureRole.UNKNOWN
+            )
+            captive_state = (
+                CaptiveState(str(captive_claim.value))
+                if captive_claim is not None
+                else CaptiveState.UNKNOWN
+            )
+        except ValueError as exc:
+            raise ClaimResolutionError(
+                f"unsupported normalized feature value on {feature_id!r}: {exc}"
+            ) from exc
+
         features.append(
             ToolInterfaceFeature(
                 feature_id=feature_id,
-                feature_kind=FeatureKind(str(kind_claim.value)),
-                feature_role=(
-                    FeatureRole(str(role_claim.value))
-                    if role_claim is not None
-                    else FeatureRole.UNKNOWN
-                ),
-                captive_state=(
-                    CaptiveState(str(captive_claim.value))
-                    if captive_claim is not None
-                    else CaptiveState.UNKNOWN
-                ),
+                feature_kind=feature_kind,
+                feature_role=feature_role,
+                captive_state=captive_state,
                 location_description=(
                     str(location_claim.value) if location_claim is not None else None
                 ),
@@ -183,5 +197,18 @@ def _set_unique(
     if key in target and target[key] != value:
         raise ClaimResolutionError(
             f"conflicting accepted feature attribute {key!r} on {feature_id!r}"
+        )
+    target[key] = value
+
+
+def _set_unique_dimension(
+    target: dict[str, float],
+    key: str,
+    value: float,
+    feature_id: str,
+) -> None:
+    if key in target and target[key] != value:
+        raise ClaimResolutionError(
+            f"conflicting accepted feature dimension {key!r} on {feature_id!r}"
         )
     target[key] = value
