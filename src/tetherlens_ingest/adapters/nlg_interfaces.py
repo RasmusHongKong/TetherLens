@@ -193,8 +193,8 @@ def _ring_relation_is_negated(clause: str, match: re.Match[str]) -> bool:
     permission = r"(?:permitted|allowed|approved|authorized|acceptable|safe|suitable|recommended)"
 
     pre_ring_prohibitions = (
-        rf"\b(?:do|must|should|may|can)\s+not\b[^.!?;]{{0,100}}\b{relation}\b[^.!?;]{{0,50}}\b(?:the\s+)?{ring}\b",
-        rf"\b(?:is|are|was|were|be|been|being)\s+not\s+{permission}\b[^.!?;]{{0,100}}\b(?:to\s+)?{relation}\b[^.!?;]{{0,50}}\b(?:the\s+)?{ring}\b",
+        rf"\b(?:(?:do(?:es)?|must|should|may|can|shall)\s+not|don't|doesn't|mustn't|shouldn't|can't|shan't)\b[^.!?;]{{0,100}}\b{relation}\b[^.!?;]{{0,50}}\b(?:the\s+)?{ring}\b",
+        rf"\b(?:(?:is|are|was|were|be|been|being)\s+not|isn't|aren't|wasn't|weren't)\s+{permission}\b[^.!?;]{{0,100}}\b(?:to\s+)?{relation}\b[^.!?;]{{0,50}}\b(?:the\s+)?{ring}\b",
         rf"\bnot\s+{permission}\b[^.!?;]{{0,100}}\b(?:to\s+)?{relation}\b[^.!?;]{{0,50}}\b(?:the\s+)?{ring}\b",
         rf"\b(?:never|cannot|can't)\b[^.!?;]{{0,100}}\b{relation}\b[^.!?;]{{0,50}}\b(?:the\s+)?{ring}\b",
         rf"\b(?:prohibited|forbidden|unsafe|unsuitable)\b[^.!?;]{{0,100}}\b(?:to\s+)?{relation}\b[^.!?;]{{0,50}}\b(?:the\s+)?{ring}\b",
