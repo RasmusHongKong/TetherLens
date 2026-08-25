@@ -37,13 +37,17 @@ Apply hard constraints
       ↓
 Remove non-viable candidates
       ↓
-Resolve conditional verification steps
-      ↓
 Apply contextual rules
       ↓
 Rank remaining candidates
       ↓
 Apply policy
+      ↓
+Select highest-ranked permitted candidate
+      ↓
+Resolve any required runtime verification
+      ↓
+If verification fails, reject candidate and try next ranked permitted candidate
       ↓
 Assess evidence limitations
       ↓
@@ -262,35 +266,9 @@ For lighter tools, person anchoring may be appropriate where:
 
 The exact person-anchoring threshold should be policy-driven rather than hard-coded globally.
 
-## Step 4a: resolve required runtime verification
-
-A candidate with a `requires_verification` connection is not yet ready for unconditional use.
-
-TetherLens should present the validated verification procedure for that connection family and require the worker to verify the actual assembled connection before the candidate is treated as usable.
-
-A field-verification procedure must be bounded and observable. It must not reduce to a generic confirmation such as "looks safe" or "does it fit?".
-
-Depending on the validated rule, checks may include whether:
-
-- the connector installs onto the intended interface normally;
-- the gate closes completely;
-- the locking mechanism fully engages where applicable;
-- the interface does not obstruct or capture the gate;
-- the connector can settle into an intended loaded orientation;
-- the connection does not force obvious cross-loading or unstable seating; and
-- adjacent hardware does not interfere with gate or locking operation.
-
-The exact checklist must come from the versioned rule for the relevant connection family.
-
-If the runtime check fails, that candidate connection becomes unusable for the session and the engine should evaluate another candidate if available.
-
-A successful runtime check is session/configuration evidence. It must not silently become a persistent universal catalogue Claim that the two product SKUs are compatible.
-
-Computer vision may later assist these checks, but machine-observed criteria should replace worker confirmation only after each criterion has been separately validated.
-
 ## Step 5: rank viable configurations by context
 
-Once non-viable candidates are removed and any required runtime verification has been satisfied, context should influence ranking.
+Once non-viable candidates are removed, context should influence ranking. A candidate may remain in the ranked set while one or more connections are `requires_verification`; that conditional state should not force the worker to assemble the candidate before TetherLens knows whether it is otherwise preferred.
 
 Examples:
 
@@ -318,7 +296,7 @@ Where product material information is incomplete, the engine should communicate 
 
 ## Step 6: apply policy
 
-Policy should be evaluated separately from technical viability.
+Policy should be evaluated separately from technical viability and before asking the worker to perform a physical verification.
 
 Examples:
 
@@ -335,6 +313,36 @@ policy_status = prohibited
 ```
 
 without pretending the configuration itself is technically unsafe.
+
+A policy-prohibited candidate should not trigger runtime assembly or verification merely because its connection topology was otherwise plausible.
+
+## Step 6a: verify the selected candidate where required
+
+After hard constraints, contextual ranking and policy have identified the highest-ranked permitted candidate, TetherLens should resolve any `requires_verification` connections for **that candidate**.
+
+A candidate with a `requires_verification` connection is not yet ready for unconditional use. TetherLens should present the validated verification procedure for that connection family and require the worker to verify the actual assembled connection before the candidate is treated as usable.
+
+A field-verification procedure must be bounded and observable. It must not reduce to a generic confirmation such as "looks safe" or "does it fit?".
+
+Depending on the validated rule, checks may include whether:
+
+- the connector installs onto the intended interface normally;
+- the gate closes completely;
+- the locking mechanism fully engages where applicable;
+- the interface does not obstruct or capture the gate;
+- the connector can settle into an intended loaded orientation;
+- the connection does not force obvious cross-loading or unstable seating; and
+- adjacent hardware does not interfere with gate or locking operation.
+
+The exact checklist must come from the versioned rule for the relevant connection family.
+
+If the runtime check fails, that candidate connection/configuration becomes unusable for the session. The engine should then fall back to the next highest-ranked permitted candidate and request verification only if that candidate also requires it.
+
+This avoids requiring the worker to obtain or assemble lower-ranked alternatives unnecessarily.
+
+A successful runtime check is session/configuration evidence. It must not silently become a persistent universal catalogue Claim that the two product SKUs are compatible.
+
+Computer vision may later assist these checks, but machine-observed criteria should replace worker confirmation only after each criterion has been separately validated.
 
 ## Step 7: assess evidence limitations
 
