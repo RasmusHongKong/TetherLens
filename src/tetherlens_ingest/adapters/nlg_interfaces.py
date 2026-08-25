@@ -58,18 +58,50 @@ _RING = r"d[\s-]?rings?"
 _TETHER_POINT = r"(?:an?\s+|the\s+)?(?:secure\s+|ultra[-\s]?secure\s+|permanent\s+)?tether\s+point"
 _LANYARD = r"(?:an?\s+|the\s+)?(?:tool\s+)?lanyards?"
 _WORD = r"[\w®™°/%+.-]+"
-_SUBJECT_MODIFIER = rf"(?!(?:loop|lanyard|tether|point|ring)\b){_WORD}"
-_RING_SUBJECT = rf"(?:(?:the|this|our|a)\s+)?(?:{_SUBJECT_MODIFIER}\s+){{0,3}}{_RING}"
-_NEUTRAL_PREFIX_FORBIDDEN = re.compile(
+
+# A D-ring subject/complement may carry a few compact product descriptors, but the
+# modifier slots must not swallow determiners, prepositions, competing interface heads,
+# coordinators, or finite/modal verbs. That keeps ``D Ring`` as the noun-phrase head:
+# ``Mini Adhesive D Ring`` is valid, while ``strap behind the D Ring`` is not.
+_NON_RING_MODIFIER = (
+    r"(?:"
+    r"the|this|our|a|an|"
+    r"loop|strap|cord|lanyard|tether|point|ring|connector|carabiner|clip|hook|bracket|"
+    r"behind|before|after|above|below|under|over|around|through|via|with|without|"
+    r"on|in|into|onto|at|by|from|for|of|to|near|beside|between|within|outside|inside|"
+    r"and|but|while|whereas|or|"
+    r"is|are|was|were|be|been|being|has|have|had|do|does|did|"
+    r"can|cannot|could|may|might|must|should|shall|will|would"
+    r")"
+)
+_RING_MODIFIER = rf"(?!{_NON_RING_MODIFIER}\b){_WORD}"
+_RING_NOUN_PHRASE = rf"(?:(?:the|this|our|a)\s+)?(?:{_RING_MODIFIER}\s+){{0,3}}{_RING}"
+_RING_SUBJECT = _RING_NOUN_PHRASE
+_RING_COMPLEMENT = _RING_NOUN_PHRASE
+
+# Only an explicitly affirmative introductory construction may precede a D-ring
+# subject. This is intentionally an allowlist, not a generic short-prefix rule: direct
+# interface claims must not be inferred through epistemic/denial wrappers such as
+# ``It cannot be assumed that ...`` or ``It is unclear whether ...``.
+_AFFIRMATIVE_INTRO = re.compile(
+    rf"^(?:"
+    rf"(?:utilising|utilizing|using|featuring|incorporating|leveraging|employing)\s+"
+    rf"(?P<body_a>(?:{_WORD}\s*){{1,5}})"
+    rf"|(?:built|made|designed|engineered|equipped)\s+with\s+"
+    rf"(?P<body_b>(?:{_WORD}\s*){{1,5}})"
+    rf")$",
+    re.I,
+)
+_AFFIRMATIVE_INTRO_CONTENT_FORBIDDEN = re.compile(
     r"\b(?:"
-    r"and|but|while|whereas|loop|ring|lanyard|tether|point|"
+    r"loop|strap|cord|ring|lanyard|tether|point|connector|carabiner|clip|hook|bracket|"
     r"attach\w*|connect\w*|clip\w*|hook\w*|creat\w*|provid\w*|form\w*|mak\w*|"
-    r"avoid\w*|not|never|without|prohibit\w*|forbid\w*|unsafe|unsuitable"
+    r"avoid\w*|not|never|no|without|cannot|can't|prohibit\w*|forbid\w*|"
+    r"unsafe|unsuitable|unclear|uncertain|assum\w*|suppos\w*|believ\w*|suggest\w*|"
+    r"may|might|could|possibly|potentially"
     r")\b",
     re.I,
 )
-_MODIFIER_TOKEN = r"(?!(?:and|but|while|whereas)\b)[\w°/%+.-]+"
-_RING_COMPLEMENT = rf"(?:{_MODIFIER_TOKEN}\s+){{0,4}}{_RING}"
 
 
 class NLGAdapter(BaseNLGAdapter):
@@ -194,22 +226,25 @@ def _positive_ring_relation_evidence(segment: str) -> str | None:
 
 
 def _bound_ring_subject(text: str) -> re.Match[str] | None:
-    """Find a local D-ring subject after at most one neutral introductory phrase.
+    """Find a D-ring-headed subject with at most one affirmative introduction.
 
     Marketing copy may lead with provenance or technology wording, e.g. ``Utilising
-    trusted 3M adhesive technology the Mini Adhesive D Ring creates...``. Such a prefix
-    is accepted only when it is short and contains no competing interface noun,
-    relation verb, coordinator, or prohibition marker. This preserves the subject
-    binding that the old wide-gap matcher lacked.
+    trusted 3M adhesive technology the Mini Adhesive D Ring creates...``. The prefix
+    must match a bounded affirmative introductory construction and its content must not
+    introduce a competing interface/relation or epistemic qualification. Arbitrary
+    short prefixes are not accepted.
     """
 
     for match in re.finditer(rf"(?P<subject>{_RING_SUBJECT})\b", text, re.I):
         prefix = text[: match.start()].strip(" ,")
         if not prefix:
             return match
-        if len(prefix.split()) > 6:
+
+        intro_match = _AFFIRMATIVE_INTRO.fullmatch(prefix)
+        if intro_match is None:
             continue
-        if _NEUTRAL_PREFIX_FORBIDDEN.search(prefix):
+        intro_body = intro_match.group("body_a") or intro_match.group("body_b") or ""
+        if _AFFIRMATIVE_INTRO_CONTENT_FORBIDDEN.search(intro_body):
             continue
         return match
     return None
