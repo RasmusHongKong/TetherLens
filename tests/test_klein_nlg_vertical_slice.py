@@ -203,3 +203,34 @@ def test_nlg_does_not_invent_captive_selection_from_unqualified_handle_or_hole_c
     assert not any(
         claim.property_key == "attachment_selection_class" for claim in claims
     )
+
+
+def test_nlg_does_not_join_captive_connector_copy_to_feature_alternatives_in_later_sentence():
+    claims = NLGAdapter().extract(
+        ProductIdentity(
+            manufacturer="NLG",
+            product_type=ProductType.TOOL_ATTACHMENT,
+            url="https://example.test/nlg/generic",
+        ),
+        [artifact("Attach the captive loop to the D-ring. The tool chart lists a handle or hole.")],
+    )
+
+    assert not any(
+        claim.property_key == "attachment_selection_class" for claim in claims
+    )
+
+
+def test_klein_does_not_borrow_handle_location_from_adjacent_copy():
+    claims = KleinAdapter().extract(
+        ProductIdentity(
+            manufacturer="Klein Tools",
+            product_type=ProductType.TOOL,
+            url="https://example.test/klein/generic",
+        ),
+        [artifact("Comfortable handle with insulated grip\nIntegrated tether hole at the shaft end")],
+    )
+
+    features = resolve_tool_interface_features(claims)
+    assert len(features) == 1
+    assert features[0].feature_kind == FeatureKind.THROUGH_OPENING
+    assert features[0].location_description is None
