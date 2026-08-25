@@ -57,7 +57,17 @@ _BLOCK_TAGS = {
 _RING = r"d[\s-]?rings?"
 _TETHER_POINT = r"(?:an?\s+|the\s+)?(?:secure\s+|ultra[-\s]?secure\s+|permanent\s+)?tether\s+point"
 _LANYARD = r"(?:an?\s+|the\s+)?(?:tool\s+)?lanyards?"
-_RING_SUBJECT = rf"(?:(?:the|this|our|a)\s+)?{_RING}"
+_WORD = r"[\w®™°/%+.-]+"
+_SUBJECT_MODIFIER = rf"(?!(?:loop|lanyard|tether|point|ring)\b){_WORD}"
+_RING_SUBJECT = rf"(?:(?:the|this|our|a)\s+)?(?:{_SUBJECT_MODIFIER}\s+){{0,3}}{_RING}"
+_NEUTRAL_PREFIX_FORBIDDEN = re.compile(
+    r"\b(?:"
+    r"and|but|while|whereas|loop|ring|lanyard|tether|point|"
+    r"attach\w*|connect\w*|clip\w*|hook\w*|creat\w*|provid\w*|form\w*|mak\w*|"
+    r"avoid\w*|not|never|without|prohibit\w*|forbid\w*|unsafe|unsuitable"
+    r")\b",
+    re.I,
+)
 _MODIFIER_TOKEN = r"(?!(?:and|but|while|whereas)\b)[\w°/%+.-]+"
 _RING_COMPLEMENT = rf"(?:{_MODIFIER_TOKEN}\s+){{0,4}}{_RING}"
 
@@ -141,13 +151,9 @@ def _positive_ring_relation_evidence(segment: str) -> str | None:
     if not text:
         return None
 
-    subject_match = re.match(
-        rf"^(?P<subject>{_RING_SUBJECT})\b(?P<predicates>.*)$",
-        text,
-        re.I,
-    )
+    subject_match = _bound_ring_subject(text)
     if subject_match is not None:
-        predicates = subject_match.group("predicates").strip()
+        predicates = text[subject_match.end() :].strip()
         coordinator = r"(?:^|(?:,\s*)?\b(?:and|but)\s+)"
         relation_patterns = (
             rf"{coordinator}(?P<relation>(?:creates?|provides?|forms?|makes?)\s+{_TETHER_POINT})\b",
@@ -184,6 +190,28 @@ def _positive_ring_relation_evidence(segment: str) -> str | None:
     if tether_point_match is not None:
         return tether_point_match.group("relation")
 
+    return None
+
+
+def _bound_ring_subject(text: str) -> re.Match[str] | None:
+    """Find a local D-ring subject after at most one neutral introductory phrase.
+
+    Marketing copy may lead with provenance or technology wording, e.g. ``Utilising
+    trusted 3M adhesive technology the Mini Adhesive D Ring creates...``. Such a prefix
+    is accepted only when it is short and contains no competing interface noun,
+    relation verb, coordinator, or prohibition marker. This preserves the subject
+    binding that the old wide-gap matcher lacked.
+    """
+
+    for match in re.finditer(rf"(?P<subject>{_RING_SUBJECT})\b", text, re.I):
+        prefix = text[: match.start()].strip(" ,")
+        if not prefix:
+            return match
+        if len(prefix.split()) > 6:
+            continue
+        if _NEUTRAL_PREFIX_FORBIDDEN.search(prefix):
+            continue
+        return match
     return None
 
 
