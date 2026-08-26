@@ -57,6 +57,7 @@ class ManufacturerPosition(StrEnum):
 class TechnicalStatus(StrEnum):
     COMPATIBLE = "compatible"
     INCOMPATIBLE = "incompatible"
+    REQUIRES_VERIFICATION = "requires_verification"
     UNRESOLVED = "unresolved"
 
 
