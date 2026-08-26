@@ -245,22 +245,24 @@ A connection may therefore be established through:
 
 The engine must **not** infer compatibility from interface names alone. `carabiner + ring`, for example, is topology that may select an applicable rule, not proof of engagement.
 
-Explicit, correctly scoped manufacturer compatibility takes precedence over contradictory generic TetherLens geometry or interface-class reasoning for that declared relationship. The contradictory derived result should still be retained and flagged for internal review. Conflicting authoritative manufacturer evidence remains fail-closed until reconciled, as defined in `connection-compatibility.md`.
+Explicit, correctly scoped manufacturer compatibility normally takes precedence over contradictory generic or incomplete TetherLens reasoning for that declared relationship. The contradictory derived result should still be retained and flagged for internal review. However, where accepted primitive physical facts correctly bound to the same revision/configuration and a validated rule establish a direct physical impossibility, the evidence set is internally inconsistent: the technical status must remain `unresolved` and the connection blocked until reconciled. Conflicting authoritative manufacturer evidence likewise remains fail-closed. These contradiction classes are defined in `connection-compatibility.md`.
+
+Manufacturer support, warranty, ecosystem or `use only X` instructions remain issuer-scoped manufacturer assessments unless their wording and causal scope establish a genuine technical failure mode. Such assessments may affect explanation or policy without automatically setting `technical_status = incompatible`.
 
 `requires_verification` is a conditional but usable technical state. It should be returned only when:
 
 - endpoint and target topology/roles are plausible;
-- no accepted evidence proves incompatibility;
+- no conclusive technical incompatibility or unresolved hard contradiction exists;
 - catalogue evidence is insufficient to establish complete physical engagement; and
 - a validated bounded field-verification procedure exists for that connection family.
 
-`unresolved` remains blocking when no accepted compatibility basis or validated verification path exists.
+`unresolved` remains blocking when no accepted compatibility basis or validated verification path exists, or when the accepted evidence set contains an unreconciled hard physical/source contradiction.
 
 For tools, this does **not** require a manufacturer-documented tether point. A valid path may use another captive feature, a controlled loop/cinch method, or a suitable ToolAttachment.
 
 ### Explicit product limits
 
-A source-backed manufacturer limit may invalidate a candidate.
+A source-backed technical manufacturer limit may invalidate a candidate when its scope and causal meaning establish a genuine constraint. Manufacturer-supported scope or ecosystem instructions that do not establish physical failure should remain manufacturer assessments and be handled separately from technical compatibility.
 
 ### Anchorage viability
 
@@ -313,16 +315,18 @@ Examples:
 - person anchoring permitted only below a configured operational mass;
 - certain product families prohibited;
 - mixed-brand combinations disallowed by a particular site;
+- manufacturer-approved combinations required by a particular site;
 - specific anchor methods required.
 
 The engine should be able to represent:
 
 ```text
 technical_suitability = suitable
+manufacturer_assessment = contrary_to_manufacturer_instruction
 policy_status = prohibited
 ```
 
-without pretending the configuration itself is technically unsafe.
+without pretending the configuration itself is technically unsafe merely because it is outside an issuer's supported system.
 
 A policy-prohibited candidate should not trigger runtime assembly or verification merely because its connection topology was otherwise plausible.
 
@@ -431,7 +435,8 @@ Examples:
 - component capacity unknown;
 - required cordless operational profile unresolved;
 - connection topology ambiguous;
-- interface compatibility has no acceptable basis and no validated field-verification procedure.
+- interface compatibility has no acceptable basis and no validated field-verification procedure;
+- accepted manufacturer approval conflicts with a hard physical contradiction that has not yet been reconciled.
 
 This can require abstention for the affected candidate.
 
@@ -494,6 +499,8 @@ At minimum:
 - selected configuration;
 - key reason it is viable;
 - compatibility basis for each required physical connection;
+- relevant manufacturer assessments without conflating them with technical status;
+- any contradiction/review condition that blocks the candidate;
 - any runtime verification that must be completed;
 - current verification status where applicable;
 - key reason it ranked highest;
@@ -521,11 +528,13 @@ alongside:
 ```text
 Connection evaluation
   ↓
-compatibility status + basis
+technical status + compatibility basis
+  ↓
+manufacturer assessments by issuer/scope
   ↓
 accepted Claims / validated Rule
   ↓
-manufacturer/generic contradiction review signal where present
+contradiction type + review signal where present
   ↓
 optional session verification status + observations
 ```
@@ -595,12 +604,13 @@ The engine should evaluate:
 - interfaces;
 - geometry where available;
 - accepted compatibility bases;
-- explicit restrictions;
+- manufacturer assessments by issuer and scope;
+- genuine technical restrictions;
 - product facts;
 - relevant reusable rules; and
 - controlled runtime verification where applicable.
 
-Manufacturer endorsement may be shown separately.
+Manufacturer endorsement, restriction and technical status should remain separately explainable.
 
 The manufacturer-backed relationship requirement for a cordless Tool/Battery operational profile is a configuration-evidence requirement, not a rule that all tethering components must share a brand.
 
@@ -618,8 +628,10 @@ Likely rules include:
 - object operational mass must not exceed anchor-attachment capacity where used;
 - object/contents mass must not exceed container capacity where used;
 - required interfaces must have an acceptable compatibility basis;
+- unreconciled hard physical contradictions block the affected connection;
+- genuine technical manufacturer prohibitions with sufficient causal scope are enforced as technical constraints;
 - failed runtime connection verification invalidates that candidate for the session;
-- explicit manufacturer hard limits must be respected where applicable.
+- explicit manufacturer technical limits must be respected where applicable.
 
 ### Context preferences
 
@@ -631,7 +643,7 @@ Likely rules include:
 
 - warn where a viable tether creates increased snagging potential;
 - warn where relevant secondary environmental information is not established;
-- surface manufacturer restrictions or non-endorsement where material to the decision;
+- surface manufacturer restrictions or non-endorsement where material to the decision without automatically recasting them as technical incompatibility;
 - present required runtime connection verification as an actionable pre-use condition.
 
 The rule set should expand only when real use cases justify it.
@@ -668,11 +680,12 @@ The engine is working if:
 - viable but imperfect options are not unnecessarily rejected;
 - mixed-manufacturer tethering configurations can be evaluated;
 - missing public connector dimensions do not automatically force catalogue-wide abstention when another acceptable compatibility basis exists;
-- explicit manufacturer compatibility remains authoritative over contradictory generic derived rules while contradictions stay visible for review;
+- explicit manufacturer compatibility remains authoritative over weaker generic derived disagreement while a true hard physical contradiction blocks pending reconciliation;
+- manufacturer support/warranty/ecosystem restrictions remain separate from technical incompatibility unless they establish a genuine technical failure mode;
 - `requires_verification` is kept distinct from both `compatible` and genuinely `unresolved`;
 - `Recommended with constraints` can be emitted while runtime verification is still pending;
 - runtime field verification remains session/configuration evidence rather than universal catalogue compatibility;
 - evidence limitations are communicated without generic over-warning;
 - policy remains separate from technical suitability;
 - rules can be reused across newly added products; and
-- a recommendation can be traced back to the facts, compatibility bases, configuration relationships, dependencies, review signals, runtime observations and rules that produced it.
+- a recommendation can be traced back to the facts, compatibility bases, manufacturer assessments, configuration relationships, dependencies, contradiction/review signals, runtime observations and rules that produced it.
