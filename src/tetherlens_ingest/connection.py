@@ -104,6 +104,11 @@ class ConnectorSpec(BaseModel):
     dimensions_mm: dict[str, float] = Field(default_factory=dict)
     attributes: dict[str, str | int | float | bool] = Field(default_factory=dict)
 
+    @field_validator("locking_mode", mode="before")
+    @classmethod
+    def normalize_locking_mode(cls, value: Any) -> Any:
+        return LockingMode.UNKNOWN if value is None else value
+
     @field_validator("dimensions_mm", mode="before")
     @classmethod
     def validate_dimensions_mm(cls, dimensions: Any) -> Any:
