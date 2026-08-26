@@ -374,7 +374,7 @@ def evaluate_endpoint_engagement(
         target,
         status=ConnectionStatus.UNRESOLVED,
         basis=CompatibilityBasis.NONE,
-        reason="interface topology is plausible but no acceptable compatibility basis is available",
+        reason="interface topology is plausible but no validated geometry rule proves engagement",
         assessments=assessments,
         rule_results=rule_results,
     )
