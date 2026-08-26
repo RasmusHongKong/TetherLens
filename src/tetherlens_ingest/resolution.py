@@ -14,6 +14,7 @@ from .compatibility import (
 from .connection import (
     ConnectionInterface,
     ConnectionInterfaceRole,
+    ConnectorSpec,
     TetherSide,
 )
 from .models import CandidateClaim, ClaimSubjectType
@@ -36,6 +37,12 @@ INTERFACE_ATTRIBUTE_PREFIX = "interface.attribute."
 TETHER_INTERFACE_TYPE_KEY = "connection_point.interface_type"
 TETHER_SIDE_KEY = "connection_point.role"
 TETHER_CONNECTOR_SPEC_REF_KEY = "connection_point.connector_spec_ref"
+
+CONNECTOR_OPENING_ACTION_COUNT_KEY = "connector.opening_action_count"
+CONNECTOR_LOCKING_MODE_KEY = "connector.locking_mode"
+CONNECTOR_SWIVEL_KEY = "connector.swivel"
+CONNECTOR_DIMENSION_PREFIX = "connector.dimension."
+CONNECTOR_ATTRIBUTE_PREFIX = "connector.attribute."
 
 
 class ClaimResolutionError(ValueError):
@@ -260,6 +267,68 @@ def resolve_connection_interfaces(claims: list[CandidateClaim]) -> list[Connecti
     return interfaces
 
 
+def resolve_connector_specs(claims: list[CandidateClaim]) -> dict[str, ConnectorSpec]:
+    """Resolve accepted connector-spec claims into reusable runtime connector facts."""
+
+    grouped: dict[str, list[CandidateClaim]] = defaultdict(list)
+    for claim in claims:
+        if claim.subject_type != ClaimSubjectType.CONNECTOR_SPEC:
+            continue
+        if not _is_connector_spec_claim(claim.property_key):
+            continue
+        grouped[claim.subject_ref].append(claim)
+
+    specs: dict[str, ConnectorSpec] = {}
+    for connector_spec_id, spec_claims in grouped.items():
+        action_claim = _single_claim(spec_claims, CONNECTOR_OPENING_ACTION_COUNT_KEY)
+        locking_claim = _single_claim(spec_claims, CONNECTOR_LOCKING_MODE_KEY)
+        swivel_claim = _single_claim(spec_claims, CONNECTOR_SWIVEL_KEY)
+        dimensions_mm: dict[str, float] = {}
+        attributes: dict[str, str | int | float | bool] = {}
+
+        for claim in spec_claims:
+            if claim.property_key.startswith(CONNECTOR_DIMENSION_PREFIX):
+                code = claim.property_key.removeprefix(CONNECTOR_DIMENSION_PREFIX)
+                if code:
+                    _set_unique_dimension(
+                        dimensions_mm,
+                        code,
+                        _dimension_to_mm(claim),
+                        connector_spec_id,
+                    )
+            elif claim.property_key.startswith(CONNECTOR_ATTRIBUTE_PREFIX):
+                code = claim.property_key.removeprefix(CONNECTOR_ATTRIBUTE_PREFIX)
+                if code:
+                    _set_unique(attributes, code, claim.value, connector_spec_id)
+
+        opening_action_count: int | None = None
+        if action_claim is not None:
+            if isinstance(action_claim.value, bool) or not isinstance(action_claim.value, int):
+                raise ClaimResolutionError(
+                    f"connector opening action count on {connector_spec_id!r} must be an integer"
+                )
+            opening_action_count = action_claim.value
+
+        swivel: bool | None = None
+        if swivel_claim is not None:
+            if not isinstance(swivel_claim.value, bool):
+                raise ClaimResolutionError(
+                    f"connector swivel value on {connector_spec_id!r} must be boolean"
+                )
+            swivel = swivel_claim.value
+
+        specs[connector_spec_id] = ConnectorSpec(
+            connector_spec_id=connector_spec_id,
+            opening_action_count=opening_action_count,
+            locking_mode=str(locking_claim.value) if locking_claim is not None else None,
+            swivel=swivel,
+            dimensions_mm=dimensions_mm,
+            attributes=attributes,
+        )
+
+    return specs
+
+
 def _is_feature_claim(property_key: str) -> bool:
     return property_key in {
         FEATURE_KIND_KEY,
@@ -275,6 +344,14 @@ def _is_connection_interface_claim(property_key: str) -> bool:
         INTERFACE_ROLE_KEY,
         INTERFACE_CONNECTOR_SPEC_REF_KEY,
     } or property_key.startswith((INTERFACE_DIMENSION_PREFIX, INTERFACE_ATTRIBUTE_PREFIX))
+
+
+def _is_connector_spec_claim(property_key: str) -> bool:
+    return property_key in {
+        CONNECTOR_OPENING_ACTION_COUNT_KEY,
+        CONNECTOR_LOCKING_MODE_KEY,
+        CONNECTOR_SWIVEL_KEY,
+    } or property_key.startswith((CONNECTOR_DIMENSION_PREFIX, CONNECTOR_ATTRIBUTE_PREFIX))
 
 
 def _single_claim(
