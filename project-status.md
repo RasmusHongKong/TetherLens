@@ -4,7 +4,7 @@ _Last updated: 2026-08-25_
 
 This document is the short operational handoff for the current TetherLens ingestion and compatibility work. It records what has landed, what the latest benchmark says, and which workstreams should be tackled next.
 
-For durable design principles, use the dedicated documents such as `product-vision.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `tool-attachment-compatibility.md`, `tool-anatomy-selection-semantics.md`, `benchmark-goals.md`, and `ingestion-benchmark.md`. This file should not replace those documents or freeze semantic decisions before the evidence has been inspected.
+For durable design principles, use the dedicated documents such as `product-vision.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `connection-compatibility.md`, `tool-attachment-compatibility.md`, `tool-anatomy-selection-semantics.md`, `benchmark-goals.md`, and `ingestion-benchmark.md`. This file should not replace those documents or freeze semantic decisions before the evidence has been inspected.
 
 ## Current ingestion and compatibility state
 
@@ -44,9 +44,32 @@ The important current capabilities are:
 - runtime `ConnectionInterface` objects for ToolAttachment-provided tether-side interfaces and tether connection points;
 - evidence-backed NLG extraction of provided tether-side D-rings only when manufacturer wording locally binds the D-ring to the tether point or lanyard relation;
 - endpoint-side topology checks that can reject obviously wrong tool-side/anchor-side pairings; and
-- conservative endpoint engagement that remains `UNRESOLVED` when topology is plausible but no validated geometry rule proves physical engagement.
+- conservative endpoint engagement that remains `UNRESOLVED` when topology is plausible but no accepted compatibility basis has yet established the connection.
 
-The last point is now the main architectural boundary: TetherLens can represent the relevant connection participants and their roles, but it does not yet infer physical compatibility from interface names alone. In particular, `carabiner + ring` is not treated as sufficient evidence of engagement.
+PR #27 therefore exposed an important scalability boundary. Detailed connector/interface dimensions are often not publicly available, and requiring complete engineering geometry for every connection would make catalogue readiness depend on purchasing and manually measuring a large share of the market.
+
+The compatibility requirement has consequently been revised: **every required connection needs an acceptable compatibility basis, but dimensional proof is only one possible basis.** The durable model is documented in `connection-compatibility.md`.
+
+Initial connection states are intended to become:
+
+```text
+compatible
+incompatible
+requires_verification
+unresolved
+```
+
+and initial compatibility bases are:
+
+```text
+manufacturer_declared
+validated_geometry
+validated_interface_class
+runtime_verification
+none
+```
+
+`requires_verification` is deliberately distinct from `unresolved`: it means the catalogue can establish a plausible connection path and a validated bounded field check can close the remaining physical-fit uncertainty on the actual equipment.
 
 ## Latest benchmark state
 
@@ -80,27 +103,48 @@ These gaps should remain explicit until the relevant workstream resolves them. P
 
 ## Next workstreams
 
-### 1. Connector/interface geometry and dimensional engagement
+### 1. Connection compatibility bases and controlled field verification
 
-This is the recommended next workstream because PR #27 now exposes a clean stopping point: the system can resolve a tether endpoint and a target tether-side interface, enforce endpoint-side semantics, and identify a topologically plausible pair, but it intentionally returns `UNRESOLVED` until geometry proves or disproves engagement.
+This replaces the earlier plan to make detailed dimensional engagement the universal next requirement.
 
-The goal is **not** to create a general CAD or arbitrary mechanical-geometry model. The technical schema already establishes the right principle: record only dimensions required by real compatibility rules.
+The first implementation goal should be to extend connection evaluation so a topologically plausible endpoint/interface pair can distinguish:
 
-Initial work should therefore:
+- catalogue-established `COMPATIBLE`;
+- established `INCOMPATIBLE`;
+- `REQUIRES_VERIFICATION` when a validated bounded field check can close the remaining physical-fit uncertainty; and
+- genuinely `UNRESOLVED` cases where no acceptable basis or verification path exists.
 
-1. inspect the current `ConnectionInterface`, `ConnectorSpec`, resolution code, endpoint evaluator, `dimension_type_code` vocabulary, claim model, and relevant benchmark expectations on `main`;
-2. inspect representative first-party evidence for connector/interface geometry rather than beginning from an assumed rule;
-3. identify the smallest reusable set of dimensions needed for one real engagement rule, for example gate opening plus the relevant closed-ring/eye section or opening geometry where evidence supports those measurements;
-4. keep connector geometry separate from connector locking/action/swivel semantics;
-5. resolve the required dimensions from evidence-backed claims into runtime connection objects without SKU-pair logic;
-6. implement a rule that can return all three meaningful states: `COMPATIBLE` when measurements prove fit, `INCOMPATIBLE` when measurements prove non-fit, and `UNRESOLVED` when evidence is missing or insufficient; and
-7. use representative real catalogue cases alongside adversarial synthetic tests so the first geometry rule is both evidence-backed and reusable.
+Initial work should:
 
-Relevant existing geometry gaps include NLG tether/connector cases such as 101372, the NLG 101363 D-ring attachment path, and Hilti tether connector evidence such as 2261970. Which products form the first complete vertical slice should be chosen only after the available manufacturer evidence has been inspected.
+1. read `connection-compatibility.md` alongside the current `ConnectionInterface`, resolver and evaluator;
+2. add a compatibility-basis concept without collapsing manufacturer position, technical compatibility and site policy;
+3. preserve existing topology/side incompatibility checks as early hard failures;
+4. define the first bounded field-verification rule for a representative gated-connector-to-closed-interface family using observable physical conditions rather than a vague user confirmation;
+5. ensure a successful field check remains session/configuration evidence rather than becoming a universal catalogue pairing;
+6. keep type-name shortcuts prohibited — `carabiner + ring` alone must not become `COMPATIBLE`;
+7. retain dimensional rules as an optional stronger basis where published or economically useful internally measured dimensions exist; and
+8. use real NLG/Hilti cases plus adversarial synthetic tests to distinguish `REQUIRES_VERIFICATION` from `UNRESOLVED` and `INCOMPATIBLE`.
 
-A successful first geometry PR should move at least one real endpoint/interface path beyond topology-only `UNRESOLVED` without introducing a shortcut such as “carabiner connects to ring by type name.”
+NLG 101372 and NLG 101363 remain useful development cases because their topology is known while the detailed engagement geometry is not publicly established. Instead of requiring those dimensions before any useful recommendation can exist, the first question is whether their connection family can be covered by a validated field-verification procedure.
 
-### 2. Container anchor topology
+A successful first PR should move at least one real endpoint/interface path beyond topology-only `UNRESOLVED` without pretending that missing catalogue geometry has been solved.
+
+### 2. Selective connector/interface geometry
+
+Geometry remains useful, but it is no longer a universal catalogue-completeness requirement.
+
+Prioritize measurements only when they have good leverage, for example:
+
+- a connector specification is reused across many tether SKUs;
+- one measurement resolves a high-frequency recurring uncertainty;
+- a geometry rule can conclusively reject unsafe fit; or
+- the measurement can materially simplify a field-verification procedure.
+
+The technical-schema principle still applies: add only dimensions required by real validated rules. Do not build a general CAD model.
+
+Relevant potential cases still include NLG 101372, NLG 101363 and Hilti 2261970, but purchasing/measuring every market product is explicitly not the intended scaling strategy.
+
+### 3. Container anchor topology
 
 Primary benchmark cases:
 
@@ -111,17 +155,15 @@ This workstream should build on the shared connection/interface direction establ
 
 Before implementation, inspect multiple container products so the model can distinguish concepts such as internal anchors, external anchors, daisy chains/tool holders, repeated interfaces, per-interface ratings, and interfaces that are storage/retention features rather than tether anchors.
 
-### 3. Evidence conflicts, scope tensions, and ambiguity
-
-Once the next structural topology/geometry gaps are addressed, return to evidence reconciliation rather than broadening extraction simply to force a value.
+### 4. Evidence conflicts, scope tensions, and ambiguity
 
 Initial cases:
 
-- **NLG 101365 — Adjustable Wristband:** the product webpage and another first-party NLG source give conflicting attached-weight guidance. Preserve both claims and resolve the recommendation only if the evidence policy provides a defensible reconciliation basis; do not silently choose one first-party value.
-- **NLG 101481 — Mini Adhesive D Ring:** descriptive copy supports curved-surface capability while current product instructions prescribe a flat installation surface. Preserve the scope distinction and let the prescriptive installation constraint govern eligibility unless stronger evidence resolves the tension.
-- **NLG 101756 — Heavy Duty Retractable Lanyard:** current public copy establishes a locking carabiner but does not establish whether locking is manual or automatic. Keep the detailed locking mode unresolved unless a qualified source explicitly distinguishes it.
+- **NLG 101365 — Adjustable Wristband:** preserve conflicting first-party attached-weight guidance and resolve only if the evidence policy provides a defensible reconciliation basis.
+- **NLG 101481 — Mini Adhesive D Ring:** preserve the distinction between descriptive curved-surface capability and prescriptive flat-surface installation requirements.
+- **NLG 101756 — Heavy Duty Retractable Lanyard:** keep detailed locking mode unresolved unless a qualified source explicitly distinguishes manual from automatic locking.
 
-This workstream should improve the evidence model itself where required: source identity, scope, evidence priority, conflict representation, ambiguity states, and recommendation-readiness behavior when a critical fact is disputed or under-specified.
+This workstream should improve source identity, scope, evidence priority, conflict representation, ambiguity states, and recommendation-readiness behavior where required.
 
 ## Working principles for the next phase
 
@@ -131,10 +173,12 @@ The following constraints remain in force across all workstreams:
 - inspect catalogue variation and manufacturer evidence before defining new normalized vocabularies or rules;
 - model primitive physical facts and relationships rather than app-specific recommendation labels;
 - preserve manufacturer wording and provenance per claim;
-- keep topology, geometry, connector operation, manufacturer position, and site policy as separate reasoning axes;
+- keep topology, geometry, connector operation, manufacturer position, runtime verification and site policy as separate reasoning axes;
 - require same-subject / same-feature binding where facts must belong to one physical feature;
-- distinguish source absence, acquisition failure, parser failure, semantic-vocabulary gaps, evidence-scope tension, public ambiguity, and true claim conflict;
-- fail closed when required dimensions, polarity, subject binding, or evidence are uncertain;
+- distinguish source absence, acquisition failure, parser failure, semantic-vocabulary gaps, evidence-scope tension, public ambiguity, true claim conflict, `requires_verification`, and genuinely unresolved compatibility;
+- do not infer `COMPATIBLE` from interface names alone;
+- do not persist session-level field verification as universal catalogue compatibility;
+- fail closed when a connection is neither established nor covered by a validated verification procedure;
 - do not weaken evidence requirements to manufacture completeness;
 - preserve the original Batch 2 blind artifact and cohort unchanged;
 - use fresh post-blind evaluation against that same cohort for regression checking; and
@@ -142,8 +186,8 @@ The following constraints remain in force across all workstreams:
 
 ## Suggested fresh-chat starting point
 
-Start the next chat with the **connector/interface geometry and dimensional-engagement** workstream. The first action should be inspection rather than implementation: review the current runtime connection model, connector specs, resolver/evaluator, technical schema, benchmark gaps, and available first-party geometry evidence before choosing the first rule.
+Continue with the **connection compatibility basis and controlled field-verification** workstream before implementing detailed dimensional engagement.
 
 A concise handoff prompt is:
 
-> Continue TetherLens from `main` after PR #27. Start the connector/interface geometry and dimensional-compatibility workstream. First inspect the current `ConnectionInterface`, `ConnectorSpec`, resolver/evaluator, technical schema, benchmark gaps, and available manufacturer evidence for representative connector/ring cases before changing code. Define the smallest reusable geometry vocabulary and engagement rule needed to move endpoint evaluation from topology-only `UNRESOLVED` toward evidence-backed `COMPATIBLE` / `INCOMPATIBLE` results, without SKU-pair logic or type-name compatibility shortcuts.
+> Continue TetherLens from `main` after the connection-compatibility documentation change. Implement the compatibility-basis model described in `connection-compatibility.md`: distinguish `COMPATIBLE`, `INCOMPATIBLE`, `REQUIRES_VERIFICATION`, and `UNRESOLVED`, keep geometry as one optional evidence path, and define the first bounded runtime verification rule for a representative gated-connector/closed-interface connection without SKU-pair logic or type-name compatibility shortcuts.
