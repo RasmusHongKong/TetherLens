@@ -234,6 +234,15 @@ def evaluate_endpoint_engagement(
     side_result = _side_rule_result(endpoint, target)
     if side_result is not None:
         rule_results.insert(0, side_result)
+        return _evaluation(
+            endpoint,
+            target,
+            status=ConnectionStatus.INCOMPATIBLE,
+            basis=side_result.basis,
+            reason=side_result.reason,
+            assessments=assessments,
+            rule_results=rule_results,
+        )
 
     connector_spec = (
         connector_specs.get(endpoint.connector_spec_ref)
