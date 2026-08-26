@@ -52,6 +52,14 @@ class ContradictionType(StrEnum):
     AUTHORITATIVE_SOURCE_CONFLICT = "authoritative_source_conflict"
 
 
+class LockingMode(StrEnum):
+    NON_LOCKING = "non_locking"
+    MANUAL_LOCKING = "manual_locking"
+    AUTO_LOCKING = "auto_locking"
+    UNKNOWN = "unknown"
+    NOT_APPLICABLE = "not_applicable"
+
+
 class ConnectionInterface(BaseModel):
     """One physical interface participating in a tether connection.
 
@@ -91,7 +99,7 @@ class ConnectorSpec(BaseModel):
 
     connector_spec_id: str
     opening_action_count: int | None = Field(default=None, ge=1, le=3)
-    locking_mode: str | None = None
+    locking_mode: LockingMode = LockingMode.UNKNOWN
     swivel: bool | None = None
     dimensions_mm: dict[str, float] = Field(default_factory=dict)
     attributes: dict[str, str | int | float | bool] = Field(default_factory=dict)
@@ -268,15 +276,10 @@ def evaluate_endpoint_engagement(
         if endpoint.connector_spec_ref is not None
         else None
     )
-    verification_family = _verification_family(endpoint, target, connector_spec)
-    geometry_result = _gate_admission_geometry_result(
-        endpoint,
-        target,
-        connector_spec,
-        verification_family=verification_family,
-    )
+    geometry_result = _gate_admission_geometry_result(endpoint, target, connector_spec)
     if geometry_result is not None:
         rule_results.append(geometry_result)
+    verification_family = _verification_family(endpoint, target, connector_spec)
 
     manufacturer_declaration = next(
         (
@@ -490,24 +493,29 @@ def _gated_connector_closed_interface_verification_status(
 
 
 def _connector_requires_lock_check(connector_spec: ConnectorSpec) -> bool:
-    return connector_spec.opening_action_count > 1 or connector_spec.locking_mode is not None
+    """Only explicit non-locking evidence allows omission of the lock observation."""
+
+    return connector_spec.locking_mode != LockingMode.NON_LOCKING
 
 
 def _gate_admission_geometry_result(
     endpoint: ConnectionInterface,
     target: ConnectionInterface,
     connector_spec: ConnectorSpec | None,
-    *,
-    verification_family: str | None,
 ) -> ConnectionRuleResult | None:
     """Evaluate the one narrow geometry condition already justified by the model.
 
-    A closed-interface section larger than the accepted maximum gate opening proves
-    admission impossible. A passing or incomplete comparison does not prove full safe
-    engagement and therefore deliberately falls through to later bases.
+    Geometry is an independent evidence path: accepted gate and closed-section
+    dimensions can prove admission impossible even when the connector is not eligible
+    for a runtime-verification family. A passing or incomplete comparison does not
+    prove full safe engagement and therefore deliberately falls through.
     """
 
-    if verification_family is None or connector_spec is None:
+    if endpoint.interface_type not in _GATED_CONNECTOR_TYPES:
+        return None
+    if target.interface_type not in _CLOSED_INTERFACE_TYPES:
+        return None
+    if connector_spec is None:
         return None
 
     gate_opening = connector_spec.dimensions_mm.get("gate_opening")
@@ -541,11 +549,10 @@ def _gate_admission_geometry_result(
 def _has_authoritative_source_conflict(
     assessments: list[ConnectionManufacturerAssessment],
 ) -> bool:
-    compatible_scopes = {
+    affirmative_scopes = {
         _normalized_scope(assessment.scope)
         for assessment in assessments
-        if assessment.authoritative
-        and assessment.position == ManufacturerPosition.EXPLICITLY_COMPATIBLE
+        if assessment.authoritative and assessment.position in _AFFIRMATIVE_MANUFACTURER_POSITIONS
     }
     prohibited_scopes = {
         _normalized_scope(assessment.scope)
@@ -553,7 +560,7 @@ def _has_authoritative_source_conflict(
         if assessment.authoritative
         and assessment.position == ManufacturerPosition.EXPLICITLY_PROHIBITED
     }
-    return bool(compatible_scopes & prohibited_scopes)
+    return bool(affirmative_scopes & prohibited_scopes)
 
 
 def _normalized_scope(scope: str) -> str:
@@ -605,6 +612,12 @@ def _validate_dimensions(dimensions: Any) -> Any:
             raise ValueError(f"dimension {key!r} must be a finite positive number")
     return dimensions
 
+
+_AFFIRMATIVE_MANUFACTURER_POSITIONS = {
+    ManufacturerPosition.EXPLICITLY_REQUIRED,
+    ManufacturerPosition.EXPLICITLY_ENDORSED,
+    ManufacturerPosition.EXPLICITLY_COMPATIBLE,
+}
 
 _CONNECTABLE_TARGET_ROLES = {
     ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE,
