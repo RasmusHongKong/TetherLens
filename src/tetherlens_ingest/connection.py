@@ -4,7 +4,7 @@ import math
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, StrictBool, field_validator
 
 from .compatibility import ManufacturerAssessment, ManufacturerPosition
 
@@ -90,7 +90,7 @@ class ConnectorSpec(BaseModel):
     """
 
     connector_spec_id: str
-    opening_action_count: int | None = Field(default=None, ge=1)
+    opening_action_count: int | None = Field(default=None, ge=1, le=3)
     locking_mode: str | None = None
     swivel: bool | None = None
     dimensions_mm: dict[str, float] = Field(default_factory=dict)
@@ -128,6 +128,23 @@ class ConnectionRuleResult(BaseModel):
     hard_physical: bool = False
 
 
+class GatedConnectorClosedInterfaceVerification(BaseModel):
+    """Observed checks for ``gated_connector_to_closed_interface.v1``.
+
+    Fields are nullable so a verification can be recorded incrementally. ``PASSED`` is
+    never accepted as an input assertion: the evaluator derives it only when every
+    check required by the connector specification is explicitly observed ``True``.
+    """
+
+    target_fully_captured: StrictBool | None = None
+    gate_closed_completely: StrictBool | None = None
+    locking_mechanism_engaged: StrictBool | None = None
+    gate_unobstructed: StrictBool | None = None
+    intended_loaded_orientation: StrictBool | None = None
+    stable_seating_no_cross_loading: StrictBool | None = None
+    no_adjacent_interference: StrictBool | None = None
+
+
 class ConnectionEvaluation(BaseModel):
     status: ConnectionStatus
     basis: CompatibilityBasis
@@ -138,6 +155,7 @@ class ConnectionEvaluation(BaseModel):
     rule_results: list[ConnectionRuleResult] = Field(default_factory=list)
     verification_status: RuntimeVerificationStatus | None = None
     verification_family: str | None = None
+    verification_observations: GatedConnectorClosedInterfaceVerification | None = None
     contradiction_type: ContradictionType | None = None
     review_required: bool = False
 
@@ -161,14 +179,15 @@ def evaluate_endpoint_engagement(
     connector_specs: dict[str, ConnectorSpec] | None = None,
     manufacturer_assessments: list[ConnectionManufacturerAssessment] | None = None,
     derived_results: list[ConnectionRuleResult] | None = None,
-    verification_status: RuntimeVerificationStatus | None = None,
+    verification_observations: GatedConnectorClosedInterfaceVerification | None = None,
 ) -> ConnectionEvaluation:
     """Evaluate one tether endpoint against one target interface conservatively.
 
     Evaluation uses the strongest defensible basis available. Inconclusive geometry
     falls through. Manufacturer assessments remain attached separately from technical
     status, and only a bounded validated verification family can produce
-    ``requires_verification``.
+    ``requires_verification``. Runtime verification status is derived from structured
+    family-specific observations rather than accepted as a caller assertion.
     """
 
     assessments = list(manufacturer_assessments or [])
@@ -355,13 +374,19 @@ def evaluate_endpoint_engagement(
         )
 
     if verification_family is not None:
-        runtime_status = verification_status or RuntimeVerificationStatus.PENDING
+        runtime_status = _gated_connector_closed_interface_verification_status(
+            connector_spec,
+            verification_observations,
+        )
         if runtime_status == RuntimeVerificationStatus.PASSED:
             status = ConnectionStatus.COMPATIBLE
-            reason = "bounded runtime verification passed for the observed connection"
+            reason = "bounded runtime verification passed all required observed checks for the connection"
         elif runtime_status == RuntimeVerificationStatus.FAILED:
             status = ConnectionStatus.INCOMPATIBLE
-            reason = "bounded runtime verification failed for the observed connection"
+            reason = "bounded runtime verification failed one or more required observed checks"
+        elif verification_observations is not None:
+            status = ConnectionStatus.REQUIRES_VERIFICATION
+            reason = "bounded runtime verification is incomplete; required observed checks remain pending"
         else:
             status = ConnectionStatus.REQUIRES_VERIFICATION
             reason = "catalogue evidence supports a bounded runtime verification path"
@@ -376,6 +401,7 @@ def evaluate_endpoint_engagement(
             rule_results=rule_results,
             verification_status=runtime_status,
             verification_family=verification_family,
+            verification_observations=verification_observations,
         )
 
     return _evaluation(
@@ -434,6 +460,37 @@ def _verification_family(
         # establish that the referenced discrete connector has an opening action.
         return None
     return "gated_connector_to_closed_interface.v1"
+
+
+def _gated_connector_closed_interface_verification_status(
+    connector_spec: ConnectorSpec | None,
+    observations: GatedConnectorClosedInterfaceVerification | None,
+) -> RuntimeVerificationStatus:
+    """Derive verification status from the bounded family's required observations."""
+
+    if connector_spec is None or observations is None:
+        return RuntimeVerificationStatus.PENDING
+
+    required_checks = [
+        observations.target_fully_captured,
+        observations.gate_closed_completely,
+        observations.gate_unobstructed,
+        observations.intended_loaded_orientation,
+        observations.stable_seating_no_cross_loading,
+        observations.no_adjacent_interference,
+    ]
+    if _connector_requires_lock_check(connector_spec):
+        required_checks.append(observations.locking_mechanism_engaged)
+
+    if any(check is False for check in required_checks):
+        return RuntimeVerificationStatus.FAILED
+    if all(check is True for check in required_checks):
+        return RuntimeVerificationStatus.PASSED
+    return RuntimeVerificationStatus.PENDING
+
+
+def _connector_requires_lock_check(connector_spec: ConnectorSpec) -> bool:
+    return connector_spec.opening_action_count > 1 or connector_spec.locking_mode is not None
 
 
 def _gate_admission_geometry_result(
@@ -514,6 +571,7 @@ def _evaluation(
     rule_results: list[ConnectionRuleResult],
     verification_status: RuntimeVerificationStatus | None = None,
     verification_family: str | None = None,
+    verification_observations: GatedConnectorClosedInterfaceVerification | None = None,
     contradiction_type: ContradictionType | None = None,
     review_required: bool = False,
 ) -> ConnectionEvaluation:
@@ -527,6 +585,7 @@ def _evaluation(
         rule_results=rule_results,
         verification_status=verification_status,
         verification_family=verification_family,
+        verification_observations=verification_observations,
         contradiction_type=contradiction_type,
         review_required=review_required,
     )

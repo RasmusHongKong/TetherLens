@@ -1,3 +1,6 @@
+import pytest
+from pydantic import ValidationError
+
 from tetherlens_ingest.adapters import NLGAdapter
 from tetherlens_ingest.compatibility import ManufacturerPosition
 from tetherlens_ingest.connection import (
@@ -9,6 +12,7 @@ from tetherlens_ingest.connection import (
     ConnectionStatus,
     ConnectorSpec,
     ContradictionType,
+    GatedConnectorClosedInterfaceVerification,
     RuntimeVerificationStatus,
     TetherSide,
     evaluate_endpoint_engagement,
@@ -39,14 +43,30 @@ def ring(*, section_diameter: float | None = None) -> ConnectionInterface:
     )
 
 
-def gated_spec(*, gate_opening: float | None = None) -> ConnectorSpec:
+def gated_spec(*, gate_opening: float | None = None, action_count: int = 2) -> ConnectorSpec:
     dimensions = {}
     if gate_opening is not None:
         dimensions["gate_opening"] = gate_opening
     return ConnectorSpec(
         connector_spec_id="connector",
-        opening_action_count=2,
+        opening_action_count=action_count,
         dimensions_mm=dimensions,
+    )
+
+
+def completed_verification(
+    *,
+    locking_mechanism_engaged: bool | None = True,
+    gate_unobstructed: bool = True,
+) -> GatedConnectorClosedInterfaceVerification:
+    return GatedConnectorClosedInterfaceVerification(
+        target_fully_captured=True,
+        gate_closed_completely=True,
+        locking_mechanism_engaged=locking_mechanism_engaged,
+        gate_unobstructed=gate_unobstructed,
+        intended_loaded_orientation=True,
+        stable_seating_no_cross_loading=True,
+        no_adjacent_interference=True,
     )
 
 
@@ -151,30 +171,79 @@ def test_geometry_pass_is_partial_and_still_falls_through_to_runtime_verificatio
     assert result.basis == CompatibilityBasis.RUNTIME_VERIFICATION
 
 
-def test_runtime_verification_pending_pass_and_fail_are_separate_states():
+def test_runtime_verification_status_is_derived_from_structured_observations():
     pending = evaluate_endpoint_engagement(
         endpoint(), ring(), connector_specs={"connector": gated_spec()}
     )
+    incomplete = evaluate_endpoint_engagement(
+        endpoint(),
+        ring(),
+        connector_specs={"connector": gated_spec()},
+        verification_observations=GatedConnectorClosedInterfaceVerification(
+            target_fully_captured=True,
+            gate_closed_completely=True,
+        ),
+    )
+    passed_observations = completed_verification()
     passed = evaluate_endpoint_engagement(
         endpoint(),
         ring(),
         connector_specs={"connector": gated_spec()},
-        verification_status=RuntimeVerificationStatus.PASSED,
+        verification_observations=passed_observations,
     )
+    failed_observations = completed_verification(gate_unobstructed=False)
     failed = evaluate_endpoint_engagement(
         endpoint(),
         ring(),
         connector_specs={"connector": gated_spec()},
-        verification_status=RuntimeVerificationStatus.FAILED,
+        verification_observations=failed_observations,
     )
 
     assert pending.status == ConnectionStatus.REQUIRES_VERIFICATION
     assert pending.verification_status == RuntimeVerificationStatus.PENDING
+    assert incomplete.status == ConnectionStatus.REQUIRES_VERIFICATION
+    assert incomplete.verification_status == RuntimeVerificationStatus.PENDING
     assert passed.status == ConnectionStatus.COMPATIBLE
     assert passed.verification_status == RuntimeVerificationStatus.PASSED
+    assert passed.verification_observations == passed_observations
     assert failed.status == ConnectionStatus.INCOMPATIBLE
     assert failed.verification_status == RuntimeVerificationStatus.FAILED
-    assert {pending.basis, passed.basis, failed.basis} == {CompatibilityBasis.RUNTIME_VERIFICATION}
+    assert failed.verification_observations == failed_observations
+    assert {pending.basis, incomplete.basis, passed.basis, failed.basis} == {
+        CompatibilityBasis.RUNTIME_VERIFICATION
+    }
+
+
+def test_lock_observation_is_required_for_multi_action_connector():
+    result = evaluate_endpoint_engagement(
+        endpoint(),
+        ring(),
+        connector_specs={"connector": gated_spec(action_count=2)},
+        verification_observations=completed_verification(locking_mechanism_engaged=None),
+    )
+    assert result.status == ConnectionStatus.REQUIRES_VERIFICATION
+    assert result.verification_status == RuntimeVerificationStatus.PENDING
+
+
+def test_lock_observation_is_not_required_for_single_action_nonlocking_connector():
+    result = evaluate_endpoint_engagement(
+        endpoint(),
+        ring(),
+        connector_specs={"connector": gated_spec(action_count=1)},
+        verification_observations=completed_verification(locking_mechanism_engaged=None),
+    )
+    assert result.status == ConnectionStatus.COMPATIBLE
+    assert result.verification_status == RuntimeVerificationStatus.PASSED
+
+
+def test_runtime_verification_observations_are_strict_booleans():
+    with pytest.raises(ValidationError):
+        GatedConnectorClosedInterfaceVerification(gate_closed_completely="yes")
+
+
+def test_connector_action_count_rejects_values_above_schema_bound():
+    with pytest.raises(ValidationError):
+        ConnectorSpec(connector_spec_id="connector", opening_action_count=4)
 
 
 def test_wrong_side_incompatibility_remains_conclusive_before_verification():
