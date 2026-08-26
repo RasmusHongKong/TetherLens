@@ -13,6 +13,7 @@ from tetherlens_ingest.connection import (
     ConnectorSpec,
     ContradictionType,
     GatedConnectorClosedInterfaceVerification,
+    LockingMode,
     RuntimeVerificationStatus,
     TetherSide,
     evaluate_endpoint_engagement,
@@ -43,13 +44,19 @@ def ring(*, section_diameter: float | None = None) -> ConnectionInterface:
     )
 
 
-def gated_spec(*, gate_opening: float | None = None, action_count: int = 2) -> ConnectorSpec:
+def gated_spec(
+    *,
+    gate_opening: float | None = None,
+    action_count: int | None = 2,
+    locking_mode: LockingMode = LockingMode.UNKNOWN,
+) -> ConnectorSpec:
     dimensions = {}
     if gate_opening is not None:
         dimensions["gate_opening"] = gate_opening
     return ConnectorSpec(
         connector_spec_id="connector",
         opening_action_count=action_count,
+        locking_mode=locking_mode,
         dimensions_mm=dimensions,
     )
 
@@ -119,6 +126,21 @@ def test_hard_physical_contradiction_blocks_manufacturer_declared_compatibility(
     assert result.blocked is True
 
 
+def test_hard_geometry_is_evaluated_without_runtime_verification_eligibility():
+    result = evaluate_endpoint_engagement(
+        endpoint(),
+        ring(section_diameter=15),
+        connector_specs={"connector": gated_spec(gate_opening=8, action_count=None)},
+        manufacturer_assessments=[manufacturer(ManufacturerPosition.EXPLICITLY_COMPATIBLE)],
+    )
+
+    assert result.status == ConnectionStatus.UNRESOLVED
+    assert result.basis == CompatibilityBasis.NONE
+    assert result.contradiction_type == ContradictionType.HARD_PHYSICAL_CONTRADICTION
+    assert result.verification_family is None
+    assert any(rule.hard_physical for rule in result.rule_results)
+
+
 def test_authoritative_source_conflict_is_unresolved_and_blocked():
     result = evaluate_endpoint_engagement(
         endpoint(),
@@ -130,6 +152,31 @@ def test_authoritative_source_conflict_is_unresolved_and_blocked():
         ],
     )
     assert result.status == ConnectionStatus.UNRESOLVED
+    assert result.contradiction_type == ContradictionType.AUTHORITATIVE_SOURCE_CONFLICT
+    assert result.blocked is True
+
+
+@pytest.mark.parametrize(
+    "affirmative_position",
+    [
+        ManufacturerPosition.EXPLICITLY_REQUIRED,
+        ManufacturerPosition.EXPLICITLY_ENDORSED,
+        ManufacturerPosition.EXPLICITLY_COMPATIBLE,
+    ],
+)
+def test_authoritative_affirmative_position_conflicts_with_prohibition(affirmative_position):
+    result = evaluate_endpoint_engagement(
+        endpoint(),
+        ring(),
+        connector_specs={"connector": gated_spec()},
+        manufacturer_assessments=[
+            manufacturer(affirmative_position, issuer="Maker A"),
+            manufacturer(ManufacturerPosition.EXPLICITLY_PROHIBITED, issuer="Maker A"),
+        ],
+    )
+
+    assert result.status == ConnectionStatus.UNRESOLVED
+    assert result.basis == CompatibilityBasis.NONE
     assert result.contradiction_type == ContradictionType.AUTHORITATIVE_SOURCE_CONFLICT
     assert result.blocked is True
 
@@ -225,15 +272,37 @@ def test_lock_observation_is_required_for_multi_action_connector():
     assert result.verification_status == RuntimeVerificationStatus.PENDING
 
 
-def test_lock_observation_is_not_required_for_single_action_nonlocking_connector():
+def test_unknown_locking_mode_cannot_pass_without_lock_observation():
     result = evaluate_endpoint_engagement(
         endpoint(),
         ring(),
-        connector_specs={"connector": gated_spec(action_count=1)},
+        connector_specs={
+            "connector": gated_spec(action_count=1, locking_mode=LockingMode.UNKNOWN)
+        },
+        verification_observations=completed_verification(locking_mechanism_engaged=None),
+    )
+
+    assert result.status == ConnectionStatus.REQUIRES_VERIFICATION
+    assert result.verification_status == RuntimeVerificationStatus.PENDING
+
+
+def test_lock_observation_is_not_required_for_explicitly_nonlocking_connector():
+    result = evaluate_endpoint_engagement(
+        endpoint(),
+        ring(),
+        connector_specs={
+            "connector": gated_spec(action_count=1, locking_mode=LockingMode.NON_LOCKING)
+        },
         verification_observations=completed_verification(locking_mechanism_engaged=None),
     )
     assert result.status == ConnectionStatus.COMPATIBLE
     assert result.verification_status == RuntimeVerificationStatus.PASSED
+
+
+def test_connector_locking_mode_defaults_to_unknown_and_rejects_invalid_values():
+    assert ConnectorSpec(connector_spec_id="connector").locking_mode == LockingMode.UNKNOWN
+    with pytest.raises(ValidationError):
+        ConnectorSpec(connector_spec_id="connector", locking_mode="single_action")
 
 
 def test_runtime_verification_observations_are_strict_booleans():
@@ -332,6 +401,7 @@ def test_nlg_101372_to_101363_reaches_generic_requires_verification_without_sku_
     result = evaluate_endpoint_engagement(rotobiner, target, connector_specs=specs)
 
     assert specs["rotobiner"].opening_action_count == 2
+    assert specs["rotobiner"].locking_mode == LockingMode.UNKNOWN
     assert result.status == ConnectionStatus.REQUIRES_VERIFICATION
     assert result.basis == CompatibilityBasis.RUNTIME_VERIFICATION
     assert result.verification_family == "gated_connector_to_closed_interface.v1"
