@@ -77,7 +77,7 @@ _TOOL_RELATION_PATTERN = (
     r"secur(?:e|ing|ed)\s+tools?)"
 )
 _TOOL_RELATION_RE = re.compile(rf"\b{_TOOL_RELATION_PATTERN}\b", re.I)
-_NEGATED_TOOL_RELATION_RE = re.compile(
+_PROHIBITION_BEFORE_TOOL_RE = re.compile(
     rf"(?:"
     rf"\b(?:must|shall|should|may|can)\s+not\b|"
     rf"\bcannot\b|"
@@ -85,6 +85,12 @@ _NEGATED_TOOL_RELATION_RE = re.compile(
     rf"\bnever\b|"
     rf"\bnot\s+(?:to|for|used|intended|designed|suitable)\b"
     rf").{{0,80}}\b{_TOOL_RELATION_PATTERN}\b",
+    re.I | re.S,
+)
+_PROHIBITION_AFTER_TOOL_RE = re.compile(
+    rf"\b{_TOOL_RELATION_PATTERN}\b.{{0,80}}\b"
+    rf"(?:(?:is|are|was|were)\s+)?"
+    rf"(?:prohibited|forbidden|not\s+(?:permitted|allowed))\b",
     re.I | re.S,
 )
 _MOUNTING_RELATION_RE = re.compile(
@@ -387,7 +393,11 @@ def _resolve_topology(
         # not be rebound as an additional topology group because that would manufacture
         # extra physical interfaces beyond the stated count.
 
-    if unmatched_unlocated:
+    # Unlocated observations may establish topology only when there is no located
+    # topology evidence anywhere in the evidence set. Once a source establishes a
+    # location, a differently counted unlocated observation is an unbindable refinement,
+    # not permission to materialize an additional anonymous interface group.
+    if unmatched_unlocated and not by_location:
         counts = {item.count for item in unmatched_unlocated}
         if len(counts) == 1:
             count = next(iter(counts))
@@ -418,9 +428,9 @@ def _is_tether_interface_assertion(clause: str, form: str, location: str | None)
     """Separate tether-anchor function from storage, mounting and structural form."""
 
     # A prohibition must win over every weaker positive signal such as ``load-rated``
-    # or an internal location. Never turn manufacturer negative-use guidance into an
-    # affirmative tether interface.
-    if _NEGATED_TOOL_RELATION_RE.search(clause):
+    # or an internal location. Manufacturer copy can place the prohibition before or
+    # after the tool-use relation, so both clause-local directions fail closed.
+    if _PROHIBITION_BEFORE_TOOL_RE.search(clause) or _PROHIBITION_AFTER_TOOL_RE.search(clause):
         return False
 
     if _MOUNTING_RELATION_RE.search(clause) and not _TOOL_RELATION_RE.search(clause):
