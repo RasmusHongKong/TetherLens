@@ -167,3 +167,15 @@ def test_conflicting_repeated_counts_fail_closed_for_that_location():
         and claim.subject_ref.startswith("internal_anchor_")
         for claim in claims
     )
+
+
+def test_container_without_repeated_topology_preserves_legacy_interface_rating():
+    html = """
+    <p>Max Load: 30 KG / 66 LBS.</p>
+    <p>Internal Anchor Point / Daisy Chain Max Load: 5 KG / 11 LBS (each).</p>
+    """
+    claims = physical_claims(html)
+    out = keyed(claims)
+
+    assert out[("internal_anchor", "rated_capacity_kg")] == 5.0
+    assert not any(claim.property_key == "interface.role" for claim in claims)
