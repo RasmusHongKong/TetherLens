@@ -4,7 +4,7 @@ import math
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .compatibility import EligibilityEvaluation, EligibilityStatus, PolicyStatus
 from .connection import ConnectionEvaluation, ConnectionStatus
@@ -37,6 +37,13 @@ class CandidateCheckStatus(StrEnum):
     UNRESOLVED = "unresolved"
 
 
+class CandidateAttachmentMode(StrEnum):
+    """Whether the candidate path reaches the tether directly or through a ToolAttachment."""
+
+    DIRECT = "direct"
+    TOOL_ATTACHMENT = "tool_attachment"
+
+
 class LoadBearingComponent(BaseModel):
     """One load-bearing component participating in the candidate path."""
 
@@ -66,14 +73,19 @@ class CandidateConfiguration(BaseModel):
 
     The object intentionally consumes normalized results rather than Claims or product
     identities. Candidate generation, ranking and evidence acceptance stay outside this
-    first slice. A full tethering path must contain at least the tool-side and
-    anchor/container-side connection evaluations.
+    first slice.
+
+    The two required boundary connections are represented explicitly so a full path
+    cannot be satisfied by supplying two evaluations for the same side. Attachment mode
+    is also explicit: direct tethering has no ToolAttachment eligibility axis, while a
+    ToolAttachment candidate must carry an eligibility result or fail closed as
+    unresolved.
 
     Optional fields are omitted only when that reasoning axis does not apply to the
     candidate. If an applicable value is unknown, callers must pass its explicit
     unresolved representation instead: ``None`` capacity/length within an applicable
-    component/constraint, ``EligibilityStatus.UNRESOLVED`` for an attachment, or
-    ``PolicyStatus.UNRESOLVED`` for applicable policy.
+    component/constraint, ``EligibilityStatus.UNRESOLVED`` for an evaluated attachment,
+    or ``PolicyStatus.UNRESOLVED`` for applicable policy.
     """
 
     candidate_id: str = Field(min_length=1)
@@ -81,8 +93,10 @@ class CandidateConfiguration(BaseModel):
     load_bearing_components: list[LoadBearingComponent] = Field(min_length=1)
     tether_max_length_mm: float | None = None
     lanyard_length_constraints: list[LanyardLengthConstraint] = Field(default_factory=list)
+    attachment_mode: CandidateAttachmentMode
     attachment_eligibility: EligibilityEvaluation | None = None
-    connections: list[ConnectionEvaluation] = Field(min_length=2)
+    tool_side_connection: ConnectionEvaluation
+    anchor_side_connection: ConnectionEvaluation
     policy_status: PolicyStatus | None = None
 
     @field_validator("object_mass_kg", mode="before")
@@ -94,6 +108,31 @@ class CandidateConfiguration(BaseModel):
     @classmethod
     def validate_tether_max_length(cls, value: Any) -> Any:
         return _positive_finite_or_none(value, field_name="tether_max_length_mm")
+
+    @model_validator(mode="after")
+    def validate_path_semantics(self) -> CandidateConfiguration:
+        if (
+            self.tool_side_connection.endpoint_id == self.anchor_side_connection.endpoint_id
+            and self.tool_side_connection.target_interface_id
+            == self.anchor_side_connection.target_interface_id
+        ):
+            raise ValueError(
+                "tool-side and anchor-side connections must be distinct evaluations"
+            )
+        if (
+            self.attachment_mode == CandidateAttachmentMode.DIRECT
+            and self.attachment_eligibility is not None
+        ):
+            raise ValueError(
+                "direct candidates must not supply ToolAttachment eligibility"
+            )
+        return self
+
+    @property
+    def connections(self) -> list[ConnectionEvaluation]:
+        """Return required path connections in deterministic tool-to-anchor order."""
+
+        return [self.tool_side_connection, self.anchor_side_connection]
 
 
 class CandidateCheck(BaseModel):
@@ -138,9 +177,13 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
 
     checks: list[CandidateCheck] = []
 
-    if candidate.attachment_eligibility is not None:
+    if candidate.attachment_mode == CandidateAttachmentMode.TOOL_ATTACHMENT:
         eligibility = candidate.attachment_eligibility
-        if eligibility.status == EligibilityStatus.ELIGIBLE and eligibility.matches:
+        if eligibility is None:
+            status = CandidateCheckStatus.UNRESOLVED
+            reason = "ToolAttachment eligibility is required but no evaluation is available"
+            refs = []
+        elif eligibility.status == EligibilityStatus.ELIGIBLE and eligibility.matches:
             status = CandidateCheckStatus.PASSED
             reason = "tool attachment eligibility is established for at least one bound tool feature"
             refs = [match.feature_id for match in eligibility.matches]
