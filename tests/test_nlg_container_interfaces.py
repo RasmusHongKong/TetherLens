@@ -10,9 +10,9 @@ from tetherlens_ingest.models import (
 from tetherlens_ingest.resolution import resolve_connection_interfaces
 
 
-def artifact(body: str) -> SourceArtifact:
+def artifact(body: str, url: str = "https://example.test/container") -> SourceArtifact:
     return SourceArtifact(
-        url="https://example.test/container",
+        url=url,
         source_type=SourceType.MANUFACTURER_WEBPAGE,
         content_type="text/html",
         body=body,
@@ -30,9 +30,16 @@ def identity(product_type: ProductType = ProductType.CONTAINER) -> ProductIdenti
 
 
 def physical_claims(body: str, product_type: ProductType = ProductType.CONTAINER):
+    return physical_claims_from_artifacts([artifact(body)], product_type)
+
+
+def physical_claims_from_artifacts(
+    artifacts: list[SourceArtifact],
+    product_type: ProductType = ProductType.CONTAINER,
+):
     return [
         claim
-        for claim in NLGAdapter().extract(identity(product_type), [artifact(body)])
+        for claim in NLGAdapter().extract(identity(product_type), artifacts)
         if claim.subject_type == ClaimSubjectType.PHYSICAL_INTERFACE
     ]
 
@@ -179,3 +186,53 @@ def test_container_without_repeated_topology_preserves_legacy_interface_rating()
 
     assert out[("internal_anchor", "rated_capacity_kg")] == 5.0
     assert not any(claim.property_key == "interface.role" for claim in claims)
+
+
+def test_negated_tool_relation_never_materializes_container_connections():
+    bodies = [
+        "<p>4 D-rings must not be used to attach tools.</p>",
+        "<p>4 load-rated anchor points must not be used to attach tools.</p>",
+    ]
+
+    for body in bodies:
+        claims = physical_claims(body)
+        assert not any(claim.property_key == "interface.role" for claim in claims)
+        assert resolve_connection_interfaces(claims) == []
+
+
+def test_ambiguous_unlocated_form_refinement_does_not_create_extra_interfaces():
+    html = """
+    <p>Tool Bag with 8 load-rated anchor points — 4 external, 4 internal.</p>
+    <p>4 integrated D Rings for tool lanyard attachment.</p>
+    """
+    claims = physical_claims(html)
+    interfaces = resolve_connection_interfaces(claims)
+
+    assert len(interfaces) == 8
+    assert {interface.interface_id for interface in interfaces} == {
+        *(f"internal_anchor_{index}" for index in range(1, 5)),
+        *(f"external_anchor_{index}" for index in range(1, 5)),
+    }
+    assert all(interface.interface_type == "unknown" for interface in interfaces)
+    assert not any(interface.interface_id.startswith("anchor_") for interface in interfaces)
+
+
+def test_conflicting_counts_across_artifacts_fail_closed_before_materialization():
+    artifacts = [
+        artifact(
+            "<p>Internally the pouch features 4 load-rated anchor points for securing tools.</p>",
+            "https://example.test/product-page",
+        ),
+        artifact(
+            "<p>Internally the pouch features 6 load-rated anchor points for securing tools.</p>",
+            "https://example.test/datasheet",
+        ),
+    ]
+    claims = physical_claims_from_artifacts(artifacts)
+
+    assert not any(
+        claim.property_key == "interface.role"
+        and claim.subject_ref.startswith("internal_anchor_")
+        for claim in claims
+    )
+    assert resolve_connection_interfaces(claims) == []
