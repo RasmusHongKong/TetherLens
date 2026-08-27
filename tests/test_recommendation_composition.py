@@ -1,6 +1,7 @@
 from tetherlens_ingest.adapters import KleinAdapter, NLGAdapter
 from tetherlens_ingest.compatibility import (
     EligibilityEvaluation,
+    EligibilityMatch,
     EligibilityStatus,
     PolicyStatus,
     evaluate_attachment_eligibility,
@@ -56,7 +57,16 @@ def connection(
 
 
 def eligible_attachment() -> EligibilityEvaluation:
-    return EligibilityEvaluation(status=EligibilityStatus.ELIGIBLE)
+    return EligibilityEvaluation(
+        status=EligibilityStatus.ELIGIBLE,
+        matches=[
+            EligibilityMatch(
+                path_index=0,
+                binding_name="opening",
+                feature_id="tool_opening",
+            )
+        ],
+    )
 
 
 def base_candidate(**overrides) -> CandidateConfiguration:
@@ -105,6 +115,7 @@ def test_candidate_is_recommended_when_every_hard_check_passes():
     assert result.recommendation_state == RecommendationState.RECOMMENDED
     assert result.recommended is True
     assert result.blocked is False
+    assert result.requires_verification is False
     assert all(check.status == CandidateCheckStatus.PASSED for check in result.checks)
     assert result.pending_verification_connection_ids == []
 
@@ -124,6 +135,7 @@ def test_pending_connection_verification_produces_recommended_with_constraints()
     )
 
     assert result.recommendation_state == RecommendationState.RECOMMENDED_WITH_CONSTRAINTS
+    assert result.requires_verification is True
     assert result.pending_verification_connection_ids == [
         "connection:tool_endpoint->attachment_ring"
     ]
@@ -155,6 +167,31 @@ def test_multiple_pending_connections_remain_one_conditional_recommendation():
         "connection:tool_endpoint->attachment_ring",
         "connection:anchor_endpoint->container_ring",
     ]
+
+
+def test_blocked_candidate_does_not_request_runtime_verification():
+    result = evaluate_candidate_configuration(
+        base_candidate(
+            connections=[
+                connection(
+                    ConnectionStatus.REQUIRES_VERIFICATION,
+                    endpoint_id="tool_endpoint",
+                    target_id="attachment_ring",
+                ),
+                connection(
+                    ConnectionStatus.UNRESOLVED,
+                    endpoint_id="anchor_endpoint",
+                    target_id="container_ring",
+                ),
+            ]
+        )
+    )
+
+    assert result.recommendation_state is None
+    assert result.pending_verification_connection_ids == []
+    assert any(
+        check.status == CandidateCheckStatus.REQUIRES_VERIFICATION for check in result.checks
+    )
 
 
 def test_unresolved_or_incompatible_connection_blocks_candidate():
@@ -247,6 +284,21 @@ def test_attachment_ineligible_or_unresolved_blocks_candidate():
             )
         )
         assert result.recommendation_state is None
+
+
+def test_eligible_attachment_without_bound_match_fails_closed():
+    result = evaluate_candidate_configuration(
+        base_candidate(
+            attachment_eligibility=EligibilityEvaluation(status=EligibilityStatus.ELIGIBLE)
+        )
+    )
+
+    assert result.recommendation_state is None
+    assert any(
+        check.check_id == "attachment_eligibility"
+        and check.status == CandidateCheckStatus.UNRESOLVED
+        for check in result.checks
+    )
 
 
 def test_policy_prohibited_or_unresolved_blocks_candidate_when_policy_is_supplied():
@@ -388,9 +440,15 @@ def test_evidence_backed_tool_attachment_tether_slice_stays_blocked_when_anchor_
     )
 
     assert result.recommendation_state is None
-    assert result.pending_verification_connection_ids == [
-        f"connection:{tool_connection.endpoint_id}->{tool_connection.target_interface_id}"
-    ]
+    assert result.pending_verification_connection_ids == []
+    assert any(
+        check.status == CandidateCheckStatus.REQUIRES_VERIFICATION
+        and check.subject_refs == [
+            tool_connection.endpoint_id,
+            tool_connection.target_interface_id,
+        ]
+        for check in result.checks
+    )
     assert any(
         check.status == CandidateCheckStatus.UNRESOLVED
         and check.subject_refs == [loop_endpoint.interface_id, container_ring.interface_id]
