@@ -1,14 +1,14 @@
 # TetherLens Project Status
 
-_Last updated: 2026-08-25_
+_Last updated: 2026-08-27_
 
 This document is the short operational handoff for the current TetherLens ingestion and compatibility work. It records what has landed, what the latest benchmark says, and which workstreams should be tackled next.
 
-For durable design principles, use the dedicated documents such as `product-vision.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `connection-compatibility.md`, `tool-attachment-compatibility.md`, `tool-anatomy-selection-semantics.md`, `benchmark-goals.md`, and `ingestion-benchmark.md`. This file should not replace those documents or freeze semantic decisions before the evidence has been inspected.
+For durable design principles, use the dedicated documents such as `product-vision.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `connection-compatibility.md`, `tool-attachment-compatibility.md`, `tool-anatomy-selection-semantics.md`, `container-interface-topology.md`, `benchmark-goals.md`, and `ingestion-benchmark.md`. This file should not replace those documents or freeze semantic decisions before the evidence has been inspected.
 
 ## Current ingestion and compatibility state
 
-The current development line through PR #27 includes the completed work from:
+The current development line through PR #30 includes the completed work from:
 
 - PR #17 — Batch 2 blind NLG holdout and post-blind evaluation path;
 - PR #18 — explicit tether endpoint topology;
@@ -19,8 +19,11 @@ The current development line through PR #27 includes the completed work from:
 - PR #23 — normalized tool-anatomy and attachment-selection semantics;
 - PR #24 — executable feature-bound attachment eligibility core;
 - PR #25 — accepted tool-feature resolution plus the first reusable captive-feature ToolAttachment vertical slice;
-- PR #26 — comparison hardening and conservative dimensional evaluation; and
-- PR #27 — ToolAttachment-provided tether interfaces, resolved tether endpoints, and topology-aware endpoint engagement.
+- PR #26 — comparison hardening and conservative dimensional evaluation;
+- PR #27 — ToolAttachment-provided tether interfaces, resolved tether endpoints, and topology-aware endpoint engagement;
+- PR #28 — explicit connection-compatibility bases and controlled runtime-verification design;
+- PR #29 — executable compatibility-basis runtime model, connector-spec resolution, manufacturer-assessment precedence, and the first bounded gated-connector/closed-interface verification family; and
+- PR #30 — repeated container tether interfaces with explicit location, evidence-bound form, per-interface rating, and fail-closed cross-source reconciliation.
 
 PR #16, the earlier NLG catalogue-generalization branch, was closed unmerged after its still-useful catalogue-discovery and scorer changes were carried forward through PR #19. Its older endpoint and attachment-method semantics should not be revived.
 
@@ -41,129 +44,107 @@ The important current capabilities are:
 - conservative accepted-claim resolution into runtime tool features, including fail-closed handling of conflicting accepted facts and dimensions;
 - a reusable `captive_feature_attachment` selection class that can match equivalent captive handles or through-openings without encoding SKU pairs;
 - hardened numeric comparison semantics where malformed, non-numeric, missing, or non-finite values remain unresolved instead of accidentally passing;
-- runtime `ConnectionInterface` objects for ToolAttachment-provided tether-side interfaces and tether connection points;
-- evidence-backed NLG extraction of provided tether-side D-rings only when manufacturer wording locally binds the D-ring to the tether point or lanyard relation;
-- endpoint-side topology checks that can reject obviously wrong tool-side/anchor-side pairings; and
-- conservative endpoint engagement that remains `UNRESOLVED` when topology is plausible but no accepted compatibility basis has yet established the connection.
+- runtime `ConnectionInterface` objects for ToolAttachment-provided tether-side interfaces, tether connection points, and container-provided tether interfaces;
+- evidence-backed ToolAttachment-provided tether-side rings only when manufacturer wording locally binds physical form to tether function;
+- repeated container connection sites represented as distinct physical-interface subjects, with explicit `internal` / `external` location when stated and per-interface ratings when evidence establishes an each-site rating;
+- conservative container form resolution: a stated D-ring can resolve to `ring`, while a functional anchor with unstated geometry remains unknown rather than being inferred from imagery or naming;
+- separation of container tether anchors from tool holders, bag-mounting hardware, lifting handles, rope-management loops, structural rings, and other non-tether functions;
+- cross-artifact topology reconciliation before materialization, with conflicting or unbindable observations kept from manufacturing extra interfaces;
+- polarity-aware container extraction so explicit manufacturer prohibitions cannot be inverted into positive tether capability;
+- endpoint-side topology checks that reject obviously wrong tool-side/anchor-side pairings;
+- explicit technical connection states of `compatible`, `incompatible`, `requires_verification`, and `unresolved`;
+- explicit compatibility bases of `manufacturer_declared`, `validated_geometry`, `validated_interface_class`, `runtime_verification`, and `none`;
+- runtime verification status kept separate from catalogue facts, so a bounded field check can move a particular configuration from `requires_verification` without creating universal catalogue compatibility;
+- manufacturer compatibility assessments preserved as a separate reasoning axis from technical fit, with authoritative manufacturer conflicts and hard physical contradictions able to block a recommendation;
+- inconclusive geometry remaining inconclusive rather than being converted into false incompatibility; and
+- the first reusable `gated_connector_to_closed_interface.v1` verification family, which can move an evidence-backed connection path beyond topology-only `unresolved` without using SKU-pair logic or treating type names alone as proof of compatibility.
 
-PR #27 therefore exposed an important scalability boundary. Detailed connector/interface dimensions are often not publicly available, and requiring complete engineering geometry for every connection would make catalogue readiness depend on purchasing and manually measuring a large share of the market.
+The major architectural shift from PRs #27–#29 is now implemented rather than merely proposed: **every required connection needs an acceptable compatibility basis, but complete engineering geometry is not a universal catalogue-completeness requirement.** Geometry remains valuable where it can establish hard impossibility, provide a reusable validated rule, or materially simplify a bounded field-verification procedure.
 
-The compatibility requirement has consequently been revised: **every required connection needs an acceptable compatibility basis, but dimensional proof is only one possible basis.** The durable model is documented in `connection-compatibility.md`.
-
-Initial connection states are intended to become:
-
-```text
-compatible
-incompatible
-requires_verification
-unresolved
-```
-
-and initial compatibility bases are:
-
-```text
-manufacturer_declared
-validated_geometry
-validated_interface_class
-runtime_verification
-none
-```
-
-`requires_verification` is deliberately distinct from `unresolved`: it means the catalogue can establish a plausible connection path and a validated bounded field check can close the remaining physical-fit uncertainty on the actual equipment.
+PR #30 extends the same evidence discipline to containers. Function, topology, physical form, location, rating, manufacturer position, and runtime verification remain separate facts. Unknown form is allowed to remain unknown, and contradictory or prohibited-use evidence fails closed instead of being coerced into a complete-looking topology.
 
 ## Latest benchmark state
 
-The latest green validation on the PR #27 head completed the full workflow:
+The latest green validation on the PR #30 head completed the full workflow:
 
-- **162 unit tests passed**;
+- **197 unit tests passed**;
 - Batch 1 live acquisition completed **12/12 products**;
 - Batch 1 extraction scored **54 true positives, 0 false positives, and 0 false negatives**;
 - Batch 1 micro precision and recall were both **1.0**;
 - Batch 1 recommendation-data coverage is **27/29 requirements**, with **10/12 baseline products complete**;
 - the two remaining Batch 1 missing requirements are existing `source_blocked` cases rather than extraction regressions;
 - fresh Batch 2 post-blind evaluation acquired **8/8 products**;
-- fresh Batch 2 extraction scored **47 true positives, 0 false positives, and 0 false negatives**;
+- fresh Batch 2 extraction scored **87 true positives, 0 false positives, and 0 false negatives**;
 - fresh Batch 2 micro precision and recall were both **1.0**;
-- fresh Batch 2 recommendation-data coverage is **36/36 requirements** with **8/8 baseline products complete**; and
-- the fresh Batch 2 run records **five known semantic/evidence gaps** rather than hiding them behind the complete baseline requirement count.
+- fresh Batch 2 recommendation-data coverage is **44/44 requirements** with **8/8 baseline products complete**; and
+- the fresh Batch 2 run records **four known semantic/evidence gaps** rather than manufacturing certainty to make the dataset appear complete.
 
-The immutable Batch 2 blind baseline must remain unchanged. Against the expanded current golden contract it records **14 TP / 1 FP / 33 FN**; that poorer result is expected because it preserves the genuinely blind pre-fix output rather than current adapter performance.
+The immutable Batch 2 blind baseline must remain unchanged. Against the expanded v0.9 golden contract it records **12 TP / 3 FP / 75 FN** with two forbidden hits. That poorer score is expected: the artifact preserves the genuinely blind pre-fix output while the contract has subsequently expanded to include endpoint, ToolAttachment-interface, installation-constraint, and repeated-container-topology semantics. It is a historical baseline, not a regression signal.
 
-The five current Batch 2 known gaps are:
+The four current Batch 2 known gaps are:
 
 | SKU | Product | Gap category | Field / issue |
 |---|---|---|---|
-| NLG 101520 | Ascent™ Pouch | `claim_vocabulary_gap` | internal anchor count/topology |
-| NLG 101492 | Tall Tool Bag | `claim_vocabulary_gap` | internal/external anchor and holder topology |
 | NLG 101365 | Adjustable Wristband | `evidence_conflict` | conflicting first-party attached-weight recommendation |
 | NLG 101481 | Mini Adhesive D Ring | `evidence_scope_tension` | descriptive curved-surface capability vs prescriptive flat-surface installation requirement |
 | NLG 101756 | Heavy Duty Retractable Lanyard, Double Carabiner | `public_fact_ambiguous` | connector locking mode not established as manual vs automatic |
+| NLG 101520 | Ascent™ Pouch | `public_fact_not_established` | external daisy-chain presence is established, but the public source does not establish an individual loop/site count |
 
-These gaps should remain explicit until the relevant workstream resolves them. Passing the current recommendation-data baseline is not a reason to manufacture certainty where the evidence or model is still incomplete.
+NLG 101492 is no longer a structured-topology gap: the Tall Tool Bag now resolves eight evidence-backed container connection sites as six internal rings plus two external anchors whose physical form remains unknown.
+
+Batch 1 still records legitimate non-parser gaps including manufacturer-document joins/revisions, internal measurements, and source-blocked facts. Those should remain visible rather than being weakened into permissive defaults.
 
 ## Next workstreams
 
-### 1. Connection compatibility bases and controlled field verification
+### 1. Compose the existing primitives into an end-to-end recommendation path
 
-This replaces the earlier plan to make detailed dimensional engagement the universal next requirement.
+The highest-value next milestone is no longer another isolated vocabulary or resolver. TetherLens now has enough reusable pieces to prove a complete recommendation path while preserving uncertainty at each boundary.
 
-The first implementation goal should be to extend connection evaluation so a topologically plausible endpoint/interface pair can distinguish:
+A representative end-to-end evaluation should be able to:
 
-- catalogue-established `COMPATIBLE`;
-- established `INCOMPATIBLE`;
-- `REQUIRES_VERIFICATION` when a validated bounded field check can close the remaining physical-fit uncertainty; and
-- genuinely `UNRESOLVED` cases where no acceptable basis or verification path exists.
+1. resolve the tool's operational mass and accepted physical features;
+2. evaluate reusable ToolAttachment eligibility against those features;
+3. resolve the ToolAttachment-provided tether-side interface when an attachment is required;
+4. resolve the relevant tether endpoint and connector specification;
+5. evaluate tether endpoint ↔ tool/ToolAttachment interface compatibility using the available compatibility basis;
+6. evaluate the opposite tether endpoint ↔ anchor/container connection in the same way;
+7. apply relevant rated capacities, lanyard-length limits, installation constraints, manufacturer assessments, and other already-modeled restrictions;
+8. propagate `requires_verification`, evidence conflicts, public ambiguity, source gaps, and genuinely unresolved steps rather than collapsing them into a binary recommendation; and
+9. produce a recommendation only when every required link in the path is adequately established.
 
-Initial work should:
+The first implementation should use one or two realistic, evidence-backed vertical slices chosen for semantic reuse, not because they form convenient SKU pairs. The evaluator should consume normalized product facts and interfaces; production code should not contain product-specific recommendation branches.
 
-1. read `connection-compatibility.md` alongside the current `ConnectionInterface`, resolver and evaluator;
-2. add a compatibility-basis concept without collapsing manufacturer position, technical compatibility and site policy;
-3. preserve existing topology/side incompatibility checks as early hard failures;
-4. define the first bounded field-verification rule for a representative gated-connector-to-closed-interface family using observable physical conditions rather than a vague user confirmation;
-5. ensure a successful field check remains session/configuration evidence rather than becoming a universal catalogue pairing;
-6. keep type-name shortcuts prohibited — `carabiner + ring` alone must not become `COMPATIBLE`;
-7. retain dimensional rules as an optional stronger basis where published or economically useful internally measured dimensions exist; and
-8. use real NLG/Hilti cases plus adversarial synthetic tests to distinguish `REQUIRES_VERIFICATION` from `UNRESOLVED` and `INCOMPATIBLE`.
+A useful success criterion is that one complete tool → ToolAttachment (where required) → tether → anchor/container path can be evaluated with an auditable explanation of which compatibility basis closed each connection and which checks remain runtime verification rather than catalogue truth.
 
-NLG 101372 and NLG 101363 remain useful development cases because their topology is known while the detailed engagement geometry is not publicly established. Instead of requiring those dimensions before any useful recommendation can exist, the first question is whether their connection family can be covered by a validated field-verification procedure.
+### 2. Selective connector/interface geometry and dimensional compatibility
 
-A successful first PR should move at least one real endpoint/interface path beyond topology-only `UNRESOLVED` without pretending that missing catalogue geometry has been solved.
+Geometry remains an important supporting workstream, but it should be driven by real connection cases rather than by a goal of fully measuring the catalogue.
 
-### 2. Selective connector/interface geometry
-
-Geometry remains useful, but it is no longer a universal catalogue-completeness requirement.
-
-Prioritize measurements only when they have good leverage, for example:
+Prioritize measurements or new geometry vocabulary when:
 
 - a connector specification is reused across many tether SKUs;
 - one measurement resolves a high-frequency recurring uncertainty;
-- a geometry rule can conclusively reject unsafe fit; or
-- the measurement can materially simplify a field-verification procedure.
+- a hard geometric rule can conclusively reject unsafe engagement;
+- a published dimension can upgrade a recurring path from runtime verification to catalogue-established compatibility; or
+- the dimension materially simplifies or strengthens a validated field-verification procedure.
 
-The technical-schema principle still applies: add only dimensions required by real validated rules. Do not build a general CAD model.
+The technical-schema principle still applies: add only dimensions required by real validated rules. Do not build a general CAD model, and do not infer compatibility from names such as `carabiner`, `ring`, or `loop` alone.
 
-Relevant potential cases still include NLG 101372, NLG 101363 and Hilti 2261970, but purchasing/measuring every market product is explicitly not the intended scaling strategy.
+### 3. Remaining evidence, document, and measurement gaps
 
-### 3. Container anchor topology
+Continue addressing gaps when they materially block a recommendation path or reveal a reusable evidence-model weakness.
 
-Primary benchmark cases:
+Current examples include:
 
-- NLG 101520 — Ascent™ Pouch: integrated internal anchor count/topology is not yet normalized; and
-- NLG 101492 — Tall Tool Bag: internal and external anchor/tool-holder topology is not yet structured.
+- the two Batch 1 `source_blocked` recommendation requirements;
+- manufacturer-document joins and revision handling still recorded by Batch 1;
+- internal measurements that may become worthwhile once a recurring geometric rule has been identified;
+- the NLG 101365 first-party recommendation conflict;
+- the NLG 101481 descriptive-vs-prescriptive surface-profile tension;
+- the NLG 101756 locking-mode ambiguity; and
+- the NLG 101520 external daisy-chain site count, which should remain unknown unless an acceptable source actually establishes it.
 
-This workstream should build on the shared connection/interface direction established by tether endpoint and ToolAttachment topology. Prefer explicit physical interfaces and repeated-interface relationships over a single overloaded aggregate field, while retaining counts where they are useful as derived or transitional facts.
-
-Before implementation, inspect multiple container products so the model can distinguish concepts such as internal anchors, external anchors, daisy chains/tool holders, repeated interfaces, per-interface ratings, and interfaces that are storage/retention features rather than tether anchors.
-
-### 4. Evidence conflicts, scope tensions, and ambiguity
-
-Initial cases:
-
-- **NLG 101365 — Adjustable Wristband:** preserve conflicting first-party attached-weight guidance and resolve only if the evidence policy provides a defensible reconciliation basis.
-- **NLG 101481 — Mini Adhesive D Ring:** preserve the distinction between descriptive curved-surface capability and prescriptive flat-surface installation requirements.
-- **NLG 101756 — Heavy Duty Retractable Lanyard:** keep detailed locking mode unresolved unless a qualified source explicitly distinguishes manual from automatic locking.
-
-This workstream should improve source identity, scope, evidence priority, conflict representation, ambiguity states, and recommendation-readiness behavior where required.
+Do not turn imagery, catalogue convenience, or a likely interpretation into a structured fact merely to close one of these gaps.
 
 ## Working principles for the next phase
 
@@ -176,9 +157,13 @@ The following constraints remain in force across all workstreams:
 - keep topology, geometry, connector operation, manufacturer position, runtime verification and site policy as separate reasoning axes;
 - require same-subject / same-feature binding where facts must belong to one physical feature;
 - distinguish source absence, acquisition failure, parser failure, semantic-vocabulary gaps, evidence-scope tension, public ambiguity, true claim conflict, `requires_verification`, and genuinely unresolved compatibility;
-- do not infer `COMPATIBLE` from interface names alone;
-- do not persist session-level field verification as universal catalogue compatibility;
-- fail closed when a connection is neither established nor covered by a validated verification procedure;
+- do not infer `compatible` from interface names alone;
+- do not treat a successful session-level field verification as universal catalogue compatibility;
+- let hard physical contradiction and authoritative manufacturer prohibition fail closed;
+- let inconclusive geometry remain inconclusive;
+- preserve explicit negative-use wording and do not invert it into capability;
+- reconcile repeated topology across accepted artifacts before materializing physical interfaces;
+- do not infer repeated interface counts from imagery;
 - do not weaken evidence requirements to manufacture completeness;
 - preserve the original Batch 2 blind artifact and cohort unchanged;
 - use fresh post-blind evaluation against that same cohort for regression checking; and
@@ -186,8 +171,8 @@ The following constraints remain in force across all workstreams:
 
 ## Suggested fresh-chat starting point
 
-Continue with the **connection compatibility basis and controlled field-verification** workstream before implementing detailed dimensional engagement.
+After PR #30, start with **end-to-end recommendation path composition** rather than another isolated extraction rule.
 
 A concise handoff prompt is:
 
-> Continue TetherLens from `main` after the connection-compatibility documentation change. Implement the compatibility-basis model described in `connection-compatibility.md`: distinguish `COMPATIBLE`, `INCOMPATIBLE`, `REQUIRES_VERIFICATION`, and `UNRESOLVED`, keep geometry as one optional evidence path, and define the first bounded runtime verification rule for a representative gated-connector/closed-interface connection without SKU-pair logic or type-name compatibility shortcuts.
+> Continue TetherLens from `main` after PR #30. Inspect the current recommendation/evaluation path and compose the existing operational-mass, tool-feature eligibility, ToolAttachment-provided interface, tether endpoint/ConnectorSpec, compatibility-basis, container/anchor interface, rating, lanyard-length, manufacturer-assessment, and runtime-verification primitives into the smallest reusable end-to-end recommendation evaluation. Prove it with one or two evidence-backed vertical slices without SKU-pair logic, and keep any unsupported connection or policy step explicitly `requires_verification` or `unresolved` rather than manufacturing compatibility.

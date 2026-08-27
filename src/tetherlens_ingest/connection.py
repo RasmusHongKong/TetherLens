@@ -70,6 +70,7 @@ class ConnectionInterface(BaseModel):
     interface_id: str
     role: ConnectionInterfaceRole
     interface_type: str
+    location_description: str | None = None
     tether_side: TetherSide = TetherSide.UNKNOWN
     connector_spec_ref: str | None = None
     dimensions_mm: dict[str, float] = Field(default_factory=dict)

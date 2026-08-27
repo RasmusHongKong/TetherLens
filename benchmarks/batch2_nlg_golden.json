@@ -1,6 +1,6 @@
 {
-  "version": "0.8",
-  "description": "Batch 2 NLG post-blind contract. Blind run 130 remains immutable. Version 0.8 adds evidence-backed ToolAttachment-provided tether-side ring topology while preserving reusable applicability and installation-constraint semantics and the NLG 101481 surface-profile evidence tension.",
+  "version": "0.9",
+  "description": "Batch 2 NLG post-blind contract. Blind run 130 remains immutable. Version 0.9 adds repeated evidence-backed container tether interfaces with explicit internal/external location while preserving ToolAttachment topology, reusable applicability and installation-constraint semantics, and existing evidence tensions.",
   "blind_reference": {
     "workflow_run_id": 32273707247,
     "artifact_id": 9373169405,
@@ -163,33 +163,99 @@
     "NLG:101520": {
       "expected_claims": [
         {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":5.0},
-        {"subject_type":"physical_interface","subject_ref":"internal_anchor","property_key":"rated_capacity_kg","value":5.0},
-        {"subject_type":"product","subject_ref":"self","property_key":"max_lanyard_length_mm","value":2000.0}
+        {"subject_type":"product","subject_ref":"self","property_key":"max_lanyard_length_mm","value":2000.0},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"interface.role","value":"container_connection"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"interface.location_description","value":"internal"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"rated_capacity_kg","value":5.0},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_2","property_key":"interface.role","value":"container_connection"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_2","property_key":"interface.location_description","value":"internal"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_2","property_key":"rated_capacity_kg","value":5.0},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_3","property_key":"interface.role","value":"container_connection"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_3","property_key":"interface.location_description","value":"internal"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_3","property_key":"rated_capacity_kg","value":5.0},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_4","property_key":"interface.role","value":"container_connection"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_4","property_key":"interface.location_description","value":"internal"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_4","property_key":"rated_capacity_kg","value":5.0}
       ],
-      "forbidden_claims": [], "ignored_claims": [],
+      "forbidden_claims": [
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor","property_key":"rated_capacity_kg"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"interface.type"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_2","property_key":"interface.type"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_3","property_key":"interface.type"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_4","property_key":"interface.type"}
+      ],
+      "ignored_claims": [],
       "recommendation_data": {
         "baseline_requirements": [
           {"name":"container_rated_capacity","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":5.0}],"gap_if_missing":"extraction_gap"},
-          {"name":"internal_anchor_rated_capacity","any_of":[{"subject_type":"physical_interface","subject_ref":"internal_anchor","property_key":"rated_capacity_kg","value":5.0}],"gap_if_missing":"extraction_gap"},
+          {"name":"first_internal_anchor_role","any_of":[{"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"interface.role","value":"container_connection"}],"gap_if_missing":"extraction_gap"},
+          {"name":"fourth_internal_anchor_role","any_of":[{"subject_type":"physical_interface","subject_ref":"internal_anchor_4","property_key":"interface.role","value":"container_connection"}],"gap_if_missing":"extraction_gap"},
+          {"name":"internal_anchor_rated_capacity","any_of":[{"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"rated_capacity_kg","value":5.0}],"gap_if_missing":"extraction_gap"},
           {"name":"max_lanyard_length","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"max_lanyard_length_mm","value":2000.0}],"gap_if_missing":"extraction_gap"}
         ],
-        "known_gaps": [{"category":"claim_vocabulary_gap","field":"internal_anchor_count","detail":"Four integrated internal anchor points are not yet structured as count/topology."}]
+        "known_gaps": [
+          {"category":"public_fact_not_established","field":"external_daisy_chain_count","detail":"Manufacturer evidence establishes a load-rated external daisy chain but does not publish the number of individual loops/sites, so individual external daisy-chain interfaces are not materialized."}
+        ]
       }
     },
     "NLG:101492": {
       "expected_claims": [
         {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":20.0},
-        {"subject_type":"physical_interface","subject_ref":"internal_anchor","property_key":"rated_capacity_kg","value":5.0},
-        {"subject_type":"product","subject_ref":"self","property_key":"max_lanyard_length_mm","value":2000.0}
+        {"subject_type":"product","subject_ref":"self","property_key":"max_lanyard_length_mm","value":2000.0},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"interface.role","value":"container_connection"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"interface.location_description","value":"internal"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"interface.type","value":"ring"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"rated_capacity_kg","value":5.0},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_2","property_key":"interface.role","value":"container_connection"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_2","property_key":"interface.location_description","value":"internal"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_2","property_key":"interface.type","value":"ring"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_2","property_key":"rated_capacity_kg","value":5.0},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_3","property_key":"interface.role","value":"container_connection"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_3","property_key":"interface.location_description","value":"internal"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_3","property_key":"interface.type","value":"ring"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_3","property_key":"rated_capacity_kg","value":5.0},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_4","property_key":"interface.role","value":"container_connection"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_4","property_key":"interface.location_description","value":"internal"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_4","property_key":"interface.type","value":"ring"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_4","property_key":"rated_capacity_kg","value":5.0},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_5","property_key":"interface.role","value":"container_connection"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_5","property_key":"interface.location_description","value":"internal"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_5","property_key":"interface.type","value":"ring"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_5","property_key":"rated_capacity_kg","value":5.0},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_6","property_key":"interface.role","value":"container_connection"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_6","property_key":"interface.location_description","value":"internal"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_6","property_key":"interface.type","value":"ring"},
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_6","property_key":"rated_capacity_kg","value":5.0},
+        {"subject_type":"physical_interface","subject_ref":"external_anchor_1","property_key":"interface.role","value":"container_connection"},
+        {"subject_type":"physical_interface","subject_ref":"external_anchor_1","property_key":"interface.location_description","value":"external"},
+        {"subject_type":"physical_interface","subject_ref":"external_anchor_1","property_key":"rated_capacity_kg","value":5.0},
+        {"subject_type":"physical_interface","subject_ref":"external_anchor_2","property_key":"interface.role","value":"container_connection"},
+        {"subject_type":"physical_interface","subject_ref":"external_anchor_2","property_key":"interface.location_description","value":"external"},
+        {"subject_type":"physical_interface","subject_ref":"external_anchor_2","property_key":"rated_capacity_kg","value":5.0}
       ],
-      "forbidden_claims": [], "ignored_claims": [],
+      "forbidden_claims": [
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor","property_key":"rated_capacity_kg"},
+        {"subject_type":"physical_interface","subject_ref":"external_anchor_1","property_key":"interface.type"},
+        {"subject_type":"physical_interface","subject_ref":"external_anchor_2","property_key":"interface.type"},
+        {"subject_type":"physical_interface","subject_ref":"external_tool_holder_1","property_key":"interface.role"},
+        {"subject_type":"physical_interface","subject_ref":"external_tool_holder_2","property_key":"interface.role"},
+        {"subject_type":"physical_interface","subject_ref":"external_tool_holder_3","property_key":"interface.role"},
+        {"subject_type":"physical_interface","subject_ref":"external_tool_holder_4","property_key":"interface.role"}
+      ],
+      "ignored_claims": [],
       "recommendation_data": {
         "baseline_requirements": [
           {"name":"container_rated_capacity","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":20.0}],"gap_if_missing":"extraction_gap"},
-          {"name":"internal_anchor_rated_capacity","any_of":[{"subject_type":"physical_interface","subject_ref":"internal_anchor","property_key":"rated_capacity_kg","value":5.0}],"gap_if_missing":"extraction_gap"},
+          {"name":"first_internal_anchor_role","any_of":[{"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"interface.role","value":"container_connection"}],"gap_if_missing":"extraction_gap"},
+          {"name":"sixth_internal_anchor_role","any_of":[{"subject_type":"physical_interface","subject_ref":"internal_anchor_6","property_key":"interface.role","value":"container_connection"}],"gap_if_missing":"extraction_gap"},
+          {"name":"internal_anchor_ring_form","any_of":[{"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"interface.type","value":"ring"}],"gap_if_missing":"extraction_gap"},
+          {"name":"first_external_anchor_role","any_of":[{"subject_type":"physical_interface","subject_ref":"external_anchor_1","property_key":"interface.role","value":"container_connection"}],"gap_if_missing":"extraction_gap"},
+          {"name":"second_external_anchor_role","any_of":[{"subject_type":"physical_interface","subject_ref":"external_anchor_2","property_key":"interface.role","value":"container_connection"}],"gap_if_missing":"extraction_gap"},
+          {"name":"internal_anchor_rated_capacity","any_of":[{"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"rated_capacity_kg","value":5.0}],"gap_if_missing":"extraction_gap"},
+          {"name":"external_anchor_rated_capacity","any_of":[{"subject_type":"physical_interface","subject_ref":"external_anchor_1","property_key":"rated_capacity_kg","value":5.0}],"gap_if_missing":"extraction_gap"},
           {"name":"max_lanyard_length","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"max_lanyard_length_mm","value":2000.0}],"gap_if_missing":"extraction_gap"}
         ],
-        "known_gaps": [{"category":"claim_vocabulary_gap","field":"anchor_topology","detail":"Internal and external anchor/tool-holder topology is not yet structured."}]
+        "known_gaps": []
       }
     }
   }

@@ -31,6 +31,7 @@ ATTACHMENT_SELECTION_CLASS_KEY = "attachment_selection_class"
 
 INTERFACE_TYPE_KEY = "interface.type"
 INTERFACE_ROLE_KEY = "interface.role"
+INTERFACE_LOCATION_KEY = "interface.location_description"
 INTERFACE_CONNECTOR_SPEC_REF_KEY = "interface.connector_spec_ref"
 INTERFACE_DIMENSION_PREFIX = "interface.dimension."
 INTERFACE_ATTRIBUTE_PREFIX = "interface.attribute."
@@ -170,9 +171,10 @@ def resolve_attachment_eligibility(claims: list[CandidateClaim]) -> AttachmentEl
 def resolve_connection_interfaces(claims: list[CandidateClaim]) -> list[ConnectionInterface]:
     """Resolve accepted connection-interface claims without merging distinct subjects.
 
-    ToolAttachment-provided interfaces use ``physical_interface`` subjects with
-    explicit ``interface.role`` and ``interface.type`` claims. Tether endpoints use
-    the already-established ``tether_connection_point`` subjects. Both normalize to
+    Physical-interface subjects need an explicit structural role. Their physical form
+    is retained when established and otherwise resolves conservatively as ``unknown``;
+    missing form must never be upgraded from a product or feature name. Tether endpoints
+    use the already-established ``tether_connection_point`` subjects. Both normalize to
     the same runtime shape while retaining their different structural roles.
     """
 
@@ -195,9 +197,10 @@ def resolve_connection_interfaces(claims: list[CandidateClaim]) -> list[Connecti
     for interface_id, interface_claims in physical_groups.items():
         type_claim = _single_claim(interface_claims, INTERFACE_TYPE_KEY)
         role_claim = _single_claim(interface_claims, INTERFACE_ROLE_KEY)
-        if type_claim is None or role_claim is None:
+        if role_claim is None:
             continue
 
+        location_claim = _single_claim(interface_claims, INTERFACE_LOCATION_KEY)
         connector_claim = _single_claim(interface_claims, INTERFACE_CONNECTOR_SPEC_REF_KEY)
         dimensions_mm: dict[str, float] = {}
         attributes: dict[str, str | int | float | bool] = {}
@@ -227,7 +230,10 @@ def resolve_connection_interfaces(claims: list[CandidateClaim]) -> list[Connecti
             ConnectionInterface(
                 interface_id=interface_id,
                 role=role,
-                interface_type=str(type_claim.value),
+                interface_type=(str(type_claim.value) if type_claim is not None else "unknown"),
+                location_description=(
+                    str(location_claim.value) if location_claim is not None else None
+                ),
                 connector_spec_ref=(
                     str(connector_claim.value) if connector_claim is not None else None
                 ),
@@ -342,6 +348,7 @@ def _is_connection_interface_claim(property_key: str) -> bool:
     return property_key in {
         INTERFACE_TYPE_KEY,
         INTERFACE_ROLE_KEY,
+        INTERFACE_LOCATION_KEY,
         INTERFACE_CONNECTOR_SPEC_REF_KEY,
     } or property_key.startswith((INTERFACE_DIMENSION_PREFIX, INTERFACE_ATTRIBUTE_PREFIX))
 
