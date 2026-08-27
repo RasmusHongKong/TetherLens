@@ -200,6 +200,13 @@ def test_negated_tool_relation_never_materializes_container_connections():
         assert resolve_connection_interfaces(claims) == []
 
 
+def test_trailing_tool_use_prohibition_never_materializes_container_connections():
+    claims = physical_claims("<p>4 D-rings for attaching tools are prohibited.</p>")
+
+    assert not any(claim.property_key == "interface.role" for claim in claims)
+    assert resolve_connection_interfaces(claims) == []
+
+
 def test_ambiguous_unlocated_form_refinement_does_not_create_extra_interfaces():
     html = """
     <p>Tool Bag with 8 load-rated anchor points — 4 external, 4 internal.</p>
@@ -236,3 +243,25 @@ def test_conflicting_counts_across_artifacts_fail_closed_before_materialization(
         for claim in claims
     )
     assert resolve_connection_interfaces(claims) == []
+
+
+def test_unmatched_cross_artifact_form_refinement_stays_unmaterialized():
+    artifacts = [
+        artifact(
+            "<p>Internally the pouch features 4 load-rated anchor points for securing tools.</p>",
+            "https://example.test/product-page",
+        ),
+        artifact(
+            "<p>6 integrated D Rings for tool lanyard attachment.</p>",
+            "https://example.test/datasheet",
+        ),
+    ]
+    claims = physical_claims_from_artifacts(artifacts)
+    interfaces = resolve_connection_interfaces(claims)
+
+    assert len(interfaces) == 4
+    assert {interface.interface_id for interface in interfaces} == {
+        f"internal_anchor_{index}" for index in range(1, 5)
+    }
+    assert all(interface.interface_type == "unknown" for interface in interfaces)
+    assert not any(interface.interface_id.startswith("anchor_") for interface in interfaces)
