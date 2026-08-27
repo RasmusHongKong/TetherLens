@@ -72,10 +72,20 @@ _SPLIT_COUNT_RE = re.compile(
     r".{0,40}?\b(?P<external>\d+)\s+external\s*,\s*(?P<internal>\d+)\s+internal\b",
     re.I | re.S,
 )
-_TOOL_RELATION_RE = re.compile(
-    r"\b(?:tool\s+lanyards?|tool\s+tethers?|attach(?:ing|ed)?\s+tools?|"
-    r"secur(?:e|ing|ed)\s+tools?)\b",
-    re.I,
+_TOOL_RELATION_PATTERN = (
+    r"(?:tool\s+lanyards?|tool\s+tethers?|attach(?:ing|ed)?\s+tools?|"
+    r"secur(?:e|ing|ed)\s+tools?)"
+)
+_TOOL_RELATION_RE = re.compile(rf"\b{_TOOL_RELATION_PATTERN}\b", re.I)
+_NEGATED_TOOL_RELATION_RE = re.compile(
+    rf"(?:"
+    rf"\b(?:must|shall|should|may|can)\s+not\b|"
+    rf"\bcannot\b|"
+    rf"\b(?:do|does|did)\s+not\b|"
+    rf"\bnever\b|"
+    rf"\bnot\s+(?:to|for|used|intended|designed|suitable)\b"
+    rf").{{0,80}}\b{_TOOL_RELATION_PATTERN}\b",
+    re.I | re.S,
 )
 _MOUNTING_RELATION_RE = re.compile(
     r"\b(?:mount(?:ed|ing)?|fit(?:ted|ting)?|attach(?:ed|ing)?)\b.{0,40}"
@@ -93,11 +103,33 @@ _PER_INTERFACE_RATING_RE = re.compile(
 
 
 @dataclass(frozen=True)
+class _SourceClause:
+    text: str
+    source_url: str
+
+
+@dataclass(frozen=True)
 class _TopologyObservation:
     location: str | None
     count: int
     interface_type: str | None
     evidence: str
+    source_url: str
+
+
+@dataclass(frozen=True)
+class _ResolvedTopology:
+    count: int
+    interface_type: str | None
+    count_observation: _TopologyObservation
+    type_observation: _TopologyObservation | None
+
+
+@dataclass(frozen=True)
+class _RatingObservation:
+    value_kg: float
+    evidence: str
+    source_url: str
 
 
 class NLGAdapter(BaseNLGAdapter):
@@ -121,13 +153,7 @@ class NLGAdapter(BaseNLGAdapter):
         if identity.product_type != ProductType.CONTAINER:
             return claims
 
-        topology_claims: list[CandidateClaim] = []
-        for artifact in artifacts:
-            if "json" in artifact.content_type:
-                continue
-            topology_claims.extend(
-                _container_interface_claims(artifact.body, artifact.url, self.extractor)
-            )
+        topology_claims = _container_interface_claims(artifacts, self.extractor)
 
         # Replace the legacy aggregate ``internal_anchor`` rating only when this layer
         # actually established repeated connection topology. Other container products
@@ -154,14 +180,91 @@ class NLGAdapter(BaseNLGAdapter):
 
 
 def _container_interface_claims(
-    html: str,
-    source_url: str,
+    artifacts: list[SourceArtifact],
     extractor: str,
 ) -> list[CandidateClaim]:
-    clauses = _rendered_clauses(html)
+    clauses: list[_SourceClause] = []
     observations: list[_TopologyObservation] = []
 
-    for clause in clauses:
+    # Resolve one evidence set across all source artifacts. Counts that conflict across
+    # a product page, datasheet or instruction source must be visible to the same
+    # resolver rather than independently materializing and then being unioned.
+    for artifact in artifacts:
+        if "json" in artifact.content_type:
+            continue
+        artifact_clauses = [
+            _SourceClause(text=clause, source_url=artifact.url)
+            for clause in _rendered_clauses(artifact.body)
+        ]
+        clauses.extend(artifact_clauses)
+        observations.extend(_topology_observations(artifact_clauses))
+
+    topology = _resolve_topology(observations)
+    rating = _per_interface_rating(clauses)
+    claims: list[CandidateClaim] = []
+
+    for location, resolved in topology.items():
+        ref_prefix = f"{location}_anchor" if location else "anchor"
+        count_observation = resolved.count_observation
+        type_observation = resolved.type_observation
+
+        for index in range(1, resolved.count + 1):
+            subject_ref = f"{ref_prefix}_{index}"
+            claims.append(
+                _claim(
+                    subject_ref,
+                    "interface.role",
+                    "container_connection",
+                    count_observation.evidence,
+                    count_observation.source_url,
+                    extractor,
+                )
+            )
+            if location is not None:
+                claims.append(
+                    _claim(
+                        subject_ref,
+                        "interface.location_description",
+                        location,
+                        count_observation.evidence,
+                        count_observation.source_url,
+                        extractor,
+                    )
+                )
+            if resolved.interface_type is not None and type_observation is not None:
+                claims.append(
+                    _claim(
+                        subject_ref,
+                        "interface.type",
+                        resolved.interface_type,
+                        type_observation.evidence,
+                        type_observation.source_url,
+                        extractor,
+                    )
+                )
+            if rating is not None:
+                claims.append(
+                    _claim(
+                        subject_ref,
+                        "rated_capacity_kg",
+                        rating.value_kg,
+                        rating.evidence,
+                        rating.source_url,
+                        extractor,
+                        unit="kg",
+                    )
+                )
+
+    return claims
+
+
+def _topology_observations(
+    clauses: list[_SourceClause],
+) -> list[_TopologyObservation]:
+    observations: list[_TopologyObservation] = []
+
+    for source_clause in clauses:
+        clause = source_clause.text
         if split := _SPLIT_COUNT_RE.search(clause):
             total = int(split.group("total"))
             external = int(split.group("external"))
@@ -170,8 +273,20 @@ def _container_interface_claims(
                 evidence = split.group(0)
                 observations.extend(
                     [
-                        _TopologyObservation("external", external, None, evidence),
-                        _TopologyObservation("internal", internal, None, evidence),
+                        _TopologyObservation(
+                            "external",
+                            external,
+                            None,
+                            evidence,
+                            source_clause.source_url,
+                        ),
+                        _TopologyObservation(
+                            "internal",
+                            internal,
+                            None,
+                            evidence,
+                            source_clause.source_url,
+                        ),
                     ]
                 )
 
@@ -197,70 +312,16 @@ def _container_interface_claims(
                     count=count,
                     interface_type=interface_type,
                     evidence=match.group(0),
+                    source_url=source_clause.source_url,
                 )
             )
 
-    topology = _resolve_topology(observations)
-    rating = _per_interface_rating(clauses)
-    claims: list[CandidateClaim] = []
-
-    for location, resolved in topology.items():
-        count, interface_type, count_evidence, type_evidence = resolved
-        ref_prefix = f"{location}_anchor" if location else "anchor"
-        for index in range(1, count + 1):
-            subject_ref = f"{ref_prefix}_{index}"
-            claims.append(
-                _claim(
-                    subject_ref,
-                    "interface.role",
-                    "container_connection",
-                    count_evidence,
-                    source_url,
-                    extractor,
-                )
-            )
-            if location is not None:
-                claims.append(
-                    _claim(
-                        subject_ref,
-                        "interface.location_description",
-                        location,
-                        count_evidence,
-                        source_url,
-                        extractor,
-                    )
-                )
-            if interface_type is not None:
-                claims.append(
-                    _claim(
-                        subject_ref,
-                        "interface.type",
-                        interface_type,
-                        type_evidence or count_evidence,
-                        source_url,
-                        extractor,
-                    )
-                )
-            if rating is not None:
-                rating_value, rating_raw = rating
-                claims.append(
-                    _claim(
-                        subject_ref,
-                        "rated_capacity_kg",
-                        rating_value,
-                        rating_raw,
-                        source_url,
-                        extractor,
-                        unit="kg",
-                    )
-                )
-
-    return claims
+    return observations
 
 
 def _resolve_topology(
     observations: list[_TopologyObservation],
-) -> dict[str | None, tuple[int, str | None, str, str | None]]:
+) -> dict[str | None, _ResolvedTopology]:
     """Resolve repeated counts without manufacturing certainty across conflicts."""
 
     by_location: dict[str, list[_TopologyObservation]] = defaultdict(list)
@@ -271,46 +332,60 @@ def _resolve_topology(
         else:
             by_location[observation.location].append(observation)
 
-    resolved: dict[str | None, tuple[int, str | None, str, str | None]] = {}
+    resolved: dict[str | None, _ResolvedTopology] = {}
     for location, items in by_location.items():
         counts = {item.count for item in items}
         if len(counts) != 1:
             continue
+
         count = next(iter(counts))
         types = {item.interface_type for item in items if item.interface_type is not None}
         interface_type = next(iter(types)) if len(types) == 1 else None
-        count_evidence = next(item.evidence for item in items if item.count == count)
-        type_evidence = next(
-            (item.evidence for item in items if item.interface_type == interface_type),
+        count_observation = next(item for item in items if item.count == count)
+        type_observation = next(
+            (item for item in items if item.interface_type == interface_type),
             None,
         )
-        resolved[location] = (count, interface_type, count_evidence, type_evidence)
+        resolved[location] = _ResolvedTopology(
+            count=count,
+            interface_type=interface_type,
+            count_observation=count_observation,
+            type_observation=type_observation,
+        )
 
     unmatched_unlocated: list[_TopologyObservation] = []
     for observation in unlocated:
         matching_locations = [
             location
-            for location, (count, _type, _count_raw, _type_raw) in resolved.items()
-            if count == observation.count
+            for location, item in resolved.items()
+            if item.count == observation.count
         ]
         if len(matching_locations) == 1:
             location = matching_locations[0]
-            count, current_type, count_raw, type_raw = resolved[location]
-            if current_type is None and observation.interface_type is not None:
-                resolved[location] = (
-                    count,
-                    observation.interface_type,
-                    count_raw,
-                    observation.evidence,
+            current = resolved[location]
+            if current.interface_type is None and observation.interface_type is not None:
+                resolved[location] = _ResolvedTopology(
+                    count=current.count,
+                    interface_type=observation.interface_type,
+                    count_observation=current.count_observation,
+                    type_observation=observation,
                 )
             elif (
-                current_type is not None
+                current.interface_type is not None
                 and observation.interface_type is not None
-                and current_type != observation.interface_type
+                and current.interface_type != observation.interface_type
             ):
-                resolved[location] = (count, None, count_raw, None)
-        else:
+                resolved[location] = _ResolvedTopology(
+                    count=current.count,
+                    interface_type=None,
+                    count_observation=current.count_observation,
+                    type_observation=None,
+                )
+        elif not matching_locations:
             unmatched_unlocated.append(observation)
+        # More than one matching location means the form evidence is ambiguous. It may
+        # not be rebound as an additional topology group because that would manufacture
+        # extra physical interfaces beyond the stated count.
 
     if unmatched_unlocated:
         counts = {item.count for item in unmatched_unlocated}
@@ -323,19 +398,30 @@ def _resolve_topology(
             }
             interface_type = next(iter(types)) if len(types) == 1 else None
             if interface_type is not None:
-                first = unmatched_unlocated[0]
-                type_raw = next(
-                    item.evidence
+                count_observation = unmatched_unlocated[0]
+                type_observation = next(
+                    item
                     for item in unmatched_unlocated
                     if item.interface_type == interface_type
                 )
-                resolved[None] = (count, interface_type, first.evidence, type_raw)
+                resolved[None] = _ResolvedTopology(
+                    count=count,
+                    interface_type=interface_type,
+                    count_observation=count_observation,
+                    type_observation=type_observation,
+                )
 
     return resolved
 
 
 def _is_tether_interface_assertion(clause: str, form: str, location: str | None) -> bool:
     """Separate tether-anchor function from storage, mounting and structural form."""
+
+    # A prohibition must win over every weaker positive signal such as ``load-rated``
+    # or an internal location. Never turn manufacturer negative-use guidance into an
+    # affirmative tether interface.
+    if _NEGATED_TOOL_RELATION_RE.search(clause):
+        return False
 
     if _MOUNTING_RELATION_RE.search(clause) and not _TOOL_RELATION_RE.search(clause):
         return False
@@ -366,19 +452,26 @@ def _interface_type(form: str) -> str | None:
     return None
 
 
-def _per_interface_rating(clauses: list[str]) -> tuple[float, str] | None:
-    matches: list[tuple[float, str]] = []
-    for clause in clauses:
-        if match := _PER_INTERFACE_RATING_RE.search(clause):
+def _per_interface_rating(
+    clauses: list[_SourceClause],
+) -> _RatingObservation | None:
+    matches: list[_RatingObservation] = []
+    for source_clause in clauses:
+        if match := _PER_INTERFACE_RATING_RE.search(source_clause.text):
             if quantity := parse_mass(match.group("mass")):
-                matches.append((quantity.value, match.group(0)))
+                matches.append(
+                    _RatingObservation(
+                        value_kg=quantity.value,
+                        evidence=match.group(0),
+                        source_url=source_clause.source_url,
+                    )
+                )
 
-    values = {value for value, _raw in matches}
+    values = {match.value_kg for match in matches}
     if len(values) != 1:
         return None
     value = next(iter(values))
-    raw = next(raw for candidate, raw in matches if candidate == value)
-    return value, raw
+    return next(match for match in matches if match.value_kg == value)
 
 
 def _count_value(raw: str) -> int:
