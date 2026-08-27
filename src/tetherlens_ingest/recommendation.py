@@ -68,6 +68,12 @@ class CandidateConfiguration(BaseModel):
     identities. Candidate generation, ranking and evidence acceptance stay outside this
     first slice. A full tethering path must contain at least the tool-side and
     anchor/container-side connection evaluations.
+
+    Optional fields are omitted only when that reasoning axis does not apply to the
+    candidate. If an applicable value is unknown, callers must pass its explicit
+    unresolved representation instead: ``None`` capacity/length within an applicable
+    component/constraint, ``EligibilityStatus.UNRESOLVED`` for an attachment, or
+    ``PolicyStatus.UNRESOLVED`` for applicable policy.
     """
 
     candidate_id: str = Field(min_length=1)
@@ -116,6 +122,10 @@ class CandidateEvaluation(BaseModel):
     def blocked(self) -> bool:
         return self.recommendation_state is None
 
+    @property
+    def requires_verification(self) -> bool:
+        return self.recommendation_state == RecommendationState.RECOMMENDED_WITH_CONSTRAINTS
+
 
 def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> CandidateEvaluation:
     """Compose existing primitive evaluations into one candidate recommendation state.
@@ -130,10 +140,14 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
 
     if candidate.attachment_eligibility is not None:
         eligibility = candidate.attachment_eligibility
-        if eligibility.status == EligibilityStatus.ELIGIBLE:
+        if eligibility.status == EligibilityStatus.ELIGIBLE and eligibility.matches:
             status = CandidateCheckStatus.PASSED
             reason = "tool attachment eligibility is established for at least one bound tool feature"
             refs = [match.feature_id for match in eligibility.matches]
+        elif eligibility.status == EligibilityStatus.ELIGIBLE:
+            status = CandidateCheckStatus.UNRESOLVED
+            reason = "tool attachment eligibility is marked eligible but has no bound feature match"
+            refs = []
         elif eligibility.status == EligibilityStatus.INELIGIBLE:
             status = CandidateCheckStatus.FAILED
             reason = "tool attachment is ineligible for the resolved tool features"
@@ -264,16 +278,20 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
     else:
         recommendation_state = RecommendationState.RECOMMENDED
 
+    pending_verification_connection_ids = []
+    if recommendation_state == RecommendationState.RECOMMENDED_WITH_CONSTRAINTS:
+        pending_verification_connection_ids = [
+            _connection_id(connection)
+            for connection in candidate.connections
+            if connection.status == ConnectionStatus.REQUIRES_VERIFICATION
+        ]
+
     return CandidateEvaluation(
         candidate_id=candidate.candidate_id,
         recommendation_state=recommendation_state,
         checks=checks,
         connections=list(candidate.connections),
-        pending_verification_connection_ids=[
-            _connection_id(connection)
-            for connection in candidate.connections
-            if connection.status == ConnectionStatus.REQUIRES_VERIFICATION
-        ],
+        pending_verification_connection_ids=pending_verification_connection_ids,
         review_required=any(connection.review_required for connection in candidate.connections),
     )
 
