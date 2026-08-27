@@ -121,24 +121,35 @@ class NLGAdapter(BaseNLGAdapter):
         if identity.product_type != ProductType.CONTAINER:
             return claims
 
-        # Replace the legacy aggregate ``internal_anchor`` rating emitted by the base
-        # adapter. A rating must remain bound to the repeated physical interfaces that
-        # the same evidence establishes rather than one overloaded synthetic subject.
-        claims = [
-            claim
-            for claim in claims
-            if not (
-                claim.subject_type == ClaimSubjectType.PHYSICAL_INTERFACE
-                and claim.subject_ref == "internal_anchor"
-                and claim.property_key == "rated_capacity_kg"
-            )
-        ]
-
+        topology_claims: list[CandidateClaim] = []
         for artifact in artifacts:
             if "json" in artifact.content_type:
                 continue
-            claims.extend(_container_interface_claims(artifact.body, artifact.url, self.extractor))
+            topology_claims.extend(
+                _container_interface_claims(artifact.body, artifact.url, self.extractor)
+            )
 
+        # Replace the legacy aggregate ``internal_anchor`` rating only when this layer
+        # actually established repeated connection topology. Other container products
+        # may still rely on the older interface-scoped rating until their public copy
+        # establishes a reusable count/topology path; dropping that fact globally would
+        # regress unrelated benchmark products.
+        if any(
+            claim.property_key == "interface.role"
+            and claim.value == "container_connection"
+            for claim in topology_claims
+        ):
+            claims = [
+                claim
+                for claim in claims
+                if not (
+                    claim.subject_type == ClaimSubjectType.PHYSICAL_INTERFACE
+                    and claim.subject_ref == "internal_anchor"
+                    and claim.property_key == "rated_capacity_kg"
+                )
+            ]
+
+        claims.extend(topology_claims)
         return _dedupe_claims(claims)
 
 
