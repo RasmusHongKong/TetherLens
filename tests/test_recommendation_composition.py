@@ -1,3 +1,5 @@
+import pytest
+
 from tetherlens_ingest.adapters import KleinAdapter, NLGAdapter
 from tetherlens_ingest.compatibility import (
     EligibilityEvaluation,
@@ -17,6 +19,7 @@ from tetherlens_ingest.connection import (
 )
 from tetherlens_ingest.models import ProductIdentity, ProductType, SourceArtifact, SourceType
 from tetherlens_ingest.recommendation import (
+    CandidateAttachmentMode,
     CandidateCheckStatus,
     CandidateConfiguration,
     LanyardLengthConstraint,
@@ -70,6 +73,7 @@ def eligible_attachment() -> EligibilityEvaluation:
 
 
 def base_candidate(**overrides) -> CandidateConfiguration:
+    connection_overrides = overrides.pop("connections", None)
     values = {
         "candidate_id": "candidate-a",
         "object_mass_kg": 2.0,
@@ -89,13 +93,20 @@ def base_candidate(**overrides) -> CandidateConfiguration:
                 max_lanyard_length_mm=2000.0,
             ),
         ],
+        "attachment_mode": CandidateAttachmentMode.TOOL_ATTACHMENT,
         "attachment_eligibility": eligible_attachment(),
-        "connections": [
-            connection(endpoint_id="tool_endpoint", target_id="attachment_ring"),
-            connection(endpoint_id="anchor_endpoint", target_id="container_ring"),
-        ],
+        "tool_side_connection": connection(
+            endpoint_id="tool_endpoint", target_id="attachment_ring"
+        ),
+        "anchor_side_connection": connection(
+            endpoint_id="anchor_endpoint", target_id="container_ring"
+        ),
         "policy_status": PolicyStatus.PERMITTED,
     }
+    if connection_overrides is not None:
+        assert len(connection_overrides) == 2
+        values["tool_side_connection"] = connection_overrides[0]
+        values["anchor_side_connection"] = connection_overrides[1]
     values.update(overrides)
     return CandidateConfiguration(**values)
 
@@ -118,6 +129,16 @@ def test_candidate_is_recommended_when_every_hard_check_passes():
     assert result.requires_verification is False
     assert all(check.status == CandidateCheckStatus.PASSED for check in result.checks)
     assert result.pending_verification_connection_ids == []
+
+
+def test_required_connection_sides_cannot_reuse_same_evaluation():
+    same_connection = connection(
+        endpoint_id="tool_endpoint",
+        target_id="attachment_ring",
+    )
+
+    with pytest.raises(ValueError, match="must be distinct evaluations"):
+        base_candidate(connections=[same_connection, same_connection])
 
 
 def test_pending_connection_verification_produces_recommended_with_constraints():
@@ -286,6 +307,31 @@ def test_attachment_ineligible_or_unresolved_blocks_candidate():
         assert result.recommendation_state is None
 
 
+def test_missing_attachment_eligibility_is_unresolved_when_tool_attachment_is_required():
+    result = evaluate_candidate_configuration(
+        base_candidate(attachment_eligibility=None)
+    )
+
+    assert result.recommendation_state is None
+    assert any(
+        check.check_id == "attachment_eligibility"
+        and check.status == CandidateCheckStatus.UNRESOLVED
+        for check in result.checks
+    )
+
+
+def test_direct_tethering_explicitly_has_no_attachment_eligibility_axis():
+    result = evaluate_candidate_configuration(
+        base_candidate(
+            attachment_mode=CandidateAttachmentMode.DIRECT,
+            attachment_eligibility=None,
+        )
+    )
+
+    assert result.recommendation_state == RecommendationState.RECOMMENDED
+    assert not any(check.check_id == "attachment_eligibility" for check in result.checks)
+
+
 def test_eligible_attachment_without_bound_match_fails_closed():
     result = evaluate_candidate_configuration(
         base_candidate(
@@ -434,8 +480,10 @@ def test_evidence_backed_tool_attachment_tether_slice_stays_blocked_when_anchor_
                 LoadBearingComponent(component_id="nlg-101372", rated_capacity_kg=5.0),
                 LoadBearingComponent(component_id="container_ring", rated_capacity_kg=5.0),
             ],
+            attachment_mode=CandidateAttachmentMode.TOOL_ATTACHMENT,
             attachment_eligibility=eligibility_result,
-            connections=[tool_connection, anchor_connection],
+            tool_side_connection=tool_connection,
+            anchor_side_connection=anchor_connection,
         )
     )
 
