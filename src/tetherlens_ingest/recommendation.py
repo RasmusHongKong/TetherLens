@@ -123,9 +123,14 @@ class CandidateConfiguration(BaseModel):
 
     @model_validator(mode="after")
     def validate_path_semantics(self) -> CandidateConfiguration:
-        if self.tool_side_connection.target_role not in _TOOL_SIDE_TARGET_ROLES:
+        expected_tool_target_role = (
+            ConnectionInterfaceRole.TOOL_DIRECT_TETHER_INTERFACE
+            if self.attachment_mode == CandidateAttachmentMode.DIRECT
+            else ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE
+        )
+        if self.tool_side_connection.target_role != expected_tool_target_role:
             raise ValueError(
-                "tool-side connection must target a tool-side tether interface"
+                "tool-side connection target role must match the candidate attachment mode"
             )
         if self.tool_side_connection.endpoint_tether_side not in {
             TetherSide.TOOL_SIDE,
@@ -392,11 +397,6 @@ def _positive_finite_or_none(value: Any, *, field_name: str) -> Any:
         raise ValueError(f"{field_name} must be a finite positive number when provided")
     return numeric
 
-
-_TOOL_SIDE_TARGET_ROLES = {
-    ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE,
-    ConnectionInterfaceRole.TOOL_DIRECT_TETHER_INTERFACE,
-}
 
 _ANCHOR_SIDE_TARGET_ROLES = {
     ConnectionInterfaceRole.ANCHOR_ATTACHMENT_TETHER_SIDE,
