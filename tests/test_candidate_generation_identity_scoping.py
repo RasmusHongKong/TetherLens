@@ -230,10 +230,18 @@ def test_repeated_source_product_instances_keep_canonical_constraint_and_instanc
         [tether_option()],
         [anchor_path()],
         tool_attachment_assemblies=[assembly],
-        product_runtime_state={
-            "component:adhesive-a": ProductConstraintRuntimeState(bond_elapsed_h=24.0),
-            "component:adhesive-b": ProductConstraintRuntimeState(bond_elapsed_h=2.0),
-        },
+        product_runtime_state=[
+            ProductConstraintRuntimeState(
+                component_ref="component:adhesive-a",
+                installation_feature_id="feature:handle",
+                bond_elapsed_h=24.0,
+            ),
+            ProductConstraintRuntimeState(
+                component_ref="component:adhesive-b",
+                installation_feature_id="feature:handle",
+                bond_elapsed_h=2.0,
+            ),
+        ],
     )
 
     assert len(generated) == 1
@@ -279,3 +287,89 @@ def test_repeated_source_product_instances_keep_canonical_constraint_and_instanc
     assert result.pending_action_constraint_ids == [
         "component=component:adhesive-b|constraint=" + constraint.constraint_id
     ]
+
+
+def test_installation_runtime_state_is_scoped_to_selected_feature():
+    constraint = minimum_bond_time_constraint()
+    assembly = ToolAttachmentAssemblyOption(
+        assembly_ref="assembly:adhesive",
+        components=[
+            CandidateComponentOption(
+                component_ref="component:adhesive",
+                source_product_ref="product:adhesive",
+                rated_capacity_kg=3.0,
+                product_constraints=[constraint],
+            )
+        ],
+        eligibility=handle_eligibility(),
+        provided_interfaces=[attachment_ring("attachment_ring")],
+    )
+
+    generated = generate_candidate_configurations(
+        ResolvedToolCandidate(
+            tool_ref="tool:1",
+            object_mass_kg=2.0,
+            features=[
+                ToolInterfaceFeature(
+                    feature_id="feature:handle-a",
+                    feature_kind=FeatureKind.HANDLE,
+                ),
+                ToolInterfaceFeature(
+                    feature_id="feature:handle-b",
+                    feature_kind=FeatureKind.HANDLE,
+                ),
+            ],
+        ),
+        [tether_option()],
+        [anchor_path()],
+        tool_attachment_assemblies=[assembly],
+        product_runtime_state=[
+            ProductConstraintRuntimeState(
+                component_ref="component:adhesive",
+                bond_elapsed_h=24.0,
+            ),
+            ProductConstraintRuntimeState(
+                component_ref="component:adhesive",
+                installation_feature_id="feature:handle-a",
+                bond_elapsed_h=24.0,
+            ),
+        ],
+    )
+
+    by_feature = {
+        candidate.selection.installation_feature_id: candidate for candidate in generated
+    }
+    assert set(by_feature) == {"feature:handle-a", "feature:handle-b"}
+
+    evaluation_a = by_feature[
+        "feature:handle-a"
+    ].configuration.product_constraint_evaluations[0]
+    evaluation_b = by_feature[
+        "feature:handle-b"
+    ].configuration.product_constraint_evaluations[0]
+    assert evaluation_a.status == ProductConstraintStatus.PASSED
+    assert evaluation_b.status == ProductConstraintStatus.REQUIRES_ACTION
+
+
+def test_duplicate_runtime_state_binding_is_rejected():
+    duplicate_states = [
+        ProductConstraintRuntimeState(
+            component_ref="component:tether",
+            bond_elapsed_h=1.0,
+        ),
+        ProductConstraintRuntimeState(
+            component_ref="component:tether",
+            bond_elapsed_h=2.0,
+        ),
+    ]
+
+    with pytest.raises(ValueError, match="unique per component installation"):
+        generate_candidate_configurations(
+            ResolvedToolCandidate(
+                tool_ref="tool:1",
+                direct_interfaces=[direct_ring("tool_ring")],
+            ),
+            [tether_option()],
+            [anchor_path()],
+            product_runtime_state=duplicate_states,
+        )
