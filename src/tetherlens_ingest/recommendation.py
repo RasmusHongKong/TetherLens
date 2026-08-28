@@ -13,6 +13,7 @@ from .connection import (
     ConnectionStatus,
     TetherSide,
 )
+from .constraints import ProductConstraintEvaluation, ProductConstraintStatus
 
 
 class RecommendationState(StrEnum):
@@ -31,6 +32,7 @@ class CandidateCheckType(StrEnum):
     ATTACHMENT_ELIGIBILITY = "attachment_eligibility"
     LOAD_CAPACITY = "load_capacity"
     LANYARD_LENGTH = "lanyard_length"
+    PRODUCT_CONSTRAINT = "product_constraint"
     CONNECTION_COMPATIBILITY = "connection_compatibility"
     POLICY = "policy"
 
@@ -39,6 +41,7 @@ class CandidateCheckStatus(StrEnum):
     PASSED = "passed"
     FAILED = "failed"
     REQUIRES_VERIFICATION = "requires_verification"
+    REQUIRES_ACTION = "requires_action"
     UNRESOLVED = "unresolved"
 
 
@@ -69,7 +72,12 @@ class LoadBearingComponent(BaseModel):
 
 
 class LanyardLengthConstraint(BaseModel):
-    """One accepted maximum-lanyard-length constraint applied to the candidate."""
+    """Legacy runtime maximum-lanyard-length input retained during normalization migration.
+
+    New catalogue-to-runtime paths should prefer ``ProductConstraintEvaluation`` from
+    ``constraints.resolve_product_constraints`` / ``evaluate_product_constraints``.
+    This shape remains supported so PR #31 callers do not break during the migration.
+    """
 
     constraint_id: str = Field(min_length=1)
     max_lanyard_length_mm: float | None = None
@@ -85,18 +93,11 @@ class CandidateConfiguration(BaseModel):
 
     The object intentionally consumes normalized results rather than Claims or product
     identities. Candidate generation, ranking and evidence acceptance stay outside this
-    first slice.
+    layer.
 
-    The two required boundary connections are represented explicitly and validated
-    against role metadata retained by ``ConnectionEvaluation``. Attachment and policy
-    applicability are also explicit so a missing required evaluation cannot be confused
-    with a reasoning axis that genuinely does not apply.
-
-    If an applicable value is unknown, callers must pass or retain its explicit
-    unresolved representation instead: ``None`` capacity/length within an applicable
-    component/constraint, missing or ``EligibilityStatus.UNRESOLVED`` attachment
-    eligibility when a ToolAttachment is required, or missing/``PolicyStatus.UNRESOLVED``
-    policy status when policy is applicable.
+    Product installation/use constraints enter only as resolved evaluations. This keeps
+    raw claim keys and manufacturer-specific extraction details out of recommendation
+    composition while allowing pre-use obligations to remain distinct from hard failure.
     """
 
     candidate_id: str = Field(min_length=1)
@@ -104,6 +105,7 @@ class CandidateConfiguration(BaseModel):
     load_bearing_components: list[LoadBearingComponent] = Field(min_length=1)
     tether_max_length_mm: float | None = None
     lanyard_length_constraints: list[LanyardLengthConstraint] = Field(default_factory=list)
+    product_constraint_evaluations: list[ProductConstraintEvaluation] = Field(default_factory=list)
     attachment_mode: CandidateAttachmentMode
     attachment_eligibility: EligibilityEvaluation | None = None
     tool_side_connection: ConnectionEvaluation
@@ -136,9 +138,7 @@ class CandidateConfiguration(BaseModel):
             TetherSide.TOOL_SIDE,
             TetherSide.EITHER,
         }:
-            raise ValueError(
-                "tool-side connection must use a tool-capable tether endpoint"
-            )
+            raise ValueError("tool-side connection must use a tool-capable tether endpoint")
         if self.anchor_side_connection.target_role not in _ANCHOR_SIDE_TARGET_ROLES:
             raise ValueError(
                 "anchor-side connection must target an anchor/container tether interface"
@@ -147,16 +147,12 @@ class CandidateConfiguration(BaseModel):
             TetherSide.ANCHOR_SIDE,
             TetherSide.EITHER,
         }:
-            raise ValueError(
-                "anchor-side connection must use an anchor-capable tether endpoint"
-            )
+            raise ValueError("anchor-side connection must use an anchor-capable tether endpoint")
         if (
             self.attachment_mode == CandidateAttachmentMode.DIRECT
             and self.attachment_eligibility is not None
         ):
-            raise ValueError(
-                "direct candidates must not supply ToolAttachment eligibility"
-            )
+            raise ValueError("direct candidates must not supply ToolAttachment eligibility")
         if (
             self.policy_applicability == PolicyApplicability.NOT_APPLICABLE
             and self.policy_status is not None
@@ -179,6 +175,7 @@ class CandidateCheck(BaseModel):
     status: CandidateCheckStatus
     reason: str
     subject_refs: list[str] = Field(default_factory=list)
+    source_urls: list[str] = Field(default_factory=list)
 
 
 class CandidateEvaluation(BaseModel):
@@ -189,6 +186,7 @@ class CandidateEvaluation(BaseModel):
     checks: list[CandidateCheck]
     connections: list[ConnectionEvaluation]
     pending_verification_connection_ids: list[str] = Field(default_factory=list)
+    pending_action_constraint_ids: list[str] = Field(default_factory=list)
     review_required: bool = False
 
     @property
@@ -200,8 +198,20 @@ class CandidateEvaluation(BaseModel):
         return self.recommendation_state is None
 
     @property
-    def requires_verification(self) -> bool:
+    def has_constraints(self) -> bool:
         return self.recommendation_state == RecommendationState.RECOMMENDED_WITH_CONSTRAINTS
+
+    @property
+    def requires_verification(self) -> bool:
+        """Whether a selected candidate has pending physical connection verification."""
+
+        return bool(self.pending_verification_connection_ids)
+
+    @property
+    def requires_action(self) -> bool:
+        """Whether a selected candidate has pending non-connection pre-use actions."""
+
+        return bool(self.pending_action_constraint_ids)
 
 
 def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> CandidateEvaluation:
@@ -209,8 +219,13 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
 
     This function does not create compatibility, infer missing catalogue facts, rank
     candidates or decide that no alternative exists. Any failed or unresolved hard
-    check blocks this candidate. ``requires_verification`` remains usable and produces
-    ``recommended_with_constraints`` when every other hard check passes.
+    check blocks this candidate. Pending connection verification or another validated
+    pre-use action remains usable and produces ``recommended_with_constraints`` when
+    every other hard check passes.
+
+    Feature-scoped product constraints must all refer to one installation feature that
+    also appears in the ToolAttachment eligibility matches. This keeps the same-feature
+    invariant intact across the boundary between eligibility and product constraints.
     """
 
     checks: list[CandidateCheck] = []
@@ -276,6 +291,8 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
             )
         )
 
+    # Legacy direct runtime inputs remain supported while catalogue callers migrate to
+    # normalized ProductConstraintEvaluation for this same semantic limit.
     for constraint in candidate.lanyard_length_constraints:
         if candidate.tether_max_length_mm is None:
             status = CandidateCheckStatus.UNRESOLVED
@@ -302,6 +319,35 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
                 status=status,
                 reason=reason,
                 subject_refs=[constraint.constraint_id],
+            )
+        )
+
+    feature_binding_problem = _feature_constraint_binding_problem(candidate)
+    for constraint in candidate.product_constraint_evaluations:
+        if constraint.installation_feature_id is not None and feature_binding_problem is not None:
+            status = CandidateCheckStatus.UNRESOLVED
+            reason = feature_binding_problem
+        elif constraint.status == ProductConstraintStatus.PASSED:
+            status = CandidateCheckStatus.PASSED
+            reason = constraint.reason
+        elif constraint.status == ProductConstraintStatus.FAILED:
+            status = CandidateCheckStatus.FAILED
+            reason = constraint.reason
+        elif constraint.status == ProductConstraintStatus.REQUIRES_ACTION:
+            status = CandidateCheckStatus.REQUIRES_ACTION
+            reason = constraint.reason
+        else:
+            status = CandidateCheckStatus.UNRESOLVED
+            reason = constraint.reason
+
+        checks.append(
+            CandidateCheck(
+                check_id=f"product_constraint:{constraint.constraint_id}",
+                check_type=CandidateCheckType.PRODUCT_CONSTRAINT,
+                status=status,
+                reason=reason,
+                subject_refs=list(constraint.subject_refs),
+                source_urls=list(constraint.source_urls),
             )
         )
 
@@ -351,23 +397,38 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
         check.status in {CandidateCheckStatus.FAILED, CandidateCheckStatus.UNRESOLVED}
         for check in checks
     )
-    requires_verification = any(
-        check.status == CandidateCheckStatus.REQUIRES_VERIFICATION for check in checks
+    condition_pending = any(
+        check.status
+        in {
+            CandidateCheckStatus.REQUIRES_VERIFICATION,
+            CandidateCheckStatus.REQUIRES_ACTION,
+        }
+        for check in checks
     )
 
     if blocked:
         recommendation_state = None
-    elif requires_verification:
+    elif condition_pending:
         recommendation_state = RecommendationState.RECOMMENDED_WITH_CONSTRAINTS
     else:
         recommendation_state = RecommendationState.RECOMMENDED
 
-    pending_verification_connection_ids = []
+    pending_verification_connection_ids: list[str] = []
+    pending_action_constraint_ids: list[str] = []
     if recommendation_state == RecommendationState.RECOMMENDED_WITH_CONSTRAINTS:
         pending_verification_connection_ids = [
             _connection_id(connection)
             for connection in candidate.connections
             if connection.status == ConnectionStatus.REQUIRES_VERIFICATION
+        ]
+        pending_action_constraint_ids = [
+            constraint.constraint_id
+            for constraint in candidate.product_constraint_evaluations
+            if constraint.status == ProductConstraintStatus.REQUIRES_ACTION
+            and (
+                constraint.installation_feature_id is None
+                or feature_binding_problem is None
+            )
         ]
 
     return CandidateEvaluation(
@@ -376,8 +437,46 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
         checks=checks,
         connections=list(candidate.connections),
         pending_verification_connection_ids=pending_verification_connection_ids,
+        pending_action_constraint_ids=pending_action_constraint_ids,
         review_required=any(connection.review_required for connection in candidate.connections),
     )
+
+
+def _feature_constraint_binding_problem(candidate: CandidateConfiguration) -> str | None:
+    feature_ids = {
+        constraint.installation_feature_id
+        for constraint in candidate.product_constraint_evaluations
+        if constraint.installation_feature_id is not None
+    }
+    if not feature_ids:
+        return None
+    if len(feature_ids) > 1:
+        return (
+            "feature-scoped product constraints refer to multiple installation features; "
+            "one candidate path must bind them to the same eligible feature"
+        )
+    if candidate.attachment_mode != CandidateAttachmentMode.TOOL_ATTACHMENT:
+        return "feature-scoped product constraints require a ToolAttachment installation path"
+
+    eligibility = candidate.attachment_eligibility
+    if (
+        eligibility is None
+        or eligibility.status != EligibilityStatus.ELIGIBLE
+        or not eligibility.matches
+    ):
+        return (
+            "feature-scoped product constraints cannot be bound because ToolAttachment "
+            "eligibility is not established"
+        )
+
+    feature_id = next(iter(feature_ids))
+    eligible_feature_ids = {match.feature_id for match in eligibility.matches}
+    if feature_id not in eligible_feature_ids:
+        return (
+            f"product constraints were evaluated against installation feature {feature_id!r}, "
+            "which is not an eligible ToolAttachment feature for this candidate"
+        )
+    return None
 
 
 def _connection_id(connection: ConnectionEvaluation) -> str:
