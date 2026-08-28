@@ -623,6 +623,7 @@ def _candidate_id(selection: CandidatePathSelection) -> str:
         if selection.eligibility_path_index is not None
         else "none"
     )
+    component_refs = ",".join(component.component_ref for component in selection.components)
     parts = [
         f"tool={selection.tool_ref}",
         f"attachment={attachment}",
@@ -634,6 +635,7 @@ def _candidate_id(selection: CandidatePathSelection) -> str:
         f"anchor_path={selection.anchor_path_ref}",
         f"anchor_endpoint={selection.anchor_endpoint_id}",
         f"anchor_target={selection.anchor_target_interface_id}",
+        f"components={component_refs}",
     ]
     return "candidate|" + "|".join(parts)
 
