@@ -85,13 +85,19 @@ def _candidate(
     )
 
 
-def _passed_feature_constraint(constraint_id: str, feature_id: str) -> ProductConstraintEvaluation:
+def _passed_feature_constraint(
+    constraint_id: str,
+    feature_id: str,
+    *,
+    source_urls: list[str] | None = None,
+) -> ProductConstraintEvaluation:
     return ProductConstraintEvaluation(
         constraint_id=constraint_id,
         constraint_key="opaque_feature_scoped_constraint",
         status=ProductConstraintStatus.PASSED,
         reason="constraint passed on its evaluated installation feature",
         subject_refs=[feature_id],
+        source_urls=source_urls or [],
         installation_feature_id=feature_id,
     )
 
@@ -136,6 +142,33 @@ def test_feature_scoped_constraints_must_share_one_eligible_feature():
     assert product_checks
     assert all(check.status == CandidateCheckStatus.UNRESOLVED for check in product_checks)
     assert all("multiple installation features" in check.reason for check in product_checks)
+
+
+def test_product_constraint_provenance_survives_candidate_composition():
+    evidence_urls = [
+        "https://manufacturer.test/instructions.pdf",
+        "https://manufacturer.test/product-page",
+    ]
+    result = evaluate_candidate_configuration(
+        _candidate(
+            eligible_feature_ids=["surface-a"],
+            constraint_evaluations=[
+                _passed_feature_constraint(
+                    "constraint-a",
+                    "surface-a",
+                    source_urls=evidence_urls,
+                )
+            ],
+        )
+    )
+
+    check = next(
+        check
+        for check in result.checks
+        if check.check_id == "product_constraint:constraint-a"
+    )
+    assert check.status == CandidateCheckStatus.PASSED
+    assert check.source_urls == evidence_urls
 
 
 def test_resolution_coalesces_numeric_forms_and_retains_all_supporting_urls():
