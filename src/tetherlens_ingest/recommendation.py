@@ -340,13 +340,16 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
             status = CandidateCheckStatus.UNRESOLVED
             reason = constraint.reason
 
+        subject_refs = list(constraint.subject_refs)
+        if constraint.component_ref is not None and constraint.component_ref not in subject_refs:
+            subject_refs.insert(0, constraint.component_ref)
         checks.append(
             CandidateCheck(
-                check_id=f"product_constraint:{constraint.constraint_id}",
+                check_id=f"product_constraint:{_product_constraint_evaluation_id(constraint)}",
                 check_type=CandidateCheckType.PRODUCT_CONSTRAINT,
                 status=status,
                 reason=reason,
-                subject_refs=list(constraint.subject_refs),
+                subject_refs=subject_refs,
                 source_urls=list(constraint.source_urls),
             )
         )
@@ -422,7 +425,7 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
             if connection.status == ConnectionStatus.REQUIRES_VERIFICATION
         ]
         pending_action_constraint_ids = [
-            constraint.constraint_id
+            _product_constraint_evaluation_id(constraint)
             for constraint in candidate.product_constraint_evaluations
             if constraint.status == ProductConstraintStatus.REQUIRES_ACTION
             and (
@@ -477,6 +480,12 @@ def _feature_constraint_binding_problem(candidate: CandidateConfiguration) -> st
             "which is not an eligible ToolAttachment feature for this candidate"
         )
     return None
+
+
+def _product_constraint_evaluation_id(constraint: ProductConstraintEvaluation) -> str:
+    if constraint.component_ref is None:
+        return constraint.constraint_id
+    return f"component={constraint.component_ref}|constraint={constraint.constraint_id}"
 
 
 def _connection_id(connection: ConnectionEvaluation) -> str:
