@@ -11,8 +11,10 @@ from tetherlens_ingest.connection import (
     TetherSide,
 )
 from tetherlens_ingest.constraints import (
+    ProductConstraintContext,
     ProductConstraintEvaluation,
     ProductConstraintStatus,
+    evaluate_product_constraints,
     resolve_product_constraints,
 )
 from tetherlens_ingest.models import CandidateClaim, ClaimType, ConstraintOperator
@@ -22,6 +24,7 @@ from tetherlens_ingest.recommendation import (
     CandidateConfiguration,
     LoadBearingComponent,
     PolicyApplicability,
+    RecommendationState,
     evaluate_candidate_configuration,
 )
 
@@ -99,6 +102,18 @@ def _passed_feature_constraint(
         subject_refs=[feature_id],
         source_urls=source_urls or [],
         installation_feature_id=feature_id,
+    )
+
+
+def _bond_claim() -> CandidateClaim:
+    return CandidateClaim(
+        property_key="minimum_bond_time_h",
+        value=24.0,
+        unit="h",
+        source_url="https://example.test/instructions",
+        extractor="review-regression.v1",
+        claim_type=ClaimType.DECLARED_CONSTRAINT,
+        constraint_operator=ConstraintOperator.GTE,
     )
 
 
@@ -198,7 +213,10 @@ def test_resolution_coalesces_numeric_forms_and_retains_all_supporting_urls():
         ),
     ]
 
-    resolved = resolve_product_constraints(claims)
+    resolved = resolve_product_constraints(
+        claims,
+        source_product_ref="catalogue:attachment-a",
+    )
 
     assert len(resolved) == 1
     constraint = resolved[0]
@@ -210,3 +228,49 @@ def test_resolution_coalesces_numeric_forms_and_retains_all_supporting_urls():
         "https://example.test/primary-b",
         "https://example.test/support-b",
     ]
+
+
+def test_constraint_ids_are_namespaced_across_separately_resolved_products():
+    attachment_constraint = resolve_product_constraints(
+        [_bond_claim()],
+        source_product_ref="catalogue:attachment-a",
+    )[0]
+    container_constraint = resolve_product_constraints(
+        [_bond_claim()],
+        source_product_ref="catalogue:container-b",
+    )[0]
+
+    assert attachment_constraint.subject_ref == "self"
+    assert container_constraint.subject_ref == "self"
+    assert attachment_constraint.constraint_key == container_constraint.constraint_key
+    assert attachment_constraint.constraint_id != container_constraint.constraint_id
+    assert attachment_constraint.constraint_id.startswith("catalogue:attachment-a:")
+    assert container_constraint.constraint_id.startswith("catalogue:container-b:")
+
+    evaluations = [
+        evaluate_product_constraints(
+            [attachment_constraint],
+            ProductConstraintContext(),
+        )[0],
+        evaluate_product_constraints(
+            [container_constraint],
+            ProductConstraintContext(),
+        )[0],
+    ]
+    result = evaluate_candidate_configuration(
+        _candidate(
+            eligible_feature_ids=["surface-a"],
+            constraint_evaluations=evaluations,
+        )
+    )
+
+    assert result.recommendation_state == RecommendationState.RECOMMENDED_WITH_CONSTRAINTS
+    assert len(result.pending_action_constraint_ids) == 2
+    assert len(set(result.pending_action_constraint_ids)) == 2
+    product_check_ids = [
+        check.check_id
+        for check in result.checks
+        if check.check_type.value == "product_constraint"
+    ]
+    assert len(product_check_ids) == 2
+    assert len(set(product_check_ids)) == 2
