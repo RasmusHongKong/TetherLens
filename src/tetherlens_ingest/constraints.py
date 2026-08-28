@@ -3,11 +3,11 @@ from __future__ import annotations
 import math
 from collections import defaultdict
 from enum import StrEnum
-from typing import Any
+from typing import Any, Iterable
 
 from pydantic import BaseModel, Field, field_validator
 
-from .compatibility import FeatureKind, ToolInterfaceFeature
+from .compatibility import ToolInterfaceFeature
 from .models import (
     CandidateClaim,
     ClaimSubjectType,
@@ -38,12 +38,7 @@ class ProductConstraintResolutionError(ValueError):
 
 
 class ResolvedProductConstraint(BaseModel):
-    """One normalized, reusable constraint resolved from accepted catalogue claims.
-
-    The runtime model intentionally retains the source subject and source URLs while
-    avoiding product/SKU-specific semantics. Multiple evidence-equivalent claims are
-    coalesced into one runtime constraint with all supporting source URLs retained.
-    """
+    """One normalized, reusable constraint resolved from accepted catalogue claims."""
 
     constraint_id: str = Field(min_length=1)
     subject_type: ClaimSubjectType
@@ -60,15 +55,9 @@ class ResolvedProductConstraint(BaseModel):
 class ProductConstraintContext(BaseModel):
     """Runtime facts needed by the currently supported product-constraint rules.
 
-    Installation facts are deliberately bound to one ToolInterfaceFeature. Callers
-    must evaluate another candidate installation location with another context rather
-    than combining attributes from separate tool features.
-
-    Current normalized feature attributes consumed by these rules are:
-
-    - ``surface_profile`` -> e.g. ``flat``
-    - ``surface_condition.<code>`` -> boolean, e.g. ``surface_condition.clean``
-    - ``part_type`` -> e.g. ``removable_cover_or_door``
+    Installation facts are deliberately bound to one ``ToolInterfaceFeature``. A
+    different possible installation location must therefore be evaluated with a
+    different context rather than borrowing attributes from another feature.
     """
 
     installation_feature: ToolInterfaceFeature | None = None
@@ -102,11 +91,12 @@ class ProductConstraintEvaluation(BaseModel):
     reason: str
     subject_refs: list[str] = Field(default_factory=list)
     source_urls: list[str] = Field(default_factory=list)
+    # Explicit composition binding for feature-local installation constraints. This is
+    # intentionally separate from generic subject refs so recommendation composition
+    # need not understand raw constraint keys to preserve same-feature semantics.
+    installation_feature_id: str | None = None
 
 
-# These semantics are intentionally narrow. Other declared constraints remain accepted
-# catalogue facts until their technical/manufacturer/policy meaning is explicitly
-# modeled rather than being forced through a generic boolean evaluator.
 _SUPPORTED_CONSTRAINTS: dict[
     str,
     tuple[ConstraintOperator, ProductConstraintDisposition],
@@ -137,6 +127,11 @@ _SUPPORTED_CONSTRAINTS: dict[
     ),
 }
 
+_NUMERIC_CANONICAL_UNITS = {
+    "max_lanyard_length_mm": "mm",
+    "minimum_bond_time_h": "h",
+}
+
 
 def resolve_product_constraints(claims: list[CandidateClaim]) -> list[ResolvedProductConstraint]:
     """Resolve supported accepted claims into normalized runtime constraints.
@@ -144,16 +139,21 @@ def resolve_product_constraints(claims: list[CandidateClaim]) -> list[ResolvedPr
     Callers must pass only accepted/reconciled claims. Unsupported declared constraints
     are deliberately ignored here rather than assigned accidental technical semantics.
 
-    ``max_lanyard_length_mm`` predates structured ``claim_type`` / ``operator`` metadata
-    in the NLG adapter. It is accepted as a transitional normalized product limit and
-    receives its established ``actual tether max length <= declared max`` semantics.
-    All other supported keys require ``claim_type = declared_constraint``.
+    ``max_lanyard_length_mm`` predates structured claim metadata in the NLG adapter, so
+    it remains a transitional accepted product limit. Numeric constraints are
+    canonicalized before grouping: integer/float representation differences collapse to
+    one float value and an omitted canonical unit is restored. Evidence-equivalent
+    claims therefore coalesce into one runtime constraint with combined provenance.
     """
 
     grouped: dict[
         tuple[ClaimSubjectType, str, str, ConstraintOperator, str, str],
         list[CandidateClaim],
     ] = defaultdict(list)
+    canonical_values: dict[
+        tuple[ClaimSubjectType, str, str, ConstraintOperator, str, str],
+        tuple[ConstraintValue, str | None],
+    ] = {}
 
     for claim in claims:
         semantic = _SUPPORTED_CONSTRAINTS.get(claim.property_key)
@@ -178,26 +178,30 @@ def resolve_product_constraints(claims: list[CandidateClaim]) -> list[ResolvedPr
                 f"expected {expected_operator.value!r}"
             )
 
-        _validate_constraint_value(claim.property_key, claim.value, claim.unit)
-        grouped[
-            (
-                claim.subject_type,
-                claim.subject_ref,
-                claim.property_key,
-                operator,
-                _stable_value_key(claim.value),
-                claim.unit or "",
-            )
-        ].append(claim)
+        value, unit = _canonicalize_constraint_value(
+            claim.property_key,
+            claim.value,
+            claim.unit,
+        )
+        group_key = (
+            claim.subject_type,
+            claim.subject_ref,
+            claim.property_key,
+            operator,
+            _stable_value_key(value),
+            unit or "",
+        )
+        grouped[group_key].append(claim)
+        canonical_values[group_key] = (value, unit)
 
     resolved: list[ResolvedProductConstraint] = []
     for index, (group_key, grouped_claims) in enumerate(
         sorted(grouped.items(), key=lambda item: tuple(str(part) for part in item[0])),
         start=1,
     ):
-        subject_type, subject_ref, property_key, operator, _, unit = group_key
+        subject_type, subject_ref, property_key, operator, _, _ = group_key
+        value, unit = canonical_values[group_key]
         _, disposition = _SUPPORTED_CONSTRAINTS[property_key]
-        exemplar = grouped_claims[0]
         resolved.append(
             ResolvedProductConstraint(
                 constraint_id=f"{subject_ref}:{property_key}:{index}",
@@ -205,10 +209,10 @@ def resolve_product_constraints(claims: list[CandidateClaim]) -> list[ResolvedPr
                 subject_ref=subject_ref,
                 constraint_key=property_key,
                 operator=operator,
-                value=exemplar.value,
-                unit=unit or None,
+                value=value,
+                unit=unit,
                 disposition=disposition,
-                source_urls=_dedupe_strings(claim.source_url for claim in grouped_claims),
+                source_urls=_dedupe_strings(_claim_source_urls(grouped_claims)),
                 raw_values=_dedupe_strings(
                     claim.raw_value for claim in grouped_claims if claim.raw_value
                 ),
@@ -222,12 +226,7 @@ def evaluate_product_constraints(
     constraints: list[ResolvedProductConstraint],
     context: ProductConstraintContext,
 ) -> list[ProductConstraintEvaluation]:
-    """Evaluate normalized product constraints against one candidate installation.
-
-    Hard installation constraints fail or remain unresolved when the required runtime
-    fact is absent. Pre-use obligations become ``requires_action`` while their required
-    action is pending, allowing the candidate to remain conditionally recommendable.
-    """
+    """Evaluate normalized product constraints against one candidate installation."""
 
     return [_evaluate_constraint(constraint, context) for constraint in constraints]
 
@@ -407,8 +406,6 @@ def _evaluate_constraint(
             "manufacturer-required pre-use attachment test failed",
         )
 
-    # Resolution currently emits only supported keys, so reaching this branch means
-    # a malformed runtime object was supplied directly rather than resolved normally.
     return _result(
         constraint,
         ProductConstraintStatus.UNRESOLVED,
@@ -420,16 +417,32 @@ def _result(
     constraint: ResolvedProductConstraint,
     status: ProductConstraintStatus,
     reason: str,
-    *subject_refs: str,
+    installation_feature_id: str | None = None,
 ) -> ProductConstraintEvaluation:
     return ProductConstraintEvaluation(
         constraint_id=constraint.constraint_id,
         constraint_key=constraint.constraint_key,
         status=status,
         reason=reason,
-        subject_refs=list(subject_refs),
+        subject_refs=[installation_feature_id] if installation_feature_id else [],
         source_urls=list(constraint.source_urls),
+        installation_feature_id=installation_feature_id,
     )
+
+
+def _canonicalize_constraint_value(
+    property_key: str,
+    value: ConstraintValue,
+    unit: str | None,
+) -> tuple[ConstraintValue, str | None]:
+    _validate_constraint_value(property_key, value, unit)
+
+    canonical_unit = _NUMERIC_CANONICAL_UNITS.get(property_key)
+    if canonical_unit is not None:
+        return float(value), canonical_unit
+    if isinstance(value, str):
+        return value.strip(), unit
+    return value, unit
 
 
 def _validate_constraint_value(
@@ -437,7 +450,7 @@ def _validate_constraint_value(
     value: ConstraintValue,
     unit: str | None,
 ) -> None:
-    if property_key in {"max_lanyard_length_mm", "minimum_bond_time_h"}:
+    if property_key in _NUMERIC_CANONICAL_UNITS:
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ProductConstraintResolutionError(
                 f"numeric constraint {property_key!r} requires a finite positive number"
@@ -447,7 +460,7 @@ def _validate_constraint_value(
             raise ProductConstraintResolutionError(
                 f"numeric constraint {property_key!r} requires a finite positive number"
             )
-        expected_unit = "mm" if property_key == "max_lanyard_length_mm" else "h"
+        expected_unit = _NUMERIC_CANONICAL_UNITS[property_key]
         if unit not in {None, expected_unit}:
             raise ProductConstraintResolutionError(
                 f"constraint {property_key!r} requires unit {expected_unit!r} when a unit is provided"
@@ -466,11 +479,17 @@ def _validate_constraint_value(
         )
 
 
+def _claim_source_urls(claims: Iterable[CandidateClaim]) -> Iterable[str]:
+    for claim in claims:
+        yield claim.source_url
+        yield from claim.supporting_source_urls
+
+
 def _stable_value_key(value: ConstraintValue) -> str:
     return f"{type(value).__name__}:{value!r}"
 
 
-def _dedupe_strings(values) -> list[str]:
+def _dedupe_strings(values: Iterable[str]) -> list[str]:
     return list(dict.fromkeys(str(value) for value in values))
 
 
