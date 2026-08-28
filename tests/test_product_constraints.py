@@ -19,7 +19,7 @@ from tetherlens_ingest.constraints import (
     ProductConstraintResolutionError,
     ProductConstraintStatus,
     evaluate_product_constraints,
-    resolve_product_constraints,
+    resolve_product_constraints as _resolve_product_constraints,
 )
 from tetherlens_ingest.models import (
     CandidateClaim,
@@ -35,6 +35,16 @@ from tetherlens_ingest.recommendation import (
     RecommendationState,
     evaluate_candidate_configuration,
 )
+
+
+_TEST_PRODUCT_REF = "test:tool-attachment"
+
+
+def resolve_product_constraints(claims):
+    return _resolve_product_constraints(
+        claims,
+        source_product_ref=_TEST_PRODUCT_REF,
+    )
 
 
 def claim(
@@ -118,6 +128,7 @@ def test_resolver_normalizes_supported_constraints_without_flattening_atomic_con
     resolved = resolve_product_constraints(claims)
 
     assert len(resolved) == 7
+    assert all(constraint.source_product_ref == _TEST_PRODUCT_REF for constraint in resolved)
     assert {constraint.constraint_key for constraint in resolved} == {
         "installation_surface_profile",
         "required_surface_condition",
