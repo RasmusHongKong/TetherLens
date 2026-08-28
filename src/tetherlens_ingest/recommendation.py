@@ -175,6 +175,7 @@ class CandidateCheck(BaseModel):
     status: CandidateCheckStatus
     reason: str
     subject_refs: list[str] = Field(default_factory=list)
+    source_urls: list[str] = Field(default_factory=list)
 
 
 class CandidateEvaluation(BaseModel):
@@ -346,6 +347,7 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
                 status=status,
                 reason=reason,
                 subject_refs=list(constraint.subject_refs),
+                source_urls=list(constraint.source_urls),
             )
         )
 
