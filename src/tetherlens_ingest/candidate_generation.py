@@ -236,8 +236,16 @@ class AnchorPathOption(BaseModel):
 
 
 class ProductConstraintRuntimeState(BaseModel):
-    """Session state for non-catalogue facts used by normalized product constraints."""
+    """Session facts scoped to one physical component installation.
 
+    ToolAttachment installation facts such as elapsed bond time and a pre-use attachment
+    test belong to the selected tool feature as well as the component instance. A
+    ``None`` feature binding is reserved for components evaluated without a selected
+    tool installation feature, such as tether or anchor-side components.
+    """
+
+    component_ref: str = Field(min_length=1)
+    installation_feature_id: str | None = Field(default=None, min_length=1)
     bond_elapsed_h: float | None = None
     pre_use_attachment_test_passed: bool | None = None
 
@@ -379,7 +387,7 @@ def generate_candidate_configurations(
     anchor_paths: list[AnchorPathOption],
     *,
     tool_attachment_assemblies: list[ToolAttachmentAssemblyOption] | None = None,
-    product_runtime_state: dict[str, ProductConstraintRuntimeState] | None = None,
+    product_runtime_state: list[ProductConstraintRuntimeState] | None = None,
     connection_contexts: list[ConnectionEvaluationContext] | None = None,
 ) -> list[GeneratedCandidate]:
     """Generate explicit direct and ToolAttachment candidate paths.
@@ -399,7 +407,7 @@ def generate_candidate_configurations(
     """
 
     attachment_assemblies = list(tool_attachment_assemblies or [])
-    runtime_state = dict(product_runtime_state or {})
+    runtime_state = _product_runtime_state_map(product_runtime_state or [])
     connection_context_map = _connection_context_map(connection_contexts or [])
     feature_by_id = {feature.feature_id: feature for feature in tool.features}
 
@@ -622,16 +630,24 @@ def _evaluate_component_constraints(
     *,
     tether_max_length_mm: float | None,
     installation_feature: ToolInterfaceFeature | None,
-    runtime_state: dict[str, ProductConstraintRuntimeState],
+    runtime_state: dict[
+        tuple[str, str | None],
+        ProductConstraintRuntimeState,
+    ],
 ) -> list[ProductConstraintEvaluation]:
     evaluations: list[ProductConstraintEvaluation] = []
+    installation_feature_id = (
+        installation_feature.feature_id if installation_feature is not None else None
+    )
     for component in components:
-        state = runtime_state.get(component.component_ref, ProductConstraintRuntimeState())
+        state = runtime_state.get((component.component_ref, installation_feature_id))
         context = ProductConstraintContext(
             installation_feature=installation_feature,
             tether_max_length_mm=tether_max_length_mm,
-            bond_elapsed_h=state.bond_elapsed_h,
-            pre_use_attachment_test_passed=state.pre_use_attachment_test_passed,
+            bond_elapsed_h=state.bond_elapsed_h if state is not None else None,
+            pre_use_attachment_test_passed=(
+                state.pre_use_attachment_test_passed if state is not None else None
+            ),
         )
         component_evaluations = evaluate_product_constraints(
             component.product_constraints,
@@ -642,6 +658,21 @@ def _evaluate_component_constraints(
             for evaluation in component_evaluations
         )
     return evaluations
+
+
+def _product_runtime_state_map(
+    states: list[ProductConstraintRuntimeState],
+) -> dict[tuple[str, str | None], ProductConstraintRuntimeState]:
+    mapped: dict[tuple[str, str | None], ProductConstraintRuntimeState] = {}
+    for state in states:
+        key = (state.component_ref, state.installation_feature_id)
+        if key in mapped:
+            raise ValueError(
+                "product runtime state must be unique per component installation: "
+                f"{key!r}"
+            )
+        mapped[key] = state
+    return mapped
 
 
 def _evaluate_connection(
