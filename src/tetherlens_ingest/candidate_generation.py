@@ -80,6 +80,11 @@ class CandidateComponentOption(BaseModel):
                 "component product constraints must retain the component source product "
                 f"identity; expected {self.source_product_ref!r}, got {mismatches!r}"
             )
+        _require_unique_local_ids(
+            [constraint.constraint_id for constraint in self.product_constraints],
+            scope=f"component {self.component_ref!r}",
+            label="product constraint ids",
+        )
         return self
 
 
@@ -97,7 +102,12 @@ class ResolvedToolCandidate(BaseModel):
         return _positive_finite_or_none(value, field_name="object_mass_kg")
 
     @model_validator(mode="after")
-    def validate_direct_interfaces(self) -> ResolvedToolCandidate:
+    def validate_tool_identity_and_direct_interfaces(self) -> ResolvedToolCandidate:
+        _require_unique_local_ids(
+            [feature.feature_id for feature in self.features],
+            scope=f"resolved tool {self.tool_ref!r}",
+            label="feature ids",
+        )
         invalid = [
             interface.interface_id
             for interface in self.direct_interfaces
@@ -108,6 +118,11 @@ class ResolvedToolCandidate(BaseModel):
                 "resolved tool direct interfaces must use role "
                 f"tool_direct_tether_interface: {invalid!r}"
             )
+        _require_unique_local_ids(
+            [interface.interface_id for interface in self.direct_interfaces],
+            scope=f"resolved tool {self.tool_ref!r}",
+            label="direct interface ids",
+        )
         return self
 
 
@@ -136,6 +151,11 @@ class ToolAttachmentAssemblyOption(BaseModel):
                 "ToolAttachment-provided interfaces must use role "
                 f"tool_attachment_tether_side: {invalid!r}"
             )
+        _require_unique_local_ids(
+            [interface.interface_id for interface in self.provided_interfaces],
+            scope=f"assembly {self.assembly_ref!r}",
+            label="provided interface ids",
+        )
         _require_unique_component_refs(self.components, scope=f"assembly {self.assembly_ref!r}")
         return self
 
@@ -199,6 +219,11 @@ class AnchorPathOption(BaseModel):
                 "anchor path targets must be anchor-attachment or container tether interfaces: "
                 f"{invalid!r}"
             )
+        _require_unique_local_ids(
+            [interface.interface_id for interface in self.target_interfaces],
+            scope=f"anchor path {self.anchor_path_ref!r}",
+            label="target interface ids",
+        )
         _require_unique_component_refs(self.components, scope=f"anchor path {self.anchor_path_ref!r}")
         if (
             self.policy_applicability == PolicyApplicability.NOT_APPLICABLE
@@ -608,7 +633,14 @@ def _evaluate_component_constraints(
             bond_elapsed_h=state.bond_elapsed_h,
             pre_use_attachment_test_passed=state.pre_use_attachment_test_passed,
         )
-        evaluations.extend(evaluate_product_constraints(component.product_constraints, context))
+        component_evaluations = evaluate_product_constraints(
+            component.product_constraints,
+            context,
+        )
+        evaluations.extend(
+            evaluation.model_copy(update={"component_ref": component.component_ref})
+            for evaluation in component_evaluations
+        )
     return evaluations
 
 
@@ -733,6 +765,12 @@ def _require_unique_component_refs(
     duplicates = sorted({ref for ref in refs if refs.count(ref) > 1})
     if duplicates:
         raise ValueError(f"component refs must be unique within {scope}: {duplicates!r}")
+
+
+def _require_unique_local_ids(ids: list[str], *, scope: str, label: str) -> None:
+    duplicates = sorted({value for value in ids if ids.count(value) > 1})
+    if duplicates:
+        raise ValueError(f"{label} must be unique within {scope}: {duplicates!r}")
 
 
 def _require_unique_option_refs(refs: list[str], *, label: str) -> None:
