@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from collections import defaultdict
 from enum import StrEnum
 from typing import Any
 
@@ -168,14 +169,22 @@ class TetherOption(BaseModel):
 
 
 class AnchorPathOption(BaseModel):
-    """One anchor/container-side path exposed to tether endpoint generation."""
+    """One anchor/container-side path exposed to tether endpoint generation.
+
+    Policy is scoped here rather than to the whole generator call because the current
+    policy axis that varies during generation is the selected anchorage/configuration
+    path. A person-anchoring path and a structural path can therefore carry different
+    policy results in the same candidate-generation pass.
+    """
 
     anchor_path_ref: str = Field(min_length=1)
     components: list[CandidateComponentOption] = Field(default_factory=list)
     target_interfaces: list[ConnectionInterface] = Field(min_length=1)
+    policy_applicability: PolicyApplicability = PolicyApplicability.NOT_APPLICABLE
+    policy_status: PolicyStatus | None = None
 
     @model_validator(mode="after")
-    def validate_targets(self) -> AnchorPathOption:
+    def validate_targets_and_policy(self) -> AnchorPathOption:
         allowed_roles = {
             ConnectionInterfaceRole.ANCHOR_ATTACHMENT_TETHER_SIDE,
             ConnectionInterfaceRole.CONTAINER_CONNECTION,
@@ -191,6 +200,13 @@ class AnchorPathOption(BaseModel):
                 f"{invalid!r}"
             )
         _require_unique_component_refs(self.components, scope=f"anchor path {self.anchor_path_ref!r}")
+        if (
+            self.policy_applicability == PolicyApplicability.NOT_APPLICABLE
+            and self.policy_status is not None
+        ):
+            raise ValueError(
+                "policy-not-applicable anchor paths must not supply a policy evaluation"
+            )
         return self
 
 
@@ -214,8 +230,16 @@ class ProductConstraintRuntimeState(BaseModel):
 
 
 class ConnectionEvaluationContext(BaseModel):
-    """Optional pair-scoped reasoning inputs retained outside candidate topology."""
+    """Optional connection reasoning scoped to both owning candidate options.
 
+    Interface identifiers are local to their source products and may repeat across
+    options. ``tether_ref`` and ``target_owner_ref`` therefore participate in the key
+    so evidence for one product pair cannot leak into another pair that happens to use
+    the same local endpoint/interface ids.
+    """
+
+    tether_ref: str = Field(min_length=1)
+    target_owner_ref: str = Field(min_length=1)
     endpoint_id: str = Field(min_length=1)
     target_interface_id: str = Field(min_length=1)
     manufacturer_assessments: list[ConnectionManufacturerAssessment] = Field(default_factory=list)
@@ -229,6 +253,13 @@ class CandidateSelectedComponent(BaseModel):
     role: CandidateComponentRole
 
 
+class EligibilityProof(BaseModel):
+    """One eligibility path that proves the selected physical feature is installable."""
+
+    path_index: int = Field(ge=0)
+    binding_name: str
+
+
 class CandidatePathSelection(BaseModel):
     """Explicit identity and binding metadata for one generated candidate path."""
 
@@ -237,8 +268,7 @@ class CandidatePathSelection(BaseModel):
     anchor_path_ref: str = Field(min_length=1)
     attachment_assembly_ref: str | None = None
     installation_feature_id: str | None = None
-    eligibility_path_index: int | None = Field(default=None, ge=0)
-    eligibility_binding_name: str | None = None
+    eligibility_proofs: list[EligibilityProof] = Field(default_factory=list)
     tool_endpoint_id: str = Field(min_length=1)
     tool_target_interface_id: str = Field(min_length=1)
     anchor_endpoint_id: str = Field(min_length=1)
@@ -247,17 +277,17 @@ class CandidatePathSelection(BaseModel):
 
     @model_validator(mode="after")
     def validate_attachment_binding(self) -> CandidatePathSelection:
-        attachment_fields = (
-            self.attachment_assembly_ref,
-            self.installation_feature_id,
-            self.eligibility_path_index,
-            self.eligibility_binding_name,
-        )
-        supplied = [value is not None for value in attachment_fields]
-        if any(supplied) and not all(supplied):
+        if self.attachment_assembly_ref is None:
+            if self.installation_feature_id is not None or self.eligibility_proofs:
+                raise ValueError(
+                    "direct candidate selections must not supply ToolAttachment feature binding"
+                )
+            return self
+
+        if self.installation_feature_id is None or not self.eligibility_proofs:
             raise ValueError(
-                "ToolAttachment candidate selection requires assembly, feature, path index, "
-                "and binding name together"
+                "ToolAttachment candidate selection requires an installation feature and "
+                "at least one eligibility proof"
             )
         return self
 
@@ -299,9 +329,21 @@ class GeneratedCandidate(BaseModel):
             if eligibility is None or eligibility.status != EligibilityStatus.ELIGIBLE:
                 raise ValueError("generated ToolAttachment candidate must retain eligible binding")
             expected_feature = selection.installation_feature_id
-            if len(eligibility.matches) != 1 or eligibility.matches[0].feature_id != expected_feature:
+            if not eligibility.matches or {
+                match.feature_id for match in eligibility.matches
+            } != {expected_feature}:
                 raise ValueError(
-                    "generated ToolAttachment candidate must retain exactly its selected feature match"
+                    "generated ToolAttachment candidate eligibility must bind only the selected feature"
+                )
+            expected_proofs = {
+                (proof.path_index, proof.binding_name) for proof in selection.eligibility_proofs
+            }
+            actual_proofs = {
+                (match.path_index, match.binding_name) for match in eligibility.matches
+            }
+            if actual_proofs != expected_proofs:
+                raise ValueError(
+                    "generated ToolAttachment candidate eligibility proofs do not match selection"
                 )
         return self
 
@@ -314,8 +356,6 @@ def generate_candidate_configurations(
     tool_attachment_assemblies: list[ToolAttachmentAssemblyOption] | None = None,
     product_runtime_state: dict[str, ProductConstraintRuntimeState] | None = None,
     connection_contexts: list[ConnectionEvaluationContext] | None = None,
-    policy_applicability: PolicyApplicability = PolicyApplicability.NOT_APPLICABLE,
-    policy_status: PolicyStatus | None = None,
 ) -> list[GeneratedCandidate]:
     """Generate explicit direct and ToolAttachment candidate paths.
 
@@ -328,6 +368,9 @@ def generate_candidate_configurations(
     evaluator remains responsible for hard-constraint viability. ToolAttachment paths
     are generated only for explicit eligible feature matches because a generated path
     must bind installation constraints to one concrete tool feature.
+
+    Multiple eligibility paths proving the same concrete feature are retained as audit
+    proofs on one physical candidate rather than multiplying candidate identities.
     """
 
     attachment_assemblies = list(tool_attachment_assemblies or [])
@@ -335,9 +378,31 @@ def generate_candidate_configurations(
     connection_context_map = _connection_context_map(connection_contexts or [])
     feature_by_id = {feature.feature_id: feature for feature in tool.features}
 
+    _require_unique_option_refs(
+        [tether.tether_ref for tether in tethers],
+        label="tether_ref",
+    )
+    _require_unique_option_refs(
+        [assembly.assembly_ref for assembly in attachment_assemblies],
+        label="assembly_ref",
+    )
+    _require_unique_option_refs(
+        [anchor_path.anchor_path_ref for anchor_path in anchor_paths],
+        label="anchor_path_ref",
+    )
+    _require_unique_option_refs(
+        [
+            tool.tool_ref,
+            *[assembly.assembly_ref for assembly in attachment_assemblies],
+            *[anchor_path.anchor_path_ref for anchor_path in anchor_paths],
+        ],
+        label="connection target owner ref",
+    )
+
     tool_targets: list[_ToolTarget] = [
         _ToolTarget(
             attachment_mode=CandidateAttachmentMode.DIRECT,
+            owner_ref=tool.tool_ref,
             target_interface=interface,
         )
         for interface in tool.direct_interfaces
@@ -347,25 +412,25 @@ def generate_candidate_configurations(
         eligibility = evaluate_attachment_eligibility(assembly.eligibility, tool.features)
         if eligibility.status != EligibilityStatus.ELIGIBLE:
             continue
-        for match in eligibility.matches:
-            feature = feature_by_id.get(match.feature_id)
+        matches_by_feature = _eligibility_matches_by_feature(eligibility.matches)
+        for feature_id, matches in matches_by_feature.items():
+            feature = feature_by_id.get(feature_id)
             if feature is None:
-                # Eligibility is evaluated from ``tool.features`` so this is defensive
-                # against future external construction of EligibilityEvaluation only.
                 continue
             bound_eligibility = EligibilityEvaluation(
                 status=EligibilityStatus.ELIGIBLE,
-                matches=[match],
+                matches=matches,
             )
             for interface in assembly.provided_interfaces:
                 tool_targets.append(
                     _ToolTarget(
                         attachment_mode=CandidateAttachmentMode.TOOL_ATTACHMENT,
+                        owner_ref=assembly.assembly_ref,
                         target_interface=interface,
                         assembly=assembly,
                         installation_feature=feature,
                         eligibility=bound_eligibility,
-                        eligibility_match=match,
+                        eligibility_matches=matches,
                     )
                 )
 
@@ -395,6 +460,8 @@ def generate_candidate_configurations(
                 tool_connection = _evaluate_connection(
                     tool_endpoint,
                     tool_target.target_interface,
+                    tether_ref=tether.tether_ref,
+                    target_owner_ref=tool_target.owner_ref,
                     connector_specs=tether.connector_specs,
                     context_map=connection_context_map,
                 )
@@ -420,6 +487,8 @@ def generate_candidate_configurations(
                         anchor_connection = _evaluate_connection(
                             anchor_endpoint,
                             anchor_target,
+                            tether_ref=tether.tether_ref,
+                            target_owner_ref=anchor_path.anchor_path_ref,
                             connector_specs=tether.connector_specs,
                             context_map=connection_context_map,
                         )
@@ -442,16 +511,13 @@ def generate_candidate_configurations(
                                 if tool_target.installation_feature is not None
                                 else None
                             ),
-                            eligibility_path_index=(
-                                tool_target.eligibility_match.path_index
-                                if tool_target.eligibility_match is not None
-                                else None
-                            ),
-                            eligibility_binding_name=(
-                                tool_target.eligibility_match.binding_name
-                                if tool_target.eligibility_match is not None
-                                else None
-                            ),
+                            eligibility_proofs=[
+                                EligibilityProof(
+                                    path_index=match.path_index,
+                                    binding_name=match.binding_name,
+                                )
+                                for match in tool_target.eligibility_matches
+                            ],
                             tool_endpoint_id=tool_endpoint.interface_id,
                             tool_target_interface_id=tool_target.target_interface.interface_id,
                             anchor_endpoint_id=anchor_endpoint.interface_id,
@@ -473,8 +539,8 @@ def generate_candidate_configurations(
                             attachment_eligibility=tool_target.eligibility,
                             tool_side_connection=tool_connection,
                             anchor_side_connection=anchor_connection,
-                            policy_applicability=policy_applicability,
-                            policy_status=policy_status,
+                            policy_applicability=anchor_path.policy_applicability,
+                            policy_status=anchor_path.policy_status,
                         )
                         generated.append(
                             GeneratedCandidate(
@@ -488,11 +554,21 @@ def generate_candidate_configurations(
 
 class _ToolTarget(BaseModel):
     attachment_mode: CandidateAttachmentMode
+    owner_ref: str = Field(min_length=1)
     target_interface: ConnectionInterface
     assembly: ToolAttachmentAssemblyOption | None = None
     installation_feature: ToolInterfaceFeature | None = None
     eligibility: EligibilityEvaluation | None = None
-    eligibility_match: EligibilityMatch | None = None
+    eligibility_matches: list[EligibilityMatch] = Field(default_factory=list)
+
+
+def _eligibility_matches_by_feature(
+    matches: list[EligibilityMatch],
+) -> dict[str, list[EligibilityMatch]]:
+    grouped: dict[str, list[EligibilityMatch]] = defaultdict(list)
+    for match in matches:
+        grouped[match.feature_id].append(match)
+    return dict(grouped)
 
 
 def _endpoint_assignments(
@@ -540,10 +616,19 @@ def _evaluate_connection(
     endpoint: ConnectionInterface,
     target: ConnectionInterface,
     *,
+    tether_ref: str,
+    target_owner_ref: str,
     connector_specs: dict[str, ConnectorSpec],
-    context_map: dict[tuple[str, str], ConnectionEvaluationContext],
+    context_map: dict[tuple[str, str, str, str], ConnectionEvaluationContext],
 ):
-    context = context_map.get((endpoint.interface_id, target.interface_id))
+    context = context_map.get(
+        (
+            tether_ref,
+            target_owner_ref,
+            endpoint.interface_id,
+            target.interface_id,
+        )
+    )
     return evaluate_endpoint_engagement(
         endpoint,
         target,
@@ -556,14 +641,19 @@ def _evaluate_connection(
 
 def _connection_context_map(
     contexts: list[ConnectionEvaluationContext],
-) -> dict[tuple[str, str], ConnectionEvaluationContext]:
-    mapped: dict[tuple[str, str], ConnectionEvaluationContext] = {}
+) -> dict[tuple[str, str, str, str], ConnectionEvaluationContext]:
+    mapped: dict[tuple[str, str, str, str], ConnectionEvaluationContext] = {}
     for context in contexts:
-        key = (context.endpoint_id, context.target_interface_id)
+        key = (
+            context.tether_ref,
+            context.target_owner_ref,
+            context.endpoint_id,
+            context.target_interface_id,
+        )
         if key in mapped:
             raise ValueError(
-                "connection evaluation context must be unique per endpoint/target pair: "
-                f"{key!r}"
+                "connection evaluation context must be unique per owning option pair and "
+                f"endpoint/target pair: {key!r}"
             )
         mapped[key] = context
     return mapped
@@ -618,17 +708,11 @@ def _load_bearing_components(
 def _candidate_id(selection: CandidatePathSelection) -> str:
     attachment = selection.attachment_assembly_ref or "direct"
     feature = selection.installation_feature_id or "none"
-    path_index = (
-        str(selection.eligibility_path_index)
-        if selection.eligibility_path_index is not None
-        else "none"
-    )
     component_refs = ",".join(component.component_ref for component in selection.components)
     parts = [
         f"tool={selection.tool_ref}",
         f"attachment={attachment}",
         f"feature={feature}",
-        f"eligibility_path={path_index}",
         f"tether={selection.tether_ref}",
         f"tool_endpoint={selection.tool_endpoint_id}",
         f"tool_target={selection.tool_target_interface_id}",
@@ -649,6 +733,12 @@ def _require_unique_component_refs(
     duplicates = sorted({ref for ref in refs if refs.count(ref) > 1})
     if duplicates:
         raise ValueError(f"component refs must be unique within {scope}: {duplicates!r}")
+
+
+def _require_unique_option_refs(refs: list[str], *, label: str) -> None:
+    duplicates = sorted({ref for ref in refs if refs.count(ref) > 1})
+    if duplicates:
+        raise ValueError(f"{label} values must be unique within one generation call: {duplicates!r}")
 
 
 def _positive_finite_or_none(value: Any, *, field_name: str) -> Any:
