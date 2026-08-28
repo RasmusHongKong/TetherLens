@@ -37,8 +37,16 @@ def test_nlg_adhesive_installation_claims_resolve_into_runtime_constraints():
     )
 
     claims = NLGAdapter().extract(identity, [artifact])
-    constraints = resolve_product_constraints(claims)
+    source_product_ref = f"{identity.manufacturer}:{identity.sku}"
+    constraints = resolve_product_constraints(
+        claims,
+        source_product_ref=source_product_ref,
+    )
 
+    assert all(
+        constraint.source_product_ref == source_product_ref
+        for constraint in constraints
+    )
     assert {
         (constraint.constraint_key, str(constraint.value))
         for constraint in constraints
