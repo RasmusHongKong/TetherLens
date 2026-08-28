@@ -24,6 +24,7 @@ from tetherlens_ingest.recommendation import (
     CandidateConfiguration,
     LanyardLengthConstraint,
     LoadBearingComponent,
+    PolicyApplicability,
     RecommendationState,
     evaluate_candidate_configuration,
 )
@@ -38,8 +39,10 @@ from tetherlens_ingest.resolution import (
 def connection(
     status: ConnectionStatus = ConnectionStatus.COMPATIBLE,
     *,
-    endpoint_id: str = "endpoint",
-    target_id: str = "target",
+    endpoint_id: str,
+    target_id: str,
+    target_role: ConnectionInterfaceRole,
+    endpoint_tether_side: TetherSide = TetherSide.EITHER,
     review_required: bool = False,
 ) -> ConnectionEvaluation:
     basis = (
@@ -54,7 +57,47 @@ def connection(
         basis=basis,
         endpoint_id=endpoint_id,
         target_interface_id=target_id,
+        endpoint_tether_side=endpoint_tether_side,
+        target_role=target_role,
         reason=f"test connection is {status.value}",
+        review_required=review_required,
+    )
+
+
+def tool_connection(
+    status: ConnectionStatus = ConnectionStatus.COMPATIBLE,
+    *,
+    endpoint_id: str = "tool_endpoint",
+    target_id: str = "attachment_ring",
+    target_role: ConnectionInterfaceRole = ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE,
+    endpoint_tether_side: TetherSide = TetherSide.EITHER,
+    review_required: bool = False,
+) -> ConnectionEvaluation:
+    return connection(
+        status,
+        endpoint_id=endpoint_id,
+        target_id=target_id,
+        target_role=target_role,
+        endpoint_tether_side=endpoint_tether_side,
+        review_required=review_required,
+    )
+
+
+def anchor_connection(
+    status: ConnectionStatus = ConnectionStatus.COMPATIBLE,
+    *,
+    endpoint_id: str = "anchor_endpoint",
+    target_id: str = "container_ring",
+    target_role: ConnectionInterfaceRole = ConnectionInterfaceRole.CONTAINER_CONNECTION,
+    endpoint_tether_side: TetherSide = TetherSide.EITHER,
+    review_required: bool = False,
+) -> ConnectionEvaluation:
+    return connection(
+        status,
+        endpoint_id=endpoint_id,
+        target_id=target_id,
+        target_role=target_role,
+        endpoint_tether_side=endpoint_tether_side,
         review_required=review_required,
     )
 
@@ -73,7 +116,6 @@ def eligible_attachment() -> EligibilityEvaluation:
 
 
 def base_candidate(**overrides) -> CandidateConfiguration:
-    connection_overrides = overrides.pop("connections", None)
     values = {
         "candidate_id": "candidate-a",
         "object_mass_kg": 2.0,
@@ -95,18 +137,11 @@ def base_candidate(**overrides) -> CandidateConfiguration:
         ],
         "attachment_mode": CandidateAttachmentMode.TOOL_ATTACHMENT,
         "attachment_eligibility": eligible_attachment(),
-        "tool_side_connection": connection(
-            endpoint_id="tool_endpoint", target_id="attachment_ring"
-        ),
-        "anchor_side_connection": connection(
-            endpoint_id="anchor_endpoint", target_id="container_ring"
-        ),
+        "tool_side_connection": tool_connection(),
+        "anchor_side_connection": anchor_connection(),
+        "policy_applicability": PolicyApplicability.APPLICABLE,
         "policy_status": PolicyStatus.PERMITTED,
     }
-    if connection_overrides is not None:
-        assert len(connection_overrides) == 2
-        values["tool_side_connection"] = connection_overrides[0]
-        values["anchor_side_connection"] = connection_overrides[1]
     values.update(overrides)
     return CandidateConfiguration(**values)
 
@@ -131,27 +166,37 @@ def test_candidate_is_recommended_when_every_hard_check_passes():
     assert result.pending_verification_connection_ids == []
 
 
-def test_required_connection_sides_cannot_reuse_same_evaluation():
-    same_connection = connection(
-        endpoint_id="tool_endpoint",
-        target_id="attachment_ring",
-    )
+def test_required_connection_sides_validate_retained_target_roles():
+    with pytest.raises(ValueError, match="anchor-side connection must target"):
+        base_candidate(
+            anchor_side_connection=tool_connection(
+                endpoint_id="second_tool_endpoint",
+                target_id="second_attachment_ring",
+            )
+        )
 
-    with pytest.raises(ValueError, match="must be distinct evaluations"):
-        base_candidate(connections=[same_connection, same_connection])
+
+def test_required_connection_sides_validate_retained_endpoint_side():
+    with pytest.raises(ValueError, match="tool-capable tether endpoint"):
+        base_candidate(
+            tool_side_connection=tool_connection(
+                endpoint_tether_side=TetherSide.ANCHOR_SIDE,
+            )
+        )
+
+
+def test_attachment_mode_must_match_tool_side_target_role():
+    with pytest.raises(ValueError, match="target role must match"):
+        base_candidate(
+            attachment_mode=CandidateAttachmentMode.DIRECT,
+            attachment_eligibility=None,
+        )
 
 
 def test_pending_connection_verification_produces_recommended_with_constraints():
     result = evaluate_candidate_configuration(
         base_candidate(
-            connections=[
-                connection(
-                    ConnectionStatus.REQUIRES_VERIFICATION,
-                    endpoint_id="tool_endpoint",
-                    target_id="attachment_ring",
-                ),
-                connection(endpoint_id="anchor_endpoint", target_id="container_ring"),
-            ]
+            tool_side_connection=tool_connection(ConnectionStatus.REQUIRES_VERIFICATION)
         )
     )
 
@@ -168,18 +213,8 @@ def test_pending_connection_verification_produces_recommended_with_constraints()
 def test_multiple_pending_connections_remain_one_conditional_recommendation():
     result = evaluate_candidate_configuration(
         base_candidate(
-            connections=[
-                connection(
-                    ConnectionStatus.REQUIRES_VERIFICATION,
-                    endpoint_id="tool_endpoint",
-                    target_id="attachment_ring",
-                ),
-                connection(
-                    ConnectionStatus.REQUIRES_VERIFICATION,
-                    endpoint_id="anchor_endpoint",
-                    target_id="container_ring",
-                ),
-            ]
+            tool_side_connection=tool_connection(ConnectionStatus.REQUIRES_VERIFICATION),
+            anchor_side_connection=anchor_connection(ConnectionStatus.REQUIRES_VERIFICATION),
         )
     )
 
@@ -193,18 +228,8 @@ def test_multiple_pending_connections_remain_one_conditional_recommendation():
 def test_blocked_candidate_does_not_request_runtime_verification():
     result = evaluate_candidate_configuration(
         base_candidate(
-            connections=[
-                connection(
-                    ConnectionStatus.REQUIRES_VERIFICATION,
-                    endpoint_id="tool_endpoint",
-                    target_id="attachment_ring",
-                ),
-                connection(
-                    ConnectionStatus.UNRESOLVED,
-                    endpoint_id="anchor_endpoint",
-                    target_id="container_ring",
-                ),
-            ]
+            tool_side_connection=tool_connection(ConnectionStatus.REQUIRES_VERIFICATION),
+            anchor_side_connection=anchor_connection(ConnectionStatus.UNRESOLVED),
         )
     )
 
@@ -218,16 +243,7 @@ def test_blocked_candidate_does_not_request_runtime_verification():
 def test_unresolved_or_incompatible_connection_blocks_candidate():
     for status in (ConnectionStatus.UNRESOLVED, ConnectionStatus.INCOMPATIBLE):
         result = evaluate_candidate_configuration(
-            base_candidate(
-                connections=[
-                    connection(endpoint_id="tool_endpoint", target_id="attachment_ring"),
-                    connection(
-                        status,
-                        endpoint_id="anchor_endpoint",
-                        target_id="container_ring",
-                    ),
-                ]
-            )
+            base_candidate(anchor_side_connection=anchor_connection(status))
         )
 
         assert result.recommendation_state is None
@@ -325,6 +341,10 @@ def test_direct_tethering_explicitly_has_no_attachment_eligibility_axis():
         base_candidate(
             attachment_mode=CandidateAttachmentMode.DIRECT,
             attachment_eligibility=None,
+            tool_side_connection=tool_connection(
+                target_id="tool_tether_hole",
+                target_role=ConnectionInterfaceRole.TOOL_DIRECT_TETHER_INTERFACE,
+            ),
         )
     )
 
@@ -347,30 +367,43 @@ def test_eligible_attachment_without_bound_match_fails_closed():
     )
 
 
-def test_policy_prohibited_or_unresolved_blocks_candidate_when_policy_is_supplied():
+def test_policy_prohibited_or_unresolved_blocks_candidate_when_policy_applies():
     for policy_status in (PolicyStatus.PROHIBITED, PolicyStatus.UNRESOLVED):
         result = evaluate_candidate_configuration(base_candidate(policy_status=policy_status))
         assert result.recommendation_state is None
 
 
-def test_no_supplied_policy_axis_does_not_invent_a_policy_failure():
+def test_missing_policy_result_is_unresolved_when_policy_applies():
     result = evaluate_candidate_configuration(base_candidate(policy_status=None))
+
+    assert result.recommendation_state is None
+    assert any(
+        check.check_id == "policy" and check.status == CandidateCheckStatus.UNRESOLVED
+        for check in result.checks
+    )
+
+
+def test_policy_not_applicable_explicitly_has_no_policy_axis():
+    result = evaluate_candidate_configuration(
+        base_candidate(
+            policy_applicability=PolicyApplicability.NOT_APPLICABLE,
+            policy_status=None,
+        )
+    )
 
     assert result.recommendation_state == RecommendationState.RECOMMENDED
     assert not any(check.check_id == "policy" for check in result.checks)
 
 
+def test_policy_not_applicable_rejects_supplied_policy_result():
+    with pytest.raises(ValueError, match="must not supply a policy evaluation"):
+        base_candidate(policy_applicability=PolicyApplicability.NOT_APPLICABLE)
+
+
 def test_connection_review_signal_is_preserved_without_automatically_blocking_candidate():
     result = evaluate_candidate_configuration(
         base_candidate(
-            connections=[
-                connection(
-                    endpoint_id="tool_endpoint",
-                    target_id="attachment_ring",
-                    review_required=True,
-                ),
-                connection(endpoint_id="anchor_endpoint", target_id="container_ring"),
-            ]
+            tool_side_connection=tool_connection(review_required=True),
         )
     )
 
@@ -451,25 +484,29 @@ def test_evidence_backed_tool_attachment_tether_slice_stays_blocked_when_anchor_
         interface for interface in tether_interfaces if interface.interface_type == "loop"
     )
 
-    tool_connection = evaluate_endpoint_engagement(
+    tool_side_result = evaluate_endpoint_engagement(
         carabiner_endpoint,
         attachment_ring,
         connector_specs=specs,
     )
-    assert tool_connection.status == ConnectionStatus.REQUIRES_VERIFICATION
+    assert tool_side_result.status == ConnectionStatus.REQUIRES_VERIFICATION
+    assert tool_side_result.target_role == ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE
+    assert tool_side_result.endpoint_tether_side == carabiner_endpoint.tether_side
 
     container_ring = ConnectionInterface(
         interface_id="container_ring",
         role=ConnectionInterfaceRole.CONTAINER_CONNECTION,
         interface_type="ring",
     )
-    anchor_connection = evaluate_endpoint_engagement(
+    anchor_side_result = evaluate_endpoint_engagement(
         loop_endpoint,
         container_ring,
         connector_specs=specs,
     )
     assert loop_endpoint.tether_side == TetherSide.EITHER
-    assert anchor_connection.status == ConnectionStatus.UNRESOLVED
+    assert anchor_side_result.status == ConnectionStatus.UNRESOLVED
+    assert anchor_side_result.target_role == ConnectionInterfaceRole.CONTAINER_CONNECTION
+    assert anchor_side_result.endpoint_tether_side == loop_endpoint.tether_side
 
     result = evaluate_candidate_configuration(
         CandidateConfiguration(
@@ -482,8 +519,9 @@ def test_evidence_backed_tool_attachment_tether_slice_stays_blocked_when_anchor_
             ],
             attachment_mode=CandidateAttachmentMode.TOOL_ATTACHMENT,
             attachment_eligibility=eligibility_result,
-            tool_side_connection=tool_connection,
-            anchor_side_connection=anchor_connection,
+            tool_side_connection=tool_side_result,
+            anchor_side_connection=anchor_side_result,
+            policy_applicability=PolicyApplicability.NOT_APPLICABLE,
         )
     )
 
@@ -492,8 +530,8 @@ def test_evidence_backed_tool_attachment_tether_slice_stays_blocked_when_anchor_
     assert any(
         check.status == CandidateCheckStatus.REQUIRES_VERIFICATION
         and check.subject_refs == [
-            tool_connection.endpoint_id,
-            tool_connection.target_interface_id,
+            tool_side_result.endpoint_id,
+            tool_side_result.target_interface_id,
         ]
         for check in result.checks
     )
