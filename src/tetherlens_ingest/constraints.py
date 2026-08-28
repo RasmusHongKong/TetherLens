@@ -41,6 +41,7 @@ class ResolvedProductConstraint(BaseModel):
     """One normalized, reusable constraint resolved from accepted catalogue claims."""
 
     constraint_id: str = Field(min_length=1)
+    source_product_ref: str = Field(min_length=1)
     subject_type: ClaimSubjectType
     subject_ref: str = Field(min_length=1)
     constraint_key: str = Field(min_length=1)
@@ -133,11 +134,21 @@ _NUMERIC_CANONICAL_UNITS = {
 }
 
 
-def resolve_product_constraints(claims: list[CandidateClaim]) -> list[ResolvedProductConstraint]:
+def resolve_product_constraints(
+    claims: list[CandidateClaim],
+    *,
+    source_product_ref: str,
+) -> list[ResolvedProductConstraint]:
     """Resolve supported accepted claims into normalized runtime constraints.
 
-    Callers must pass only accepted/reconciled claims. Unsupported declared constraints
-    are deliberately ignored here rather than assigned accidental technical semantics.
+    Callers must pass only accepted/reconciled claims plus a stable catalogue-product
+    reference for the product whose claims are being resolved. The source-product
+    namespace is retained explicitly and incorporated into every generated constraint
+    ID so separately resolved products cannot collide when their local subjects are both
+    represented as ``self``.
+
+    Unsupported declared constraints are deliberately ignored here rather than assigned
+    accidental technical semantics.
 
     ``max_lanyard_length_mm`` predates structured claim metadata in the NLG adapter, so
     it remains a transitional accepted product limit. Numeric constraints are
@@ -145,6 +156,8 @@ def resolve_product_constraints(claims: list[CandidateClaim]) -> list[ResolvedPr
     one float value and an omitted canonical unit is restored. Evidence-equivalent
     claims therefore coalesce into one runtime constraint with combined provenance.
     """
+
+    source_product_ref = _validate_source_product_ref(source_product_ref)
 
     grouped: dict[
         tuple[ClaimSubjectType, str, str, ConstraintOperator, str, str],
@@ -204,7 +217,11 @@ def resolve_product_constraints(claims: list[CandidateClaim]) -> list[ResolvedPr
         _, disposition = _SUPPORTED_CONSTRAINTS[property_key]
         resolved.append(
             ResolvedProductConstraint(
-                constraint_id=f"{subject_ref}:{property_key}:{index}",
+                constraint_id=(
+                    f"{source_product_ref}:{subject_type.value}:"
+                    f"{subject_ref}:{property_key}:{index}"
+                ),
+                source_product_ref=source_product_ref,
                 subject_type=subject_type,
                 subject_ref=subject_ref,
                 constraint_key=property_key,
@@ -477,6 +494,14 @@ def _validate_constraint_value(
         raise ProductConstraintResolutionError(
             f"constraint {property_key!r} requires a non-empty string value"
         )
+
+
+def _validate_source_product_ref(source_product_ref: str) -> str:
+    if not isinstance(source_product_ref, str) or not source_product_ref.strip():
+        raise ProductConstraintResolutionError(
+            "source_product_ref must be a stable non-empty catalogue-product reference"
+        )
+    return source_product_ref.strip()
 
 
 def _claim_source_urls(claims: Iterable[CandidateClaim]) -> Iterable[str]:
