@@ -7,7 +7,12 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .compatibility import EligibilityEvaluation, EligibilityStatus, PolicyStatus
-from .connection import ConnectionEvaluation, ConnectionStatus
+from .connection import (
+    ConnectionEvaluation,
+    ConnectionInterfaceRole,
+    ConnectionStatus,
+    TetherSide,
+)
 
 
 class RecommendationState(StrEnum):
@@ -44,6 +49,13 @@ class CandidateAttachmentMode(StrEnum):
     TOOL_ATTACHMENT = "tool_attachment"
 
 
+class PolicyApplicability(StrEnum):
+    """Whether a site/configuration policy evaluation is required for this candidate."""
+
+    NOT_APPLICABLE = "not_applicable"
+    APPLICABLE = "applicable"
+
+
 class LoadBearingComponent(BaseModel):
     """One load-bearing component participating in the candidate path."""
 
@@ -75,17 +87,16 @@ class CandidateConfiguration(BaseModel):
     identities. Candidate generation, ranking and evidence acceptance stay outside this
     first slice.
 
-    The two required boundary connections are represented explicitly so a full path
-    cannot be satisfied by supplying two evaluations for the same side. Attachment mode
-    is also explicit: direct tethering has no ToolAttachment eligibility axis, while a
-    ToolAttachment candidate must carry an eligibility result or fail closed as
-    unresolved.
+    The two required boundary connections are represented explicitly and validated
+    against role metadata retained by ``ConnectionEvaluation``. Attachment and policy
+    applicability are also explicit so a missing required evaluation cannot be confused
+    with a reasoning axis that genuinely does not apply.
 
-    Optional fields are omitted only when that reasoning axis does not apply to the
-    candidate. If an applicable value is unknown, callers must pass its explicit
+    If an applicable value is unknown, callers must pass or retain its explicit
     unresolved representation instead: ``None`` capacity/length within an applicable
-    component/constraint, ``EligibilityStatus.UNRESOLVED`` for an evaluated attachment,
-    or ``PolicyStatus.UNRESOLVED`` for applicable policy.
+    component/constraint, missing or ``EligibilityStatus.UNRESOLVED`` attachment
+    eligibility when a ToolAttachment is required, or missing/``PolicyStatus.UNRESOLVED``
+    policy status when policy is applicable.
     """
 
     candidate_id: str = Field(min_length=1)
@@ -97,6 +108,7 @@ class CandidateConfiguration(BaseModel):
     attachment_eligibility: EligibilityEvaluation | None = None
     tool_side_connection: ConnectionEvaluation
     anchor_side_connection: ConnectionEvaluation
+    policy_applicability: PolicyApplicability
     policy_status: PolicyStatus | None = None
 
     @field_validator("object_mass_kg", mode="before")
@@ -111,13 +123,27 @@ class CandidateConfiguration(BaseModel):
 
     @model_validator(mode="after")
     def validate_path_semantics(self) -> CandidateConfiguration:
-        if (
-            self.tool_side_connection.endpoint_id == self.anchor_side_connection.endpoint_id
-            and self.tool_side_connection.target_interface_id
-            == self.anchor_side_connection.target_interface_id
-        ):
+        if self.tool_side_connection.target_role not in _TOOL_SIDE_TARGET_ROLES:
             raise ValueError(
-                "tool-side and anchor-side connections must be distinct evaluations"
+                "tool-side connection must target a tool-side tether interface"
+            )
+        if self.tool_side_connection.endpoint_tether_side not in {
+            TetherSide.TOOL_SIDE,
+            TetherSide.EITHER,
+        }:
+            raise ValueError(
+                "tool-side connection must use a tool-capable tether endpoint"
+            )
+        if self.anchor_side_connection.target_role not in _ANCHOR_SIDE_TARGET_ROLES:
+            raise ValueError(
+                "anchor-side connection must target an anchor/container tether interface"
+            )
+        if self.anchor_side_connection.endpoint_tether_side not in {
+            TetherSide.ANCHOR_SIDE,
+            TetherSide.EITHER,
+        }:
+            raise ValueError(
+                "anchor-side connection must use an anchor-capable tether endpoint"
             )
         if (
             self.attachment_mode == CandidateAttachmentMode.DIRECT
@@ -125,6 +151,13 @@ class CandidateConfiguration(BaseModel):
         ):
             raise ValueError(
                 "direct candidates must not supply ToolAttachment eligibility"
+            )
+        if (
+            self.policy_applicability == PolicyApplicability.NOT_APPLICABLE
+            and self.policy_status is not None
+        ):
+            raise ValueError(
+                "policy-not-applicable candidates must not supply a policy evaluation"
             )
         return self
 
@@ -287,8 +320,11 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
             )
         )
 
-    if candidate.policy_status is not None:
-        if candidate.policy_status == PolicyStatus.PERMITTED:
+    if candidate.policy_applicability == PolicyApplicability.APPLICABLE:
+        if candidate.policy_status is None:
+            status = CandidateCheckStatus.UNRESOLVED
+            reason = "policy applies but no policy evaluation is available"
+        elif candidate.policy_status == PolicyStatus.PERMITTED:
             status = CandidateCheckStatus.PASSED
             reason = "candidate is permitted by the supplied policy evaluation"
         elif candidate.policy_status == PolicyStatus.PROHIBITED:
@@ -355,3 +391,14 @@ def _positive_finite_or_none(value: Any, *, field_name: str) -> Any:
     if not math.isfinite(numeric) or numeric <= 0:
         raise ValueError(f"{field_name} must be a finite positive number when provided")
     return numeric
+
+
+_TOOL_SIDE_TARGET_ROLES = {
+    ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE,
+    ConnectionInterfaceRole.TOOL_DIRECT_TETHER_INTERFACE,
+}
+
+_ANCHOR_SIDE_TARGET_ROLES = {
+    ConnectionInterfaceRole.ANCHOR_ATTACHMENT_TETHER_SIDE,
+    ConnectionInterfaceRole.CONTAINER_CONNECTION,
+}
