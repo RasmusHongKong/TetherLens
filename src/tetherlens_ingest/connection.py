@@ -164,6 +164,8 @@ class ConnectionEvaluation(BaseModel):
     basis: CompatibilityBasis
     endpoint_id: str
     target_interface_id: str
+    endpoint_tether_side: TetherSide = TetherSide.UNKNOWN
+    target_role: ConnectionInterfaceRole = ConnectionInterfaceRole.UNKNOWN
     reason: str
     manufacturer_assessments: list[ConnectionManufacturerAssessment] = Field(default_factory=list)
     rule_results: list[ConnectionRuleResult] = Field(default_factory=list)
@@ -593,6 +595,8 @@ def _evaluation(
         basis=basis,
         endpoint_id=endpoint.interface_id,
         target_interface_id=target.interface_id,
+        endpoint_tether_side=endpoint.tether_side,
+        target_role=target.role,
         reason=reason,
         manufacturer_assessments=assessments,
         rule_results=rule_results,
