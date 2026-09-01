@@ -13,7 +13,11 @@ from .candidate_generation import (
     ToolAttachmentAssemblyOption,
     generate_candidate_configurations,
 )
-from .candidate_selection import CandidateSelectionResult, rank_and_select_candidates
+from .candidate_selection import (
+    CandidateRankingContext,
+    CandidateSelectionResult,
+    rank_and_select_candidates,
+)
 from .recommendation import CandidateEvaluation, evaluate_candidate_configuration
 
 
@@ -21,12 +25,13 @@ class RecommendationRunResult(BaseModel):
     """Complete auditable result of one recommendation run.
 
     The result retains every generated candidate, every corresponding hard evaluation,
-    and the deterministic selection result. It intentionally does not flatten candidate
-    provenance or add user-facing explanation/session state.
+    the explicit ranking context, and the deterministic selection result. It intentionally
+    does not flatten candidate provenance or add user-facing explanation/session state.
     """
 
     generated_candidates: list[GeneratedCandidate]
     evaluations: list[CandidateEvaluation]
+    ranking_context: CandidateRankingContext | None = None
     selection: CandidateSelectionResult
 
     @model_validator(mode="after")
@@ -93,13 +98,14 @@ def run_recommendation(
     product_runtime_state: list[ProductConstraintRuntimeState] | None = None,
     connection_contexts: list[ConnectionEvaluationContext] | None = None,
     policy_contexts: list[CandidatePolicyContext] | None = None,
+    ranking_context: CandidateRankingContext | None = None,
 ) -> RecommendationRunResult:
-    """Run complete generation -> evaluation -> deterministic selection.
+    """Run complete generation -> evaluation -> deterministic contextual selection.
 
     This boundary owns the generator invocation and evaluates exactly the complete list
     returned by it before selection. The existing generator, evaluator and selector remain
     the sole authorities for candidate construction, hard viability and ranking/global
-    exhaustion respectively.
+    exhaustion respectively. Ranking context may only reorder already-viable candidates.
 
     Exceptions from any stage deliberately propagate. An orchestration/invariant failure
     is not equivalent to a successful run whose complete candidate set is exhausted.
@@ -118,10 +124,15 @@ def run_recommendation(
         evaluate_candidate_configuration(candidate.configuration)
         for candidate in generated_candidates
     ]
-    selection = rank_and_select_candidates(generated_candidates, evaluations)
+    selection = rank_and_select_candidates(
+        generated_candidates,
+        evaluations,
+        ranking_context=ranking_context,
+    )
 
     return RecommendationRunResult(
         generated_candidates=generated_candidates,
         evaluations=evaluations,
+        ranking_context=ranking_context,
         selection=selection,
     )
