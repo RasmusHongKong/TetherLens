@@ -10,6 +10,7 @@ from tetherlens_ingest.candidate_generation import (
     _candidate_id,
 )
 from tetherlens_ingest.candidate_selection import (
+    CandidateSelectionResult,
     CandidateSelectionState,
     EvaluatedCandidate,
     rank_and_select_candidates,
@@ -358,4 +359,42 @@ def test_evaluated_candidate_rejects_identity_mismatch():
         EvaluatedCandidate(
             generated_candidate=first,
             evaluation=evaluation(second),
+        )
+
+
+def test_selection_result_rejects_blocked_selected_object_with_winner_id():
+    candidate = generated_candidate("winner")
+    ranked = EvaluatedCandidate(
+        generated_candidate=candidate,
+        evaluation=evaluation(candidate),
+    )
+    blocked_selected = EvaluatedCandidate(
+        generated_candidate=candidate,
+        evaluation=evaluation(candidate, state=None),
+    )
+
+    with pytest.raises(ValueError, match="selected candidate must be viable"):
+        CandidateSelectionResult(
+            state=CandidateSelectionState.SELECTED,
+            selected=blocked_selected,
+            ranked_viable_candidates=[ranked],
+        )
+
+
+def test_selection_result_requires_complete_selected_object_to_match_ranked_winner():
+    candidate = generated_candidate("winner")
+    ranked = EvaluatedCandidate(
+        generated_candidate=candidate,
+        evaluation=evaluation(candidate),
+    )
+    different_selected = EvaluatedCandidate(
+        generated_candidate=candidate,
+        evaluation=evaluation(candidate, review_required=True),
+    )
+
+    with pytest.raises(ValueError, match="complete first ranked viable candidate"):
+        CandidateSelectionResult(
+            state=CandidateSelectionState.SELECTED,
+            selected=different_selected,
+            ranked_viable_candidates=[ranked],
         )
