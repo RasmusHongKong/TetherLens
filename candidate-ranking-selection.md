@@ -186,7 +186,7 @@ The selector does not infer why generation produced no candidates and therefore 
 
 Possible upstream meanings include catalogue incompleteness, unavailable applicable paths, generation-scope decisions, or other conditions that require their own explanation.
 
-## Important completeness limitation
+## Standalone completeness boundary and end-to-end closure
 
 Exact selector coverage proves:
 
@@ -202,7 +202,9 @@ the caller supplied the generator's complete output
 
 A caller could incorrectly pass only a subset of generated alternatives and still satisfy the selector's internal coverage check for that subset.
 
-The next recommended architecture slice is therefore an end-to-end recommendation-run/orchestration boundary that owns the generator invocation, evaluates that exact complete output, and then invokes selection. That makes a global exhaustion conclusion safe by construction rather than by caller convention.
+PR #36 closes that caveat for normal end-to-end recommendation runs through `run_recommendation()`. The recommendation-run boundary owns the generator invocation, evaluates every candidate in the generator's actual returned list exactly once, and passes that exact complete generated/evaluated set into this selector.
+
+The selector remains reusable on its own, so callers that invoke it directly must still respect the narrower completeness guarantee above. System-level global exhaustion should normally come from the end-to-end recommendation-run boundary when generation is part of the same decision. See `recommendation-run.md` for the orchestration invariant and failure semantics.
 
 ## Deliberate non-preferences
 
