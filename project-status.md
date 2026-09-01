@@ -1,14 +1,14 @@
 # TetherLens Project Status
 
-_Last updated: 2026-08-28_
+_Last updated: 2026-09-01_
 
-This document is the short operational handoff for the current TetherLens ingestion, compatibility, and recommendation-composition work. It records what has landed, what remains intentionally unresolved, and which workstreams should be tackled next.
+This document is the short operational handoff for the current TetherLens ingestion, compatibility, candidate-composition, generation, and selection work. It records what has landed, what remains intentionally unresolved, and which workstreams should be tackled next.
 
-For durable design principles, use the dedicated documents such as `product-vision.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `connection-compatibility.md`, `tool-attachment-compatibility.md`, `tool-anatomy-selection-semantics.md`, `container-interface-topology.md`, `benchmark-goals.md`, and `ingestion-benchmark.md`. This file should not replace those documents or freeze semantic decisions before the evidence has been inspected.
+For durable design principles, use the dedicated documents such as `product-vision.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `connection-compatibility.md`, `tool-attachment-compatibility.md`, `tool-anatomy-selection-semantics.md`, `container-interface-topology.md`, `candidate-ranking-selection.md`, `benchmark-goals.md`, and `ingestion-benchmark.md`. This file should not replace those documents or freeze semantic decisions before the evidence has been inspected.
 
 ## Current development line
 
-The current development line through PR #32 includes:
+The current development line through PR #35 includes:
 
 - PR #17 — Batch 2 blind NLG holdout and post-blind evaluation path;
 - PR #18 — explicit tether endpoint topology;
@@ -24,12 +24,13 @@ The current development line through PR #32 includes:
 - PR #28 — explicit connection-compatibility bases and controlled runtime-verification design;
 - PR #29 — executable compatibility-basis runtime model, connector-spec resolution, manufacturer-assessment precedence, and the first bounded gated-connector/closed-interface verification family;
 - PR #30 — repeated container tether interfaces with explicit location, evidence-bound form, per-interface rating, and fail-closed cross-source reconciliation;
-- PR #31 — reusable `CandidateConfiguration` / `CandidateEvaluation` composition across attachment eligibility, load capacity, lanyard limits, both required connection evaluations, policy applicability, and pending runtime verification; and
-- PR #32 — normalized product/installation constraints, hard-vs-pre-use action semantics, same-feature installation binding across composition, constraint provenance retention, and product-namespaced constraint identifiers.
+- PR #31 — reusable `CandidateConfiguration` / `CandidateEvaluation` composition across attachment eligibility, load capacity, lanyard limits, both required connection evaluations, policy applicability, and pending runtime verification;
+- PR #32 — normalized product/installation constraints, hard-vs-pre-use action semantics, same-feature installation binding, constraint provenance retention, and product-namespaced constraint identifiers;
+- PR #33 — reusable candidate generation for direct and ToolAttachment paths, retaining explicit endpoint/feature/component identity and producing evaluator-ready `CandidateConfiguration`s without ranking or global exhaustion;
+- PR #34 — candidate-generation hardening: candidate-scoped policy context, load-bearing ToolAttachment assembly requirements, connector-spec identity validation, and collision-resistant canonical candidate IDs; and
+- PR #35 — deterministic candidate ranking and global selection over fully evaluated generated alternatives, with exact evaluation coverage, provenance retention, fail-closed viability separation, and a bounded `no_suitable_recommendation` conclusion.
 
 PR #16, the earlier NLG catalogue-generalization branch, was closed unmerged after its useful catalogue-discovery and scorer changes were carried forward through PR #19. Its older endpoint and attachment-method semantics should not be revived.
-
-PR #32 is the current open PR at the time of this update. Its scope is deliberately bounded: it does not add candidate generation, contextual ranking, global selection/exhaustion, broad new extraction vocabulary, or generic evaluation of every declared constraint.
 
 ## Important current capabilities
 
@@ -43,50 +44,83 @@ TetherLens can now:
 - keep topology, geometry, connector operation, manufacturer position, runtime verification, policy, and installation constraints as separate reasoning axes;
 - evaluate endpoint compatibility using explicit bases such as manufacturer declaration, validated geometry, validated interface class, or bounded runtime verification;
 - preserve `compatible`, `incompatible`, `requires_verification`, and `unresolved` rather than forcing binary fit decisions;
-- compose already-resolved primitives into one candidate evaluation without SKU-pair recommendation logic;
-- keep a blocked candidate distinct from a globally exhausted recommendation search;
-- return `recommended_with_constraints` when all hard checks pass but a validated runtime verification or pre-use action remains pending;
-- distinguish pending connection verification from non-connection pre-use obligations such as adhesive cure time or a required attachment test;
-- resolve supported product constraints into a normalized runtime form while leaving unsupported declared constraints outside the generic evaluator until their technical/manufacturer/policy meaning is explicit;
-- apply hard installation constraints such as required surface profile, required surface condition, prohibited removable parts, and maximum lanyard length;
-- bind feature-scoped installation constraints to the same eligible ToolAttachment feature used by the candidate, preventing facts from separate installation locations from being combined;
-- canonicalize equivalent numeric constraint evidence before coalescing it;
-- preserve primary and supporting manufacturer evidence URLs through resolution, runtime constraint evaluation, and final `CandidateCheck` output; and
-- namespace resolved constraint IDs by a stable source-product reference so constraints resolved separately for different catalogue products cannot collide when their local subject is `self`.
+- compose already-resolved primitives into one `CandidateEvaluation` without SKU-pair recommendation logic;
+- distinguish hard candidate failure from validated pending pre-use verification/action obligations;
+- resolve supported product constraints into normalized runtime form while leaving unsupported declared constraints outside the generic evaluator until their technical/manufacturer/policy meaning is explicit;
+- bind feature-scoped installation constraints to the same eligible ToolAttachment feature used by the candidate;
+- preserve primary/supporting manufacturer evidence URLs and source-product constraint identity through evaluation output;
+- generate direct and ToolAttachment candidate paths from reusable facts rather than manually curated tool/tether pairs;
+- preserve installation feature, tether endpoint side/role, selected component instance, source-product, anchor path, and attachment-assembly identity in each generated candidate;
+- support multi-component ToolAttachment assemblies without assuming one ToolAttachment SKU always equals one complete physical assembly;
+- evaluate every generated candidate independently, retaining blocked candidates for audit rather than allowing ranking to rescue them;
+- rank viable candidates deterministically without a global weighted score or hidden SKU/brand preferences;
+- prefer fully established recommendations over conditional ones, then lower pending-condition burden, lower physical-verification dependence, stronger connection evidence, and no review signal before using canonical candidate identity as the final tie-break;
+- retain the original generated candidate object through ranking so provenance is not reconstructed from product IDs; and
+- distinguish an empty generated set from a fully evaluated non-empty set in which every candidate is blocked.
 
-The source-product namespace is intentionally separate from evidence URLs. Callers of `resolve_product_constraints()` must provide a stable catalogue-product reference; the resolver does not manufacture product identity from whichever evidence URL happened to support a claim.
+## Candidate generation, evaluation, and selection state
 
-## Recommendation-composition state
+The executable recommendation core is now split into three deliberately separate layers.
 
-PR #31 established the first runtime composition layer. It accepts already-resolved primitives and checks:
+### Candidate generation
 
-1. ToolAttachment eligibility where applicable;
-2. load-bearing component capacity against operational object mass;
-3. legacy/runtime lanyard-length limits;
-4. normalized product constraints;
-5. tool-side connection compatibility;
-6. anchor/container-side connection compatibility; and
-7. site/configuration policy when explicitly applicable.
+`candidate_generation.py` constructs physical candidate paths and evaluator-ready configurations. It owns candidate identity and binding, but does not rank, select, or infer global exhaustion.
 
-PR #32 closes the main normalized installation-constraint gap in that composition layer. Hard failures or unresolved safety-critical facts block the candidate. Known pre-use obligations can remain `requires_action`, allowing a constrained recommendation without incorrectly claiming that a physical connection itself needs verification.
+### Candidate evaluation
 
-The composition layer still does **not** generate candidate assemblies. It evaluates one already-generated candidate at a time and must not emit a global "no suitable recommendation" merely because that one candidate is blocked.
+`recommendation.py` remains the sole hard-viability authority for one candidate. A candidate is viable for ranking only when `CandidateEvaluation.recommendation_state` is non-null. `recommended_with_constraints` remains viable when all hard checks pass but a validated runtime verification or pre-use action remains pending.
+
+Ranking must never reinterpret failed/unresolved checks, invent missing evidence, or rescue a blocked candidate.
+
+### Candidate ranking and global selection
+
+`candidate_selection.py` pairs each generated candidate with its evaluation, requires unique candidate IDs and exact generated/evaluated ID-set coverage, partitions blocked from viable candidates, ranks only viable alternatives, and selects rank 1.
+
+The baseline ordering is deliberately lexicographic rather than weighted:
+
+1. `recommended` before `recommended_with_constraints`;
+2. fewer total pending verification/pre-use conditions;
+3. for equal pending burden, fewer pending physical verifications;
+4. catalogue-established connection bases before runtime-verification dependence, and runtime verification before no basis;
+5. no review signal before `review_required`; and
+6. canonical `candidate_id` as the deterministic final tie-break.
+
+`manufacturer_declared`, `validated_geometry`, and `validated_interface_class` are intentionally not ordered against one another as stronger/weaker evidence. The current normalized evaluation output does not justify such a preference.
+
+The selector does not prefer direct paths over ToolAttachment paths, one brand over another, fewer components, greater capacity headroom, shorter tethers, or specific product families. Those would require explicit reusable context/preference semantics rather than accidental ordering.
+
+A selected result must contain the exact complete first ranked `EvaluatedCandidate`, not merely another object sharing its candidate ID.
+
+## Global `no suitable recommendation` boundary
+
+A blocked candidate is not a global recommendation outcome.
+
+The current selector may return `no_suitable_recommendation` only when:
+
+- the supplied generated candidate set is non-empty;
+- every generated candidate has exactly one corresponding evaluation;
+- no unexpected evaluation exists; and
+- every candidate in that complete supplied set is blocked by the existing evaluator.
+
+An empty generated set is represented separately as `no_generated_candidates` and must not be widened into a global no-suitable conclusion.
+
+One remaining architectural caveat is important: the selector can prove evaluation completeness for the generated set it receives, but it cannot itself prove that a caller supplied the generator's full output rather than a subset. The next orchestration layer should own that end-to-end completeness boundary.
 
 ## Compatibility and evidence principles currently in force
 
-The major architecture now implemented is:
+The major architecture remains:
 
 **Every required connection needs an acceptable compatibility basis, but complete engineering geometry is not a universal catalogue-completeness requirement.**
 
-Geometry remains valuable where it establishes hard impossibility, provides a reusable validated rule, or materially simplifies a bounded field-verification procedure. A type-name pair such as `carabiner + ring` is not itself proof of compatibility.
+Geometry is valuable where it establishes hard impossibility, provides a reusable validated rule, or materially simplifies a bounded field-verification procedure. A type-name pair such as `carabiner + ring` is not itself proof of compatibility.
 
-Likewise, manufacturer scope, technical fit, installation requirements, and site policy are not interchangeable. Category/application wording should not silently become a universal hard technical exclusion unless its semantics have been explicitly modeled that way.
+Manufacturer scope, technical fit, installation requirements, site policy, recommendation ranking, and evidence confidence are not interchangeable. Category/application wording should not silently become a universal hard technical exclusion unless its semantics have been explicitly modeled that way.
 
 Unknown form, ambiguous public evidence, source gaps, contradictory manufacturer evidence, and missing runtime facts should remain explicit rather than being converted into complete-looking recommendations.
 
 ## Latest benchmark state
 
-The current development line continues to preserve the benchmark state established through PR #30 and revalidated by PRs #31–#32:
+The current development line continues to preserve the ingestion/readiness benchmark state established through PR #30 and revalidated through PR #35:
 
 - Batch 1 live acquisition: **12/12 products**;
 - Batch 1 extraction: **54 TP / 0 FP / 0 FN**;
@@ -98,7 +132,7 @@ The current development line continues to preserve the benchmark state establish
 - fresh Batch 2 recommendation-data coverage: **44/44 requirements**, **8/8 products complete**; and
 - the immutable Batch 2 blind artifact remains unchanged as the historical pre-fix baseline.
 
-The immutable Batch 2 blind baseline is intentionally worse against the expanded contract because the contract now includes semantics added after the blind run. It is a historical control, not a current regression target.
+The catalogue benchmark remains a supply-side ingestion/recommendation-readiness benchmark. PRs #33-#35 add runtime candidate construction/evaluation/selection semantics and are covered primarily by unit tests; there is not yet a separate golden ranking benchmark.
 
 The four current Batch 2 evidence/semantic gaps remain:
 
@@ -113,31 +147,45 @@ These should remain explicit until acceptable evidence or a reusable semantic ru
 
 ## Next workstreams
 
-### 1. Candidate generation
+### 1. End-to-end recommendation-run orchestration
 
-The next highest-value slice after PR #32 is candidate generation over the primitives that are now executable.
+The next highest-value slice after PR #35 is a thin reusable orchestration boundary that owns one complete recommendation run:
 
-The generator should produce candidate paths rather than SKU-pair recommendations. At minimum it should support:
+```text
+complete candidate generation
+        ↓
+evaluate every generated candidate
+        ↓
+rank/select the complete evaluated set
+        ↓
+return selected / no-suitable / no-generated outcome
+```
 
-- direct tool-to-tether paths where a valid direct interface exists;
-- ToolAttachment paths with explicit binding to the selected eligible tool feature;
-- explicit tether endpoint side/role semantics;
-- attachment-provided tether interfaces;
-- anchor/container-side interfaces;
-- required load-bearing components; and
-- normalized product constraints attached to the correct source products.
+This layer should be intentionally boring. It should call the existing generator, evaluator, and selector rather than duplicate their rules.
 
-Each candidate should carry enough explicit identity/binding information that the existing evaluator can check it without looking back into raw claims or guessing which installation feature, endpoint, or product a constraint belongs to.
+Its main value is semantic completeness: because it owns the generator invocation and evaluates that exact full output before selection, a global `no_suitable_recommendation` can no longer depend on a caller convention that the supplied candidate list was complete.
 
-Multi-component ToolAttachment assemblies remain an expected future case. Candidate generation should therefore avoid baking in the assumption that one ToolAttachment SKU always equals one complete physical attachment assembly.
+The orchestration result should retain the generated set, evaluations, ranking/selection result, and selected candidate provenance sufficiently for later explanation and session fallback. It should not add contextual ranking, SKU-pair logic, new compatibility rules, or user-facing prose in the same slice.
 
-### 2. Contextual ranking and global selection/exhaustion
+### 2. Explicit contextual ranking inputs and reusable preference rules
 
-Ranking should follow candidate generation, not precede it. Once candidate construction is trustworthy, add contextual suitability, ranking, fallback, and global exhaustion semantics.
+After the end-to-end boundary is trustworthy, add context-driven suitability without weakening hard viability.
 
-Only the global selection layer should be allowed to conclude that no suitable recommendation exists, and only after all admissible candidate paths have been generated and evaluated.
+The first slice should establish the smallest reusable context/ranking-fact model before adding many preferences. A likely initial family is snag risk / usable tether length because it is explicitly part of the MVP scenarios, but only if the required candidate fact can be represented cleanly and compared without inventing missing measurements.
 
-### 3. Selective geometry and remaining evidence gaps
+Context rules must remain ranking preferences unless their semantics genuinely define a hard constraint. Missing context should not silently create a preference.
+
+### 3. Session verification/action resolution and deterministic fallback
+
+Once a selected candidate can be produced end-to-end, model what happens when its pending pre-use condition is resolved:
+
+- verification/action passes -> retain the selected configuration with the condition satisfied for the current session/configuration;
+- verification fails -> reject that candidate for the session and move deterministically to the next ranked viable alternative;
+- runtime observations remain session/configuration evidence and do not become universal SKU-pair catalogue claims.
+
+This should reuse the existing ranking order and candidate identity rather than regenerate an unrelated recommendation state.
+
+### 4. Selective geometry and remaining evidence gaps
 
 Continue geometry, measurement, document-join, and evidence work when it materially blocks recurring candidate paths or exposes a reusable evidence-model weakness.
 
@@ -153,12 +201,16 @@ Do not build a general CAD model and do not weaken evidence requirements merely 
 
 ## Working principles for the next phase
 
-- do not add SKU-specific extraction, compatibility, or recommendation branches to make one benchmark product pass;
-- inspect catalogue variation and manufacturer evidence before defining new normalized vocabularies or rules;
-- model primitive physical facts and relationships rather than app-specific recommendation labels;
-- preserve manufacturer wording and provenance per claim and through downstream evaluation outputs;
+- do not add SKU-specific extraction, compatibility, generation, ranking, or recommendation branches to make one product pass;
+- keep generation, hard evaluation, preference ranking, policy, and session verification responsibilities explicit;
+- do not add a second hard-viability calculation inside ranking or orchestration;
+- do not infer candidate evidence strength from source-count or URL-count heuristics;
+- preserve candidate identity and provenance through every downstream layer rather than reconstructing it;
+- require complete candidate/evaluation coverage before a global exhaustion conclusion;
+- distinguish `no_generated_candidates` from a fully evaluated non-empty exhausted set;
+- add contextual ranking only from explicit reusable context facts/rules;
+- preserve manufacturer wording and provenance per claim and through downstream outputs;
 - keep product identity separate from evidence provenance;
-- namespace identifiers that may coexist across separately resolved catalogue products;
 - require same-subject / same-feature binding where facts must belong to one physical feature;
 - distinguish source absence, acquisition failure, parser failure, semantic-vocabulary gaps, evidence-scope tension, public ambiguity, true claim conflict, `requires_verification`, pending pre-use action, and genuinely unresolved compatibility;
 - do not infer `compatible` from interface names alone;
@@ -166,15 +218,13 @@ Do not build a general CAD model and do not weaken evidence requirements merely 
 - let hard physical contradiction and authoritative manufacturer prohibition fail closed;
 - let inconclusive geometry remain inconclusive;
 - preserve explicit negative-use wording and do not invert it into capability;
-- reconcile repeated topology across accepted artifacts before materializing physical interfaces;
-- do not infer repeated interface counts from imagery;
 - preserve the original Batch 2 blind artifact and cohort unchanged; and
 - use fresh post-blind evaluation against that same cohort for regression checking.
 
 ## Suggested fresh-chat starting point
 
-After PR #32, start with **candidate generation**, not ranking.
+After PR #35, start with the **end-to-end recommendation-run completeness boundary**, not additional ranking heuristics.
 
 A concise handoff prompt is:
 
-> Continue TetherLens from `main` after PR #32. Inspect the resolved tool features, attachment eligibility, connection interfaces, connector specs, normalized product constraints, and `CandidateConfiguration` evaluator, then implement the smallest reusable candidate-generation layer for direct and ToolAttachment paths. Preserve explicit installation-feature binding, endpoint side/role semantics, source-product constraint identity, and multi-component attachment extensibility. Do not add contextual ranking or global `no suitable recommendation` logic until candidate construction itself is correct.
+> Continue TetherLens from merged `main` after PR #35. Inspect `candidate_generation.py`, `recommendation.py`, `candidate_selection.py`, the recommendation-engine/status docs, and current tests. Define the smallest reusable recommendation-run/orchestration model that owns complete candidate generation, evaluates every generated candidate exactly once, then passes that complete evaluated set into the existing deterministic selector. Preserve the existing generator/evaluator/selector as the sole authorities for their layers, retain candidate provenance, and make global `no_suitable_recommendation` safe by construction. Do not add contextual ranking, SKU-pair logic, or new compatibility semantics in the same slice.
