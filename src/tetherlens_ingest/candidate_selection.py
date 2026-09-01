@@ -95,8 +95,12 @@ class CandidateSelectionResult(BaseModel):
         if self.state == CandidateSelectionState.SELECTED:
             if self.selected is None or not self.ranked_viable_candidates:
                 raise ValueError("selected state requires a selected viable candidate")
-            if self.selected.candidate_id != self.ranked_viable_candidates[0].candidate_id:
-                raise ValueError("selected candidate must be the first ranked viable candidate")
+            if not self.selected.viable:
+                raise ValueError("selected candidate must be viable")
+            if self.selected != self.ranked_viable_candidates[0]:
+                raise ValueError(
+                    "selected candidate must equal the complete first ranked viable candidate"
+                )
             return self
 
         if self.selected is not None:
