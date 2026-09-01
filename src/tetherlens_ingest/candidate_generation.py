@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import math
 from collections import defaultdict
 from enum import StrEnum
@@ -157,6 +158,10 @@ class ToolAttachmentAssemblyOption(BaseModel):
             label="provided interface ids",
         )
         _require_unique_component_refs(self.components, scope=f"assembly {self.assembly_ref!r}")
+        if not any(component.load_bearing for component in self.components):
+            raise ValueError(
+                "ToolAttachment assemblies must contain at least one load-bearing component"
+            )
         return self
 
 
@@ -185,16 +190,25 @@ class TetherOption(BaseModel):
             raise ValueError(f"tether endpoints must use role tether_connection: {invalid!r}")
         if len({endpoint.interface_id for endpoint in self.endpoints}) != len(self.endpoints):
             raise ValueError("tether endpoint ids must be unique within one tether option")
+        mismatched_connector_specs = sorted(
+            key
+            for key, connector_spec in self.connector_specs.items()
+            if key != connector_spec.connector_spec_id
+        )
+        if mismatched_connector_specs:
+            raise ValueError(
+                "connector spec map keys must match the contained connector_spec_id: "
+                f"{mismatched_connector_specs!r}"
+            )
         return self
 
 
 class AnchorPathOption(BaseModel):
     """One anchor/container-side path exposed to tether endpoint generation.
 
-    Policy is scoped here rather than to the whole generator call because the current
-    policy axis that varies during generation is the selected anchorage/configuration
-    path. A person-anchoring path and a structural path can therefore carry different
-    policy results in the same candidate-generation pass.
+    Legacy anchor-scoped policy remains supported only when it maps to exactly one
+    generated candidate. Configuration-specific policy must use CandidatePolicyContext
+    so one tether/attachment selection cannot inherit another selection's result.
     """
 
     anchor_path_ref: str = Field(min_length=1)
@@ -278,6 +292,33 @@ class ConnectionEvaluationContext(BaseModel):
     manufacturer_assessments: list[ConnectionManufacturerAssessment] = Field(default_factory=list)
     derived_results: list[ConnectionRuleResult] = Field(default_factory=list)
     verification_observations: GatedConnectorClosedInterfaceVerification | None = None
+
+
+class CandidatePolicyContext(BaseModel):
+    """Policy result bound to one complete physical candidate selection."""
+
+    tool_ref: str = Field(min_length=1)
+    tether_ref: str = Field(min_length=1)
+    anchor_path_ref: str = Field(min_length=1)
+    attachment_assembly_ref: str | None = Field(default=None, min_length=1)
+    installation_feature_id: str | None = Field(default=None, min_length=1)
+    tool_endpoint_id: str = Field(min_length=1)
+    tool_target_interface_id: str = Field(min_length=1)
+    anchor_endpoint_id: str = Field(min_length=1)
+    anchor_target_interface_id: str = Field(min_length=1)
+    policy_applicability: PolicyApplicability
+    policy_status: PolicyStatus | None = None
+
+    @model_validator(mode="after")
+    def validate_policy(self) -> CandidatePolicyContext:
+        if (
+            self.policy_applicability == PolicyApplicability.NOT_APPLICABLE
+            and self.policy_status is not None
+        ):
+            raise ValueError(
+                "policy-not-applicable candidate contexts must not supply a policy evaluation"
+            )
+        return self
 
 
 class CandidateSelectedComponent(BaseModel):
@@ -389,6 +430,7 @@ def generate_candidate_configurations(
     tool_attachment_assemblies: list[ToolAttachmentAssemblyOption] | None = None,
     product_runtime_state: list[ProductConstraintRuntimeState] | None = None,
     connection_contexts: list[ConnectionEvaluationContext] | None = None,
+    policy_contexts: list[CandidatePolicyContext] | None = None,
 ) -> list[GeneratedCandidate]:
     """Generate explicit direct and ToolAttachment candidate paths.
 
@@ -404,11 +446,23 @@ def generate_candidate_configurations(
 
     Multiple eligibility paths proving the same concrete feature are retained as audit
     proofs on one physical candidate rather than multiplying candidate identities.
+
+    When ``policy_contexts`` is supplied, every generated candidate must have exactly one
+    complete-selection policy context, including explicit ``not_applicable`` results.
+    Legacy anchor-scoped applicable policy is accepted only when the anchor produces one
+    candidate, preventing a policy result from being broadcast across product choices.
     """
 
     attachment_assemblies = list(tool_attachment_assemblies or [])
     runtime_state = _product_runtime_state_map(product_runtime_state or [])
     connection_context_map = _connection_context_map(connection_contexts or [])
+    policy_context_map = (
+        _candidate_policy_context_map(policy_contexts)
+        if policy_contexts is not None
+        else None
+    )
+    used_policy_context_keys: set[tuple[str | None, ...]] = set()
+    legacy_policy_anchor_refs: set[str] = set()
     feature_by_id = {feature.feature_id: feature for feature in tool.features}
 
     _require_unique_option_refs(
@@ -557,6 +611,29 @@ def generate_candidate_configurations(
                             anchor_target_interface_id=anchor_target.interface_id,
                             components=selected_components,
                         )
+                        if policy_context_map is None:
+                            if anchor_path.policy_applicability == PolicyApplicability.APPLICABLE:
+                                if anchor_path.anchor_path_ref in legacy_policy_anchor_refs:
+                                    raise ValueError(
+                                        "anchor-scoped applicable policy cannot be broadcast across "
+                                        "multiple generated candidates; supply CandidatePolicyContext "
+                                        "values for the complete candidate selections"
+                                    )
+                                legacy_policy_anchor_refs.add(anchor_path.anchor_path_ref)
+                            policy_applicability = anchor_path.policy_applicability
+                            policy_status = anchor_path.policy_status
+                        else:
+                            policy_key = _candidate_policy_key(selection)
+                            policy_context = policy_context_map.get(policy_key)
+                            if policy_context is None:
+                                raise ValueError(
+                                    "candidate policy contexts must cover every generated candidate; "
+                                    f"missing context for {policy_key!r}"
+                                )
+                            used_policy_context_keys.add(policy_key)
+                            policy_applicability = policy_context.policy_applicability
+                            policy_status = policy_context.policy_status
+
                         candidate_id = _candidate_id(selection)
                         configuration = CandidateConfiguration(
                             candidate_id=candidate_id,
@@ -572,8 +649,8 @@ def generate_candidate_configurations(
                             attachment_eligibility=tool_target.eligibility,
                             tool_side_connection=tool_connection,
                             anchor_side_connection=anchor_connection,
-                            policy_applicability=anchor_path.policy_applicability,
-                            policy_status=anchor_path.policy_status,
+                            policy_applicability=policy_applicability,
+                            policy_status=policy_status,
                         )
                         generated.append(
                             GeneratedCandidate(
@@ -581,6 +658,14 @@ def generate_candidate_configurations(
                                 configuration=configuration,
                             )
                         )
+
+    if policy_context_map is not None:
+        unused_policy_contexts = set(policy_context_map) - used_policy_context_keys
+        if unused_policy_contexts:
+            raise ValueError(
+                "candidate policy contexts must match generated candidates; unused contexts: "
+                f"{sorted(repr(key) for key in unused_policy_contexts)!r}"
+            )
 
     return generated
 
@@ -722,6 +807,51 @@ def _connection_context_map(
     return mapped
 
 
+def _candidate_policy_context_map(
+    contexts: list[CandidatePolicyContext],
+) -> dict[tuple[str | None, ...], CandidatePolicyContext]:
+    mapped: dict[tuple[str | None, ...], CandidatePolicyContext] = {}
+    for context in contexts:
+        key = _candidate_policy_context_key(context)
+        if key in mapped:
+            raise ValueError(
+                "candidate policy context must be unique per complete candidate selection: "
+                f"{key!r}"
+            )
+        mapped[key] = context
+    return mapped
+
+
+def _candidate_policy_context_key(
+    context: CandidatePolicyContext,
+) -> tuple[str | None, ...]:
+    return (
+        context.tool_ref,
+        context.tether_ref,
+        context.anchor_path_ref,
+        context.attachment_assembly_ref,
+        context.installation_feature_id,
+        context.tool_endpoint_id,
+        context.tool_target_interface_id,
+        context.anchor_endpoint_id,
+        context.anchor_target_interface_id,
+    )
+
+
+def _candidate_policy_key(selection: CandidatePathSelection) -> tuple[str | None, ...]:
+    return (
+        selection.tool_ref,
+        selection.tether_ref,
+        selection.anchor_path_ref,
+        selection.attachment_assembly_ref,
+        selection.installation_feature_id,
+        selection.tool_endpoint_id,
+        selection.tool_target_interface_id,
+        selection.anchor_endpoint_id,
+        selection.anchor_target_interface_id,
+    )
+
+
 def _selected_components(
     attachment_components: list[CandidateComponentOption],
     tether_component: CandidateComponentOption,
@@ -769,22 +899,26 @@ def _load_bearing_components(
 
 
 def _candidate_id(selection: CandidatePathSelection) -> str:
-    attachment = selection.attachment_assembly_ref or "direct"
-    feature = selection.installation_feature_id or "none"
-    component_refs = ",".join(component.component_ref for component in selection.components)
-    parts = [
-        f"tool={selection.tool_ref}",
-        f"attachment={attachment}",
-        f"feature={feature}",
-        f"tether={selection.tether_ref}",
-        f"tool_endpoint={selection.tool_endpoint_id}",
-        f"tool_target={selection.tool_target_interface_id}",
-        f"anchor_path={selection.anchor_path_ref}",
-        f"anchor_endpoint={selection.anchor_endpoint_id}",
-        f"anchor_target={selection.anchor_target_interface_id}",
-        f"components={component_refs}",
-    ]
-    return "candidate|" + "|".join(parts)
+    identity = {
+        "tool_ref": selection.tool_ref,
+        "attachment_assembly_ref": selection.attachment_assembly_ref,
+        "installation_feature_id": selection.installation_feature_id,
+        "tether_ref": selection.tether_ref,
+        "tool_endpoint_id": selection.tool_endpoint_id,
+        "tool_target_interface_id": selection.tool_target_interface_id,
+        "anchor_path_ref": selection.anchor_path_ref,
+        "anchor_endpoint_id": selection.anchor_endpoint_id,
+        "anchor_target_interface_id": selection.anchor_target_interface_id,
+        "component_refs": [
+            component.component_ref for component in selection.components
+        ],
+    }
+    return "candidate:" + json.dumps(
+        identity,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
 
 
 def _require_unique_component_refs(
