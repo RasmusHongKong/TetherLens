@@ -92,6 +92,10 @@ class ProductConstraintEvaluation(BaseModel):
     reason: str
     subject_refs: list[str] = Field(default_factory=list)
     source_urls: list[str] = Field(default_factory=list)
+    # ``constraint_id`` remains the canonical catalogue/OEM constraint identity.
+    # Composition may additionally bind the evaluation to one physical component
+    # instance so repeated instances of the same source product remain distinguishable.
+    component_ref: str | None = Field(default=None, min_length=1)
     # Explicit composition binding for feature-local installation constraints. This is
     # intentionally separate from generic subject refs so recommendation composition
     # need not understand raw constraint keys to preserve same-feature semantics.
