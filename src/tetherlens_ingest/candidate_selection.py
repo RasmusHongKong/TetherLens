@@ -57,6 +57,41 @@ class CandidateSelectionResult(BaseModel):
 
     @model_validator(mode="after")
     def validate_state(self) -> CandidateSelectionResult:
+        ranked_ids = [candidate.candidate_id for candidate in self.ranked_viable_candidates]
+        blocked_ids = [candidate.candidate_id for candidate in self.blocked_candidates]
+
+        if len(set(ranked_ids)) != len(ranked_ids):
+            raise ValueError("ranked viable candidate ids must be unique")
+        if len(set(blocked_ids)) != len(blocked_ids):
+            raise ValueError("blocked candidate ids must be unique")
+        overlap = sorted(set(ranked_ids) & set(blocked_ids))
+        if overlap:
+            raise ValueError(
+                "candidate cannot appear in both viable and blocked partitions: "
+                f"{overlap!r}"
+            )
+
+        incorrectly_ranked = [
+            candidate.candidate_id
+            for candidate in self.ranked_viable_candidates
+            if not candidate.viable
+        ]
+        if incorrectly_ranked:
+            raise ValueError(
+                "ranked viable candidates must have a non-null recommendation state: "
+                f"{incorrectly_ranked!r}"
+            )
+        incorrectly_blocked = [
+            candidate.candidate_id
+            for candidate in self.blocked_candidates
+            if candidate.viable
+        ]
+        if incorrectly_blocked:
+            raise ValueError(
+                "blocked candidates must have a null recommendation state: "
+                f"{incorrectly_blocked!r}"
+            )
+
         if self.state == CandidateSelectionState.SELECTED:
             if self.selected is None or not self.ranked_viable_candidates:
                 raise ValueError("selected state requires a selected viable candidate")
