@@ -2,13 +2,13 @@
 
 _Last updated: 2026-09-01_
 
-This document is the short operational handoff for the current TetherLens ingestion, compatibility, candidate-composition, generation, and selection work. It records what has landed, what remains intentionally unresolved, and which workstreams should be tackled next.
+This document is the short operational handoff for the current TetherLens ingestion, compatibility, candidate-composition, generation, selection, and recommendation-run work. It records what has landed, what remains intentionally unresolved, and which workstreams should be tackled next.
 
-For durable design principles, use the dedicated documents such as `product-vision.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `connection-compatibility.md`, `tool-attachment-compatibility.md`, `tool-anatomy-selection-semantics.md`, `container-interface-topology.md`, `candidate-ranking-selection.md`, `benchmark-goals.md`, and `ingestion-benchmark.md`. This file should not replace those documents or freeze semantic decisions before the evidence has been inspected.
+For durable design principles, use the dedicated documents such as `product-vision.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `connection-compatibility.md`, `tool-attachment-compatibility.md`, `tool-anatomy-selection-semantics.md`, `container-interface-topology.md`, `candidate-ranking-selection.md`, `recommendation-run.md`, `benchmark-goals.md`, and `ingestion-benchmark.md`. This file should not replace those documents or freeze semantic decisions before the evidence has been inspected.
 
 ## Current development line
 
-The current development line through PR #35 includes:
+The current development line through PR #36 includes:
 
 - PR #17 — Batch 2 blind NLG holdout and post-blind evaluation path;
 - PR #18 — explicit tether endpoint topology;
@@ -27,8 +27,9 @@ The current development line through PR #35 includes:
 - PR #31 — reusable `CandidateConfiguration` / `CandidateEvaluation` composition across attachment eligibility, load capacity, lanyard limits, both required connection evaluations, policy applicability, and pending runtime verification;
 - PR #32 — normalized product/installation constraints, hard-vs-pre-use action semantics, same-feature installation binding, constraint provenance retention, and product-namespaced constraint identifiers;
 - PR #33 — reusable candidate generation for direct and ToolAttachment paths, retaining explicit endpoint/feature/component identity and producing evaluator-ready `CandidateConfiguration`s without ranking or global exhaustion;
-- PR #34 — candidate-generation hardening: candidate-scoped policy context, load-bearing ToolAttachment assembly requirements, connector-spec identity validation, and collision-resistant canonical candidate IDs; and
-- PR #35 — deterministic candidate ranking and global selection over fully evaluated generated alternatives, with exact evaluation coverage, provenance retention, fail-closed viability separation, and a bounded `no_suitable_recommendation` conclusion.
+- PR #34 — candidate-generation hardening: candidate-scoped policy context, load-bearing ToolAttachment assembly requirements, connector-spec identity validation, and collision-resistant canonical candidate IDs;
+- PR #35 — deterministic candidate ranking and global selection over fully evaluated generated alternatives, with exact evaluation coverage, provenance retention, fail-closed viability separation, and a bounded `no_suitable_recommendation` conclusion; and
+- PR #36 — thin end-to-end recommendation-run orchestration that owns complete generation, evaluates every generated candidate exactly once, passes that exact complete set to the existing selector, retains all stage outputs, and makes global exhaustion safe by construction.
 
 PR #16, the earlier NLG catalogue-generalization branch, was closed unmerged after its useful catalogue-discovery and scorer changes were carried forward through PR #19. Its older endpoint and attachment-method semantics should not be revived.
 
@@ -55,12 +56,13 @@ TetherLens can now:
 - evaluate every generated candidate independently, retaining blocked candidates for audit rather than allowing ranking to rescue them;
 - rank viable candidates deterministically without a global weighted score or hidden SKU/brand preferences;
 - prefer fully established recommendations over conditional ones, then lower pending-condition burden, lower physical-verification dependence, stronger connection evidence, and no review signal before using canonical candidate identity as the final tie-break;
-- retain the original generated candidate object through ranking so provenance is not reconstructed from product IDs; and
-- distinguish an empty generated set from a fully evaluated non-empty set in which every candidate is blocked.
+- retain the original generated candidate object through ranking so provenance is not reconstructed from product IDs;
+- distinguish an empty generated set from a fully evaluated non-empty set in which every candidate is blocked; and
+- execute one complete recommendation run from normalized generation inputs through evaluation and deterministic selection while retaining the full generated set, evaluation set, and selection result.
 
-## Candidate generation, evaluation, and selection state
+## Candidate generation, evaluation, selection, and run state
 
-The executable recommendation core is now split into three deliberately separate layers.
+The executable recommendation core is now split into four deliberately narrow layers.
 
 ### Candidate generation
 
@@ -70,7 +72,7 @@ The executable recommendation core is now split into three deliberately separate
 
 `recommendation.py` remains the sole hard-viability authority for one candidate. A candidate is viable for ranking only when `CandidateEvaluation.recommendation_state` is non-null. `recommended_with_constraints` remains viable when all hard checks pass but a validated runtime verification or pre-use action remains pending.
 
-Ranking must never reinterpret failed/unresolved checks, invent missing evidence, or rescue a blocked candidate.
+Ranking and orchestration must never reinterpret failed/unresolved checks, invent missing evidence, or rescue a blocked candidate.
 
 ### Candidate ranking and global selection
 
@@ -91,11 +93,27 @@ The selector does not prefer direct paths over ToolAttachment paths, one brand o
 
 A selected result must contain the exact complete first ranked `EvaluatedCandidate`, not merely another object sharing its candidate ID.
 
+### Recommendation-run orchestration
+
+`recommendation_run.py` owns one complete generation -> evaluation -> selection execution.
+
+It invokes the generator once, retains that full returned list, evaluates each generated `CandidateConfiguration` exactly once, and passes that exact generated list plus the complete evaluation list to `rank_and_select_candidates()`.
+
+`RecommendationRunResult` retains:
+
+- every `GeneratedCandidate`;
+- every corresponding `CandidateEvaluation`; and
+- the existing `CandidateSelectionResult`.
+
+The run layer intentionally adds no second candidate model, hard-viability calculation, ranking algorithm, or outcome-state enum.
+
+Failures from generation, evaluation, or selection propagate. An orchestration/invariant failure must not be converted into `no_suitable_recommendation`.
+
 ## Global `no suitable recommendation` boundary
 
 A blocked candidate is not a global recommendation outcome.
 
-The current selector may return `no_suitable_recommendation` only when:
+The selector itself may return `no_suitable_recommendation` only when:
 
 - the supplied generated candidate set is non-empty;
 - every generated candidate has exactly one corresponding evaluation;
@@ -104,7 +122,9 @@ The current selector may return `no_suitable_recommendation` only when:
 
 An empty generated set is represented separately as `no_generated_candidates` and must not be widened into a global no-suitable conclusion.
 
-One remaining architectural caveat is important: the selector can prove evaluation completeness for the generated set it receives, but it cannot itself prove that a caller supplied the generator's full output rather than a subset. The next orchestration layer should own that end-to-end completeness boundary.
+PR #36 closes the remaining system-level completeness caveat for normal end-to-end use. `run_recommendation()` owns the generator invocation and therefore passes the selector the generator's actual complete returned set rather than relying on an external caller to supply all alternatives.
+
+The standalone selector remains reusable, so its narrower guarantee still matters when called directly: exact coverage proves completeness for the supplied set, not that an arbitrary caller supplied every alternative the generator could have produced.
 
 ## Compatibility and evidence principles currently in force
 
@@ -120,7 +140,7 @@ Unknown form, ambiguous public evidence, source gaps, contradictory manufacturer
 
 ## Latest benchmark state
 
-The current development line continues to preserve the ingestion/readiness benchmark state established through PR #30 and revalidated through PR #35:
+The current ingestion/readiness benchmark state was established through PR #30 and revalidated through PR #35. PR #36 changes recommendation-run composition only and does not change ingestion/extraction behavior:
 
 - Batch 1 live acquisition: **12/12 products**;
 - Batch 1 extraction: **54 TP / 0 FP / 0 FN**;
@@ -132,7 +152,7 @@ The current development line continues to preserve the ingestion/readiness bench
 - fresh Batch 2 recommendation-data coverage: **44/44 requirements**, **8/8 products complete**; and
 - the immutable Batch 2 blind artifact remains unchanged as the historical pre-fix baseline.
 
-The catalogue benchmark remains a supply-side ingestion/recommendation-readiness benchmark. PRs #33-#35 add runtime candidate construction/evaluation/selection semantics and are covered primarily by unit tests; there is not yet a separate golden ranking benchmark.
+The catalogue benchmark remains a supply-side ingestion/recommendation-readiness benchmark. PRs #33-#36 add runtime candidate construction/evaluation/selection/orchestration semantics and are covered primarily by focused unit tests; there is not yet a separate golden ranking or recommendation-run benchmark.
 
 The four current Batch 2 evidence/semantic gaps remain:
 
@@ -147,45 +167,27 @@ These should remain explicit until acceptable evidence or a reusable semantic ru
 
 ## Next workstreams
 
-### 1. End-to-end recommendation-run orchestration
+### 1. Explicit contextual ranking inputs and reusable preference rules
 
-The next highest-value slice after PR #35 is a thin reusable orchestration boundary that owns one complete recommendation run:
-
-```text
-complete candidate generation
-        ↓
-evaluate every generated candidate
-        ↓
-rank/select the complete evaluated set
-        ↓
-return selected / no-suitable / no-generated outcome
-```
-
-This layer should be intentionally boring. It should call the existing generator, evaluator, and selector rather than duplicate their rules.
-
-Its main value is semantic completeness: because it owns the generator invocation and evaluates that exact full output before selection, a global `no_suitable_recommendation` can no longer depend on a caller convention that the supplied candidate list was complete.
-
-The orchestration result should retain the generated set, evaluations, ranking/selection result, and selected candidate provenance sufficiently for later explanation and session fallback. It should not add contextual ranking, SKU-pair logic, new compatibility rules, or user-facing prose in the same slice.
-
-### 2. Explicit contextual ranking inputs and reusable preference rules
-
-After the end-to-end boundary is trustworthy, add context-driven suitability without weakening hard viability.
+With the complete end-to-end recommendation-run boundary in place, the next highest-value recommendation slice is context-driven suitability without weakening hard viability.
 
 The first slice should establish the smallest reusable context/ranking-fact model before adding many preferences. A likely initial family is snag risk / usable tether length because it is explicitly part of the MVP scenarios, but only if the required candidate fact can be represented cleanly and compared without inventing missing measurements.
 
 Context rules must remain ranking preferences unless their semantics genuinely define a hard constraint. Missing context should not silently create a preference.
 
-### 3. Session verification/action resolution and deterministic fallback
+Contextual ordering should build on the complete run/evaluated candidate set and retain the current deterministic baseline ordering as a fallback when contextual rules do not distinguish candidates.
 
-Once a selected candidate can be produced end-to-end, model what happens when its pending pre-use condition is resolved:
+### 2. Session verification/action resolution and deterministic fallback
+
+Once a selected candidate can be produced end to end, model what happens when its pending pre-use condition is resolved:
 
 - verification/action passes -> retain the selected configuration with the condition satisfied for the current session/configuration;
 - verification fails -> reject that candidate for the session and move deterministically to the next ranked viable alternative;
 - runtime observations remain session/configuration evidence and do not become universal SKU-pair catalogue claims.
 
-This should reuse the existing ranking order and candidate identity rather than regenerate an unrelated recommendation state.
+This should reuse the existing run result, ranking order, and candidate identity rather than regenerate an unrelated recommendation state.
 
-### 4. Selective geometry and remaining evidence gaps
+### 3. Selective geometry and remaining evidence gaps
 
 Continue geometry, measurement, document-join, and evidence work when it materially blocks recurring candidate paths or exposes a reusable evidence-model weakness.
 
@@ -201,13 +203,14 @@ Do not build a general CAD model and do not weaken evidence requirements merely 
 
 ## Working principles for the next phase
 
-- do not add SKU-specific extraction, compatibility, generation, ranking, or recommendation branches to make one product pass;
-- keep generation, hard evaluation, preference ranking, policy, and session verification responsibilities explicit;
+- do not add SKU-specific extraction, compatibility, generation, ranking, orchestration, or recommendation branches to make one product pass;
+- keep generation, hard evaluation, preference ranking, policy, orchestration, and session verification responsibilities explicit;
 - do not add a second hard-viability calculation inside ranking or orchestration;
+- use the recommendation-run boundary for system-level global exhaustion rather than passing hand-selected candidate subsets to the selector;
 - do not infer candidate evidence strength from source-count or URL-count heuristics;
 - preserve candidate identity and provenance through every downstream layer rather than reconstructing it;
 - require complete candidate/evaluation coverage before a global exhaustion conclusion;
-- distinguish `no_generated_candidates` from a fully evaluated non-empty exhausted set;
+- distinguish `no_generated_candidates` from a fully evaluated non-empty exhausted set and from an orchestration failure;
 - add contextual ranking only from explicit reusable context facts/rules;
 - preserve manufacturer wording and provenance per claim and through downstream outputs;
 - keep product identity separate from evidence provenance;
@@ -223,8 +226,8 @@ Do not build a general CAD model and do not weaken evidence requirements merely 
 
 ## Suggested fresh-chat starting point
 
-After PR #35, start with the **end-to-end recommendation-run completeness boundary**, not additional ranking heuristics.
+After PR #36, start with the **smallest explicit contextual ranking model**, not more orchestration plumbing.
 
 A concise handoff prompt is:
 
-> Continue TetherLens from merged `main` after PR #35. Inspect `candidate_generation.py`, `recommendation.py`, `candidate_selection.py`, the recommendation-engine/status docs, and current tests. Define the smallest reusable recommendation-run/orchestration model that owns complete candidate generation, evaluates every generated candidate exactly once, then passes that complete evaluated set into the existing deterministic selector. Preserve the existing generator/evaluator/selector as the sole authorities for their layers, retain candidate provenance, and make global `no_suitable_recommendation` safe by construction. Do not add contextual ranking, SKU-pair logic, or new compatibility semantics in the same slice.
+> Continue TetherLens from merged `main` after PR #36. Inspect `recommendation_run.py`, `candidate_selection.py`, generated candidate facts, recommendation-engine/status docs, MVP scenario expectations, and current tests. Define the smallest reusable context/ranking-fact model that can change the ordering of already-viable candidates without weakening hard constraints or inventing missing measurements. Start with one high-value contextual family only if its facts are representable cleanly—likely snag risk / usable tether length—and preserve the existing deterministic baseline ordering when context is absent or does not distinguish candidates. Do not add session fallback, SKU-pair preferences, or new compatibility semantics in the same slice.
