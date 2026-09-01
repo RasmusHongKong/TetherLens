@@ -30,4 +30,4 @@ def test_candidate_identity_changes_when_selected_component_instance_changes():
     second = selection("component:attachment-b")
 
     assert _candidate_id(first) != _candidate_id(second)
-    assert "components=component:attachment-a" in _candidate_id(first)
+    assert '"component_refs":["component:attachment-a"]' in _candidate_id(first)
