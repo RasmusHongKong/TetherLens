@@ -170,7 +170,13 @@ class TetherOption(BaseModel):
     component: CandidateComponentOption
     endpoints: list[ConnectionInterface] = Field(min_length=2)
     connector_specs: dict[str, ConnectorSpec] = Field(default_factory=dict)
+    min_length_mm: float | None = None
     max_length_mm: float | None = None
+
+    @field_validator("min_length_mm", mode="before")
+    @classmethod
+    def validate_min_length(cls, value: Any) -> Any:
+        return _positive_finite_or_none(value, field_name="min_length_mm")
 
     @field_validator("max_length_mm", mode="before")
     @classmethod
@@ -181,6 +187,12 @@ class TetherOption(BaseModel):
     def validate_tether(self) -> TetherOption:
         if not self.component.load_bearing:
             raise ValueError("the tether component must participate in the load-bearing path")
+        if (
+            self.min_length_mm is not None
+            and self.max_length_mm is not None
+            and self.min_length_mm > self.max_length_mm
+        ):
+            raise ValueError("tether min_length_mm must be <= max_length_mm")
         invalid = [
             endpoint.interface_id
             for endpoint in self.endpoints
@@ -366,11 +378,23 @@ class CandidatePathSelection(BaseModel):
         return self
 
 
+class CandidateRankingFacts(BaseModel):
+    """Optional low-level facts used only to compare already-viable candidates."""
+
+    tether_min_length_mm: float | None = None
+
+    @field_validator("tether_min_length_mm", mode="before")
+    @classmethod
+    def validate_tether_min_length(cls, value: Any) -> Any:
+        return _positive_finite_or_none(value, field_name="tether_min_length_mm")
+
+
 class GeneratedCandidate(BaseModel):
-    """A generated path plus the existing evaluator-ready configuration."""
+    """A generated path plus its evaluator-ready configuration and ranking-only facts."""
 
     selection: CandidatePathSelection
     configuration: CandidateConfiguration
+    ranking_facts: CandidateRankingFacts = Field(default_factory=CandidateRankingFacts)
 
     @model_validator(mode="after")
     def validate_selection_matches_configuration(self) -> GeneratedCandidate:
@@ -656,6 +680,9 @@ def generate_candidate_configurations(
                             GeneratedCandidate(
                                 selection=selection,
                                 configuration=configuration,
+                                ranking_facts=CandidateRankingFacts(
+                                    tether_min_length_mm=tether.min_length_mm,
+                                ),
                             )
                         )
 
