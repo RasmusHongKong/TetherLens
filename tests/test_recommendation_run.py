@@ -15,7 +15,7 @@ from tetherlens_ingest.connection import (
     TetherSide,
 )
 from tetherlens_ingest.recommendation import RecommendationState
-from tetherlens_ingest.recommendation_run import run_recommendation
+from tetherlens_ingest.recommendation_run import RecommendationRunResult, run_recommendation
 
 
 def direct_ring() -> ConnectionInterface:
@@ -122,6 +122,21 @@ def test_run_recommendation_retains_complete_set_and_selects_real_viable_candida
     )
     assert len(result.selection.ranked_viable_candidates) == 1
     assert len(result.selection.blocked_candidates) == 1
+
+
+def test_recommendation_run_result_rejects_incomplete_evaluation_coverage():
+    result = run_recommendation(
+        tool(),
+        [tether_option("viable", capacity_kg=5.0)],
+        [anchor_path()],
+    )
+
+    with pytest.raises(ValueError, match="exact evaluation coverage"):
+        RecommendationRunResult(
+            generated_candidates=result.generated_candidates,
+            evaluations=[],
+            selection=result.selection,
+        )
 
 
 def test_run_recommendation_can_conclude_global_exhaustion_only_after_complete_evaluation():
