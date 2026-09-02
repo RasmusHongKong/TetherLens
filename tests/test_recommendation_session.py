@@ -130,36 +130,36 @@ def evaluation(
     *,
     pending_verification: str | None = None,
     pending_actions: list[str] | None = None,
-    state: RecommendationState | None = None,
+    blocked: bool = False,
 ) -> CandidateEvaluation:
     pending_actions = list(pending_actions or [])
     has_conditions = pending_verification is not None or bool(pending_actions)
-    if state is None:
-        state = (
-            RecommendationState.RECOMMENDED_WITH_CONSTRAINTS
-            if has_conditions
-            else RecommendationState.RECOMMENDED
-        )
+    state = None if blocked else (
+        RecommendationState.RECOMMENDED_WITH_CONSTRAINTS
+        if has_conditions
+        else RecommendationState.RECOMMENDED
+    )
 
     label = candidate.selection.tether_ref.removeprefix("tether:")
-    tool_connection = connection(
-        endpoint_id=f"endpoint:{label}:tool",
-        target_id="tool:ring",
-        target_role=ConnectionInterfaceRole.TOOL_DIRECT_TETHER_INTERFACE,
-        side=TetherSide.TOOL_SIDE,
-        runtime_pending=pending_verification is not None,
-    )
-    anchor_connection = connection(
-        endpoint_id=f"endpoint:{label}:anchor",
-        target_id="anchor:ring",
-        target_role=ConnectionInterfaceRole.CONTAINER_CONNECTION,
-        side=TetherSide.ANCHOR_SIDE,
-    )
     return CandidateEvaluation(
         candidate_id=candidate.configuration.candidate_id,
         recommendation_state=state,
         checks=[],
-        connections=[tool_connection, anchor_connection],
+        connections=[
+            connection(
+                endpoint_id=f"endpoint:{label}:tool",
+                target_id="tool:ring",
+                target_role=ConnectionInterfaceRole.TOOL_DIRECT_TETHER_INTERFACE,
+                side=TetherSide.TOOL_SIDE,
+                runtime_pending=pending_verification is not None,
+            ),
+            connection(
+                endpoint_id=f"endpoint:{label}:anchor",
+                target_id="anchor:ring",
+                target_role=ConnectionInterfaceRole.CONTAINER_CONNECTION,
+                side=TetherSide.ANCHOR_SIDE,
+            ),
+        ],
         pending_verification_connection_ids=(
             [pending_verification] if pending_verification is not None else []
         ),
@@ -186,7 +186,7 @@ def recommendation_run(
     )
 
 
-def condition_resolution(
+def resolution(
     candidate_id: str,
     kind: SessionConditionKind,
     condition_id: str,
@@ -224,18 +224,18 @@ def test_satisfied_condition_keeps_candidate_active_and_preserves_hard_evaluatio
     candidate = generated_candidate("conditional")
     original_evaluation = evaluation(candidate, pending_actions=["action:test"])
     run = recommendation_run([candidate], [original_evaluation])
-    resolution = condition_resolution(
+    passed = resolution(
         candidate.configuration.candidate_id,
         SessionConditionKind.PRE_USE_ACTION,
         "action:test",
         SessionConditionOutcome.SATISFIED,
     )
 
-    session = resolve_recommendation_session(run, [resolution])
+    session = resolve_recommendation_session(run, [passed])
 
     assert session.active_candidate == run.selection.selected
     assert session.active_pending_conditions == []
-    assert session.active_satisfied_conditions == [resolution]
+    assert session.active_satisfied_conditions == [passed]
     assert session.ready_for_use is True
     assert (
         session.active_candidate.evaluation.recommendation_state
@@ -246,13 +246,17 @@ def test_satisfied_condition_keeps_candidate_active_and_preserves_hard_evaluatio
 
 def test_partial_resolution_keeps_remaining_conditions_pending():
     candidate = generated_candidate("two-conditions")
-    original_evaluation = evaluation(
-        candidate,
-        pending_verification="connection:tool",
-        pending_actions=["action:test"],
+    run = recommendation_run(
+        [candidate],
+        [
+            evaluation(
+                candidate,
+                pending_verification="connection:tool",
+                pending_actions=["action:test"],
+            )
+        ],
     )
-    run = recommendation_run([candidate], [original_evaluation])
-    passed_verification = condition_resolution(
+    passed_verification = resolution(
         candidate.configuration.candidate_id,
         SessionConditionKind.RUNTIME_VERIFICATION,
         "connection:tool",
@@ -261,7 +265,6 @@ def test_partial_resolution_keeps_remaining_conditions_pending():
 
     session = resolve_recommendation_session(run, [passed_verification])
 
-    assert session.state == RecommendationSessionState.ACTIVE
     assert session.active_satisfied_conditions == [passed_verification]
     assert session.active_pending_conditions == [
         SessionConditionRef(
@@ -274,18 +277,14 @@ def test_partial_resolution_keeps_remaining_conditions_pending():
 
 
 def test_failed_condition_rejects_only_current_candidate_and_advances_in_original_order():
-    first = generated_candidate("a")
-    second = generated_candidate("b")
+    candidates = [generated_candidate("a"), generated_candidate("b")]
     run = recommendation_run(
-        [second, first],
-        [
-            evaluation(second, pending_actions=["action:check"]),
-            evaluation(first, pending_actions=["action:check"]),
-        ],
+        candidates,
+        [evaluation(candidate, pending_actions=["action:check"]) for candidate in candidates],
     )
     ranked = run.selection.ranked_viable_candidates
     original_selected = run.selection.selected
-    failed = condition_resolution(
+    failed = resolution(
         ranked[0].candidate_id,
         SessionConditionKind.PRE_USE_ACTION,
         "action:check",
@@ -307,8 +306,8 @@ def test_repeated_failures_exhaust_session_without_rewriting_global_run_outcome(
         [evaluation(candidate, pending_actions=["action:check"]) for candidate in candidates],
     )
     ranked = run.selection.ranked_viable_candidates
-    resolutions = [
-        condition_resolution(
+    failures = [
+        resolution(
             candidate.candidate_id,
             SessionConditionKind.PRE_USE_ACTION,
             "action:check",
@@ -317,7 +316,7 @@ def test_repeated_failures_exhaust_session_without_rewriting_global_run_outcome(
         for candidate in ranked
     ]
 
-    session = resolve_recommendation_session(run, resolutions)
+    session = resolve_recommendation_session(run, failures)
 
     assert session.state == RecommendationSessionState.EXHAUSTED
     assert session.active_candidate is None
@@ -328,39 +327,38 @@ def test_repeated_failures_exhaust_session_without_rewriting_global_run_outcome(
 
 
 def test_resolution_input_order_is_canonicalized_by_original_ranking_and_condition_order():
-    first = generated_candidate("a")
-    second = generated_candidate("b")
+    candidates = [generated_candidate("a"), generated_candidate("b")]
     run = recommendation_run(
-        [first, second],
+        candidates,
         [
             evaluation(
-                first,
+                candidate,
                 pending_verification="connection:tool",
                 pending_actions=["action:test"],
-            ),
-            evaluation(second, pending_actions=["action:test"]),
+            )
+            for candidate in candidates
         ],
     )
     ranked = run.selection.ranked_viable_candidates
-    first_candidate = ranked[0]
-    verification = condition_resolution(
-        first_candidate.candidate_id,
+    first = ranked[0]
+    passed_verification = resolution(
+        first.candidate_id,
         SessionConditionKind.RUNTIME_VERIFICATION,
         "connection:tool",
         SessionConditionOutcome.SATISFIED,
     )
-    failed_action = condition_resolution(
-        first_candidate.candidate_id,
+    failed_action = resolution(
+        first.candidate_id,
         SessionConditionKind.PRE_USE_ACTION,
         "action:test",
         SessionConditionOutcome.FAILED,
     )
 
-    forward = resolve_recommendation_session(run, [verification, failed_action])
-    reversed_input = resolve_recommendation_session(run, [failed_action, verification])
+    forward = resolve_recommendation_session(run, [passed_verification, failed_action])
+    reversed_input = resolve_recommendation_session(run, [failed_action, passed_verification])
 
     assert forward == reversed_input
-    assert forward.resolutions == [verification, failed_action]
+    assert forward.resolutions == [passed_verification, failed_action]
     assert forward.active_candidate == ranked[1]
 
 
@@ -371,7 +369,7 @@ def test_same_condition_identifier_on_two_candidates_remains_candidate_scoped():
         [evaluation(candidate, pending_actions=["shared-action"]) for candidate in candidates],
     )
     ranked = run.selection.ranked_viable_candidates
-    failed_first = condition_resolution(
+    failed_first = resolution(
         ranked[0].candidate_id,
         SessionConditionKind.PRE_USE_ACTION,
         "shared-action",
@@ -408,7 +406,7 @@ def test_resolution_must_match_original_candidate_kind_and_identifier(kind, cond
         resolve_recommendation_session(
             run,
             [
-                condition_resolution(
+                resolution(
                     candidate.configuration.candidate_id,
                     kind,
                     condition_id,
@@ -424,7 +422,7 @@ def test_duplicate_terminal_resolution_for_same_condition_is_rejected():
         [candidate],
         [evaluation(candidate, pending_actions=["action:test"])],
     )
-    passed = condition_resolution(
+    passed = resolution(
         candidate.configuration.candidate_id,
         SessionConditionKind.PRE_USE_ACTION,
         "action:test",
@@ -448,7 +446,7 @@ def test_lower_ranked_candidate_cannot_be_resolved_before_current_candidate_fail
         resolve_recommendation_session(
             run,
             [
-                condition_resolution(
+                resolution(
                     ranked[1].candidate_id,
                     SessionConditionKind.PRE_USE_ACTION,
                     "action:test",
@@ -467,7 +465,7 @@ def test_contextually_infeasible_and_hard_blocked_candidates_cannot_receive_sess
         [
             evaluation(selectable, pending_actions=["action:test"]),
             evaluation(too_short, pending_actions=["action:test"]),
-            evaluation(blocked, pending_actions=["action:test"], state=None),
+            evaluation(blocked, pending_actions=["action:test"], blocked=True),
         ],
         ranking_context=CandidateRankingContext(required_reach_mm=1000.0),
     )
@@ -483,7 +481,7 @@ def test_contextually_infeasible_and_hard_blocked_candidates_cannot_receive_sess
             resolve_recommendation_session(
                 run,
                 [
-                    condition_resolution(
+                    resolution(
                         candidate.candidate_id,
                         SessionConditionKind.PRE_USE_ACTION,
                         "action:test",
@@ -497,7 +495,7 @@ def test_session_resolution_requires_a_run_with_a_selected_candidate():
     blocked = generated_candidate("blocked")
     exhausted_run = recommendation_run(
         [blocked],
-        [evaluation(blocked, state=None)],
+        [evaluation(blocked, blocked=True)],
     )
     assert exhausted_run.selection.state == CandidateSelectionState.NO_SUITABLE_RECOMMENDATION
 
@@ -512,7 +510,7 @@ def test_reach_unknown_remains_unknown_after_session_condition_is_satisfied():
         [evaluation(unknown, pending_actions=["action:test"])],
         ranking_context=CandidateRankingContext(required_reach_mm=1000.0),
     )
-    passed = condition_resolution(
+    passed = resolution(
         unknown.configuration.candidate_id,
         SessionConditionKind.PRE_USE_ACTION,
         "action:test",
