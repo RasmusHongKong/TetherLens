@@ -80,7 +80,7 @@ recommendation_state = recommended_with_constraints
 
 continues to retain that hard evaluation even after all of its session conditions have been satisfied.
 
-The session result may expose that the active candidate has no remaining pending conditions and is therefore ready for use in the current session/configuration, but it does not pretend the catalogue evaluation was originally unconditional.
+The session result reports condition state only. It does not make a broader readiness claim because other retained qualifications can remain unresolved even when no session condition is pending.
 
 ## Condition identity
 
@@ -254,15 +254,9 @@ rejected_candidates
     retained in original ranking order
 ```
 
-The convenience property:
+The result deliberately does **not** expose a generic `ready_for_use` flag.
 
-```text
-ready_for_use
-```
-
-is true only when an active candidate exists and has no remaining pending session conditions.
-
-This does not mutate the hard recommendation state.
+A candidate can have no remaining pending session conditions while still carrying a retained contextual or evidence qualification. The clearest example is a required-reach fallback whose maximum working length remains unknown. Presentation/readiness decisions must therefore combine the session condition state with the unchanged originating run rather than infer readiness from `active_pending_conditions == []` alone.
 
 ## Session-local exhaustion
 
@@ -322,6 +316,8 @@ This session slice does not duplicate those rules.
 A future adapter may take a family-specific structured observation/result and produce the corresponding candidate-scoped `SessionConditionResolution`.
 
 That adapter must still respect the original pending condition identifier and candidate identity. The generic fallback layer should remain ignorant of connector geometry, adhesive semantics, manufacturer SKU pairs, and individual constraint keys.
+
+A `SessionConditionResolution` is therefore a terminal internal result, not a substitute for the family-specific evidence/procedure that establishes that result. User-facing input should not be wired directly to `outcome="satisfied"` for a runtime verification.
 
 ## Validation and fail-closed behavior
 
