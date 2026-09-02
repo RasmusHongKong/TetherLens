@@ -2,13 +2,15 @@
 
 _Last updated: 2026-09-02_
 
-This document is the short operational handoff for the current TetherLens ingestion, compatibility, candidate-composition, generation, selection, contextual-ranking, and recommendation-run work. It records what has landed or is under active review, what remains intentionally unresolved, and which workstreams should be tackled next.
+This document is the short operational handoff for the current TetherLens ingestion, compatibility, candidate-composition, generation, evaluation, contextual selection, and recommendation-run work. It records what has landed or is under active review, the semantics that should be preserved, and the highest-value next workstreams.
 
-For durable design principles, use the dedicated documents such as `product-vision.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `connection-compatibility.md`, `tool-attachment-compatibility.md`, `tool-anatomy-selection-semantics.md`, `container-interface-topology.md`, `candidate-ranking-selection.md`, `recommendation-run.md`, `benchmark-goals.md`, and `ingestion-benchmark.md`. This file should not replace those documents or freeze semantic decisions before the evidence has been inspected.
+For durable design details, use the dedicated documents such as `product-vision.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `connection-compatibility.md`, `tool-attachment-compatibility.md`, `tool-anatomy-selection-semantics.md`, `container-interface-topology.md`, `candidate-ranking-selection.md`, `recommendation-run.md`, `benchmark-goals.md`, and `ingestion-benchmark.md`.
+
+For implemented candidate-selection semantics, `candidate-ranking-selection.md` and `recommendation-run.md` are the authoritative design references.
 
 ## Current development line
 
-The current development line through PR #37 includes:
+The current development line through PR #38 includes:
 
 - PR #17 — Batch 2 blind NLG holdout and post-blind evaluation path;
 - PR #18 — explicit tether endpoint topology;
@@ -28,9 +30,10 @@ The current development line through PR #37 includes:
 - PR #32 — normalized product/installation constraints, hard-vs-pre-use action semantics, same-feature installation binding, constraint provenance retention, and product-namespaced constraint identifiers;
 - PR #33 — reusable candidate generation for direct and ToolAttachment paths, retaining explicit endpoint/feature/component identity and producing evaluator-ready `CandidateConfiguration`s without ranking or global exhaustion;
 - PR #34 — candidate-generation hardening: candidate-scoped policy context, load-bearing ToolAttachment assembly requirements, connector-spec identity validation, and collision-resistant canonical candidate IDs;
-- PR #35 — deterministic candidate ranking and global selection over fully evaluated generated alternatives, with exact evaluation coverage, provenance retention, fail-closed viability separation, and a bounded `no_suitable_recommendation` conclusion;
-- PR #36 — thin end-to-end recommendation-run orchestration that owns complete generation, evaluates every generated candidate exactly once, passes that exact complete set to the existing selector, retains all stage outputs, and makes global exhaustion safe by construction; and
-- PR #37 — explicit contextual ranking inputs plus the first reusable ranking family: minimum/retracted tether length is retained as a ranking-only candidate fact, elevated snag risk may prefer lower known minimum length only inside complete baseline-quality ties, missing context/facts remain neutral, and the complete recommendation run retains the ranking context used for selection.
+- PR #35 — deterministic candidate ranking and global selection over fully evaluated generated alternatives, with exact evaluation coverage, provenance retention, hard-viability separation, and bounded global exhaustion;
+- PR #36 — thin end-to-end recommendation-run orchestration that owns complete generation, evaluates every generated candidate exactly once, passes that exact complete set to the selector, retains all stage outputs, and makes system-level exhaustion safe by construction;
+- PR #37 — explicit contextual ranking inputs plus the first reusable preference family: elevated snag risk may prefer lower known minimum/retracted tether length only inside complete baseline-quality ties, with missing context/facts remaining neutral; and
+- PR #38 — explicit required-reach contextual feasibility using the existing maximum/extended tether-length primitive, separate contextual-infeasible provenance, deterministic unknown-reach fallback, bounded reach-driven global exhaustion, and run-result self-consistency validation against the retained inputs/context.
 
 PR #16, the earlier NLG catalogue-generalization branch, was closed unmerged after its useful catalogue-discovery and scorer changes were carried forward through PR #19. Its older endpoint and attachment-method semantics should not be revived.
 
@@ -43,27 +46,36 @@ TetherLens can now:
 - resolve accepted tool anatomy into feature-local `ToolInterfaceFeature[]` with captive state, role, dimensions, and attributes;
 - evaluate reusable ToolAttachment eligibility with OR between paths, AND within a path, and strict same-feature binding;
 - resolve ToolAttachment-provided tether-side interfaces, tether endpoints, connector specifications, and repeated container tether interfaces;
-- keep topology, geometry, connector operation, manufacturer position, runtime verification, policy, installation constraints, and contextual ranking as separate reasoning axes;
+- keep topology, geometry, connector operation, manufacturer position, runtime verification, policy, installation constraints, contextual feasibility, and contextual preferences as separate reasoning axes;
 - evaluate endpoint compatibility using explicit bases such as manufacturer declaration, validated geometry, validated interface class, or bounded runtime verification;
 - preserve `compatible`, `incompatible`, `requires_verification`, and `unresolved` rather than forcing binary fit decisions;
 - compose already-resolved primitives into one `CandidateEvaluation` without SKU-pair recommendation logic;
 - distinguish hard candidate failure from validated pending pre-use verification/action obligations;
-- resolve supported product constraints into normalized runtime form while leaving unsupported declared constraints outside the generic evaluator until their technical/manufacturer/policy meaning is explicit;
+- resolve supported product constraints into normalized runtime form while leaving unsupported declared constraints outside the generic evaluator until their meaning is explicit;
 - bind feature-scoped installation constraints to the same eligible ToolAttachment feature used by the candidate;
 - preserve primary/supporting manufacturer evidence URLs and source-product constraint identity through evaluation output;
 - generate direct and ToolAttachment candidate paths from reusable facts rather than manually curated tool/tether pairs;
 - preserve installation feature, tether endpoint side/role, selected component instance, source-product, anchor path, and attachment-assembly identity in each generated candidate;
 - support multi-component ToolAttachment assemblies without assuming one ToolAttachment SKU always equals one complete physical assembly;
-- carry minimum/retracted/shortest tether working length as an explicit `CandidateRankingFacts` value without changing the existing maximum-length hard-constraint input;
-- evaluate every generated candidate independently, retaining blocked candidates for audit rather than allowing ranking to rescue them;
-- rank viable candidates deterministically without a global weighted score or hidden SKU/brand preferences;
+- carry minimum/retracted/shortest tether working length as `CandidateRankingFacts.tether_min_length_mm` for snag ranking only;
+- preserve maximum/extended/longest tether working length as `CandidateConfiguration.tether_max_length_mm` for existing hard product/lanyard constraints and explicit required-reach reasoning;
+- evaluate every generated candidate independently, retaining hard-blocked candidates for audit rather than allowing selection to rescue them;
+- rank selectable candidates deterministically without a global weighted score or hidden SKU/brand preferences;
 - prefer fully established recommendations over conditional ones, then lower pending-condition burden, lower physical-verification dependence, stronger connection evidence, and no review signal;
-- apply explicit elevated snag context only among candidates tied on all existing baseline-quality factors, preferring lower known minimum tether working length when the complete tied group has that fact;
-- leave missing/standard snag context, missing minimum-length facts, and equal minimum lengths neutral rather than inventing a preference or penalty;
-- use canonical `candidate_id` as the deterministic final tie-break after baseline quality and applicable context;
-- retain the original generated candidate object through ranking so provenance and ranking facts are not reconstructed from product IDs;
-- distinguish an empty generated set from a fully evaluated non-empty set in which every candidate is blocked; and
-- execute one complete recommendation run from normalized generation inputs through evaluation and deterministic contextual selection while retaining the full generated set, evaluation set, explicit ranking context, and selection result.
+- apply elevated snag context only among candidates tied on all existing baseline-quality factors within the same reach-knowledge tier;
+- treat explicit `required_reach_mm` as contextual feasibility rather than a hard technical evaluator check;
+- exclude a hard-viable candidate from the selectable stream only when its known `tether_max_length_mm` is below the stated required reach;
+- treat `tether_max_length_mm == required_reach_mm` as satisfying the reach requirement;
+- avoid rewarding excess maximum reach after the threshold is met;
+- rank known reach-satisfying candidates ahead of reach-unknown fallback candidates when a required reach is stated;
+- keep reach-unknown candidates selectable rather than inventing a pass/fail value, preventing false reach-based exhaustion;
+- keep minimum/retracted length for snag preference separate from maximum/extended length for reach feasibility;
+- use canonical `candidate_id` as the deterministic final tie-break within the applicable ranking tier;
+- retain original generated/evaluated objects through all selection partitions so provenance is not reconstructed from product IDs;
+- distinguish `ranked_viable_candidates`, `contextually_infeasible_candidates`, and hard `blocked_candidates`;
+- distinguish an empty generated set from a fully evaluated non-empty exhausted set;
+- conclude `no_suitable_recommendation` only after the complete supplied set has no selectable candidate because of hard blocking and/or proven contextual infeasibility; and
+- execute one complete recommendation run from normalized generation inputs through evaluation and deterministic contextual selection while retaining the full generated set, evaluation set, ranking context, and exact selection result.
 
 ## Candidate generation, evaluation, selection, and run state
 
@@ -73,30 +85,52 @@ The executable recommendation core remains split into four deliberately narrow l
 
 `candidate_generation.py` constructs physical candidate paths and evaluator-ready configurations. It owns candidate identity and binding, but does not rank, select, or infer global exhaustion.
 
-PR #37 adds `CandidateRankingFacts` to the generated candidate rather than to `CandidateConfiguration`, because minimum/retracted tether length is a suitability input rather than a hard candidate check.
-
-`TetherOption` now carries both:
+`TetherOption` carries:
 
 ```text
 min_length_mm = minimum / retracted / shortest working length
 max_length_mm = maximum / extended / longest working length
 ```
 
-with `min_length_mm <= max_length_mm` when both are known. Generation copies only `min_length_mm` into the current ranking facts. Existing `max_length_mm` propagation into `CandidateConfiguration.tether_max_length_mm` is unchanged.
+with `min_length_mm <= max_length_mm` when both are known.
 
-This distinction matters for coiled/retractable/elastic products: maximum available reach is not a defensible proxy for routine free tether/slack length.
+Generation copies `min_length_mm` into `CandidateRankingFacts.tether_min_length_mm`. It continues to copy `max_length_mm` into `CandidateConfiguration.tether_max_length_mm`.
+
+Do not duplicate maximum length into ranking facts merely because required reach now uses it. One normalized primitive should remain the source of truth.
 
 ### Candidate evaluation
 
-`recommendation.py` remains the sole hard-viability authority for one candidate. A candidate is viable for ranking only when `CandidateEvaluation.recommendation_state` is non-null. `recommended_with_constraints` remains viable when all hard checks pass but a validated runtime verification or pre-use action remains pending.
+`recommendation.py` remains the sole hard-viability authority for one candidate.
 
-Ranking context is not passed to the hard evaluator in PR #37. Ranking and orchestration must never reinterpret failed/unresolved checks, invent missing evidence, or rescue a blocked candidate.
+```text
+hard_viable <=> CandidateEvaluation.recommendation_state is not None
+```
 
-### Candidate ranking and global selection
+`recommended_with_constraints` remains hard-viable when all hard checks pass but a validated runtime verification or required pre-use action remains pending.
 
-`candidate_selection.py` pairs each generated candidate with its evaluation, requires unique candidate IDs and exact generated/evaluated ID-set coverage, partitions blocked from viable candidates, ranks only viable alternatives, and selects rank 1.
+`CandidateRankingContext` is not passed to the hard evaluator. A candidate may therefore remain technically/hard viable while being unsuitable for one stated task context.
 
-The baseline-quality ordering remains deliberately lexicographic rather than weighted:
+Selection/orchestration must never reinterpret failed/unresolved hard checks, invent missing evidence, or rescue a hard-blocked candidate.
+
+### Candidate contextual feasibility, ranking, and global selection
+
+`candidate_selection.py` pairs each generated candidate with its evaluation and requires unique candidate IDs plus exact generated/evaluated ID-set coverage.
+
+Hard-blocked candidates are separated first.
+
+For explicit required reach, hard-viable candidates are classified as:
+
+```text
+known max < required reach  -> contextually infeasible
+known max >= required reach -> reach established
+max unknown                 -> reach unknown fallback
+```
+
+Known-inadequate candidates remain hard-viable in their retained `CandidateEvaluation`; they are not rewritten as technical failures.
+
+Known reach-satisfying candidates rank before reach-unknown fallbacks. If all selectable candidates have unknown maximum reach, their relative order remains the existing deterministic baseline plus applicable snag preference.
+
+Within one reach-knowledge tier, baseline quality remains lexicographic:
 
 1. `recommended` before `recommended_with_constraints`;
 2. fewer total pending verification/pre-use conditions;
@@ -104,23 +138,21 @@ The baseline-quality ordering remains deliberately lexicographic rather than wei
 4. catalogue-established connection bases before runtime-verification dependence, and runtime verification before no basis; and
 5. no review signal before `review_required`.
 
-`manufacturer_declared`, `validated_geometry`, and `validated_interface_class` remain intentionally unordered against one another as stronger/weaker evidence. The normalized evaluation output does not justify such a preference.
+`manufacturer_declared`, `validated_geometry`, and `validated_interface_class` remain intentionally unordered against one another as stronger/weaker evidence.
 
-PR #37 adds the first contextual step **after** those five baseline-quality factors and **before** canonical ID:
+Elevated snag risk acts only inside complete ties on the baseline-quality factors, and only when every candidate in the tied group has `tether_min_length_mm`:
 
 ```text
 IF snag_risk = elevated
-AND candidates are tied on all baseline-quality factors
-AND every candidate in the tied group has tether_min_length_mm
+AND candidates tie on baseline quality
+AND every candidate has tether_min_length_mm
 THEN lower tether_min_length_mm ranks first
 ELSE preserve deterministic baseline ordering
 ```
 
-This means contextual suitability cannot trade a small length advantage against stronger evidence, fewer pending conditions, a better recommendation state, or no-review status in this slice.
+Required reach may outrank baseline quality because it represents whether an explicit task requirement is established. Snag risk remains a preference and cannot trade a small minimum-length advantage against stronger baseline quality.
 
-The selector still does not prefer direct paths over ToolAttachment paths, one brand over another, fewer components, greater capacity headroom, product family, or tether form by itself. It also does not prefer shorter maximum/extended length for snagging. Those would require distinct reusable context semantics rather than accidental ordering.
-
-A selected result must contain the exact complete first ranked `EvaluatedCandidate`, not merely another object sharing its candidate ID.
+The selector still does not prefer direct paths over ToolAttachment paths, one brand over another, fewer components, greater capacity headroom, product family, tether form by itself, or excess maximum reach beyond a stated threshold.
 
 ### Recommendation-run orchestration
 
@@ -130,33 +162,41 @@ It invokes the generator once, retains that full returned list, evaluates each g
 
 `RecommendationRunResult` retains:
 
-- every `GeneratedCandidate`, including ranking facts;
+- every `GeneratedCandidate`;
 - every corresponding `CandidateEvaluation`;
 - the explicit `ranking_context` used for the run, or `None`; and
-- the existing `CandidateSelectionResult`.
+- the `CandidateSelectionResult`.
 
-The run layer still adds no second hard-viability calculation, ranking algorithm, or outcome-state enum.
+The result validator requires exact generated/evaluation coverage and exact coverage across all three selection partitions. It also recomputes the expected deterministic selection through `rank_and_select_candidates()` using the retained generated candidates, evaluations, and context, and rejects a manually constructed/deserialized result whose retained selection disagrees with those inputs.
 
-Failures from generation, evaluation, or selection propagate. An orchestration/invariant failure must not be converted into `no_suitable_recommendation`.
+This keeps selection semantics in one place and prevents persisted run results from carrying stale or contradictory reach partitions/winners.
+
+The run layer adds no second hard-viability calculation, contextual rule implementation, or outcome-state enum.
+
+Failures from generation, evaluation, selection, or result invariants propagate. An orchestration/invariant failure must not be converted into `no_suitable_recommendation`.
 
 ## Global `no suitable recommendation` boundary
 
-A blocked candidate is not a global recommendation outcome.
+A blocked or contextually infeasible candidate is not by itself a global recommendation outcome.
 
-The selector itself may return `no_suitable_recommendation` only when:
+The selector may return `no_suitable_recommendation` only when:
 
 - the supplied generated candidate set is non-empty;
 - every generated candidate has exactly one corresponding evaluation;
 - no unexpected evaluation exists; and
-- every candidate in that complete supplied set is blocked by the existing evaluator.
+- no candidate remains selectable after hard evaluation plus explicit contextual feasibility.
 
-An empty generated set is represented separately as `no_generated_candidates` and must not be widened into a global no-suitable conclusion.
+A complete set may therefore be exhausted by:
 
-PR #36 closed the remaining system-level completeness caveat for normal end-to-end use. `run_recommendation()` owns the generator invocation and therefore passes the selector the generator's actual complete returned set rather than relying on an external caller to supply all alternatives.
+- hard evaluator blocking alone;
+- proven contextual infeasibility alone; or
+- a mixture of both.
 
-PR #37 does not change that boundary. Ranking context can reorder viable candidates but cannot block them or create global exhaustion.
+A hard-viable candidate with unknown maximum reach remains selectable as an unknown fallback and therefore prevents a required-reach-only global exhaustion conclusion.
 
-The standalone selector remains reusable, so its narrower guarantee still matters when called directly: exact coverage proves completeness for the supplied set, not that an arbitrary caller supplied every alternative the generator could have produced.
+An empty generated set remains `no_generated_candidates`.
+
+For normal end-to-end use, `run_recommendation()` owns the generator invocation and therefore supplies the selector with the generator's actual complete returned set. The standalone selector remains reusable, but its exact-coverage guarantee applies only to the set a caller supplied.
 
 ## Compatibility and evidence principles currently in force
 
@@ -166,13 +206,15 @@ The major architecture remains:
 
 Geometry is valuable where it establishes hard impossibility, provides a reusable validated rule, or materially simplifies a bounded field-verification procedure. A type-name pair such as `carabiner + ring` is not itself proof of compatibility.
 
-Manufacturer scope, technical fit, installation requirements, site policy, recommendation ranking, and evidence confidence are not interchangeable. Category/application wording should not silently become a universal hard technical exclusion unless its semantics have been explicitly modeled that way.
+Manufacturer scope, technical fit, installation requirements, site policy, contextual feasibility, recommendation preference, and evidence confidence are not interchangeable.
 
-Unknown form, ambiguous public evidence, source gaps, contradictory manufacturer evidence, missing runtime facts, and missing contextual ranking facts should remain explicit rather than being converted into complete-looking recommendations.
+Unknown form, ambiguous public evidence, source gaps, contradictory manufacturer evidence, missing runtime facts, and missing contextual facts should remain explicit rather than being converted into complete-looking recommendations.
 
 ## Latest benchmark state
 
-The current ingestion/readiness benchmark state was established through PR #30 and revalidated through PR #35. PRs #36-#37 change recommendation composition/orchestration/ranking only and do not change ingestion/extraction behavior:
+PR #38 changes contextual selection/orchestration only and does not change ingestion/extraction behavior. The full PR workflow, including unit tests and the live manufacturer benchmark, is green.
+
+Current ingestion/readiness benchmark state remains:
 
 - Batch 1 live acquisition: **12/12 products**;
 - Batch 1 extraction: **54 TP / 0 FP / 0 FN**;
@@ -184,9 +226,9 @@ The current ingestion/readiness benchmark state was established through PR #30 a
 - fresh Batch 2 recommendation-data coverage: **44/44 requirements**, **8/8 products complete**; and
 - the immutable Batch 2 blind artifact remains unchanged as the historical pre-fix baseline.
 
-The catalogue benchmark remains a supply-side ingestion/recommendation-readiness benchmark. PRs #33-#37 add runtime candidate construction/evaluation/selection/orchestration/context semantics and are covered primarily by focused unit tests; there is not yet a separate golden ranking or recommendation-run benchmark.
+The catalogue benchmark remains a supply-side ingestion/recommendation-readiness benchmark. Candidate generation/evaluation/selection/orchestration/context behavior remains covered primarily by focused executable tests; there is not yet a separate golden ranking/recommendation-run benchmark.
 
-The four current Batch 2 evidence/semantic gaps remain:
+The four recorded Batch 2 evidence/semantic gaps remain:
 
 | SKU | Product | Gap category | Field / issue |
 |---|---|---|---|
@@ -195,60 +237,61 @@ The four current Batch 2 evidence/semantic gaps remain:
 | NLG 101756 | Heavy Duty Retractable Lanyard, Double Carabiner | `public_fact_ambiguous` | connector locking mode not established as manual vs automatic |
 | NLG 101520 | Ascent™ Pouch | `public_fact_not_established` | external daisy-chain presence is established, but public evidence does not establish an individual loop/site count |
 
-These should remain explicit until acceptable evidence or a reusable semantic rule actually resolves them.
+These should remain explicit until acceptable evidence or a reusable semantic rule resolves them.
 
 ## Next workstreams
 
-### 1. Required-reach contextual ranking
+### 1. Session verification/action resolution and deterministic fallback
 
-If the next slice remains in contextual ranking, required reach is the cleanest follow-on because the necessary primitive is already represented correctly: `max_length_mm` means maximum/extended/longest working length.
+This is now the cleanest next recommendation-engine slice.
 
-The key design question should be whether reach remains a preference among viable candidates or whether an explicit task-required minimum reach should become a genuine hard contextual feasibility condition. That distinction should be resolved from the intended scenario semantics before implementation rather than inferred from the existence of a number.
+Model what happens after the selected candidate carries one or more pending runtime verification/pre-use-action conditions:
 
-Do not reuse `min_length_mm` for reach and do not reinterpret `max_length_mm` as snag/free-length suitability.
-
-### 2. Session verification/action resolution and deterministic fallback
-
-Model what happens when the selected candidate's pending pre-use condition is resolved:
-
-- verification/action passes -> retain the selected configuration with the condition satisfied for the current session/configuration;
-- verification fails -> reject that candidate for the session and move deterministically to the next ranked viable alternative;
+- condition passes -> retain the selected configuration with that condition satisfied for the current session/configuration;
+- condition fails -> reject that candidate for the session and move deterministically to the next ranked selectable alternative;
+- a reach-unknown selected fallback should likewise retain its unresolved contextual qualification rather than being rewritten as proven adequate;
 - runtime observations remain session/configuration evidence and do not become universal SKU-pair catalogue claims.
 
-This should reuse the existing run result, contextual ranking order, and candidate identity rather than regenerate an unrelated recommendation state.
+This work should reuse the existing complete `RecommendationRunResult`, ranking order, three selection partitions, pending condition identifiers, and candidate identity rather than regenerate unrelated recommendation state.
+
+The main design question is how to represent session-local candidate disposition and condition resolution without mutating catalogue evidence or the original hard `CandidateEvaluation`.
+
+### 2. Environmental contextual suitability
+
+If continuing context instead of session state, environmental exposure is the next plausible family only after the required low-level material/exposure semantics are explicit enough to distinguish:
+
+- genuine contextual infeasibility;
+- preference/caution; and
+- unknown evidence.
+
+Do not add generic `suitable_for_environment` flags or a weighted context score.
 
 ### 3. Selective geometry and remaining evidence gaps
 
 Continue geometry, measurement, document-join, and evidence work when it materially blocks recurring candidate paths or exposes a reusable evidence-model weakness.
 
-Prioritize new measurements or vocabulary when:
-
-- a connector specification is reused across many tether SKUs;
-- one measurement resolves a high-frequency uncertainty;
-- a hard geometric rule can conclusively reject unsafe engagement;
-- a published dimension can replace recurring runtime verification with catalogue-established compatibility; or
-- the fact materially strengthens a validated field-verification procedure.
+Prioritize new measurements/vocabulary when one primitive resolves a high-frequency uncertainty, establishes a reusable hard rule, or replaces recurring runtime verification with catalogue-established compatibility.
 
 Do not build a general CAD model and do not weaken evidence requirements merely to close a benchmark gap.
 
 ## Working principles for the next phase
 
 - do not add SKU-specific extraction, compatibility, generation, ranking, orchestration, or recommendation branches to make one product pass;
-- keep generation, hard evaluation, preference ranking, policy, orchestration, and session verification responsibilities explicit;
-- do not add a second hard-viability calculation inside ranking or orchestration;
-- keep contextual ranking facts separate from evaluator hard-check inputs unless a later rule explicitly defines a genuine hard contextual constraint;
-- use minimum/retracted length for the implemented snag preference and preserve maximum/extended length for its existing semantics and future reach reasoning;
-- leave missing context or missing ranking facts neutral rather than inventing sentinel values or implicit penalties;
+- keep generation, hard evaluation, contextual feasibility, preference ranking, policy, orchestration, and session verification responsibilities explicit;
+- do not add a second hard-viability calculation inside selection or orchestration;
+- do not duplicate normalized candidate facts across ranking/context models when an existing primitive already has the correct meaning;
+- use minimum/retracted length for snag preference and maximum/extended length for reach feasibility;
+- treat explicit stated requirements differently from soft preferences only when the semantics justify that distinction;
+- keep missing context/facts explicit rather than inventing sentinel values, implicit penalties, passes, or failures;
 - use the recommendation-run boundary for system-level global exhaustion rather than passing hand-selected candidate subsets to the selector;
+- keep persisted/manually constructed run results self-consistent with their retained inputs/context by reusing the selector as the source of truth;
 - do not infer candidate evidence strength from source-count or URL-count heuristics;
 - preserve candidate identity and provenance through every downstream layer rather than reconstructing it;
 - require complete candidate/evaluation coverage before a global exhaustion conclusion;
 - distinguish `no_generated_candidates` from a fully evaluated non-empty exhausted set and from an orchestration failure;
-- add contextual ranking only from explicit reusable context facts/rules;
 - preserve manufacturer wording and provenance per claim and through downstream outputs;
-- keep product identity separate from evidence provenance;
 - require same-subject / same-feature binding where facts must belong to one physical feature;
-- distinguish source absence, acquisition failure, parser failure, semantic-vocabulary gaps, evidence-scope tension, public ambiguity, true claim conflict, `requires_verification`, pending pre-use action, and genuinely unresolved compatibility;
+- distinguish source absence, acquisition failure, parser failure, semantic-vocabulary gaps, evidence-scope tension, public ambiguity, true claim conflict, `requires_verification`, pending pre-use action, contextual unknown, contextual infeasibility, and genuinely unresolved compatibility;
 - do not infer `compatible` from interface names alone;
 - do not treat a successful session-level field verification as universal catalogue compatibility;
 - let hard physical contradiction and authoritative manufacturer prohibition fail closed;
@@ -257,12 +300,16 @@ Do not build a general CAD model and do not weaken evidence requirements merely 
 - preserve the original Batch 2 blind artifact and cohort unchanged; and
 - use fresh post-blind evaluation against that same cohort for regression checking.
 
+## Documentation note
+
+The implemented required-reach semantics are fully defined in `candidate-ranking-selection.md` and `recommendation-run.md`.
+
+`recommendation-engine.md` and `mvp.md` still contain broader pre-implementation wording around reach/context and should be aligned in a later conceptual documentation cleanup. That wording must not be used to override the executable PR #38 semantics: an explicit numeric minimum required reach is contextual feasibility; a known-too-short candidate is not merely ranked lower, while an unknown maximum reach remains a qualified fallback rather than an invented failure.
+
 ## Suggested fresh-chat starting point
 
-After PR #37 is merged, choose between the next contextual family and session-state behavior rather than broadening this slice in place.
+After PR #38 is merged, the recommended next slice is session verification/action resolution and deterministic fallback.
 
-If continuing context, a concise starting prompt is:
+A concise starting prompt is:
 
-> Continue TetherLens from merged `main` after PR #37. Inspect the new `CandidateRankingContext` / `CandidateRankingFacts` boundary, `max_length_mm` semantics, recommendation-engine reach expectations, MVP scenarios, and current contextual-ranking tests. Define the smallest reusable required-reach rule without conflating reach with snag risk or weakening the hard evaluator. First decide whether stated required reach is a ranking preference or a genuine contextual feasibility constraint, and preserve deterministic baseline/context fallback when the required facts are absent.
-
-If prioritising field workflow instead, start the session verification/action resolution and deterministic fallback workstream using the existing ranked `RecommendationRunResult`.
+> Continue TetherLens from merged `main` after PR #38. Inspect the complete `RecommendationRunResult`, ranked selectable candidates, contextual-infeasible and hard-blocked partitions, pending runtime verification/pre-use-action identifiers, and current recommendation-state/session expectations. Define the smallest reusable session-local condition-resolution and deterministic fallback model. Preserve the original hard `CandidateEvaluation`, candidate identity/provenance, and catalogue evidence; a failed runtime condition should reject only that candidate for the current session/configuration and advance to the next ranked selectable alternative without inventing SKU-pair compatibility or regenerating the candidate set.
