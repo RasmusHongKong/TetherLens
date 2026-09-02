@@ -23,7 +23,11 @@ original ranked selectable candidates
         ↓
 current candidate has pending runtime/pre-use conditions?
         ↓
-record terminal session outcome for one original pending condition
+structured candidate-local observation/fact
+        ↓
+existing primitive evaluator derives pending/pass/fail
+        ↓
+terminal pass/fail only -> candidate-scoped SessionConditionResolution
         ↓
 condition satisfied -> retain candidate
 condition failed    -> reject candidate for this session/configuration only
@@ -38,7 +42,7 @@ This closes the runtime fallback gap without mutating catalogue evidence, creati
 
 ## Executable boundary
 
-The reusable entry point is:
+The generic session entry point is:
 
 ```python
 resolve_recommendation_session(
@@ -46,6 +50,28 @@ resolve_recommendation_session(
     resolutions=None,
 )
 ```
+
+Evidence-backed terminal resolutions for the currently supported primitive families are derived through:
+
+```python
+derive_connection_session_resolution(
+    session,
+    *,
+    candidate_id,
+    condition_id,
+    observations,
+)
+
+derive_product_action_session_resolution(
+    session,
+    *,
+    candidate_id,
+    condition_id,
+    runtime_state,
+)
+```
+
+Neither adapter accepts an `outcome` argument. Incomplete primitive evidence returns no terminal resolution, leaving the original condition pending.
 
 The input run must have:
 
@@ -106,6 +132,8 @@ condition_kind = runtime_verification | pre_use_action
 This candidate scope is mandatory.
 
 Local connection/interface identifiers and product-constraint identifiers can repeat across alternative candidate paths. A condition result for one candidate must therefore never be applied to another candidate merely because the local condition identifier looks the same.
+
+The evidence-backed adapters tighten this further: they target only the current active candidate and one condition still present in `active_pending_conditions`. Lower-ranked candidates, already-resolved conditions, wrong-kind identifiers, and rejected candidates therefore fail closed before primitive evaluation.
 
 ## Condition outcomes
 
@@ -303,21 +331,25 @@ The retained `RecommendationRunResult.ranking_context`, generated candidate fact
 
 Likewise, a candidate already placed in `contextually_infeasible_candidates` cannot become a session fallback merely because a runtime action succeeds.
 
-## Primitive evaluators remain upstream of the generic session overlay
+## Primitive evaluators remain authoritative
 
-Connection and product-constraint modules already own family-specific semantics such as:
+Connection and product-constraint modules own family-specific semantics such as:
 
 - which structured gated-connector observations produce pending/passed/failed verification;
 - whether a bond-time requirement remains an action;
 - whether a required pre-use attachment test passes or fails.
 
-This session slice does not duplicate those rules.
+The session adapters do not duplicate those rules.
 
-A future adapter may take a family-specific structured observation/result and produce the corresponding candidate-scoped `SessionConditionResolution`.
+For the current bounded connection family, `ConnectionEvaluation` retains the exact `ConnectorSpec` required by the primitive verification rule. `evaluate_gated_connector_closed_interface_verification()` derives the runtime status from `GatedConnectorClosedInterfaceVerification`; the adapter maps only terminal `PASSED` / `FAILED` to `satisfied` / `failed`. `PENDING` produces no `SessionConditionResolution`.
 
-That adapter must still respect the original pending condition identifier and candidate identity. The generic fallback layer should remain ignorant of connector geometry, adhesive semantics, manufacturer SKU pairs, and individual constraint keys.
+For normalized product actions, `ProductConstraintEvaluation` retains the exact `ResolvedProductConstraint` that produced the original result. The adapter rebuilds only the runtime `ProductConstraintContext` from `ProductConstraintRuntimeState` and invokes `evaluate_product_constraints()` for that one original pre-use obligation. `REQUIRES_ACTION` remains pending, `PASSED` becomes satisfied, `FAILED` becomes failed, and `UNRESOLVED` fails closed rather than inventing a terminal outcome.
 
-A `SessionConditionResolution` is therefore a terminal internal result, not a substitute for the family-specific evidence/procedure that establishes that result. User-facing input should not be wired directly to `outcome="satisfied"` for a runtime verification.
+Component and installation-feature identity remain candidate-local. ToolAttachment runtime facts must use the exact selected component instance and the candidate's exact installation feature; tether/anchor-side component facts must not borrow that feature binding.
+
+The generic fallback layer remains ignorant of connector geometry, adhesive semantics, manufacturer SKU pairs, and individual constraint keys.
+
+A `SessionConditionResolution` is therefore a terminal internal result, not a substitute for the family-specific evidence/procedure that establishes that result. User-facing input must not be wired directly to `outcome="satisfied"` or `outcome="failed"`.
 
 ## Validation and fail-closed behavior
 
@@ -332,6 +364,16 @@ Session resolution rejects:
 - duplicate pending identifiers within one candidate/kind scope; and
 - resolutions for a lower-ranked candidate before the current candidate has failed.
 
+Evidence-backed adapters additionally reject:
+
+- evidence for a candidate other than the active candidate;
+- evidence for a condition that is no longer pending;
+- pending connection conditions that do not retain the supported verification family/basis/specification;
+- inconsistent pending-ID to primitive-result coverage;
+- product actions missing their retained normalized constraint or physical component binding;
+- component/source-product mismatches; and
+- ToolAttachment runtime facts with a different installation-feature binding.
+
 A directly constructed/deserialized `RecommendationSessionResult` also recomputes its deterministic projection from the retained run and resolutions and must match that projection exactly.
 
 This prevents persisted session objects from silently replacing the active candidate, losing rejected-candidate provenance, or misreporting condition state.
@@ -343,7 +385,7 @@ This slice does not add:
 - session persistence storage;
 - timestamps or event sourcing;
 - retry/reopen semantics after a failed condition;
-- automatic mapping from all primitive observation objects into session resolutions;
+- automatic mapping for primitive families beyond the currently implemented gated-connector verification and normalized product pre-use obligations;
 - user-facing recommendation prose;
 - environmental contextual rules;
 - new compatibility rules;
@@ -370,7 +412,13 @@ Focused session tests cover at least:
 - duplicate terminal resolution failing closed;
 - lazy lower-ranked resolution failing closed;
 - hard-blocked/contextually-infeasible candidates never entering session fallback;
-- reach-unknown qualification remaining unchanged after successful condition resolution; and
-- direct/deserialized session result self-consistency validation.
+- reach-unknown qualification remaining unchanged after successful condition resolution;
+- direct/deserialized session result self-consistency validation;
+- incomplete bounded connection observations producing no terminal resolution;
+- primitive connection pass/fail mapping without changing the original hard evaluation;
+- unknown connector locking mode retaining the lock-observation requirement;
+- insufficient bond time remaining pending until the normalized constraint passes;
+- required attachment-test failure producing a candidate-local failed condition; and
+- candidate/component/installation-feature identity mismatches failing closed.
 
 A separate golden session benchmark is not required at this stage. The implemented behavior is small, deterministic and more directly specified by focused executable tests.
