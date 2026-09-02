@@ -92,6 +92,10 @@ class ProductConstraintEvaluation(BaseModel):
     reason: str
     subject_refs: list[str] = Field(default_factory=list)
     source_urls: list[str] = Field(default_factory=list)
+    # Retain the exact normalized primitive that produced this result so a later
+    # session may re-evaluate only an originally pending pre-use obligation without
+    # reconstructing manufacturer semantics from IDs, reason text, or product pairs.
+    resolved_constraint: ResolvedProductConstraint | None = None
     # ``constraint_id`` remains the canonical catalogue/OEM constraint identity.
     # Composition may additionally bind the evaluation to one physical component
     # instance so repeated instances of the same source product remain distinguishable.
@@ -447,6 +451,7 @@ def _result(
         reason=reason,
         subject_refs=[installation_feature_id] if installation_feature_id else [],
         source_urls=list(constraint.source_urls),
+        resolved_constraint=constraint,
         installation_feature_id=installation_feature_id,
     )
 
