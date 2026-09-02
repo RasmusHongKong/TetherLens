@@ -171,6 +171,10 @@ class ConnectionEvaluation(BaseModel):
     rule_results: list[ConnectionRuleResult] = Field(default_factory=list)
     verification_status: RuntimeVerificationStatus | None = None
     verification_family: str | None = None
+    # Retain only the primitive connector facts required by an established bounded
+    # verification family. This allows a session adapter to derive a later terminal
+    # outcome without reconstructing connector semantics from product identity.
+    verification_connector_spec: ConnectorSpec | None = None
     verification_observations: GatedConnectorClosedInterfaceVerification | None = None
     contradiction_type: ContradictionType | None = None
     review_required: bool = False
@@ -385,7 +389,7 @@ def evaluate_endpoint_engagement(
         )
 
     if verification_family is not None:
-        runtime_status = _gated_connector_closed_interface_verification_status(
+        runtime_status = evaluate_gated_connector_closed_interface_verification(
             connector_spec,
             verification_observations,
         )
@@ -412,6 +416,7 @@ def evaluate_endpoint_engagement(
             rule_results=rule_results,
             verification_status=runtime_status,
             verification_family=verification_family,
+            verification_connector_spec=connector_spec,
             verification_observations=verification_observations,
         )
 
@@ -473,11 +478,16 @@ def _verification_family(
     return "gated_connector_to_closed_interface.v1"
 
 
-def _gated_connector_closed_interface_verification_status(
+def evaluate_gated_connector_closed_interface_verification(
     connector_spec: ConnectorSpec | None,
     observations: GatedConnectorClosedInterfaceVerification | None,
 ) -> RuntimeVerificationStatus:
-    """Derive verification status from the bounded family's required observations."""
+    """Derive bounded gated-connector verification status from structured observations.
+
+    This primitive remains the sole authority for the family's terminal meaning. It
+    intentionally accepts no generic pass/fail assertion and returns ``PENDING`` until
+    every check required by the retained connector specification is established.
+    """
 
     if connector_spec is None or observations is None:
         return RuntimeVerificationStatus.PENDING
@@ -586,6 +596,7 @@ def _evaluation(
     rule_results: list[ConnectionRuleResult],
     verification_status: RuntimeVerificationStatus | None = None,
     verification_family: str | None = None,
+    verification_connector_spec: ConnectorSpec | None = None,
     verification_observations: GatedConnectorClosedInterfaceVerification | None = None,
     contradiction_type: ContradictionType | None = None,
     review_required: bool = False,
@@ -602,6 +613,7 @@ def _evaluation(
         rule_results=rule_results,
         verification_status=verification_status,
         verification_family=verification_family,
+        verification_connector_spec=verification_connector_spec,
         verification_observations=verification_observations,
         contradiction_type=contradiction_type,
         review_required=review_required,
