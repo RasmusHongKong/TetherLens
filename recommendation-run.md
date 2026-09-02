@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the thin executable boundary introduced after candidate generation, hard evaluation, and deterministic ranking/selection were separated into reusable layers.
+This document defines the thin executable boundary after candidate generation, hard evaluation, and deterministic contextual selection were separated into reusable layers.
 
 The orchestration layer exists to make one global recommendation run complete by construction:
 
@@ -11,7 +11,7 @@ complete candidate generation
         ↓
 evaluate every generated candidate
         ↓
-rank/select that exact complete evaluated set
+apply contextual feasibility and rank/select that exact complete evaluated set
         + optional explicit ranking context
         ↓
 return selected / no-suitable / no-generated outcome
@@ -21,18 +21,20 @@ It does not add recommendation semantics of its own.
 
 ## Layer ownership
 
-### Candidate generation remains authoritative for alternatives and ranking facts
+### Candidate generation remains authoritative for alternatives and candidate facts
 
 `generate_candidate_configurations()` owns physical candidate construction, identity, feature/endpoint/component binding, ranking-only candidate facts, and the complete set of alternatives produced from the normalized run inputs.
 
-The first ranking-only fact is the tether's minimum/retracted/shortest working length. It is retained on `GeneratedCandidate.ranking_facts` and is separate from `CandidateConfiguration.tether_max_length_mm`, which retains its existing hard-constraint meaning.
+Minimum/retracted/shortest tether working length is retained on `GeneratedCandidate.ranking_facts` for contextual snag ranking.
+
+Maximum/extended/longest tether working length remains on `CandidateConfiguration.tether_max_length_mm`. It retains its existing hard product/lanyard-constraint role and is also the existing normalized primitive consumed by the selector's explicit required-reach feasibility rule. It is not duplicated into `CandidateRankingFacts`.
 
 The orchestration layer must not:
 
 - construct additional candidates;
 - remove generated alternatives before evaluation;
 - rewrite candidate IDs;
-- infer missing product/interface/ranking facts; or
+- infer missing product/interface/context facts; or
 - turn an empty generated set into `no_suitable_recommendation`.
 
 ### Candidate evaluation remains authoritative for hard viability
@@ -41,30 +43,32 @@ The orchestration layer must not:
 
 The orchestration layer must not duplicate or reinterpret attachment eligibility, load capacity, product constraints, connection compatibility, policy, pending runtime verification, or pre-use-action semantics.
 
-A candidate is viable exactly when the existing evaluator gives it a non-null recommendation state.
+A candidate is hard-viable exactly when the existing evaluator gives it a non-null recommendation state.
 
-Ranking context is not passed into the hard evaluator in this slice.
+Ranking context is not passed into the hard evaluator. A candidate can therefore remain technically/hard viable while being contextually infeasible for one stated task requirement.
 
-### Candidate selection remains authoritative for ranking and global exhaustion
+### Candidate selection remains authoritative for contextual feasibility, ranking, and global exhaustion
 
 `rank_and_select_candidates()` receives the exact generated list and the complete evaluation list produced during the run, plus optional `CandidateRankingContext`.
 
-It remains responsible for:
+It is responsible for:
 
 - exact candidate/evaluation identity coverage;
-- blocked-versus-viable partitioning;
-- baseline-quality ordering among viable candidates;
-- applying explicit contextual preferences only where their required facts are available;
+- hard-blocked versus hard-viable separation;
+- explicit contextual feasibility over the hard-viable set;
+- retaining proven contextual exclusions separately from hard-blocked candidates;
+- baseline-quality ordering among selectable candidates;
+- applying contextual preferences only under their defined semantics;
 - deterministic final tie-breaking;
 - selecting rank 1;
 - distinguishing `no_generated_candidates`; and
-- concluding `no_suitable_recommendation` only for a non-empty, fully evaluated exhausted set.
+- concluding `no_suitable_recommendation` only for a non-empty, fully evaluated set with no remaining selectable candidate.
 
-The orchestration layer does not introduce a second ranking or outcome-state model.
+The orchestration layer does not introduce a second ranking, feasibility, or outcome-state model.
 
 ## Executable boundary
 
-The reusable entry point is:
+The reusable entry point remains:
 
 ```python
 run_recommendation(
@@ -80,15 +84,21 @@ run_recommendation(
 )
 ```
 
-The first contextual model is deliberately small:
+The contextual model is deliberately small:
 
 ```python
 CandidateRankingContext(
     snag_risk="standard" | "elevated" | None,
+    required_reach_mm=float | None,
 )
 ```
 
-Only explicit elevated snag risk currently changes ordering, and only among candidates tied on all existing baseline-quality factors. See `candidate-ranking-selection.md` for the rule and missing-fact behavior.
+The two implemented context dimensions have different semantics:
+
+- explicit `required_reach_mm` is a contextual feasibility requirement using maximum/extended working length;
+- explicit elevated snag risk is a contextual preference using minimum/retracted working length and acts only inside complete baseline-quality ties within the same reach-knowledge tier.
+
+See `candidate-ranking-selection.md` for the detailed missing-fact, threshold, and ordering rules.
 
 The run boundary still mirrors the normalized generator boundary rather than adding a redundant `RecommendationRunInput` wrapper. A future API/session layer may introduce its own serialized request model when it has additional responsibilities such as session identity, user-supplied observations, or catalogue resolution.
 
@@ -130,19 +140,29 @@ evaluations
     one hard evaluation for every generated candidate
 
 ranking_context
-    the explicit context used to order viable candidates,
-    or null when baseline ordering was used
+    the explicit context used for contextual feasibility/ranking,
+    or null when no explicit context was supplied
 
 selection
     the existing CandidateSelectionResult
 ```
 
+`CandidateSelectionResult` now covers the complete generated set across three mutually exclusive partitions:
+
+```text
+ranked_viable_candidates
+contextually_infeasible_candidates
+blocked_candidates
+```
+
+The run validator requires the union of those three partitions to equal the exact generated candidate set and verifies that every retained `EvaluatedCandidate` still contains the original generated candidate and matching hard evaluation.
+
 The result intentionally preserves the full stage outputs rather than returning only the selected candidate.
 
 This supports:
 
-- explanation/audit of why ordering changed under explicit context;
-- inspection of blocked alternatives;
+- explanation/audit of why ordering or feasibility changed under explicit context;
+- inspection of hard-blocked and contextually infeasible alternatives separately;
 - deterministic future session fallback;
 - tracing selected component, installation-feature, endpoint, anchor-path, source-product, and ranking-fact provenance; and
 - adding later context families without reconstructing candidate identity.
@@ -161,16 +181,23 @@ The orchestration layer must not catch such failures and translate them into:
 no_suitable_recommendation
 ```
 
-That state retains its narrow meaning:
+That state now retains this bounded meaning:
 
 ```text
 generation succeeded
 AND generated set is non-empty
 AND every generated candidate was evaluated
-AND every generated candidate is blocked
+AND no generated candidate remains selectable after
+    hard evaluation + explicit contextual feasibility
 ```
 
-Context cannot create `no_suitable_recommendation` because contextual ranking never changes hard viability.
+A complete set may therefore be exhausted by:
+
+- hard evaluator blocking alone;
+- proven contextual infeasibility alone; or
+- a mixture of both.
+
+Required reach can create contextual infeasibility only when a candidate's established maximum working length is below the explicit requirement. A hard-viable candidate whose maximum working length is unknown remains a selectable unknown fallback, so missing reach data cannot be converted into a false global exhaustion conclusion.
 
 Similarly, successful generation of no alternatives remains:
 
@@ -184,7 +211,7 @@ The run boundary does not infer why no candidates were generated.
 
 The run retains the original `GeneratedCandidate` objects throughout evaluation and selection.
 
-Candidate identity is therefore not reconstructed from SKU pairs, product names, or the canonical candidate ID string. The selected and ranked candidates continue to carry their original:
+Candidate identity is therefore not reconstructed from SKU pairs, product names, or the canonical candidate ID string. Selected, ranked, contextually infeasible, and blocked candidates continue to carry their original:
 
 - tool reference;
 - tether reference;
@@ -192,17 +219,17 @@ Candidate identity is therefore not reconstructed from SKU pairs, product names,
 - tool-side and anchor-side endpoint/target bindings;
 - anchor path;
 - component-instance references;
-- source-product references; and
-- explicit ranking facts such as minimum tether working length.
+- source-product references;
+- minimum tether working-length ranking fact where known; and
+- maximum tether working length on the retained evaluator-ready configuration where known.
 
 The ranking context itself is also retained on the run result rather than inferred later from the selected product.
 
 ## Deliberate boundaries
 
-The current contextual-ranking slice does not add:
+The current contextual-selection slice does not add:
 
-- required-reach ranking;
-- environmental ranking;
+- environmental ranking/feasibility;
 - capacity-headroom preferences;
 - direct-versus-ToolAttachment preference;
 - tether-form preference by itself;
@@ -220,22 +247,25 @@ Those concerns should build on the complete run result rather than being folded 
 
 Focused orchestration/context tests should cover at least:
 
-- a complete multi-candidate run selecting the real viable alternative;
-- explicit elevated snag context changing the ordering of otherwise baseline-equivalent viable candidates when minimum working lengths are known;
+- a complete multi-candidate run selecting the real hard-viable alternative;
+- explicit elevated snag context changing the ordering of otherwise baseline-equivalent candidates when minimum working lengths are known;
+- explicit required reach retaining a hard-viable but known-short candidate as contextually infeasible rather than hard-blocked;
 - the run retaining the explicit ranking context used for selection;
-- a non-empty complete run where every candidate is blocked and global exhaustion is valid;
+- complete coverage across ranked, contextually infeasible, and hard-blocked partitions;
+- a complete run where every remaining candidate is proven too short and global exhaustion is valid;
+- a non-empty complete run where every candidate is hard-blocked and global exhaustion is valid;
 - empty generation remaining `no_generated_candidates`;
 - every generated candidate being evaluated exactly once; and
 - stage failure propagating instead of being converted into recommendation exhaustion.
 
-The lower-layer selector tests remain responsible for detailed baseline precedence, missing-context/fact neutrality, deterministic contextual ordering, hard-viability separation, identity, and exact coverage semantics.
+The lower-layer selector tests remain responsible for detailed baseline precedence, required-reach threshold/equality semantics, missing reach fallback, excess-reach neutrality, snag interaction, deterministic ordering, hard-viability separation, identity, and exact coverage semantics.
 
-A separate recommendation-run golden benchmark is not required for this slice. The current ingestion benchmark remains a supply-side catalogue/readiness benchmark, while the single contextual family is more directly and reliably expressed by focused executable tests.
+A separate recommendation-run golden benchmark is not required yet. The current ingestion benchmark remains a supply-side catalogue/readiness benchmark, while the small number of contextual families is more directly and reliably expressed by focused executable tests.
 
 ## Next architecture step
 
-After this first contextual family is trusted, the next context expansion should be justified by a distinct low-level fact and real scenario expectation rather than by adding a generic weighted score.
+After required reach, the next context expansion should again be justified by a distinct low-level fact and real scenario expectation rather than by adding a generic weighted score.
 
-Required reach is the natural next candidate because the existing maximum/extended tether length is already the correct primitive for that question. It should remain separate from snag ranking, which deliberately uses minimum/retracted/shortest working length.
+Environmental exposure is one candidate once the relevant material/exposure semantics are sufficiently explicit.
 
 Session verification/action resolution and deterministic fallback also remain separate follow-on work and should reuse the ranked run result rather than changing catalogue compatibility semantics.
