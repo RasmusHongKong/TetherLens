@@ -93,16 +93,6 @@ class RecommendationSessionResult(BaseModel):
             )
         return self
 
-    @property
-    def ready_for_use(self) -> bool:
-        """Whether the active candidate has no remaining pending session conditions."""
-
-        return (
-            self.state == RecommendationSessionState.ACTIVE
-            and self.active_candidate is not None
-            and not self.active_pending_conditions
-        )
-
 
 def resolve_recommendation_session(
     recommendation_run: RecommendationRunResult,
@@ -120,6 +110,11 @@ def resolve_recommendation_session(
     session/configuration. Lower-ranked candidates are not resolved until every higher
     ranked candidate before them has failed, preserving the lazy field-verification
     workflow and the selector's original deterministic order.
+
+    This generic overlay consumes terminal condition outcomes only. The applicable
+    family-specific connection/product evaluator remains responsible for establishing
+    that the underlying structured runtime observations or pre-use facts actually
+    constitute a satisfied or failed condition.
     """
 
     supplied_resolutions = list(resolutions or [])
@@ -173,8 +168,7 @@ def _resolve_session_projection(
         SessionConditionResolution,
     ] = {}
     for resolution in resolutions:
-        candidate_rank = rank_by_candidate_id.get(resolution.candidate_id)
-        if candidate_rank is None:
+        if resolution.candidate_id not in rank_by_candidate_id:
             raise ValueError(
                 "session conditions may target only ranked selectable candidates from the original run; "
                 f"got candidate_id={resolution.candidate_id!r}"
@@ -201,8 +195,7 @@ def _resolve_session_projection(
     rejected_candidates = [
         candidate
         for candidate in ranked
-        if _candidate_has_failed_condition(
-            candidate,
+        if _has_failed_condition(
             conditions_by_candidate_id[candidate.candidate_id],
             resolution_by_key,
         )
@@ -296,15 +289,13 @@ def _pending_condition_refs(candidate: EvaluatedCandidate) -> list[SessionCondit
     return refs
 
 
-def _candidate_has_failed_condition(
-    candidate: EvaluatedCandidate,
+def _has_failed_condition(
     conditions: list[SessionConditionRef],
     resolution_by_key: dict[
         tuple[str, SessionConditionKind, str],
         SessionConditionResolution,
     ],
 ) -> bool:
-    del candidate
     return any(
         (resolution := resolution_by_key.get(_condition_key(condition))) is not None
         and resolution.outcome == SessionConditionOutcome.FAILED
