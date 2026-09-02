@@ -216,7 +216,6 @@ def test_pending_condition_is_exposed_without_changing_original_candidate():
             condition_id="action:bond-time",
         )
     ]
-    assert session.ready_for_use is False
     assert session.active_candidate.evaluation == original_evaluation
 
 
@@ -236,7 +235,6 @@ def test_satisfied_condition_keeps_candidate_active_and_preserves_hard_evaluatio
     assert session.active_candidate == run.selection.selected
     assert session.active_pending_conditions == []
     assert session.active_satisfied_conditions == [passed]
-    assert session.ready_for_use is True
     assert (
         session.active_candidate.evaluation.recommendation_state
         == RecommendationState.RECOMMENDED_WITH_CONSTRAINTS
@@ -273,7 +271,6 @@ def test_partial_resolution_keeps_remaining_conditions_pending():
             condition_id="action:test",
         )
     ]
-    assert session.ready_for_use is False
 
 
 def test_failed_condition_rejects_only_current_candidate_and_advances_in_original_order():
@@ -321,7 +318,6 @@ def test_repeated_failures_exhaust_session_without_rewriting_global_run_outcome(
     assert session.state == RecommendationSessionState.EXHAUSTED
     assert session.active_candidate is None
     assert session.rejected_candidates == ranked
-    assert session.ready_for_use is False
     assert run.selection.state == CandidateSelectionState.SELECTED
     assert run.selection.selected == ranked[0]
 
@@ -519,7 +515,7 @@ def test_reach_unknown_remains_unknown_after_session_condition_is_satisfied():
 
     session = resolve_recommendation_session(run, [passed])
 
-    assert session.ready_for_use is True
+    assert session.active_pending_conditions == []
     assert session.active_candidate is not None
     assert session.active_candidate.generated_candidate.configuration.tether_max_length_mm is None
     assert session.recommendation_run.ranking_context == CandidateRankingContext(
