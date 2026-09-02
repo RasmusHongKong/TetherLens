@@ -87,6 +87,17 @@ class RecommendationRunResult(BaseModel):
                     f"{candidate_id!r}"
                 )
 
+        expected_selection = rank_and_select_candidates(
+            self.generated_candidates,
+            self.evaluations,
+            ranking_context=self.ranking_context,
+        )
+        if self.selection != expected_selection:
+            raise ValueError(
+                "recommendation run selection must match deterministic selection for the "
+                "retained generated candidates, evaluations, and ranking context"
+            )
+
         return self
 
 
