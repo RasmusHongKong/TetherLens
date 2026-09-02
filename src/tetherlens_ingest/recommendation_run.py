@@ -55,6 +55,7 @@ class RecommendationRunResult(BaseModel):
 
         selected_candidates = [
             *self.selection.ranked_viable_candidates,
+            *self.selection.contextually_infeasible_candidates,
             *self.selection.blocked_candidates,
         ]
         selected_ids = [candidate.candidate_id for candidate in selected_candidates]
@@ -104,8 +105,10 @@ def run_recommendation(
 
     This boundary owns the generator invocation and evaluates exactly the complete list
     returned by it before selection. The existing generator, evaluator and selector remain
-    the sole authorities for candidate construction, hard viability and ranking/global
-    exhaustion respectively. Ranking context may only reorder already-viable candidates.
+    the sole authorities for candidate construction, hard viability and contextual
+    selection/global exhaustion respectively. Ranking context may reorder hard-viable
+    candidates and may exclude a candidate only when an explicit contextual feasibility
+    rule establishes that the candidate cannot satisfy the stated task requirement.
 
     Exceptions from any stage deliberately propagate. An orchestration/invariant failure
     is not equivalent to a successful run whose complete candidate set is exhausted.
