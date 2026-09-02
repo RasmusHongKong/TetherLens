@@ -5,14 +5,17 @@ import pytest
 from tetherlens_ingest.candidate_generation import (
     CandidateComponentRole,
     CandidatePathSelection,
+    CandidateRankingFacts,
     CandidateSelectedComponent,
     GeneratedCandidate,
     _candidate_id,
 )
 from tetherlens_ingest.candidate_selection import (
+    CandidateRankingContext,
     CandidateSelectionResult,
     CandidateSelectionState,
     EvaluatedCandidate,
+    SnagRiskLevel,
     rank_and_select_candidates,
 )
 from tetherlens_ingest.connection import (
@@ -59,7 +62,11 @@ def connection(
     )
 
 
-def generated_candidate(label: str) -> GeneratedCandidate:
+def generated_candidate(
+    label: str,
+    *,
+    min_length_mm: float | None = None,
+) -> GeneratedCandidate:
     selection = CandidatePathSelection(
         tool_ref="tool:1",
         tether_ref=f"tether:{label}",
@@ -111,6 +118,9 @@ def generated_candidate(label: str) -> GeneratedCandidate:
                 side=TetherSide.ANCHOR_SIDE,
             ),
             policy_applicability=PolicyApplicability.NOT_APPLICABLE,
+        ),
+        ranking_facts=CandidateRankingFacts(
+            tether_min_length_mm=min_length_mm,
         ),
     )
 
@@ -282,6 +292,121 @@ def test_total_tie_uses_canonical_candidate_id_and_is_input_order_independent():
         assert [candidate.candidate_id for candidate in result.ranked_viable_candidates] == expected
         assert result.selected is not None
         assert result.selected.candidate_id == expected[0]
+
+
+def test_elevated_snag_risk_prefers_lower_minimum_length_within_baseline_tie():
+    long = generated_candidate("a-long", min_length_mm=900.0)
+    short = generated_candidate("z-short", min_length_mm=300.0)
+    baseline_expected = sorted(
+        [long.configuration.candidate_id, short.configuration.candidate_id]
+    )
+    assert baseline_expected[0] == long.configuration.candidate_id
+
+    baseline = rank_and_select_candidates(
+        [short, long],
+        [evaluation(long), evaluation(short)],
+    )
+    assert baseline.selected is not None
+    assert baseline.selected.candidate_id == long.configuration.candidate_id
+
+    context = CandidateRankingContext(snag_risk=SnagRiskLevel.ELEVATED)
+    for generated_order in itertools.permutations([long, short]):
+        contextual = rank_and_select_candidates(
+            list(generated_order),
+            [evaluation(candidate) for candidate in reversed(generated_order)],
+            ranking_context=context,
+        )
+        assert contextual.selected is not None
+        assert contextual.selected.candidate_id == short.configuration.candidate_id
+        assert [
+            candidate.candidate_id for candidate in contextual.ranked_viable_candidates
+        ] == [
+            short.configuration.candidate_id,
+            long.configuration.candidate_id,
+        ]
+
+
+def test_absent_or_standard_snag_context_preserves_baseline_order():
+    long = generated_candidate("a-long", min_length_mm=900.0)
+    short = generated_candidate("z-short", min_length_mm=300.0)
+    expected = sorted(
+        [long.configuration.candidate_id, short.configuration.candidate_id]
+    )
+
+    absent = rank_and_select_candidates(
+        [short, long],
+        [evaluation(short), evaluation(long)],
+    )
+    standard = rank_and_select_candidates(
+        [short, long],
+        [evaluation(short), evaluation(long)],
+        ranking_context=CandidateRankingContext(snag_risk=SnagRiskLevel.STANDARD),
+    )
+
+    assert [candidate.candidate_id for candidate in absent.ranked_viable_candidates] == expected
+    assert [candidate.candidate_id for candidate in standard.ranked_viable_candidates] == expected
+
+
+def test_elevated_snag_risk_is_neutral_when_a_tied_candidate_lacks_minimum_length():
+    missing = generated_candidate("a-missing")
+    known_short = generated_candidate("z-short", min_length_mm=300.0)
+    expected = sorted(
+        [missing.configuration.candidate_id, known_short.configuration.candidate_id]
+    )
+
+    result = rank_and_select_candidates(
+        [known_short, missing],
+        [evaluation(known_short), evaluation(missing)],
+        ranking_context=CandidateRankingContext(snag_risk=SnagRiskLevel.ELEVATED),
+    )
+
+    assert [candidate.candidate_id for candidate in result.ranked_viable_candidates] == expected
+
+
+def test_elevated_snag_risk_is_neutral_when_minimum_lengths_are_equal():
+    first = generated_candidate("first", min_length_mm=500.0)
+    second = generated_candidate("second", min_length_mm=500.0)
+    expected = sorted(
+        [first.configuration.candidate_id, second.configuration.candidate_id]
+    )
+
+    result = rank_and_select_candidates(
+        [second, first],
+        [evaluation(first), evaluation(second)],
+        ranking_context=CandidateRankingContext(snag_risk=SnagRiskLevel.ELEVATED),
+    )
+
+    assert [candidate.candidate_id for candidate in result.ranked_viable_candidates] == expected
+
+
+def test_context_never_overrides_baseline_quality_or_rescues_blocked_candidate():
+    full_long = generated_candidate("full-long", min_length_mm=900.0)
+    conditional_short = generated_candidate("conditional-short", min_length_mm=200.0)
+    blocked_shortest = generated_candidate("blocked-shortest", min_length_mm=100.0)
+
+    result = rank_and_select_candidates(
+        [blocked_shortest, conditional_short, full_long],
+        [
+            evaluation(blocked_shortest, state=None),
+            evaluation(
+                conditional_short,
+                state=RecommendationState.RECOMMENDED_WITH_CONSTRAINTS,
+                pending_actions=1,
+            ),
+            evaluation(full_long),
+        ],
+        ranking_context=CandidateRankingContext(snag_risk=SnagRiskLevel.ELEVATED),
+    )
+
+    assert result.selected is not None
+    assert result.selected.candidate_id == full_long.configuration.candidate_id
+    assert [candidate.candidate_id for candidate in result.ranked_viable_candidates] == [
+        full_long.configuration.candidate_id,
+        conditional_short.configuration.candidate_id,
+    ]
+    assert [candidate.candidate_id for candidate in result.blocked_candidates] == [
+        blocked_shortest.configuration.candidate_id
+    ]
 
 
 def test_ranked_candidate_retains_original_selection_and_component_provenance():

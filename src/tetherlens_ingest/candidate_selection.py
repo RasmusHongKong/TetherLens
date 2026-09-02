@@ -1,12 +1,24 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from itertools import groupby
 
 from pydantic import BaseModel, Field, model_validator
 
 from .candidate_generation import GeneratedCandidate
 from .connection import CompatibilityBasis
 from .recommendation import CandidateEvaluation, RecommendationState
+
+
+class SnagRiskLevel(StrEnum):
+    STANDARD = "standard"
+    ELEVATED = "elevated"
+
+
+class CandidateRankingContext(BaseModel):
+    """Explicit work context that may reorder already-viable candidates."""
+
+    snag_risk: SnagRiskLevel | None = None
 
 
 class CandidateSelectionState(StrEnum):
@@ -123,6 +135,8 @@ class CandidateSelectionResult(BaseModel):
 def rank_and_select_candidates(
     generated_candidates: list[GeneratedCandidate],
     evaluations: list[CandidateEvaluation],
+    *,
+    ranking_context: CandidateRankingContext | None = None,
 ) -> CandidateSelectionResult:
     """Rank viable candidates and select the highest-ranked defensible alternative.
 
@@ -130,19 +144,19 @@ def rank_and_select_candidates(
     Ranking cannot rescue a blocked candidate: hard viability remains exactly the
     evaluator's ``recommendation_state is not None`` decision.
 
-    The baseline ordering is deliberately lexicographic rather than weighted:
+    Baseline quality is deliberately lexicographic rather than weighted:
 
     1. fully recommended before recommended-with-constraints;
     2. fewer pending verification/pre-use conditions;
     3. for equal pending burden, fewer pending physical verifications;
     4. stronger connection evidence (established catalogue basis before runtime
-       verification, and runtime verification before no basis);
-    5. no internal review signal before review-required; and
-    6. canonical candidate id for a deterministic final tie-break.
+       verification, and runtime verification before no basis); and
+    5. no internal review signal before review-required.
 
-    Contextual preferences such as snagging, reach, free tether length, brand, product
-    family or component count are intentionally absent until represented by explicit
-    reusable context rules.
+    Context may reorder candidates only inside a complete tie on those baseline-quality
+    factors. Elevated snag risk prefers lower minimum/retracted tether length when every
+    candidate in that tied group has the fact. Missing context or a missing length fact
+    leaves the group neutral. Canonical candidate id is the deterministic final fallback.
     """
 
     generated_by_id = _unique_generated_by_id(generated_candidates)
@@ -171,9 +185,9 @@ def rank_and_select_candidates(
         for generated in generated_candidates
     ]
 
-    viable = sorted(
-        (candidate for candidate in paired if candidate.viable),
-        key=_ranking_key,
+    viable = _rank_viable_candidates(
+        [candidate for candidate in paired if candidate.viable],
+        ranking_context=ranking_context,
     )
     blocked = sorted(
         (candidate for candidate in paired if not candidate.viable),
@@ -194,7 +208,43 @@ def rank_and_select_candidates(
     )
 
 
-def _ranking_key(candidate: EvaluatedCandidate) -> tuple[int, int, int, int, int, int, str]:
+def _rank_viable_candidates(
+    candidates: list[EvaluatedCandidate],
+    *,
+    ranking_context: CandidateRankingContext | None,
+) -> list[EvaluatedCandidate]:
+    baseline_ranked = sorted(candidates, key=_ranking_key)
+    if (
+        ranking_context is None
+        or ranking_context.snag_risk != SnagRiskLevel.ELEVATED
+    ):
+        return baseline_ranked
+
+    ranked: list[EvaluatedCandidate] = []
+    for _, grouped_candidates in groupby(
+        baseline_ranked,
+        key=_baseline_quality_key,
+    ):
+        group = list(grouped_candidates)
+        minimum_lengths = [
+            candidate.generated_candidate.ranking_facts.tether_min_length_mm
+            for candidate in group
+        ]
+        if all(length is not None for length in minimum_lengths):
+            group = sorted(
+                group,
+                key=lambda candidate: (
+                    candidate.generated_candidate.ranking_facts.tether_min_length_mm,
+                    candidate.candidate_id,
+                ),
+            )
+        ranked.extend(group)
+    return ranked
+
+
+def _baseline_quality_key(
+    candidate: EvaluatedCandidate,
+) -> tuple[int, int, int, int, int, int]:
     evaluation = candidate.evaluation
     state_tier = (
         0
@@ -220,8 +270,11 @@ def _ranking_key(candidate: EvaluatedCandidate) -> tuple[int, int, int, int, int
         no_basis_count,
         runtime_basis_count,
         1 if evaluation.review_required else 0,
-        evaluation.candidate_id,
     )
+
+
+def _ranking_key(candidate: EvaluatedCandidate) -> tuple[int, int, int, int, int, int, str]:
+    return (*_baseline_quality_key(candidate), candidate.candidate_id)
 
 
 def _unique_generated_by_id(
