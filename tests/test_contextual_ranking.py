@@ -7,7 +7,11 @@ from tetherlens_ingest.candidate_generation import (
     TetherOption,
     generate_candidate_configurations,
 )
-from tetherlens_ingest.candidate_selection import CandidateRankingContext, SnagRiskLevel
+from tetherlens_ingest.candidate_selection import (
+    CandidateRankingContext,
+    CandidateSelectionState,
+    SnagRiskLevel,
+)
 from tetherlens_ingest.connection import (
     ConnectionInterface,
     ConnectionInterfaceRole,
@@ -156,3 +160,48 @@ def test_run_context_can_change_only_the_order_of_viable_baseline_ties():
         "product:tether-z-short",
         "product:tether-a-long",
     ]
+
+
+def test_run_required_reach_excludes_known_short_candidate_without_changing_hard_evaluation():
+    short = tether_option("a-short", min_length_mm=300.0, max_length_mm=900.0)
+    adequate = tether_option("z-adequate", min_length_mm=500.0, max_length_mm=1200.0)
+    context = CandidateRankingContext(required_reach_mm=1000.0)
+
+    result = run_recommendation(
+        tool(),
+        [short, adequate],
+        [anchor_path()],
+        ranking_context=context,
+    )
+
+    assert result.ranking_context == context
+    assert len(result.generated_candidates) == 2
+    assert len(result.evaluations) == 2
+    assert all(evaluation.recommendation_state is not None for evaluation in result.evaluations)
+    assert result.selection.selected is not None
+    assert result.selection.selected.generated_candidate.selection.tether_ref == (
+        "product:tether-z-adequate"
+    )
+    assert [
+        candidate.generated_candidate.selection.tether_ref
+        for candidate in result.selection.contextually_infeasible_candidates
+    ] == ["product:tether-a-short"]
+    assert result.selection.blocked_candidates == []
+
+
+def test_run_can_conclude_no_suitable_when_every_hard_viable_candidate_is_known_too_short():
+    first = tether_option("first", min_length_mm=300.0, max_length_mm=800.0)
+    second = tether_option("second", min_length_mm=400.0, max_length_mm=900.0)
+
+    result = run_recommendation(
+        tool(),
+        [first, second],
+        [anchor_path()],
+        ranking_context=CandidateRankingContext(required_reach_mm=1000.0),
+    )
+
+    assert result.selection.state == CandidateSelectionState.NO_SUITABLE_RECOMMENDATION
+    assert result.selection.selected is None
+    assert result.selection.ranked_viable_candidates == []
+    assert len(result.selection.contextually_infeasible_candidates) == 2
+    assert result.selection.blocked_candidates == []
