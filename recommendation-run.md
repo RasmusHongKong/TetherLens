@@ -158,7 +158,7 @@ This supports:
 
 - explanation/audit of why ordering or feasibility changed under explicit context;
 - inspection of hard-blocked and contextually infeasible alternatives separately;
-- deterministic future session fallback;
+- deterministic session fallback;
 - tracing selected component, installation-feature, endpoint, anchor-path, source-product, and candidate-fact provenance; and
 - adding later context families without reconstructing candidate identity.
 
@@ -262,9 +262,44 @@ Candidate identity is therefore not reconstructed from SKU pairs, product names,
 
 The ranking context itself is retained on the run result rather than inferred later from the selected product.
 
+## Downstream session-local condition resolution
+
+The completed run result is now the immutable input to `recommendation_session.py`.
+
+Session resolution uses only:
+
+```text
+selection.ranked_viable_candidates
+```
+
+for fallback. It does not regenerate candidates, alter hard evaluations, re-run contextual feasibility, or re-rank survivors.
+
+Original pending condition identifiers are wrapped in candidate scope:
+
+```text
+(candidate_id, runtime_verification, connection_id)
+(candidate_id, pre_use_action, constraint_id)
+```
+
+A satisfied condition keeps the candidate active. A failed condition rejects only that candidate for the current session/configuration and advances to the next item in the original ranking.
+
+If every originally ranked selectable candidate later fails a session condition, the session layer reports its own `exhausted` state. The originating run remains unchanged with its original selector outcome.
+
+This distinction is intentional:
+
+```text
+selector no_suitable_recommendation
+    = no candidate was selectable after hard evaluation/contextual feasibility
+
+session exhausted
+    = selectable candidates existed, but each later failed a session-local condition
+```
+
+See `recommendation-session.md` for condition identity, lazy fallback, canonical resolution ordering, self-consistency validation, and deliberate boundaries.
+
 ## Deliberate boundaries
 
-The current contextual-selection/run slice does not add:
+The recommendation-run slice itself does not add:
 
 - environmental ranking/feasibility;
 - capacity-headroom preferences;
@@ -272,18 +307,15 @@ The current contextual-selection/run slice does not add:
 - tether-form preference by itself;
 - brand or SKU-pair rules;
 - new compatibility/evidence semantics;
-- runtime verification/action resolution;
-- session-local candidate disposition;
-- deterministic session fallback execution;
 - user-facing recommendation prose;
 - catalogue/ingestion resolution; or
 - persistence/retry machinery beyond validating a reconstructed run result.
 
-Those concerns should build on the complete run result rather than being folded into orchestration.
+Session-local condition disposition and fallback are now implemented in the separate `recommendation_session.py` layer rather than folded back into orchestration.
 
 ## Test expectations
 
-Focused orchestration/context tests should cover at least:
+Focused orchestration/context tests continue to cover at least:
 
 - a complete multi-candidate run selecting the real hard-viable alternative;
 - explicit elevated snag context changing the ordering of otherwise baseline-equivalent candidates when minimum working lengths are known;
@@ -300,10 +332,12 @@ Focused orchestration/context tests should cover at least:
 
 The lower-layer selector tests remain responsible for detailed baseline precedence, required-reach threshold/equality semantics, missing-reach fallback, excess-reach neutrality, snag interaction, deterministic ordering, hard-viability separation, identity, and exact coverage semantics.
 
-A separate recommendation-run golden benchmark is not required yet. The ingestion benchmark remains a supply-side catalogue/readiness benchmark, while the small number of contextual families is more directly expressed by focused executable tests.
+The session tests separately own terminal condition resolution, candidate scoping, immutable evaluation preservation, lazy fallback, session exhaustion, and session-result self-consistency.
+
+A separate recommendation-run/session golden benchmark is not required yet. The ingestion benchmark remains a supply-side catalogue/readiness benchmark, while the small number of contextual/session families is more directly expressed by focused executable tests.
 
 ## Next architecture step
 
-After required reach, session verification/action resolution and deterministic fallback are the cleanest next recommendation-engine slice.
+After the generic session fallback layer, the cleanest downstream slice is the family-specific bridge from validated runtime observations/actions into candidate-scoped `SessionConditionResolution` records.
 
-That work should reuse the ranked `RecommendationRunResult` rather than changing catalogue compatibility or recomputing candidate generation. A failed runtime condition should affect only the current session/configuration and advance deterministically to the next ranked selectable alternative while preserving the original hard evaluation and evidence provenance.
+That bridge should reuse the existing bounded connection-verification evaluator and normalized product-constraint runtime semantics. It must not accept generic `looks safe` / `user says fit` assertions, mutate the original hard `CandidateEvaluation`, or promote successful session observations into universal catalogue/SKU-pair compatibility.
