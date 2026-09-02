@@ -7,7 +7,10 @@ from tetherlens_ingest.candidate_generation import (
     ResolvedToolCandidate,
     TetherOption,
 )
-from tetherlens_ingest.candidate_selection import CandidateSelectionState
+from tetherlens_ingest.candidate_selection import (
+    CandidateRankingContext,
+    CandidateSelectionState,
+)
 from tetherlens_ingest.connection import (
     ConnectionInterface,
     ConnectionInterfaceRole,
@@ -136,6 +139,38 @@ def test_recommendation_run_result_rejects_incomplete_evaluation_coverage():
             generated_candidates=result.generated_candidates,
             evaluations=[],
             selection=result.selection,
+        )
+
+
+def test_recommendation_run_result_rejects_selection_inconsistent_with_required_reach():
+    result = run_recommendation(
+        tool(),
+        [tether_option("viable", capacity_kg=5.0)],
+        [anchor_path()],
+    )
+
+    with pytest.raises(ValueError, match="must match deterministic selection"):
+        RecommendationRunResult(
+            generated_candidates=result.generated_candidates,
+            evaluations=result.evaluations,
+            ranking_context=CandidateRankingContext(required_reach_mm=1300.0),
+            selection=result.selection,
+        )
+
+
+def test_recommendation_run_result_rejects_contextual_exclusion_without_reach_requirement():
+    contextual = run_recommendation(
+        tool(),
+        [tether_option("viable", capacity_kg=5.0)],
+        [anchor_path()],
+        ranking_context=CandidateRankingContext(required_reach_mm=1300.0),
+    )
+
+    with pytest.raises(ValueError, match="must match deterministic selection"):
+        RecommendationRunResult(
+            generated_candidates=contextual.generated_candidates,
+            evaluations=contextual.evaluations,
+            selection=contextual.selection,
         )
 
 
