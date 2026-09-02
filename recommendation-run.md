@@ -23,11 +23,11 @@ It does not add recommendation semantics of its own.
 
 ### Candidate generation remains authoritative for alternatives and candidate facts
 
-`generate_candidate_configurations()` owns physical candidate construction, identity, feature/endpoint/component binding, ranking-only candidate facts, and the complete set of alternatives produced from the normalized run inputs.
+`generate_candidate_configurations()` owns physical candidate construction, identity, feature/endpoint/component binding, ranking-only candidate facts, and the complete set of alternatives produced from normalized run inputs.
 
 Minimum/retracted/shortest tether working length is retained on `GeneratedCandidate.ranking_facts` for contextual snag ranking.
 
-Maximum/extended/longest tether working length remains on `CandidateConfiguration.tether_max_length_mm`. It retains its existing hard product/lanyard-constraint role and is also the existing normalized primitive consumed by the selector's explicit required-reach feasibility rule. It is not duplicated into `CandidateRankingFacts`.
+Maximum/extended/longest tether working length remains on `CandidateConfiguration.tether_max_length_mm`. It retains its existing hard product/lanyard-constraint role and is also the normalized primitive consumed by explicit required-reach contextual feasibility. It is not duplicated into `CandidateRankingFacts`.
 
 The orchestration layer must not:
 
@@ -45,11 +45,11 @@ The orchestration layer must not duplicate or reinterpret attachment eligibility
 
 A candidate is hard-viable exactly when the existing evaluator gives it a non-null recommendation state.
 
-Ranking context is not passed into the hard evaluator. A candidate can therefore remain technically/hard viable while being contextually infeasible for one stated task requirement.
+`CandidateRankingContext` is not passed into the hard evaluator. A candidate can therefore remain technically/hard viable while being contextually infeasible for one stated task requirement.
 
 ### Candidate selection remains authoritative for contextual feasibility, ranking, and global exhaustion
 
-`rank_and_select_candidates()` receives the exact generated list and the complete evaluation list produced during the run, plus optional `CandidateRankingContext`.
+`rank_and_select_candidates()` receives the exact generated list and complete evaluation list produced during the run, plus optional `CandidateRankingContext`.
 
 It is responsible for:
 
@@ -68,7 +68,7 @@ The orchestration layer does not introduce a second ranking, feasibility, or out
 
 ## Executable boundary
 
-The reusable entry point remains:
+The reusable entry point is:
 
 ```python
 run_recommendation(
@@ -84,7 +84,7 @@ run_recommendation(
 )
 ```
 
-The contextual model is deliberately small:
+The current contextual model is deliberately small:
 
 ```python
 CandidateRankingContext(
@@ -98,13 +98,11 @@ The two implemented context dimensions have different semantics:
 - explicit `required_reach_mm` is a contextual feasibility requirement using maximum/extended working length;
 - explicit elevated snag risk is a contextual preference using minimum/retracted working length and acts only inside complete baseline-quality ties within the same reach-knowledge tier.
 
-See `candidate-ranking-selection.md` for the detailed missing-fact, threshold, and ordering rules.
-
-The run boundary still mirrors the normalized generator boundary rather than adding a redundant `RecommendationRunInput` wrapper. A future API/session layer may introduce its own serialized request model when it has additional responsibilities such as session identity, user-supplied observations, or catalogue resolution.
+See `candidate-ranking-selection.md` for detailed threshold, missing-fact, partition, and ordering rules.
 
 ## Completeness invariant
 
-The orchestration sequence remains deliberately fixed:
+The orchestration sequence is deliberately fixed:
 
 ```text
 generated_candidates = generate_candidate_configurations(...)
@@ -133,8 +131,7 @@ The selector remains reusable on its own, but a system-level global recommendati
 
 ```text
 generated_candidates
-    all physical alternatives produced by generation,
-    including ranking-only candidate facts
+    all physical alternatives produced by generation
 
 evaluations
     one hard evaluation for every generated candidate
@@ -144,10 +141,10 @@ ranking_context
     or null when no explicit context was supplied
 
 selection
-    the existing CandidateSelectionResult
+    the CandidateSelectionResult produced for those exact inputs
 ```
 
-`CandidateSelectionResult` now covers the complete generated set across three mutually exclusive partitions:
+`CandidateSelectionResult` covers the complete generated set across three mutually exclusive partitions:
 
 ```text
 ranked_viable_candidates
@@ -155,25 +152,63 @@ contextually_infeasible_candidates
 blocked_candidates
 ```
 
-The run validator requires the union of those three partitions to equal the exact generated candidate set and verifies that every retained `EvaluatedCandidate` still contains the original generated candidate and matching hard evaluation.
-
-The result intentionally preserves the full stage outputs rather than returning only the selected candidate.
+The result intentionally preserves full stage outputs rather than returning only the selected candidate.
 
 This supports:
 
 - explanation/audit of why ordering or feasibility changed under explicit context;
 - inspection of hard-blocked and contextually infeasible alternatives separately;
 - deterministic future session fallback;
-- tracing selected component, installation-feature, endpoint, anchor-path, source-product, and ranking-fact provenance; and
+- tracing selected component, installation-feature, endpoint, anchor-path, source-product, and candidate-fact provenance; and
 - adding later context families without reconstructing candidate identity.
 
-The authoritative global outcome remains `selection.state`; the orchestration layer does not duplicate `CandidateSelectionState` with another enum.
+The authoritative global outcome remains `selection.state`; orchestration does not duplicate `CandidateSelectionState` with another enum.
+
+## Result self-consistency validation
+
+A `RecommendationRunResult` may be created directly or deserialized outside `run_recommendation()`. It therefore cannot assume that its retained `selection` was actually produced from its retained generated candidates, evaluations, and ranking context.
+
+The model validator enforces two levels of consistency.
+
+### 1. Identity and coverage
+
+It requires:
+
+- generated candidate IDs to be unique;
+- evaluation candidate IDs to be unique;
+- generated/evaluation ID sets to match exactly;
+- the union of `ranked_viable_candidates`, `contextually_infeasible_candidates`, and `blocked_candidates` to cover the exact generated set; and
+- every retained `EvaluatedCandidate` to contain the exact corresponding generated candidate and hard evaluation from the run.
+
+### 2. Selection semantics
+
+Coverage alone is insufficient. A manually constructed result could otherwise retain, for example:
+
+- `required_reach_mm = 1000`;
+- a selected candidate with known `tether_max_length_mm = 900`; and
+- an empty contextual-infeasible partition.
+
+That would be structurally complete but semantically contradictory.
+
+To prevent this, the validator recomputes:
+
+```python
+expected_selection = rank_and_select_candidates(
+    generated_candidates,
+    evaluations,
+    ranking_context=ranking_context,
+)
+```
+
+and requires the retained `selection` to equal that expected deterministic result.
+
+This deliberately reuses the selector instead of reimplementing reach, snag, baseline ranking, partition, or exhaustion logic inside orchestration. Future contextual families therefore inherit the same run-result consistency protection as long as their semantics remain centralized in the selector.
 
 ## Failure semantics
 
-An unsuccessful orchestration stage is not a recommendation outcome.
+An unsuccessful orchestration stage or result invariant is not a recommendation outcome.
 
-If generation, candidate evaluation, or selection raises because its inputs/invariants are invalid, the exception propagates.
+If generation, candidate evaluation, selection, or result validation raises because its inputs/invariants are invalid, the exception propagates.
 
 The orchestration layer must not catch such failures and translate them into:
 
@@ -181,7 +216,7 @@ The orchestration layer must not catch such failures and translate them into:
 no_suitable_recommendation
 ```
 
-That state now retains this bounded meaning:
+That state retains this bounded meaning:
 
 ```text
 generation succeeded
@@ -197,9 +232,11 @@ A complete set may therefore be exhausted by:
 - proven contextual infeasibility alone; or
 - a mixture of both.
 
-Required reach can create contextual infeasibility only when a candidate's established maximum working length is below the explicit requirement. A hard-viable candidate whose maximum working length is unknown remains a selectable unknown fallback, so missing reach data cannot be converted into a false global exhaustion conclusion.
+Required reach can create contextual infeasibility only when a hard-viable candidate's established maximum working length is below the explicit requirement.
 
-Similarly, successful generation of no alternatives remains:
+A hard-viable candidate whose maximum working length is unknown remains a selectable unknown fallback, so missing reach data cannot be converted into a false global exhaustion conclusion.
+
+Successful generation of no alternatives remains:
 
 ```text
 no_generated_candidates
@@ -209,9 +246,9 @@ The run boundary does not infer why no candidates were generated.
 
 ## Provenance and identity
 
-The run retains the original `GeneratedCandidate` objects throughout evaluation and selection.
+The run retains original `GeneratedCandidate` objects throughout evaluation and selection.
 
-Candidate identity is therefore not reconstructed from SKU pairs, product names, or the canonical candidate ID string. Selected, ranked, contextually infeasible, and blocked candidates continue to carry their original:
+Candidate identity is therefore not reconstructed from SKU pairs, product names, or the canonical candidate-ID string. Selected, ranked, contextually infeasible, and blocked candidates continue to carry their original:
 
 - tool reference;
 - tether reference;
@@ -223,11 +260,11 @@ Candidate identity is therefore not reconstructed from SKU pairs, product names,
 - minimum tether working-length ranking fact where known; and
 - maximum tether working length on the retained evaluator-ready configuration where known.
 
-The ranking context itself is also retained on the run result rather than inferred later from the selected product.
+The ranking context itself is retained on the run result rather than inferred later from the selected product.
 
 ## Deliberate boundaries
 
-The current contextual-selection slice does not add:
+The current contextual-selection/run slice does not add:
 
 - environmental ranking/feasibility;
 - capacity-headroom preferences;
@@ -236,10 +273,11 @@ The current contextual-selection slice does not add:
 - brand or SKU-pair rules;
 - new compatibility/evidence semantics;
 - runtime verification/action resolution;
-- session fallback state;
+- session-local candidate disposition;
+- deterministic session fallback execution;
 - user-facing recommendation prose;
 - catalogue/ingestion resolution; or
-- persistence/retry machinery.
+- persistence/retry machinery beyond validating a reconstructed run result.
 
 Those concerns should build on the complete run result rather than being folded into orchestration.
 
@@ -255,17 +293,17 @@ Focused orchestration/context tests should cover at least:
 - a complete run where every remaining candidate is proven too short and global exhaustion is valid;
 - a non-empty complete run where every candidate is hard-blocked and global exhaustion is valid;
 - empty generation remaining `no_generated_candidates`;
-- every generated candidate being evaluated exactly once; and
-- stage failure propagating instead of being converted into recommendation exhaustion.
+- every generated candidate being evaluated exactly once;
+- a manually constructed/deserialized run whose selection ignores active required reach being rejected;
+- a manually constructed/deserialized run carrying contextual exclusions without the corresponding context being rejected; and
+- stage/invariant failure propagating instead of being converted into recommendation exhaustion.
 
-The lower-layer selector tests remain responsible for detailed baseline precedence, required-reach threshold/equality semantics, missing reach fallback, excess-reach neutrality, snag interaction, deterministic ordering, hard-viability separation, identity, and exact coverage semantics.
+The lower-layer selector tests remain responsible for detailed baseline precedence, required-reach threshold/equality semantics, missing-reach fallback, excess-reach neutrality, snag interaction, deterministic ordering, hard-viability separation, identity, and exact coverage semantics.
 
-A separate recommendation-run golden benchmark is not required yet. The current ingestion benchmark remains a supply-side catalogue/readiness benchmark, while the small number of contextual families is more directly and reliably expressed by focused executable tests.
+A separate recommendation-run golden benchmark is not required yet. The ingestion benchmark remains a supply-side catalogue/readiness benchmark, while the small number of contextual families is more directly expressed by focused executable tests.
 
 ## Next architecture step
 
-After required reach, the next context expansion should again be justified by a distinct low-level fact and real scenario expectation rather than by adding a generic weighted score.
+After required reach, session verification/action resolution and deterministic fallback are the cleanest next recommendation-engine slice.
 
-Environmental exposure is one candidate once the relevant material/exposure semantics are sufficiently explicit.
-
-Session verification/action resolution and deterministic fallback also remain separate follow-on work and should reuse the ranked run result rather than changing catalogue compatibility semantics.
+That work should reuse the ranked `RecommendationRunResult` rather than changing catalogue compatibility or recomputing candidate generation. A failed runtime condition should affect only the current session/configuration and advance deterministically to the next ranked selectable alternative while preserving the original hard evaluation and evidence provenance.
