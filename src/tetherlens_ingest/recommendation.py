@@ -95,9 +95,11 @@ class CandidateConfiguration(BaseModel):
     identities. Candidate generation, ranking and evidence acceptance stay outside this
     layer.
 
-    Product installation/use constraints enter only as resolved evaluations. This keeps
-    raw claim keys and manufacturer-specific extraction details out of recommendation
-    composition while allowing pre-use obligations to remain distinct from hard failure.
+    Product installation/use constraints enter only as resolved evaluations. Hard and
+    pre-use obligations are composed here; explicitly contextual constraints remain
+    retained on the configuration but are deferred to downstream context evaluation.
+    This keeps raw claim keys and manufacturer-specific extraction details out of
+    recommendation composition without turning absent work context into a hard failure.
     """
 
     candidate_id: str = Field(min_length=1)
@@ -221,7 +223,8 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
     candidates or decide that no alternative exists. Any failed or unresolved hard
     check blocks this candidate. Pending connection verification or another validated
     pre-use action remains usable and produces ``recommended_with_constraints`` when
-    every other hard check passes.
+    every other hard check passes. Product constraints explicitly marked as deferred
+    context are retained on the original configuration but do not become hard checks.
 
     Feature-scoped product constraints must all refer to one installation feature that
     also appears in the ToolAttachment eligibility matches. This keeps the same-feature
@@ -324,6 +327,8 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
 
     feature_binding_problem = _feature_constraint_binding_problem(candidate)
     for constraint in candidate.product_constraint_evaluations:
+        if constraint.status == ProductConstraintStatus.DEFERRED_CONTEXT:
+            continue
         if constraint.installation_feature_id is not None and feature_binding_problem is not None:
             status = CandidateCheckStatus.UNRESOLVED
             reason = feature_binding_problem
@@ -450,6 +455,7 @@ def _feature_constraint_binding_problem(candidate: CandidateConfiguration) -> st
         constraint.installation_feature_id
         for constraint in candidate.product_constraint_evaluations
         if constraint.installation_feature_id is not None
+        and constraint.status != ProductConstraintStatus.DEFERRED_CONTEXT
     }
     if not feature_ids:
         return None
