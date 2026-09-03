@@ -107,6 +107,28 @@ def test_nlg_block_boundaries_prevent_cross_paragraph_or_list_mechanism_claims()
         assert not has_quick_clip_mechanism(claims), body
 
 
+def test_nlg_later_subject_cannot_donate_trigger_mechanism_to_quick_clip():
+    body = (
+        "<p>Dual Quick Clips are included, while the clasp provides easy connection "
+        "with a built-in trigger.</p>"
+    )
+
+    claims = NLGAdapter().extract(tether_identity(), [artifact(body)])
+
+    assert not has_quick_clip_mechanism(claims)
+
+
+def test_nlg_explicit_trigger_negation_is_not_normalized_as_positive_mechanism():
+    bodies = (
+        "<p>Dual Quick Clips cannot provide quick connection using a built-in trigger.</p>",
+        "<p>Dual Quick Clips never provide quick connection using a built-in trigger.</p>",
+    )
+
+    for body in bodies:
+        claims = NLGAdapter().extract(tether_identity(), [artifact(body)])
+        assert not has_quick_clip_mechanism(claims), body
+
+
 def test_nlg_quick_clip_ergonomic_trigger_can_be_bound_directly_to_action():
     claims = NLGAdapter().extract(
         tether_identity(),
