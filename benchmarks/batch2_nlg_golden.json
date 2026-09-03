@@ -1,6 +1,6 @@
 {
-  "version": "0.9",
-  "description": "Batch 2 NLG post-blind contract. Blind run 130 remains immutable. Version 0.9 adds repeated evidence-backed container tether interfaces with explicit internal/external location while preserving ToolAttachment topology, reusable applicability and installation-constraint semantics, and existing evidence tensions.",
+  "version": "1.0",
+  "description": "Batch 2 NLG post-blind contract. Blind run 130 remains immutable. Version 1.0 adds evidence-backed Quick Clip trigger-operated connector mechanism semantics while preserving repeated container interfaces, ToolAttachment topology, reusable applicability and installation-constraint semantics, and existing evidence tensions.",
   "blind_reference": {
     "workflow_run_id": 32273707247,
     "artifact_id": 9373169405,
@@ -16,19 +16,22 @@
         {"subject_type":"product","subject_ref":"self","property_key":"max_length_mm","value":2100.0},
         {"subject_type":"product","subject_ref":"self","property_key":"tether.connection_count","value":2},
         {"subject_type":"connector_spec","subject_ref":"quick_clip","property_key":"connector.swivel","value":true},
+        {"subject_type":"connector_spec","subject_ref":"quick_clip","property_key":"connector.attribute.opening_mechanism","value":"trigger_operated"},
         {"subject_type":"tether_connection_point","subject_ref":"connection_point_1","property_key":"connection_point.interface_type","value":"clip"},
         {"subject_type":"tether_connection_point","subject_ref":"connection_point_1","property_key":"connection_point.connector_spec_ref","value":"quick_clip"},
         {"subject_type":"tether_connection_point","subject_ref":"connection_point_2","property_key":"connection_point.interface_type","value":"clip"},
         {"subject_type":"tether_connection_point","subject_ref":"connection_point_2","property_key":"connection_point.connector_spec_ref","value":"quick_clip"}
       ],
       "forbidden_claims": [
-        {"subject_type":"tether_connection_point","property_key":"connection_point.role"}
+        {"subject_type":"tether_connection_point","property_key":"connection_point.role"},
+        {"subject_type":"connector_spec","subject_ref":"quick_clip","property_key":"connector.opening_action_count"}
       ],
       "ignored_claims": [],
       "recommendation_data": {
         "baseline_requirements": [
           {"name":"rated_capacity","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":5.0}],"gap_if_missing":"extraction_gap"},
           {"name":"connection_count","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"tether.connection_count","value":2}],"gap_if_missing":"extraction_gap"},
+          {"name":"quick_clip_opening_mechanism","any_of":[{"subject_type":"connector_spec","subject_ref":"quick_clip","property_key":"connector.attribute.opening_mechanism","value":"trigger_operated"}],"gap_if_missing":"extraction_gap"},
           {"name":"endpoint_1_interface","any_of":[{"subject_type":"tether_connection_point","subject_ref":"connection_point_1","property_key":"connection_point.interface_type","value":"clip"}],"gap_if_missing":"extraction_gap"},
           {"name":"endpoint_2_interface","any_of":[{"subject_type":"tether_connection_point","subject_ref":"connection_point_2","property_key":"connection_point.interface_type","value":"clip"}],"gap_if_missing":"extraction_gap"}
         ],
