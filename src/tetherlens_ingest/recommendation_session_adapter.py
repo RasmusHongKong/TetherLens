@@ -6,9 +6,14 @@ from .connection import (
     CompatibilityBasis,
     ConnectionEvaluation,
     ConnectionStatus,
+    ConnectionVerificationObservations,
     GatedConnectorClosedInterfaceVerification,
     RuntimeVerificationStatus,
     evaluate_gated_connector_closed_interface_verification,
+)
+from .connection_cinch import (
+    CinchLoopClosedInterfaceVerification,
+    evaluate_cinch_loop_closed_interface_verification,
 )
 from .constraints import (
     ProductConstraintContext,
@@ -28,6 +33,7 @@ from .recommendation_session import (
 
 
 _GATED_CONNECTOR_CLOSED_INTERFACE_FAMILY = "gated_connector_to_closed_interface.v1"
+_CINCH_LOOP_CLOSED_INTERFACE_FAMILY = "cinch_loop_to_closed_interface.v1"
 
 
 def derive_connection_session_resolution(
@@ -35,14 +41,14 @@ def derive_connection_session_resolution(
     *,
     candidate_id: str,
     condition_id: str,
-    observations: GatedConnectorClosedInterfaceVerification,
+    observations: ConnectionVerificationObservations,
 ) -> SessionConditionResolution | None:
     """Derive one terminal connection condition from bounded structured observations.
 
     The original hard evaluation remains immutable. This adapter only targets a
     currently pending runtime-verification condition on the active session candidate
-    and delegates pass/fail semantics to the bounded connection verifier retained by
-    that original evaluation.
+    and delegates pass/fail semantics to the family-specific primitive retained by
+    that original evaluation. It never accepts a generic pass/fail assertion.
     """
 
     candidate = _require_active_pending_condition(
@@ -61,21 +67,40 @@ def derive_connection_session_resolution(
         raise ValueError(
             "pending connection condition must retain a pending primitive verification status"
         )
-    if connection.verification_family != _GATED_CONNECTOR_CLOSED_INTERFACE_FAMILY:
-        raise ValueError(
-            "connection session adapter supports only the original bounded "
-            "gated-connector/closed-interface verification family"
+
+    if connection.verification_family == _GATED_CONNECTOR_CLOSED_INTERFACE_FAMILY:
+        if not isinstance(observations, GatedConnectorClosedInterfaceVerification):
+            raise ValueError(
+                "gated-connector condition requires gated-connector observations"
+            )
+        if connection.verification_connector_spec is None:
+            raise ValueError(
+                "pending gated-connector condition is missing the retained connector "
+                "specification required by its primitive verifier"
+            )
+        status = evaluate_gated_connector_closed_interface_verification(
+            connection.verification_connector_spec,
+            observations,
         )
-    if connection.verification_connector_spec is None:
+    elif connection.verification_family == _CINCH_LOOP_CLOSED_INTERFACE_FAMILY:
+        if not isinstance(observations, CinchLoopClosedInterfaceVerification):
+            raise ValueError("cinch-loop condition requires cinch-loop observations")
+        connector_spec = connection.verification_connector_spec
+        if (
+            connector_spec is None
+            or connector_spec.attributes.get("engagement_method") != "cinch"
+        ):
+            raise ValueError(
+                "pending cinch-loop condition is missing the retained cinch mechanism primitive"
+            )
+        status = RuntimeVerificationStatus(
+            evaluate_cinch_loop_closed_interface_verification(observations)
+        )
+    else:
         raise ValueError(
-            "pending connection condition is missing the retained connector specification "
-            "required by its primitive verifier"
+            "connection session adapter does not support the retained verification family"
         )
 
-    status = evaluate_gated_connector_closed_interface_verification(
-        connection.verification_connector_spec,
-        observations,
-    )
     if status == RuntimeVerificationStatus.PENDING:
         return None
     if status == RuntimeVerificationStatus.PASSED:
