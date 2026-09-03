@@ -7,6 +7,10 @@ from typing import Any
 from pydantic import BaseModel, Field, StrictBool, field_validator
 
 from .compatibility import ManufacturerAssessment, ManufacturerPosition
+from .connection_cinch import (
+    CinchLoopClosedInterfaceVerification,
+    evaluate_cinch_loop_closed_interface_verification,
+)
 
 
 class ConnectionInterfaceRole(StrEnum):
@@ -93,9 +97,9 @@ class ConnectionInterface(BaseModel):
 class ConnectorSpec(BaseModel):
     """Accepted reusable facts about one discrete connector specification.
 
-    The initial runtime slice intentionally carries only facts already extracted by
-    current adapters plus narrowly-scoped geometry when it is available. It is not a
-    general connector CAD model.
+    The runtime model may represent both hardware connectors and other explicit tether
+    endpoint mechanisms such as a cinching loop. Gated-connector fields remain optional
+    and are never inferred merely because another connector attribute is present.
     """
 
     connector_spec_id: str
@@ -159,6 +163,11 @@ class GatedConnectorClosedInterfaceVerification(BaseModel):
     no_adjacent_interference: StrictBool | None = None
 
 
+ConnectionVerificationObservations = (
+    GatedConnectorClosedInterfaceVerification | CinchLoopClosedInterfaceVerification
+)
+
+
 class ConnectionEvaluation(BaseModel):
     status: ConnectionStatus
     basis: CompatibilityBasis
@@ -171,11 +180,11 @@ class ConnectionEvaluation(BaseModel):
     rule_results: list[ConnectionRuleResult] = Field(default_factory=list)
     verification_status: RuntimeVerificationStatus | None = None
     verification_family: str | None = None
-    # Retain only the primitive connector facts required by an established bounded
-    # verification family. This allows a session adapter to derive a later terminal
-    # outcome without reconstructing connector semantics from product identity.
+    # Retain only primitive connector facts required to establish the bounded family.
+    # Session adapters may then derive a later terminal outcome without reconstructing
+    # connector semantics from product identity.
     verification_connector_spec: ConnectorSpec | None = None
-    verification_observations: GatedConnectorClosedInterfaceVerification | None = None
+    verification_observations: ConnectionVerificationObservations | None = None
     contradiction_type: ContradictionType | None = None
     review_required: bool = False
 
@@ -199,7 +208,7 @@ def evaluate_endpoint_engagement(
     connector_specs: dict[str, ConnectorSpec] | None = None,
     manufacturer_assessments: list[ConnectionManufacturerAssessment] | None = None,
     derived_results: list[ConnectionRuleResult] | None = None,
-    verification_observations: GatedConnectorClosedInterfaceVerification | None = None,
+    verification_observations: ConnectionVerificationObservations | None = None,
 ) -> ConnectionEvaluation:
     """Evaluate one tether endpoint against one target interface conservatively.
 
@@ -389,7 +398,8 @@ def evaluate_endpoint_engagement(
         )
 
     if verification_family is not None:
-        runtime_status = evaluate_gated_connector_closed_interface_verification(
+        runtime_status = _runtime_verification_status(
+            verification_family,
             connector_spec,
             verification_observations,
         )
@@ -425,7 +435,7 @@ def evaluate_endpoint_engagement(
         target,
         status=ConnectionStatus.UNRESOLVED,
         basis=CompatibilityBasis.NONE,
-        reason="interface topology is plausible but no validated geometry rule proves engagement",
+        reason="interface topology is plausible but no acceptable compatibility basis is established",
         assessments=assessments,
         rule_results=rule_results,
     )
@@ -467,15 +477,55 @@ def _verification_family(
 ) -> str | None:
     """Return a validated bounded verification family, never a compatibility claim."""
 
-    if endpoint.interface_type not in _GATED_CONNECTOR_TYPES:
-        return None
     if target.interface_type not in _CLOSED_INTERFACE_TYPES:
+        return None
+
+    if endpoint.interface_type == "loop":
+        if (
+            connector_spec is not None
+            and connector_spec.attributes.get("engagement_method") == "cinch"
+        ):
+            return _CINCH_LOOP_CLOSED_INTERFACE_FAMILY
+        return None
+
+    if endpoint.interface_type not in _GATED_CONNECTOR_TYPES:
         return None
     if connector_spec is None or connector_spec.opening_action_count is None:
         # A type label plus target label is not enough. Current ingestion must also
         # establish that the referenced discrete connector has an opening action.
         return None
-    return "gated_connector_to_closed_interface.v1"
+    return _GATED_CONNECTOR_CLOSED_INTERFACE_FAMILY
+
+
+def _runtime_verification_status(
+    verification_family: str,
+    connector_spec: ConnectorSpec | None,
+    observations: ConnectionVerificationObservations | None,
+) -> RuntimeVerificationStatus:
+    if verification_family == _GATED_CONNECTOR_CLOSED_INTERFACE_FAMILY:
+        if observations is not None and not isinstance(
+            observations,
+            GatedConnectorClosedInterfaceVerification,
+        ):
+            raise ValueError(
+                "gated-connector verification requires gated-connector observations"
+            )
+        return evaluate_gated_connector_closed_interface_verification(
+            connector_spec,
+            observations,
+        )
+
+    if verification_family == _CINCH_LOOP_CLOSED_INTERFACE_FAMILY:
+        if observations is not None and not isinstance(
+            observations,
+            CinchLoopClosedInterfaceVerification,
+        ):
+            raise ValueError("cinch-loop verification requires cinch-loop observations")
+        return RuntimeVerificationStatus(
+            evaluate_cinch_loop_closed_interface_verification(observations)
+        )
+
+    raise ValueError(f"unsupported runtime verification family {verification_family!r}")
 
 
 def evaluate_gated_connector_closed_interface_verification(
@@ -597,7 +647,7 @@ def _evaluation(
     verification_status: RuntimeVerificationStatus | None = None,
     verification_family: str | None = None,
     verification_connector_spec: ConnectorSpec | None = None,
-    verification_observations: GatedConnectorClosedInterfaceVerification | None = None,
+    verification_observations: ConnectionVerificationObservations | None = None,
     contradiction_type: ContradictionType | None = None,
     review_required: bool = False,
 ) -> ConnectionEvaluation:
@@ -647,6 +697,9 @@ _CONNECTABLE_TARGET_ROLES = {
     ConnectionInterfaceRole.ANCHOR_ATTACHMENT_TETHER_SIDE,
     ConnectionInterfaceRole.CONTAINER_CONNECTION,
 }
+
+_GATED_CONNECTOR_CLOSED_INTERFACE_FAMILY = "gated_connector_to_closed_interface.v1"
+_CINCH_LOOP_CLOSED_INTERFACE_FAMILY = "cinch_loop_to_closed_interface.v1"
 
 _GATED_CONNECTOR_TYPES = {
     "carabiner",
