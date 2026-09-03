@@ -129,6 +129,29 @@ def test_nlg_explicit_trigger_negation_is_not_normalized_as_positive_mechanism()
         assert not has_quick_clip_mechanism(claims), body
 
 
+def test_nlg_trademarked_quick_clip_spelling_still_matches_positive_evidence():
+    claims = NLGAdapter().extract(
+        tether_identity(),
+        [
+            artifact(
+                "<p>Quick Clips™ are ergonomically designed for quick connection and "
+                "disconnection with a built-in trigger.</p>"
+            )
+        ],
+    )
+
+    assert has_quick_clip_mechanism(claims)
+
+
+def test_nlg_interrogative_clause_is_not_treated_as_direct_mechanism_evidence():
+    claims = NLGAdapter().extract(
+        tether_identity(),
+        [artifact("<p>Do Quick Clips provide easy connection with a built-in trigger?</p>")],
+    )
+
+    assert not has_quick_clip_mechanism(claims)
+
+
 def test_nlg_quick_clip_ergonomic_trigger_can_be_bound_directly_to_action():
     claims = NLGAdapter().extract(
         tether_identity(),
