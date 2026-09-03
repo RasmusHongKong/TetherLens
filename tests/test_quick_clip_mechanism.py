@@ -1,15 +1,9 @@
 from tetherlens_ingest.adapters import NLGAdapter
 from tetherlens_ingest.connection import (
-    CompatibilityBasis,
     ConnectionInterface,
     ConnectionInterfaceRole,
     ConnectionStatus,
-    ConnectorSpec,
-    GatedConnectorClosedInterfaceVerification,
-    RuntimeVerificationStatus,
-    TetherSide,
     evaluate_endpoint_engagement,
-    evaluate_gated_connector_closed_interface_verification,
 )
 from tetherlens_ingest.models import (
     ClaimSubjectType,
@@ -40,8 +34,8 @@ def tether_identity() -> ProductIdentity:
     )
 
 
-def test_nlg_quick_clip_trigger_extracts_mechanism_without_inventing_action_count():
-    claims = NLGAdapter().extract(
+def quick_clip_claims():
+    return NLGAdapter().extract(
         tether_identity(),
         [
             artifact(
@@ -51,6 +45,10 @@ def test_nlg_quick_clip_trigger_extracts_mechanism_without_inventing_action_coun
             )
         ],
     )
+
+
+def test_nlg_quick_clip_trigger_extracts_mechanism_without_inventing_action_count():
+    claims = quick_clip_claims()
 
     mechanism = [
         claim
@@ -65,6 +63,12 @@ def test_nlg_quick_clip_trigger_extracts_mechanism_without_inventing_action_coun
         claim.subject_type == ClaimSubjectType.CONNECTOR_SPEC
         and claim.subject_ref == "quick_clip"
         and claim.property_key == "connector.opening_action_count"
+        for claim in claims
+    )
+    assert not any(
+        claim.subject_type == ClaimSubjectType.CONNECTOR_SPEC
+        and claim.subject_ref == "quick_clip"
+        and claim.property_key == "connector.locking_mode"
         for claim in claims
     )
 
@@ -86,33 +90,15 @@ def test_nlg_unrelated_tool_trigger_does_not_establish_quick_clip_mechanism():
 
 
 def test_trigger_operated_quick_clip_resolves_into_existing_connector_attributes():
-    claims = NLGAdapter().extract(
-        tether_identity(),
-        [
-            artifact(
-                "<p>Dual Quick Clips provide effortless attachment.</p>"
-                "<p>Quick Clips are ergonomically designed for quick connection and "
-                "disconnection with a built-in trigger.</p>"
-            )
-        ],
-    )
+    specs = resolve_connector_specs(quick_clip_claims())
 
-    specs = resolve_connector_specs(claims)
     assert specs["quick_clip"].opening_action_count is None
+    assert specs["quick_clip"].locking_mode.value == "unknown"
     assert specs["quick_clip"].attributes["opening_mechanism"] == "trigger_operated"
 
 
-def test_trigger_operated_clip_can_use_bounded_closed_interface_verification_family():
-    claims = NLGAdapter().extract(
-        tether_identity(),
-        [
-            artifact(
-                "<p>Dual Quick Clips provide effortless attachment.</p>"
-                "<p>Quick Clips are ergonomically designed for quick connection and "
-                "disconnection with a built-in trigger.</p>"
-            )
-        ],
-    )
+def test_trigger_mechanism_does_not_promote_clip_to_existing_gated_verification_family():
+    claims = quick_clip_claims()
     interfaces = resolve_connection_interfaces(claims)
     specs = resolve_connector_specs(claims)
     endpoint = next(interface for interface in interfaces if interface.interface_type == "clip")
@@ -124,95 +110,26 @@ def test_trigger_operated_clip_can_use_bounded_closed_interface_verification_fam
 
     result = evaluate_endpoint_engagement(endpoint, target, connector_specs=specs)
 
-    assert result.status == ConnectionStatus.REQUIRES_VERIFICATION
-    assert result.verification_family == "gated_connector_to_closed_interface.v1"
-    assert result.verification_status == RuntimeVerificationStatus.PENDING
-    assert result.verification_connector_spec is not None
-    assert result.verification_connector_spec.connector_spec_id == "quick_clip"
-
-
-def test_clip_without_established_opening_mechanism_remains_unresolved():
-    endpoint = ConnectionInterface(
-        interface_id="quick_clip_endpoint",
-        role=ConnectionInterfaceRole.TETHER_CONNECTION,
-        interface_type="clip",
-        tether_side=TetherSide.EITHER,
-        connector_spec_ref="quick_clip",
-    )
-    target = ConnectionInterface(
-        interface_id="tool_ring",
-        role=ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE,
-        interface_type="ring",
-    )
-
-    result = evaluate_endpoint_engagement(endpoint, target, connector_specs={})
-
     assert result.status == ConnectionStatus.UNRESOLVED
     assert result.verification_family is None
+    assert result.verification_status is None
+    assert result.rule_results == []
 
 
-def test_clip_label_does_not_activate_carabiner_geometry_rule():
-    endpoint = ConnectionInterface(
-        interface_id="quick_clip_endpoint",
-        role=ConnectionInterfaceRole.TETHER_CONNECTION,
-        interface_type="clip",
-        tether_side=TetherSide.EITHER,
-        connector_spec_ref="quick_clip",
-    )
+def test_clip_label_does_not_activate_carabiner_geometry_rule_even_with_dimensions():
+    claims = quick_clip_claims()
+    interfaces = resolve_connection_interfaces(claims)
+    specs = resolve_connector_specs(claims)
+    endpoint = next(interface for interface in interfaces if interface.interface_type == "clip")
+    specs["quick_clip"].dimensions_mm["gate_opening"] = 5.0
     target = ConnectionInterface(
         interface_id="tool_ring",
         role=ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE,
         interface_type="ring",
         dimensions_mm={"feature_section_diameter": 10.0},
     )
-    connector_spec = ConnectorSpec(
-        connector_spec_id="quick_clip",
-        dimensions_mm={"gate_opening": 5.0},
-        attributes={"opening_mechanism": "trigger_operated"},
-    )
 
-    result = evaluate_endpoint_engagement(
-        endpoint,
-        target,
-        connector_specs={"quick_clip": connector_spec},
-    )
+    result = evaluate_endpoint_engagement(endpoint, target, connector_specs=specs)
 
-    assert result.status == ConnectionStatus.REQUIRES_VERIFICATION
-    assert result.basis == CompatibilityBasis.RUNTIME_VERIFICATION
-    assert not any(
-        rule.basis == CompatibilityBasis.VALIDATED_GEOMETRY
-        for rule in result.rule_results
-    )
-
-
-def test_unknown_quick_clip_locking_mode_keeps_lock_observation_conservative():
-    claims = NLGAdapter().extract(
-        tether_identity(),
-        [
-            artifact(
-                "<p>Dual Quick Clips provide effortless attachment.</p>"
-                "<p>Quick Clips are ergonomically designed for quick connection and "
-                "disconnection with a built-in trigger.</p>"
-            )
-        ],
-    )
-    connector_spec = resolve_connector_specs(claims)["quick_clip"]
-    observations = GatedConnectorClosedInterfaceVerification(
-        target_fully_captured=True,
-        gate_closed_completely=True,
-        gate_unobstructed=True,
-        intended_loaded_orientation=True,
-        stable_seating_no_cross_loading=True,
-        no_adjacent_interference=True,
-    )
-
-    assert (
-        evaluate_gated_connector_closed_interface_verification(connector_spec, observations)
-        == RuntimeVerificationStatus.PENDING
-    )
-
-    observations.locking_mechanism_engaged = True
-    assert (
-        evaluate_gated_connector_closed_interface_verification(connector_spec, observations)
-        == RuntimeVerificationStatus.PASSED
-    )
+    assert result.status == ConnectionStatus.UNRESOLVED
+    assert result.rule_results == []
