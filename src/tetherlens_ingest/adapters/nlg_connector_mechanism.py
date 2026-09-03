@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString, Tag
 
 from tetherlens_ingest.models import (
     CandidateClaim,
@@ -19,6 +19,46 @@ from .nlg_container import NLGAdapter as BaseNLGAdapter
 _QUICK_CLIP_REF = "quick_clip"
 _OPENING_MECHANISM_KEY = "connector.attribute.opening_mechanism"
 _TRIGGER_OPERATED = "trigger_operated"
+_BLOCK_TAGS = {
+    "address",
+    "article",
+    "aside",
+    "blockquote",
+    "br",
+    "dd",
+    "div",
+    "dl",
+    "dt",
+    "fieldset",
+    "figcaption",
+    "figure",
+    "footer",
+    "form",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "header",
+    "hr",
+    "li",
+    "main",
+    "nav",
+    "ol",
+    "p",
+    "pre",
+    "section",
+    "table",
+    "tbody",
+    "td",
+    "tfoot",
+    "th",
+    "thead",
+    "tr",
+    "ul",
+}
+_BLOCK_MARKER = "\u241e"
 
 
 class NLGAdapter(BaseNLGAdapter):
@@ -73,29 +113,32 @@ class NLGAdapter(BaseNLGAdapter):
 def _quick_clip_trigger_evidence(html: str) -> str | None:
     """Return a tightly bound positive Quick Clip/trigger mechanism assertion.
 
-    The accepted forms require the Quick Clip subject and connection/disconnection
-    wording to be tied locally to the trigger by mechanism wording such as ``with a
-    built-in trigger`` or ``due to its ergonomic trigger design``. Co-occurrence in one
-    clause is deliberately insufficient, so a trigger belonging to another tool cannot
-    establish a connector mechanism merely because it appears nearby.
+    HTML block boundaries are preserved before sentence splitting so adjacent paragraphs
+    or list items cannot manufacture one apparent evidence clause. Within one clause,
+    the accepted grammar requires the trigger mechanism to follow the Quick Clip action
+    directly; wording that instead attaches the trigger to another object is rejected.
     """
 
-    text = BeautifulSoup(html, "html.parser").get_text(" ", strip=True)
-    text = re.sub(r"\s+", " ", text)
     quick_clip = r"\bQuick\s*Clips?™?\b"
-    connection = r"\b(?:connect|disconnect|connection|disconnection|attach)\w*\b"
+    action = (
+        r"\b(?:quick\s+|easy\s+)?(?:"
+        r"connection(?:\s+and\s+disconnection)?|"
+        r"disconnection|attachment"
+        r")\b"
+    )
     mechanism = (
         r"(?:"
-        r"\b(?:with|using|via)\s+(?:an?\s+)?built[-\s]?in\s+trigger\b"
-        r"|\bdue\s+to\s+(?:its\s+)?ergonomic\s+trigger(?:\s+design)?\b"
+        r"(?:with|using|via)\s+(?:an?\s+|its\s+)?"
+        r"(?:built[-\s]?in\s+trigger|ergonomic\s+trigger(?:\s+design)?)"
+        r"|due\s+to\s+(?:its\s+)?ergonomic\s+trigger(?:\s+design)?"
         r")"
     )
     relation = re.compile(
-        rf"{quick_clip}[^.!?;]{{0,180}}{connection}[^.!?;]{{0,80}}{mechanism}",
+        rf"{quick_clip}[^.!?;{_BLOCK_MARKER}]{{0,180}}{action}\s*[,:-]?\s*{mechanism}",
         re.I,
     )
 
-    for clause in re.split(r"(?<=[.!?;])\s+", text):
+    for clause in _html_evidence_clauses(html):
         if relation.search(clause) is None:
             continue
         if re.search(
@@ -106,6 +149,34 @@ def _quick_clip_trigger_evidence(html: str) -> str | None:
             continue
         return clause.strip()
     return None
+
+
+def _html_evidence_clauses(html: str) -> list[str]:
+    """Render HTML while preserving semantic block boundaries as hard delimiters."""
+
+    soup = BeautifulSoup(html, "html.parser")
+    rendered = _render_with_block_markers(soup)
+    clauses: list[str] = []
+    for block in rendered.split(_BLOCK_MARKER):
+        normalized = re.sub(r"\s+", " ", block).strip()
+        if not normalized:
+            continue
+        clauses.extend(
+            part.strip()
+            for part in re.split(r"(?<=[.!?;])\s+", normalized)
+            if part.strip()
+        )
+    return clauses
+
+
+def _render_with_block_markers(node: Tag | NavigableString) -> str:
+    if isinstance(node, NavigableString):
+        return str(node)
+    parts = [_render_with_block_markers(child) for child in node.children]
+    text = " ".join(part for part in parts if part)
+    if getattr(node, "name", None) in _BLOCK_TAGS:
+        return f"{_BLOCK_MARKER}{text}{_BLOCK_MARKER}"
+    return text
 
 
 def _dedupe_claims(claims: list[CandidateClaim]) -> list[CandidateClaim]:
