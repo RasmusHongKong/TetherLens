@@ -134,6 +134,7 @@ def test_nlg_trademarked_quick_clip_spelling_still_matches_positive_evidence():
         tether_identity(),
         [
             artifact(
+                "<p>Dual Quick Clips provide effortless and secure attachment.</p>"
                 "<p>Quick Clips™ are ergonomically designed for quick connection and "
                 "disconnection with a built-in trigger.</p>"
             )
@@ -146,7 +147,12 @@ def test_nlg_trademarked_quick_clip_spelling_still_matches_positive_evidence():
 def test_nlg_interrogative_clause_is_not_treated_as_direct_mechanism_evidence():
     claims = NLGAdapter().extract(
         tether_identity(),
-        [artifact("<p>Do Quick Clips provide easy connection with a built-in trigger?</p>")],
+        [
+            artifact(
+                "<p>Dual Quick Clips provide effortless and secure attachment.</p>"
+                "<p>Do Quick Clips provide easy connection with a built-in trigger?</p>"
+            )
+        ],
     )
 
     assert not has_quick_clip_mechanism(claims)
