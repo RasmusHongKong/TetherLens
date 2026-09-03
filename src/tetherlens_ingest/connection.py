@@ -467,7 +467,7 @@ def _verification_family(
 ) -> str | None:
     """Return a validated bounded verification family, never a compatibility claim."""
 
-    if endpoint.interface_type not in _GATED_CONNECTOR_TYPES:
+    if endpoint.interface_type not in _VERIFIABLE_GATED_CONNECTOR_TYPES:
         return None
     if target.interface_type not in _CLOSED_INTERFACE_TYPES:
         return None
@@ -668,6 +668,10 @@ _CONNECTABLE_TARGET_ROLES = {
 _GATED_CONNECTOR_TYPES = {
     "carabiner",
     "snap_hook",
+}
+
+_VERIFIABLE_GATED_CONNECTOR_TYPES = {
+    *_GATED_CONNECTOR_TYPES,
     "clip",
 }
 
