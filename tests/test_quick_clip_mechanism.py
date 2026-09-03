@@ -47,6 +47,15 @@ def quick_clip_claims():
     )
 
 
+def has_quick_clip_mechanism(claims) -> bool:
+    return any(
+        claim.subject_type == ClaimSubjectType.CONNECTOR_SPEC
+        and claim.subject_ref == "quick_clip"
+        and claim.property_key == "connector.attribute.opening_mechanism"
+        for claim in claims
+    )
+
+
 def test_nlg_quick_clip_trigger_extracts_mechanism_without_inventing_action_count():
     claims = quick_clip_claims()
 
@@ -77,16 +86,34 @@ def test_nlg_unrelated_tool_trigger_does_not_establish_quick_clip_mechanism():
     bodies = (
         "<p>Dual Quick Clips provide effortless attachment.</p>"
         "<p>The connected power tool has a built-in trigger.</p>",
-        "<p>Quick Clips attach to the belt while the connected power tool has a built-in trigger.</p>",
+        "<p>Dual Quick Clips attach to the belt while the connected power tool has a built-in trigger.</p>",
+        "<p>Dual Quick Clips permit connection to a tool with a built-in trigger.</p>",
     )
     for body in bodies:
         claims = NLGAdapter().extract(tether_identity(), [artifact(body)])
-        assert not any(
-            claim.subject_type == ClaimSubjectType.CONNECTOR_SPEC
-            and claim.subject_ref == "quick_clip"
-            and claim.property_key == "connector.attribute.opening_mechanism"
-            for claim in claims
-        ), body
+        assert not has_quick_clip_mechanism(claims), body
+
+
+def test_nlg_block_boundaries_prevent_cross_paragraph_or_list_mechanism_claims():
+    bodies = (
+        "<p>Dual Quick Clips allow connection</p><p>Power tools with a built-in trigger</p>",
+        "<ul><li>Dual Quick Clips allow connection</li>"
+        "<li>Power tools with a built-in trigger</li></ul>",
+        "<div><p>Dual Quick Clips allow connection</p>"
+        "<p>Power tools with a built-in trigger</p></div>",
+    )
+    for body in bodies:
+        claims = NLGAdapter().extract(tether_identity(), [artifact(body)])
+        assert not has_quick_clip_mechanism(claims), body
+
+
+def test_nlg_quick_clip_ergonomic_trigger_can_be_bound_directly_to_action():
+    claims = NLGAdapter().extract(
+        tether_identity(),
+        [artifact("<p>Dual Quick Clips provide easy connection with an ergonomic trigger design.</p>")],
+    )
+
+    assert has_quick_clip_mechanism(claims)
 
 
 def test_trigger_operated_quick_clip_resolves_into_existing_connector_attributes():
