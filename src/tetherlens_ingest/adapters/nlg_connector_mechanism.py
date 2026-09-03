@@ -115,16 +115,18 @@ def _quick_clip_trigger_evidence(html: str) -> str | None:
 
     HTML block boundaries are preserved before sentence splitting so adjacent paragraphs
     or list items cannot manufacture one apparent evidence clause. Within one clause,
-    the accepted grammar requires the trigger mechanism to follow the Quick Clip action
-    directly; wording that instead attaches the trigger to another object is rejected.
+    accepted grammar requires the Quick Clip itself to own the connection action and the
+    trigger mechanism to bind directly to that action. A later coordinated subject such
+    as a clasp or tool therefore cannot donate its mechanism to an earlier Quick Clip
+    mention.
     """
 
     quick_clip = r"\bQuick\s*Clips?™?\b"
     action = (
-        r"\b(?:quick\s+|easy\s+)?(?:"
+        r"(?:quick\s+|easy\s+)?(?:"
         r"connection(?:\s+and\s+disconnection)?|"
         r"disconnection|attachment"
-        r")\b"
+        r")"
     )
     mechanism = (
         r"(?:"
@@ -133,19 +135,29 @@ def _quick_clip_trigger_evidence(html: str) -> str | None:
         r"|due\s+to\s+(?:its\s+)?ergonomic\s+trigger(?:\s+design)?"
         r")"
     )
+    subject_owned_action = (
+        rf"(?:"
+        rf"{quick_clip}\s+(?:are|is)\s+"
+        rf"(?:(?:ergonomically|specifically)\s+)*designed\s+for\s+{action}"
+        rf"|{quick_clip}\s+"
+        rf"(?:facilitate|facilitates|provide|provides|allow|allows|enable|enables|"
+        rf"support|supports|offer|offers)\s+{action}"
+        rf")"
+    )
     relation = re.compile(
-        rf"{quick_clip}[^.!?;{_BLOCK_MARKER}]{{0,180}}{action}\s*[,:-]?\s*{mechanism}",
+        rf"{subject_owned_action}\s*[,:-]?\s*{mechanism}",
+        re.I,
+    )
+    negation = re.compile(
+        r"\b(?:no|not|never|without|cannot|can't|does\s+not|do\s+not|doesn't|don't)\b"
+        r"[^.!?;]{0,80}\btrigger\b",
         re.I,
     )
 
     for clause in _html_evidence_clauses(html):
         if relation.search(clause) is None:
             continue
-        if re.search(
-            r"\b(?:no|not|without|does\s+not|do\s+not|doesn't|don't)\b[^.!?;]{0,60}\btrigger\b",
-            clause,
-            re.I,
-        ):
+        if negation.search(clause) is not None:
             continue
         return clause.strip()
     return None
