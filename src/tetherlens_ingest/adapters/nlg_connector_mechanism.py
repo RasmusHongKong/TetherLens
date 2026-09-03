@@ -118,10 +118,10 @@ def _quick_clip_trigger_evidence(html: str) -> str | None:
     accepted grammar requires the Quick Clip itself to own the connection action and the
     trigger mechanism to bind directly to that action. A later coordinated subject such
     as a clasp or tool therefore cannot donate its mechanism to an earlier Quick Clip
-    mention.
+    mention. Interrogative clauses are not treated as direct manufacturer assertions.
     """
 
-    quick_clip = r"\bQuick\s*Clips?™?\b"
+    quick_clip = r"\bQuick\s*Clips?\b™?"
     action = (
         r"(?:quick\s+|easy\s+)?(?:"
         r"connection(?:\s+and\s+disconnection)?|"
@@ -155,6 +155,8 @@ def _quick_clip_trigger_evidence(html: str) -> str | None:
     )
 
     for clause in _html_evidence_clauses(html):
+        if clause.rstrip().endswith("?"):
+            continue
         if relation.search(clause) is None:
             continue
         if negation.search(clause) is not None:
