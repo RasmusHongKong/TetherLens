@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .candidate_generation import GeneratedCandidate
 from .connection import CompatibilityBasis
+from .constraints import ProductConstraintDisposition, ProductConstraintStatus
 from .recommendation import CandidateEvaluation, RecommendationState
 
 
@@ -22,6 +23,7 @@ class CandidateRankingContext(BaseModel):
 
     snag_risk: SnagRiskLevel | None = None
     required_reach_mm: float | None = None
+    environmental_exposures: list[str] = Field(default_factory=list)
 
     @field_validator("required_reach_mm", mode="before")
     @classmethod
@@ -35,11 +37,55 @@ class CandidateRankingContext(BaseModel):
             raise ValueError("required_reach_mm must be a finite positive number when provided")
         return numeric
 
+    @field_validator("environmental_exposures")
+    @classmethod
+    def validate_environmental_exposures(cls, values: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for value in values:
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError("environmental_exposures must contain non-empty exposure codes")
+            code = value.strip()
+            if code in normalized:
+                raise ValueError("environmental_exposures must not contain duplicate exposure codes")
+            normalized.append(code)
+        return sorted(normalized)
+
 
 class CandidateSelectionState(StrEnum):
     SELECTED = "selected"
     NO_SUITABLE_RECOMMENDATION = "no_suitable_recommendation"
     NO_GENERATED_CANDIDATES = "no_generated_candidates"
+
+
+class ContextCheckType(StrEnum):
+    REQUIRED_REACH = "required_reach"
+    PROHIBITED_EXPOSURE = "prohibited_exposure"
+
+
+class ContextCheckStatus(StrEnum):
+    ESTABLISHED = "established"
+    INFEASIBLE = "infeasible"
+    UNKNOWN = "unknown"
+
+
+class CandidateContextCheck(BaseModel):
+    check_id: str = Field(min_length=1)
+    check_type: ContextCheckType
+    status: ContextCheckStatus
+    reason: str = Field(min_length=1)
+    subject_refs: list[str] = Field(default_factory=list)
+    source_urls: list[str] = Field(default_factory=list)
+
+
+class CandidateContextEvaluation(BaseModel):
+    """Task-context overlay for one candidate; never a replacement hard evaluation."""
+
+    candidate_id: str = Field(min_length=1)
+    checks: list[CandidateContextCheck] = Field(default_factory=list)
+
+    @property
+    def infeasible(self) -> bool:
+        return any(check.status == ContextCheckStatus.INFEASIBLE for check in self.checks)
 
 
 class EvaluatedCandidate(BaseModel):
@@ -82,6 +128,7 @@ class CandidateSelectionResult(BaseModel):
     ranked_viable_candidates: list[EvaluatedCandidate] = Field(default_factory=list)
     contextually_infeasible_candidates: list[EvaluatedCandidate] = Field(default_factory=list)
     blocked_candidates: list[EvaluatedCandidate] = Field(default_factory=list)
+    context_evaluations: list[CandidateContextEvaluation] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_state(self) -> CandidateSelectionResult:
@@ -90,6 +137,7 @@ class CandidateSelectionResult(BaseModel):
             candidate.candidate_id for candidate in self.contextually_infeasible_candidates
         ]
         blocked_ids = [candidate.candidate_id for candidate in self.blocked_candidates]
+        context_evaluation_ids = [evaluation.candidate_id for evaluation in self.context_evaluations]
 
         if len(set(ranked_ids)) != len(ranked_ids):
             raise ValueError("ranked viable candidate ids must be unique")
@@ -97,6 +145,8 @@ class CandidateSelectionResult(BaseModel):
             raise ValueError("contextually infeasible candidate ids must be unique")
         if len(set(blocked_ids)) != len(blocked_ids):
             raise ValueError("blocked candidate ids must be unique")
+        if len(set(context_evaluation_ids)) != len(context_evaluation_ids):
+            raise ValueError("candidate context evaluation ids must be unique")
 
         overlap = sorted(
             (set(ranked_ids) & set(contextual_ids))
@@ -107,6 +157,14 @@ class CandidateSelectionResult(BaseModel):
             raise ValueError(
                 "candidate cannot appear in more than one selection partition: "
                 f"{overlap!r}"
+            )
+
+        hard_viable_ids = set(ranked_ids) | set(contextual_ids)
+        unexpected_context_ids = sorted(set(context_evaluation_ids) - hard_viable_ids)
+        if unexpected_context_ids:
+            raise ValueError(
+                "context evaluations may refer only to retained hard-viable candidates: "
+                f"{unexpected_context_ids!r}"
             )
 
         incorrectly_ranked = [
@@ -167,6 +225,7 @@ class CandidateSelectionResult(BaseModel):
             self.ranked_viable_candidates
             or self.contextually_infeasible_candidates
             or self.blocked_candidates
+            or self.context_evaluations
         ):
             raise ValueError("no-generated-candidates state must not contain candidates")
         return self
@@ -184,12 +243,12 @@ def rank_and_select_candidates(
     Ranking cannot rescue a blocked candidate: hard viability remains exactly the
     evaluator's ``recommendation_state is not None`` decision.
 
-    An explicit ``required_reach_mm`` is a contextual feasibility requirement rather
-    than a hard evaluator check. A hard-viable candidate whose established maximum
-    working length is below the requirement is retained separately as contextually
-    infeasible. Missing maximum length is not treated as failure: known-adequate
-    candidates rank ahead of reach-unknown fallbacks, while an all-unknown set preserves
-    the existing deterministic baseline/context ordering.
+    Explicit required reach and explicit environmental exposure are contextual
+    feasibility inputs rather than hard evaluator checks. Known inadequate reach or an
+    accepted manufacturer ``prohibited_exposure`` constraint bound to a selected
+    candidate component makes that candidate contextually infeasible for the current
+    task without mutating its original hard evaluation. Missing reach or environmental
+    evidence remains unknown/selectable rather than being converted into pass or fail.
 
     Baseline quality remains deliberately lexicographic rather than weighted:
 
@@ -234,9 +293,22 @@ def rank_and_select_candidates(
     ]
 
     hard_viable = [candidate for candidate in paired if candidate.viable]
-    contextually_infeasible = _contextually_infeasible_candidates(
-        hard_viable,
-        ranking_context=ranking_context,
+    context_evaluations = [
+        evaluation
+        for candidate in hard_viable
+        if (evaluation := _evaluate_candidate_context(candidate, ranking_context)).checks
+    ]
+    context_by_id = {
+        evaluation.candidate_id: evaluation for evaluation in context_evaluations
+    }
+    contextually_infeasible = sorted(
+        (
+            candidate
+            for candidate in hard_viable
+            if context_by_id.get(candidate.candidate_id) is not None
+            and context_by_id[candidate.candidate_id].infeasible
+        ),
+        key=lambda candidate: candidate.candidate_id,
     )
     contextually_infeasible_ids = {
         candidate.candidate_id for candidate in contextually_infeasible
@@ -262,34 +334,145 @@ def rank_and_select_candidates(
             ranked_viable_candidates=viable,
             contextually_infeasible_candidates=contextually_infeasible,
             blocked_candidates=blocked,
+            context_evaluations=context_evaluations,
         )
 
     return CandidateSelectionResult(
         state=CandidateSelectionState.NO_SUITABLE_RECOMMENDATION,
         contextually_infeasible_candidates=contextually_infeasible,
         blocked_candidates=blocked,
+        context_evaluations=context_evaluations,
     )
 
 
-def _contextually_infeasible_candidates(
-    candidates: list[EvaluatedCandidate],
-    *,
+def _evaluate_candidate_context(
+    candidate: EvaluatedCandidate,
     ranking_context: CandidateRankingContext | None,
-) -> list[EvaluatedCandidate]:
-    if ranking_context is None or ranking_context.required_reach_mm is None:
-        return []
+) -> CandidateContextEvaluation:
+    checks: list[CandidateContextCheck] = []
+    if ranking_context is None:
+        return CandidateContextEvaluation(candidate_id=candidate.candidate_id)
 
-    required_reach_mm = ranking_context.required_reach_mm
-    return sorted(
-        (
-            candidate
-            for candidate in candidates
-            if candidate.generated_candidate.configuration.tether_max_length_mm is not None
-            and candidate.generated_candidate.configuration.tether_max_length_mm
-            < required_reach_mm
-        ),
-        key=lambda candidate: candidate.candidate_id,
+    if ranking_context.required_reach_mm is not None:
+        required = ranking_context.required_reach_mm
+        maximum = candidate.generated_candidate.configuration.tether_max_length_mm
+        if maximum is None:
+            status = ContextCheckStatus.UNKNOWN
+            reason = (
+                f"required reach is {required:g} mm but candidate maximum working reach "
+                "is not established"
+            )
+        elif maximum < required:
+            status = ContextCheckStatus.INFEASIBLE
+            reason = (
+                f"candidate maximum working reach {maximum:g} mm is below the "
+                f"required {required:g} mm"
+            )
+        else:
+            status = ContextCheckStatus.ESTABLISHED
+            reason = (
+                f"candidate maximum working reach {maximum:g} mm meets or exceeds the "
+                f"required {required:g} mm"
+            )
+        checks.append(
+            CandidateContextCheck(
+                check_id="required_reach",
+                check_type=ContextCheckType.REQUIRED_REACH,
+                status=status,
+                reason=reason,
+            )
+        )
+
+    contextual_constraints = _contextual_product_constraints(candidate)
+    for exposure in ranking_context.environmental_exposures:
+        matching = [
+            constraint
+            for constraint in contextual_constraints
+            if constraint.constraint_key == "prohibited_exposure"
+            and constraint.resolved_constraint is not None
+            and constraint.resolved_constraint.value == exposure
+        ]
+        if matching:
+            refs: list[str] = []
+            urls: list[str] = []
+            for constraint in matching:
+                resolved = constraint.resolved_constraint
+                assert resolved is not None
+                refs.extend(
+                    [
+                        constraint.component_ref or "",
+                        resolved.source_product_ref,
+                        resolved.constraint_id,
+                    ]
+                )
+                urls.extend(constraint.source_urls)
+            checks.append(
+                CandidateContextCheck(
+                    check_id=f"prohibited_exposure:{exposure}",
+                    check_type=ContextCheckType.PROHIBITED_EXPOSURE,
+                    status=ContextCheckStatus.INFEASIBLE,
+                    reason=(
+                        f"accepted manufacturer prohibition excludes exposure {exposure!r} "
+                        "for one or more selected candidate components"
+                    ),
+                    subject_refs=_dedupe_nonempty(refs),
+                    source_urls=_dedupe_nonempty(urls),
+                )
+            )
+        else:
+            checks.append(
+                CandidateContextCheck(
+                    check_id=f"prohibited_exposure:{exposure}",
+                    check_type=ContextCheckType.PROHIBITED_EXPOSURE,
+                    status=ContextCheckStatus.UNKNOWN,
+                    reason=(
+                        f"no accepted explicit prohibition establishes candidate infeasibility "
+                        f"for exposure {exposure!r}; environmental suitability is not established"
+                    ),
+                )
+            )
+
+    return CandidateContextEvaluation(
+        candidate_id=candidate.candidate_id,
+        checks=checks,
     )
+
+
+def _contextual_product_constraints(candidate: EvaluatedCandidate):
+    selected_components = {
+        component.component_ref: component
+        for component in candidate.generated_candidate.selection.components
+    }
+    contextual = []
+    for evaluation in candidate.generated_candidate.configuration.product_constraint_evaluations:
+        if evaluation.status != ProductConstraintStatus.DEFERRED_CONTEXT:
+            continue
+        resolved = evaluation.resolved_constraint
+        if resolved is None or resolved.disposition != ProductConstraintDisposition.CONTEXTUAL:
+            raise ValueError(
+                "deferred contextual product constraints must retain their normalized primitive"
+            )
+        if evaluation.component_ref is None:
+            raise ValueError(
+                "deferred contextual product constraints must retain selected component identity"
+            )
+        selected = selected_components.get(evaluation.component_ref)
+        if selected is None:
+            raise ValueError(
+                "deferred contextual product constraint refers to a component outside the "
+                f"candidate selection: {evaluation.component_ref!r}"
+            )
+        if selected.source_product_ref != resolved.source_product_ref:
+            raise ValueError(
+                "deferred contextual product constraint source product does not match the "
+                "selected component source product"
+            )
+        if evaluation.constraint_id != resolved.constraint_id:
+            raise ValueError(
+                "deferred contextual product constraint identity does not match its retained primitive"
+            )
+        contextual.append(evaluation)
+    return contextual
 
 
 def _rank_viable_candidates(
@@ -417,3 +600,7 @@ def _unique_evaluations_by_id(
             )
         mapped[evaluation.candidate_id] = evaluation
     return mapped
+
+
+def _dedupe_nonempty(values: list[str]) -> list[str]:
+    return list(dict.fromkeys(value for value in values if value))
