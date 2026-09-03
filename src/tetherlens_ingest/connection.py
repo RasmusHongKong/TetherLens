@@ -471,11 +471,28 @@ def _verification_family(
         return None
     if target.interface_type not in _CLOSED_INTERFACE_TYPES:
         return None
-    if connector_spec is None or connector_spec.opening_action_count is None:
-        # A type label plus target label is not enough. Current ingestion must also
-        # establish that the referenced discrete connector has an opening action.
+    if not _connector_opening_mechanism_established(connector_spec):
+        # A connector/target type pairing is not enough. Current ingestion must also
+        # establish a reusable opening primitive for the referenced discrete connector.
         return None
     return "gated_connector_to_closed_interface.v1"
+
+
+def _connector_opening_mechanism_established(connector_spec: ConnectorSpec | None) -> bool:
+    """Require an accepted opening primitive without conflating connector labels.
+
+    Established action count remains sufficient for carabiner/snap-hook paths. A
+    connector may alternatively carry a narrower mechanism primitive such as the NLG
+    Quick Clip's manufacturer-stated trigger-operated opening. The latter does not
+    invent an action count or locking mode; it only makes the existing bounded physical
+    verification procedure applicable to the actual connector mechanism.
+    """
+
+    if connector_spec is None:
+        return False
+    if connector_spec.opening_action_count is not None:
+        return True
+    return connector_spec.attributes.get("opening_mechanism") == "trigger_operated"
 
 
 def evaluate_gated_connector_closed_interface_verification(
@@ -651,6 +668,7 @@ _CONNECTABLE_TARGET_ROLES = {
 _GATED_CONNECTOR_TYPES = {
     "carabiner",
     "snap_hook",
+    "clip",
 }
 
 _CLOSED_INTERFACE_TYPES = {
