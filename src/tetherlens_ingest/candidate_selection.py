@@ -263,7 +263,8 @@ def rank_and_select_candidates(
     same reach-knowledge tier. It prefers lower minimum/retracted tether length when
     every candidate in that tied group has the fact. Maximum/extended length is never
     used as a snag proxy, and excess reach above the stated minimum is not rewarded.
-    Canonical candidate id remains the deterministic final fallback.
+    Canonical candidate id remains the deterministic final fallback. Context-evaluation
+    audit output is emitted in canonical candidate-id order independent of caller input.
     """
 
     generated_by_id = _unique_generated_by_id(generated_candidates)
@@ -293,11 +294,14 @@ def rank_and_select_candidates(
     ]
 
     hard_viable = [candidate for candidate in paired if candidate.viable]
-    context_evaluations = [
-        evaluation
-        for candidate in hard_viable
-        if (evaluation := _evaluate_candidate_context(candidate, ranking_context)).checks
-    ]
+    context_evaluations = sorted(
+        (
+            evaluation
+            for candidate in hard_viable
+            if (evaluation := _evaluate_candidate_context(candidate, ranking_context)).checks
+        ),
+        key=lambda evaluation: evaluation.candidate_id,
+    )
     context_by_id = {
         evaluation.candidate_id: evaluation for evaluation in context_evaluations
     }
