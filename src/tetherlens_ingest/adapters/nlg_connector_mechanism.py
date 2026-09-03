@@ -42,14 +42,13 @@ class NLGAdapter(BaseNLGAdapter):
         if identity.product_type != ProductType.TETHER:
             return claims
 
-        quick_clip_refs = {
-            str(claim.value)
-            for claim in claims
-            if claim.subject_type == ClaimSubjectType.TETHER_CONNECTION_POINT
+        has_quick_clip_ref = any(
+            claim.subject_type == ClaimSubjectType.TETHER_CONNECTION_POINT
             and claim.property_key == "connection_point.connector_spec_ref"
             and claim.value == _QUICK_CLIP_REF
-        }
-        if _QUICK_CLIP_REF not in quick_clip_refs:
+            for claim in claims
+        )
+        if not has_quick_clip_ref:
             return claims
 
         for artifact in artifacts:
@@ -72,23 +71,27 @@ class NLGAdapter(BaseNLGAdapter):
 
 
 def _quick_clip_trigger_evidence(html: str) -> str | None:
-    """Return a local positive Quick Clip/trigger mechanism assertion.
+    """Return a tightly bound positive Quick Clip/trigger mechanism assertion.
 
-    The connector name and trigger wording must occur in the same sentence-like clause.
-    A generic product/tool trigger elsewhere on the page is insufficient, and wording
-    that explicitly negates the trigger relationship is rejected.
+    The current accepted forms require the Quick Clip subject, connection/disconnection
+    wording, and the trigger mechanism in the same sentence-like clause and in that
+    order. A generic product/tool trigger elsewhere in the clause or page is therefore
+    insufficient. Explicit negation of the trigger relationship is also rejected.
     """
 
     text = BeautifulSoup(html, "html.parser").get_text(" ", strip=True)
     text = re.sub(r"\s+", " ", text)
+    quick_clip = r"\bQuick\s*Clips?™?\b"
+    connection = r"\b(?:connect|disconnect|connection|disconnection|attach)\w*\b"
+    trigger = r"\b(?:built[-\s]?in\s+trigger|ergonomic\s+trigger(?:\s+design)?)\b"
+    relation = re.compile(
+        rf"{quick_clip}[^.!?;]{{0,180}}{connection}[^.!?;]{{0,120}}{trigger}",
+        re.I,
+    )
+
     for clause in re.split(r"(?<=[.!?;])\s+", text):
-        if not re.search(r"\bQuick\s*Clips?™?\b", clause, re.I):
-            continue
-        if not re.search(
-            r"\b(?:built[-\s]?in\s+trigger|ergonomic\s+trigger(?:\s+design)?)\b",
-            clause,
-            re.I,
-        ):
+        match = relation.search(clause)
+        if match is None:
             continue
         if re.search(
             r"\b(?:no|not|without|does\s+not|do\s+not|doesn't|don't)\b[^.!?;]{0,60}\btrigger\b",
