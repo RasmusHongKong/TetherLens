@@ -73,25 +73,30 @@ class NLGAdapter(BaseNLGAdapter):
 def _quick_clip_trigger_evidence(html: str) -> str | None:
     """Return a tightly bound positive Quick Clip/trigger mechanism assertion.
 
-    The current accepted forms require the Quick Clip subject, connection/disconnection
-    wording, and the trigger mechanism in the same sentence-like clause and in that
-    order. A generic product/tool trigger elsewhere in the clause or page is therefore
-    insufficient. Explicit negation of the trigger relationship is also rejected.
+    The accepted forms require the Quick Clip subject and connection/disconnection
+    wording to be tied locally to the trigger by mechanism wording such as ``with a
+    built-in trigger`` or ``due to its ergonomic trigger design``. Co-occurrence in one
+    clause is deliberately insufficient, so a trigger belonging to another tool cannot
+    establish a connector mechanism merely because it appears nearby.
     """
 
     text = BeautifulSoup(html, "html.parser").get_text(" ", strip=True)
     text = re.sub(r"\s+", " ", text)
     quick_clip = r"\bQuick\s*Clips?™?\b"
     connection = r"\b(?:connect|disconnect|connection|disconnection|attach)\w*\b"
-    trigger = r"\b(?:built[-\s]?in\s+trigger|ergonomic\s+trigger(?:\s+design)?)\b"
+    mechanism = (
+        r"(?:"
+        r"\b(?:with|using|via)\s+(?:an?\s+)?built[-\s]?in\s+trigger\b"
+        r"|\bdue\s+to\s+(?:its\s+)?ergonomic\s+trigger(?:\s+design)?\b"
+        r")"
+    )
     relation = re.compile(
-        rf"{quick_clip}[^.!?;]{{0,180}}{connection}[^.!?;]{{0,120}}{trigger}",
+        rf"{quick_clip}[^.!?;]{{0,180}}{connection}[^.!?;]{{0,80}}{mechanism}",
         re.I,
     )
 
     for clause in re.split(r"(?<=[.!?;])\s+", text):
-        match = relation.search(clause)
-        if match is None:
+        if relation.search(clause) is None:
             continue
         if re.search(
             r"\b(?:no|not|without|does\s+not|do\s+not|doesn't|don't)\b[^.!?;]{0,60}\btrigger\b",
