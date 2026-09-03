@@ -511,23 +511,25 @@ def _validate_constraint_value(
             raise ProductConstraintResolutionError(
                 f"constraint {property_key!r} requires unit {expected_unit!r} when a unit is provided"
             )
-    elif property_key == "pre_use_attachment_test_required" and not isinstance(value, bool):
-        raise ProductConstraintResolutionError(
-            "pre_use_attachment_test_required must be boolean"
-        )
+    elif property_key == "pre_use_attachment_test_required":
+        if not isinstance(value, bool):
+            raise ProductConstraintResolutionError(
+                "pre_use_attachment_test_required must be boolean"
+            )
     elif property_key in {
         "installation_surface_profile",
         "required_surface_condition",
         "prohibited_tool_part_type",
         "prohibited_exposure",
-    } and (not isinstance(value, str) or not value.strip()):
-        raise ProductConstraintResolutionError(
-            f"constraint {property_key!r} requires a non-empty string value"
-        )
-    elif property_key == "prohibited_exposure" and unit is not None:
-        raise ProductConstraintResolutionError(
-            "prohibited_exposure uses an exact normalized exposure code and must not carry a unit"
-        )
+    }:
+        if not isinstance(value, str) or not value.strip():
+            raise ProductConstraintResolutionError(
+                f"constraint {property_key!r} requires a non-empty string value"
+            )
+        if property_key == "prohibited_exposure" and unit is not None:
+            raise ProductConstraintResolutionError(
+                "prohibited_exposure uses an exact normalized exposure code and must not carry a unit"
+            )
 
 
 def _validate_source_product_ref(source_product_ref: str) -> str:
