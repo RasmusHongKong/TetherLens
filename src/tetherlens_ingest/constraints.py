@@ -24,12 +24,14 @@ class ProductConstraintDisposition(StrEnum):
 
     HARD = "hard"
     PRE_USE_OBLIGATION = "pre_use_obligation"
+    CONTEXTUAL = "contextual"
 
 
 class ProductConstraintStatus(StrEnum):
     PASSED = "passed"
     FAILED = "failed"
     REQUIRES_ACTION = "requires_action"
+    DEFERRED_CONTEXT = "deferred_context"
     UNRESOLVED = "unresolved"
 
 
@@ -59,6 +61,9 @@ class ProductConstraintContext(BaseModel):
     Installation facts are deliberately bound to one ``ToolInterfaceFeature``. A
     different possible installation location must therefore be evaluated with a
     different context rather than borrowing attributes from another feature.
+
+    Work/task context such as environmental exposure is deliberately absent. Contextual
+    constraints are normalized here but deferred unchanged to the downstream selector.
     """
 
     installation_feature: ToolInterfaceFeature | None = None
@@ -95,6 +100,8 @@ class ProductConstraintEvaluation(BaseModel):
     # Retain the exact normalized primitive that produced this result so a later
     # session may re-evaluate only an originally pending pre-use obligation without
     # reconstructing manufacturer semantics from IDs, reason text, or product pairs.
+    # Contextual constraints use the same retained primitive so downstream context
+    # evaluation does not reconstruct manufacturer semantics either.
     resolved_constraint: ResolvedProductConstraint | None = None
     # ``constraint_id`` remains the canonical catalogue/OEM constraint identity.
     # Composition may additionally bind the evaluation to one physical component
@@ -134,6 +141,10 @@ _SUPPORTED_CONSTRAINTS: dict[
         ConstraintOperator.REQUIRES,
         ProductConstraintDisposition.PRE_USE_OBLIGATION,
     ),
+    "prohibited_exposure": (
+        ConstraintOperator.PROHIBITS,
+        ProductConstraintDisposition.CONTEXTUAL,
+    ),
 }
 
 _NUMERIC_CANONICAL_UNITS = {
@@ -156,7 +167,9 @@ def resolve_product_constraints(
     represented as ``self``.
 
     Unsupported declared constraints are deliberately ignored here rather than assigned
-    accidental technical semantics.
+    accidental technical semantics. Supported contextual constraints are normalized but
+    not converted into hard candidate checks; their meaning is applied only when the
+    corresponding explicit work context is present downstream.
 
     ``max_lanyard_length_mm`` predates structured claim metadata in the NLG adapter, so
     it remains a transitional accepted product limit. Numeric constraints are
@@ -251,7 +264,7 @@ def evaluate_product_constraints(
     constraints: list[ResolvedProductConstraint],
     context: ProductConstraintContext,
 ) -> list[ProductConstraintEvaluation]:
-    """Evaluate normalized product constraints against one candidate installation."""
+    """Evaluate/defer normalized product constraints for one candidate installation."""
 
     return [_evaluate_constraint(constraint, context) for constraint in constraints]
 
@@ -261,6 +274,13 @@ def _evaluate_constraint(
     context: ProductConstraintContext,
 ) -> ProductConstraintEvaluation:
     key = constraint.constraint_key
+
+    if key == "prohibited_exposure":
+        return _result(
+            constraint,
+            ProductConstraintStatus.DEFERRED_CONTEXT,
+            "manufacturer environmental prohibition is retained for explicit downstream work-context evaluation",
+        )
 
     if key == "installation_surface_profile":
         feature = context.installation_feature
@@ -499,9 +519,14 @@ def _validate_constraint_value(
         "installation_surface_profile",
         "required_surface_condition",
         "prohibited_tool_part_type",
+        "prohibited_exposure",
     } and (not isinstance(value, str) or not value.strip()):
         raise ProductConstraintResolutionError(
             f"constraint {property_key!r} requires a non-empty string value"
+        )
+    elif property_key == "prohibited_exposure" and unit is not None:
+        raise ProductConstraintResolutionError(
+            "prohibited_exposure uses an exact normalized exposure code and must not carry a unit"
         )
 
 
