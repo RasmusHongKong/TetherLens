@@ -197,7 +197,7 @@ def test_tool_side_endpoint_to_attachment_ring_is_unresolved_without_geometry():
     result = evaluate_endpoint_engagement(endpoint, target)
     assert result.status == ConnectionStatus.UNRESOLVED
     assert result.compatible is False
-    assert "geometry" in result.reason
+    assert "no acceptable compatibility basis" in result.reason
 
 
 def test_anchor_side_only_endpoint_cannot_serve_tool_attachment_interface():
@@ -233,4 +233,4 @@ def test_klein_nlg_attachment_tether_vertical_slice_stops_at_missing_engagement_
     tool_endpoint = next(interface for interface in tether_interfaces if interface.tether_side == TetherSide.TOOL_SIDE)
     engagement = evaluate_endpoint_engagement(tool_endpoint, attachment_interface)
     assert engagement.status == ConnectionStatus.UNRESOLVED
-    assert engagement.reason == "interface topology is plausible but no validated geometry rule proves engagement"
+    assert engagement.reason == "interface topology is plausible but no acceptable compatibility basis is established"
