@@ -2,19 +2,19 @@
 
 ## Purpose
 
-This document records the first reusable connector-mechanism primitive introduced for endpoint forms whose manufacturer terminology does not establish that they belong to an existing validated connector family.
+This document records reusable connector-mechanism primitives for endpoint forms whose manufacturer terminology does not establish membership in an existing validated connector family.
 
 The initial case is NLG `Quick Clip`.
 
 The governing principle is:
 
-> **A connector label may identify its physical form, while a separate accepted primitive records how it opens. Neither fact may be widened into unsupported locking, geometry, or compatibility semantics.**
+> **A connector label may identify its physical form, while separate accepted primitives record how it operates and any manufacturer-declared interface relationships. None of those facts may be widened into unsupported locking, geometry or connector-family semantics.**
 
-## Quick Clip boundary
+## Quick Clip mechanism boundary
 
 NLG manufacturer material for representative Quick Clip products explicitly describes Quick Clips as supporting connection/disconnection through a built-in or ergonomic trigger.
 
-The normalized primitive is therefore:
+The normalized mechanism primitive is therefore:
 
 ```text
 subject_type = connector_spec
@@ -30,7 +30,7 @@ connection_point.interface_type = clip
 
 `clip` is not rewritten as `carabiner`, `snap_hook`, or another existing connector type.
 
-## What the primitive establishes
+## What `trigger_operated` establishes
 
 `opening_mechanism = trigger_operated` establishes only that accepted manufacturer evidence identifies a trigger-operated connection/disconnection mechanism on the referenced connector specification.
 
@@ -46,7 +46,7 @@ It does not establish:
 
 Those conclusions require their own accepted evidence or validated reusable rule.
 
-## Extraction boundary
+## Mechanism extraction boundary
 
 The NLG adapter emits the primitive only when all of the following are true:
 
@@ -61,7 +61,7 @@ The adapter remains evidence-led rather than SKU-led. The product SKU is not use
 
 ## Resolution
 
-The existing connector resolver already retains `connector.attribute.*` claims in `ConnectorSpec.attributes`.
+The existing connector resolver retains `connector.attribute.*` claims in `ConnectorSpec.attributes`.
 
 A resolved Quick Clip may therefore carry:
 
@@ -78,44 +78,85 @@ ConnectorSpec(
 
 Missing action-count or locking evidence remains missing. The resolver does not infer those values from the trigger primitive.
 
+## Manufacturer-declared Quick Clip -> D-ring compatibility
+
+PR #44 adds a separate evidence path rather than widening the mechanism primitive.
+
+Current NLG first-party material for the Retractable Quick Clip Attachment (101456) states that the product is designed to anchor a Heavy Duty Retractable Tool Lanyard to a D Ring style anchor point and that the Quick Clip can be attached to a D Ring.
+
+That evidence is represented as a dedicated `connection_compatibility` claim subject and resolved into a reusable `ConnectorInterfaceCompatibilityDeclaration` with the narrow v1 scope:
+
+```text
+source connector spec = quick_clip
+source interface type = clip
+target role = anchor_attachment_tether_side
+target interface type = ring
+target attribute ring_form = d_ring
+issuer = NLG
+```
+
+The declaration is then bound to concrete endpoint/target pairs only when those retained primitives match. The resulting candidate-scoped context supplies the existing `ConnectionManufacturerAssessment(position = explicitly_compatible)` path.
+
+This is **not** a Quick Clip interface-class rule and **not** a new runtime-verification family. It is accepted manufacturer-declared compatibility with an explicit issuer, scope and evidence reference.
+
+See `connector-declared-compatibility.md` for the full binding and provenance rules.
+
 ## Relationship to connection compatibility
 
-The current validated gated-connector compatibility and geometry rules remain scoped to their existing connector family.
+The validated gated-connector compatibility and geometry rules remain scoped to their existing `carabiner` / `snap_hook` family.
 
-A Quick Clip with `opening_mechanism = trigger_operated` therefore remains `unresolved` against an otherwise plausible closed interface unless another acceptable compatibility basis applies.
+Therefore:
 
-This is deliberate. The existing bounded verification family contains gate- and lock-specific observations. Current first-party Quick Clip evidence establishes a trigger-operated mechanism but does not yet establish enough gate/locking semantics to reuse that family without inference.
+- a trigger-operated Quick Clip against a generic ring remains `unresolved`;
+- a Quick Clip against a D-ring on the wrong structural role remains `unresolved`;
+- a Quick Clip against a D-ring anchor may become `compatible / manufacturer_declared` only when the accepted declaration is supplied and exactly matches the target primitives;
+- adding a hypothetical `gate_opening` dimension to a `clip` still does not make the carabiner/snap-hook admission rule applicable; and
+- the declaration does not establish any gate, closure or locking fact.
 
-Likewise, adding a hypothetical `gate_opening` dimension to a `clip` does not make the existing carabiner/snap-hook admission rule applicable merely because the dimension name is familiar.
+The ordinary connection evaluator remains responsible for endpoint-side semantics, manufacturer/source conflicts, hard physical contradictions and precedence.
 
-## Why retain the primitive before it closes compatibility?
+## Endpoint-role boundary
 
-The primitive removes an important vocabulary ambiguity without weakening downstream evidence standards.
+Quick Clip compatibility and tether endpoint assignment remain separate problems.
 
-It gives future work an explicit fact on which to base one of several evidence-backed next steps:
+Two endpoints may both be `clip` and reference the same `quick_clip` connector specification while their `connection_point.role` remains unresolved. That structural symmetry does not itself prove that the tether is non-directional.
 
-- first-party evidence that establishes Quick Clip closure/locking semantics;
-- a separately validated bounded Quick Clip field-verification family;
-- accepted geometry sufficient for a Quick Clip-specific reusable rule; or
-- a properly scoped manufacturer compatibility declaration for a reusable interface relationship.
+Candidate generation therefore continues to exclude `TetherSide.UNKNOWN`. A manufacturer compatibility declaration must not promote an unknown endpoint role to `either`.
 
-Whichever path is justified should consume the retained mechanism fact rather than reinterpreting product names or raw marketing text.
+A future symmetric-tether slice should model explicit interchangeability/assignment evidence separately from endpoint physical form and connector compatibility.
+
+## Why keep the mechanism primitive separate from the declaration?
+
+The two facts answer different questions:
+
+```text
+opening_mechanism = trigger_operated
+    -> how the connector is operated
+
+manufacturer compatibility declaration
+    -> which narrowly scoped target interface the manufacturer states it may engage
+```
+
+Keeping them separate prevents a declaration from manufacturing missing physical semantics and prevents a mechanism label from becoming generic compatibility.
+
+This separation also permits future Quick Clip evidence to add other facts independently, for example closure behavior, geometry, or another declared target class, without rewriting existing claims.
 
 ## Deliberate non-goals
 
-This slice does not introduce:
+The current Quick Clip work does not introduce:
 
 - SKU-pair compatibility logic;
 - a generic `clip -> carabiner` alias;
 - a generic trigger-clip compatibility class;
-- a new field-verification procedure without validation;
+- a Quick Clip field-verification procedure without separate validation;
 - action-count inference from the number of triggers;
 - locking inference from words such as `secure`;
-- geometry inference from product images; or
+- geometry inference from product images;
+- endpoint-role/interchangeability inference from symmetric connectors; or
 - changes to hard viability, candidate ranking, contextual feasibility, or session fallback.
 
 ## Next evidence criterion
 
-The next Quick Clip compatibility slice should proceed only when representative evidence establishes enough reusable mechanism/interface semantics to justify a bounded rule.
+The next Quick Clip-specific compatibility expansion should proceed only when additional representative evidence establishes another bounded target relationship, reusable geometry, or enough closure/locking semantics to justify a separately validated rule.
 
-The highest-value evidence would be first-party operating instructions that explicitly establish closure/locking behavior, or a manufacturer statement whose scope establishes the relevant connector-to-interface relationship without relying on one SKU pair.
+Separately, symmetric tether endpoint assignment should proceed only when manufacturer evidence establishes interchangeability/non-directionality rather than merely showing physically similar endpoint hardware.

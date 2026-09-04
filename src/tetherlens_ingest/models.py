@@ -29,6 +29,7 @@ class ClaimSubjectType(StrEnum):
     PHYSICAL_INTERFACE = "physical_interface"
     TETHER_CONNECTION_POINT = "tether_connection_point"
     CONNECTOR_SPEC = "connector_spec"
+    CONNECTION_COMPATIBILITY = "connection_compatibility"
     RELATED_PRODUCT = "related_product"
     OPERATIONAL_PROFILE = "operational_profile"
 
