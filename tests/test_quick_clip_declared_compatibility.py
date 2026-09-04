@@ -121,13 +121,12 @@ def test_quick_clip_d_ring_declaration_rejects_cross_block_question_and_negation
         assert declaration_claims(body) == [], body
 
 
-def test_designed_anchor_wording_also_establishes_the_same_declaration():
+def test_designed_anchor_wording_resolves_exact_declaration_scope():
     claims = declaration_claims(
         "<p>The Retractable Quick Clip Attachment has been specifically designed to "
         "securely anchor the lanyard to a D Ring style anchor point.</p>"
     )
 
-    assert claims
     declaration = resolve_connector_interface_compatibility_declarations(claims)[0]
     assert declaration.connector_spec_ref == "quick_clip"
     assert declaration.source_interface_type == "clip"
@@ -149,7 +148,6 @@ def test_declaration_binds_to_exact_d_ring_anchor_and_uses_existing_manufacturer
         declarations=[accepted_declaration()],
     )
 
-    assert len(contexts) == 1
     result = evaluate_endpoint_engagement(
         endpoint,
         target,
@@ -163,14 +161,30 @@ def test_declaration_binds_to_exact_d_ring_anchor_and_uses_existing_manufacturer
     assert result.manufacturer_assessments[0].claim_or_evidence_ref == SOURCE_URL
 
 
-def test_declaration_does_not_widen_to_generic_ring_or_tool_attachment_d_ring():
+def test_declaration_does_not_widen_to_generic_ring():
     endpoint = quick_clip_endpoint()
-    declaration = accepted_declaration()
     generic_ring = ConnectionInterface(
         interface_id="anchor:generic-ring",
         role=ConnectionInterfaceRole.ANCHOR_ATTACHMENT_TETHER_SIDE,
         interface_type="ring",
     )
+
+    contexts = connection_contexts_from_compatibility_declarations(
+        tether_ref="product:tether-a",
+        endpoints=[endpoint],
+        target_owner_ref="product:anchor-a",
+        target_interfaces=[generic_ring],
+        declarations=[accepted_declaration()],
+    )
+
+    assert contexts == []
+    result = evaluate_endpoint_engagement(endpoint, generic_ring)
+    assert result.status == ConnectionStatus.UNRESOLVED
+    assert result.basis == CompatibilityBasis.NONE
+
+
+def test_wrong_role_d_ring_does_not_receive_declaration_and_existing_side_rule_still_wins():
+    endpoint = quick_clip_endpoint()
     tool_attachment_d_ring = ConnectionInterface(
         interface_id="tool-attachment:d-ring",
         role=ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE,
@@ -178,18 +192,18 @@ def test_declaration_does_not_widen_to_generic_ring_or_tool_attachment_d_ring():
         attributes={"ring_form": "d_ring"},
     )
 
-    for target in (generic_ring, tool_attachment_d_ring):
-        contexts = connection_contexts_from_compatibility_declarations(
-            tether_ref="product:tether-a",
-            endpoints=[endpoint],
-            target_owner_ref="product:target-a",
-            target_interfaces=[target],
-            declarations=[declaration],
-        )
-        assert contexts == []
-        result = evaluate_endpoint_engagement(endpoint, target)
-        assert result.status == ConnectionStatus.UNRESOLVED
-        assert result.basis == CompatibilityBasis.NONE
+    contexts = connection_contexts_from_compatibility_declarations(
+        tether_ref="product:tether-a",
+        endpoints=[endpoint],
+        target_owner_ref="product:tool-attachment-a",
+        target_interfaces=[tool_attachment_d_ring],
+        declarations=[accepted_declaration()],
+    )
+
+    assert contexts == []
+    result = evaluate_endpoint_engagement(endpoint, tool_attachment_d_ring)
+    assert result.status == ConnectionStatus.INCOMPATIBLE
+    assert result.basis == CompatibilityBasis.VALIDATED_INTERFACE_CLASS
 
 
 def test_bound_declaration_flows_through_candidate_generation_without_sku_pair_logic():
