@@ -188,6 +188,40 @@ class ConnectionEvaluation(BaseModel):
     contradiction_type: ContradictionType | None = None
     review_required: bool = False
 
+    @field_validator("verification_observations", mode="before")
+    @classmethod
+    def parse_verification_observations_for_family(cls, observations: Any, info):
+        """Reconstruct observations using the persisted verification family."""
+
+        if observations is None:
+            return None
+
+        family = info.data.get("verification_family")
+        if family == _GATED_CONNECTOR_CLOSED_INTERFACE_FAMILY:
+            expected_model = GatedConnectorClosedInterfaceVerification
+            family_label = "gated-connector"
+        elif family == _CINCH_LOOP_CLOSED_INTERFACE_FAMILY:
+            expected_model = CinchLoopClosedInterfaceVerification
+            family_label = "cinch-loop"
+        else:
+            return observations
+
+        if isinstance(observations, expected_model):
+            return observations
+        if isinstance(observations, BaseModel):
+            raise ValueError(
+                f"{family_label} verification requires {family_label} observations"
+            )
+        if isinstance(observations, dict):
+            unexpected_fields = set(observations) - set(expected_model.model_fields)
+            if unexpected_fields:
+                fields = ", ".join(sorted(unexpected_fields))
+                raise ValueError(
+                    f"{family_label} verification observations contain fields outside "
+                    f"their family: {fields}"
+                )
+        return expected_model.model_validate(observations)
+
     @property
     def compatible(self) -> bool:
         return self.status == ConnectionStatus.COMPATIBLE
