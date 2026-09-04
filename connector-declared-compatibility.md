@@ -58,6 +58,10 @@ connection_compatibility.scope
 
 Each claim retains the manufacturer source URL and raw evidence. The extraction rule is evidence-led: the product SKU is not consulted to manufacture the declaration.
 
+Because the declaration can become authoritative compatibility evidence, a positive relation substring is not sufficient on its own. Extraction also checks bounded surrounding grammar for epistemic negation before the relation and a contradictory use/connection prohibition after it. For example, `Do not assume the Quick Clip can be attached to a D Ring` and `The Quick Clip can be attached to a D Ring, but must not be used that way` both fail closed. This is deliberately narrower than a clause-wide negative-token blacklist, so unrelated wording such as `without removing gloves` does not erase an otherwise explicit positive relation.
+
+The declaration issuer is taken from the adapter's canonical manufacturer identity (`NLG`), not from caller-provided product-identity spelling or a lowercase CLI key. This keeps provenance stable when evidence from catalogue-discovery and direct CLI ingestion paths is combined.
+
 ## Resolution and candidate binding
 
 `resolve_connector_interface_compatibility_declarations()` compiles accepted declaration claims into `ConnectorInterfaceCompatibilityDeclaration` objects.
@@ -157,7 +161,9 @@ Focused executable tests cover:
 
 - positive first-party declaration extraction;
 - SKU-independent extraction;
-- cross-block, interrogative and negative fail-closed cases;
+- canonical issuer identity across CLI and catalogue ingestion paths;
+- cross-block, interrogative and bounded surrounding-negation fail-closed cases;
+- preservation of unrelated negative wording outside the compatibility assertion;
 - declaration resolution;
 - exact D-ring anchor matching;
 - generic-ring and wrong-role non-matching;
