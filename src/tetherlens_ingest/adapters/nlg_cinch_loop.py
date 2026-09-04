@@ -114,30 +114,27 @@ class NLGAdapter(BaseNLGAdapter):
 
 
 def _cinch_loop_evidence(html: str) -> str | None:
-    """Return a locally bound positive assertion that the tether loop cinches."""
+    """Return a locally bound positive assertion that the tether loop itself cinches."""
 
     loop_subject = (
         r"\b(?:rugged\s+|tough\s+|durable\s+|ultra[-\s]?durable\s+)?"
-        r"(?:(?:climbing\s+cord|dyneema®?|cord|webbing)\s+)?"
-        r"(?:cinching\s+)?loop\b"
+        r"(?:(?:climbing\s+cord|dyneema®?|cord|webbing)\s+)?loop\b"
     )
     relation = re.compile(
-        rf"(?:{loop_subject}[^.!?;]{{0,90}}\bcinch(?:es|ed|ing)?\b|"
-        rf"\bcinch(?:es|ed|ing)?\b[^.!?;]{{0,55}}{loop_subject})",
-        re.I,
-    )
-    negation = re.compile(
-        r"\b(?:no|not|never|without|cannot|can't|does\s+not|do\s+not|doesn't|don't)\b"
-        r"[^.!?;]{0,80}\bcinch(?:es|ed|ing)?\b",
+        rf"(?:"
+        rf"\bcinching\s+{loop_subject}"
+        rf"|{loop_subject}\s+(?:allows?|enables?|provides?|supports?|facilitates?)\s+"
+        rf"(?:(?:quick|easy|secure|safe|simple)(?:\s+and\s+(?:quick|easy|secure|safe|simple))?\s+)*"
+        rf"\bcinching\b"
+        rf"|{loop_subject}\s+(?:can\s+be\s+|is\s+)?cinched\b"
+        rf"|{loop_subject}\s+cinches\b"
+        rf")",
         re.I,
     )
 
     for clause in _html_evidence_clauses(html):
         if clause.rstrip().endswith("?"):
             continue
-        if relation.search(clause) is None:
-            continue
-        if negation.search(clause) is not None:
-            continue
-        return clause.strip()
+        if relation.search(clause) is not None:
+            return clause.strip()
     return None
