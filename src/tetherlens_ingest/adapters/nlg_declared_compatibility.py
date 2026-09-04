@@ -63,26 +63,26 @@ class NLGAdapter(BaseNLGAdapter):
 def _quick_clip_d_ring_compatibility_evidence(text: str) -> str | None:
     """Return one local positive manufacturer Quick Clip -> D-ring assertion."""
 
-    quick_clip = r"Quick\s*Clip(?:s)?™?"
-    quick_clip_attachment = rf"{quick_clip}\s+Attachment"
+    quick_clip = r"Quick\s*Clip(?:s)?\b™?"
+    quick_clip_attachment = rf"{quick_clip}\s+Attachment\b"
     d_ring = r"D[\s-]?Ring"
 
     direct_relation = re.compile(
-        rf"\b{quick_clip}\b\s+"
+        rf"\b{quick_clip}\s+"
         rf"(?:can\s+be\s+|is\s+|are\s+)?"
         rf"(?:(?:quickly|easily|securely)\s+(?:and\s+(?:quickly|easily|securely)\s+)*)?"
         rf"attached\s+to\s+(?:an?\s+|the\s+)?{d_ring}\b",
         re.I,
     )
     featuring_relation = re.compile(
-        rf"\bFeaturing\s+(?:the\s+)?{quick_clip}\b\s*,?\s*"
+        rf"\bFeaturing\s+(?:the\s+)?{quick_clip}\s*,?\s*"
         rf"(?:it|the\s+attachment)\s+can\s+be\s+"
         rf"(?:(?:quickly|easily|securely)\s+(?:and\s+(?:quickly|easily|securely)\s+)*)?"
         rf"attached\s+to\s+(?:an?\s+|the\s+)?{d_ring}\b",
         re.I,
     )
     designed_relation = re.compile(
-        rf"\b{quick_clip_attachment}\b\s+"
+        rf"\b{quick_clip_attachment}\s+"
         rf"(?:has\s+been\s+|is\s+)?(?:specifically\s+)?designed\s+to\s+"
         rf"(?:securely\s+)?anchor\b.{{0,100}}?\bto\s+"
         rf"(?:an?\s+|the\s+)?{d_ring}(?:\s+style\s+anchor\s+point)?\b",
