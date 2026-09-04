@@ -477,10 +477,9 @@ def _verification_family(
 ) -> str | None:
     """Return a validated bounded verification family, never a compatibility claim."""
 
-    if target.interface_type not in _CLOSED_INTERFACE_TYPES:
-        return None
-
     if endpoint.interface_type == "loop":
+        if not _cinch_loop_target_supported(target):
+            return None
         if (
             connector_spec is not None
             and connector_spec.attributes.get("engagement_method") == "cinch"
@@ -488,6 +487,8 @@ def _verification_family(
             return _CINCH_LOOP_CLOSED_INTERFACE_FAMILY
         return None
 
+    if target.interface_type not in _CLOSED_INTERFACE_TYPES:
+        return None
     if endpoint.interface_type not in _GATED_CONNECTOR_TYPES:
         return None
     if connector_spec is None or connector_spec.opening_action_count is None:
@@ -495,6 +496,25 @@ def _verification_family(
         # establish that the referenced discrete connector has an opening action.
         return None
     return _GATED_CONNECTOR_CLOSED_INTERFACE_FAMILY
+
+
+def _cinch_loop_target_supported(target: ConnectionInterface) -> bool:
+    """Admit only target forms directly supported by the current cinch-loop evidence.
+
+    NLG's representative loop-ended tether copy establishes use at anchor points and
+    direct captive holes/handles on tools. Version 1 therefore supports container or
+    anchor-attachment rings plus direct captive tool holes/handles. It deliberately
+    does not widen that evidence to ToolAttachment-provided rings or other closed forms.
+    """
+
+    if target.role == ConnectionInterfaceRole.TOOL_DIRECT_TETHER_INTERFACE:
+        return target.interface_type in {"captive_hole", "closed_handle"}
+    if target.role in {
+        ConnectionInterfaceRole.ANCHOR_ATTACHMENT_TETHER_SIDE,
+        ConnectionInterfaceRole.CONTAINER_CONNECTION,
+    }:
+        return target.interface_type == "ring"
+    return False
 
 
 def _runtime_verification_status(
