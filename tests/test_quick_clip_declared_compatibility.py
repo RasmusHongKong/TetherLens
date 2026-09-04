@@ -44,9 +44,13 @@ def artifact(body: str) -> SourceArtifact:
     )
 
 
-def identity(*, sku: str = "not-a-golden-sku") -> ProductIdentity:
+def identity(
+    *,
+    sku: str = "not-a-golden-sku",
+    manufacturer: str = "NLG",
+) -> ProductIdentity:
     return ProductIdentity(
-        manufacturer="NLG",
+        manufacturer=manufacturer,
         product_type=ProductType.ANCHOR_ATTACHMENT,
         name="Retractable Quick Clip Attachment",
         sku=sku,
@@ -54,10 +58,13 @@ def identity(*, sku: str = "not-a-golden-sku") -> ProductIdentity:
     )
 
 
-def declaration_claims(body: str):
+def declaration_claims(body: str, *, manufacturer: str = "NLG"):
     return [
         claim
-        for claim in NLGAdapter().extract(identity(), [artifact(body)])
+        for claim in NLGAdapter().extract(
+            identity(manufacturer=manufacturer),
+            [artifact(body)],
+        )
         if claim.subject_type == ClaimSubjectType.CONNECTION_COMPATIBILITY
     ]
 
@@ -111,14 +118,46 @@ def test_quick_clip_d_ring_declaration_is_evidence_led_not_sku_led():
     assert any(claim.value == "d_ring" for claim in claims)
 
 
+def test_declaration_uses_canonical_nlg_issuer_across_cli_and_catalogue_identity_paths():
+    body = "<p>Featuring the Quick Clip™ it can be quickly and easily attached to a D Ring.</p>"
+    cli_claims = declaration_claims(body, manufacturer="nlg")
+    catalogue_claims = declaration_claims(body, manufacturer="NLG")
+
+    issuer_values = {
+        claim.value
+        for claim in [*cli_claims, *catalogue_claims]
+        if claim.property_key == "connection_compatibility.issuer_manufacturer"
+    }
+    assert issuer_values == {"NLG"}
+
+    declarations = resolve_connector_interface_compatibility_declarations(
+        [*cli_claims, *catalogue_claims]
+    )
+    assert len(declarations) == 1
+    assert declarations[0].issuer_manufacturer == "NLG"
+
+
 def test_quick_clip_d_ring_declaration_rejects_cross_block_question_and_negation():
     bodies = (
         "<p>Quick Clips provide secure attachment.</p><p>Attach the lanyard to a D Ring.</p>",
         "<p>Can a Quick Clip be attached to a D Ring?</p>",
         "<p>The Quick Clip should not be attached to a D Ring.</p>",
+        "<p>Do not assume the Quick Clip can be attached to a D Ring.</p>",
+        "<p>It is not established that the Quick Clip can be attached to a D Ring.</p>",
+        "<p>The Quick Clip can be attached to a D Ring, but must not be used that way.</p>",
     )
     for body in bodies:
         assert declaration_claims(body) == [], body
+
+
+def test_unrelated_negative_wording_does_not_block_positive_d_ring_relation():
+    claims = declaration_claims(
+        "<p>The Quick Clip can be attached to a D Ring without removing gloves.</p>"
+    )
+
+    assert claims
+    declaration = resolve_connector_interface_compatibility_declarations(claims)[0]
+    assert declaration.target_attributes == {"ring_form": "d_ring"}
 
 
 def test_designed_anchor_wording_resolves_exact_declaration_scope():
