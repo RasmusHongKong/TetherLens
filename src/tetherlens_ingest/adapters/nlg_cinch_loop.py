@@ -135,6 +135,21 @@ def _cinch_loop_evidence(html: str) -> str | None:
     for clause in _html_evidence_clauses(html):
         if clause.rstrip().endswith("?"):
             continue
-        if relation.search(clause) is not None:
-            return clause.strip()
+        match = relation.search(clause)
+        if match is None or _relation_is_locally_negated(clause, match.start()):
+            continue
+        return clause.strip()
     return None
+
+
+def _relation_is_locally_negated(clause: str, relation_start: int) -> bool:
+    """Reject nearby explicit negation without widening into general NLP inference."""
+
+    prefix = clause[max(0, relation_start - 64) : relation_start]
+    negation = re.compile(
+        r"(?:\b(?:not|never|no|cannot)\b|"
+        r"\b(?:isn|aren|wasn|weren|doesn|don|can)['’]?t\b)"
+        r"(?:\s+\w+){0,3}\s*$",
+        re.I,
+    )
+    return negation.search(prefix) is not None
