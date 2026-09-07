@@ -33,6 +33,10 @@ from .constraints import (
     ResolvedProductConstraint,
     evaluate_product_constraints,
 )
+from .endpoint_assignment import (
+    EndpointAssignmentSemantics,
+    TetherEndpointAssignmentDeclaration,
+)
 from .recommendation import (
     CandidateAttachmentMode,
     CandidateConfiguration,
@@ -170,6 +174,9 @@ class TetherOption(BaseModel):
     component: CandidateComponentOption
     endpoints: list[ConnectionInterface] = Field(min_length=2)
     connector_specs: dict[str, ConnectorSpec] = Field(default_factory=dict)
+    endpoint_assignment_declarations: list[TetherEndpointAssignmentDeclaration] = Field(
+        default_factory=list
+    )
     min_length_mm: float | None = None
     max_length_mm: float | None = None
 
@@ -200,7 +207,8 @@ class TetherOption(BaseModel):
         ]
         if invalid:
             raise ValueError(f"tether endpoints must use role tether_connection: {invalid!r}")
-        if len({endpoint.interface_id for endpoint in self.endpoints}) != len(self.endpoints):
+        endpoint_ids = {endpoint.interface_id for endpoint in self.endpoints}
+        if len(endpoint_ids) != len(self.endpoints):
             raise ValueError("tether endpoint ids must be unique within one tether option")
         mismatched_connector_specs = sorted(
             key
@@ -212,6 +220,23 @@ class TetherOption(BaseModel):
                 "connector spec map keys must match the contained connector_spec_id: "
                 f"{mismatched_connector_specs!r}"
             )
+        _require_unique_local_ids(
+            [declaration.declaration_id for declaration in self.endpoint_assignment_declarations],
+            scope=f"tether {self.tether_ref!r}",
+            label="endpoint assignment declaration ids",
+        )
+        for declaration in self.endpoint_assignment_declarations:
+            if declaration.tether_ref != self.tether_ref:
+                raise ValueError(
+                    "endpoint assignment declaration must retain owning tether identity; "
+                    f"expected {self.tether_ref!r}, got {declaration.tether_ref!r}"
+                )
+            missing_refs = sorted(set(declaration.endpoint_refs) - endpoint_ids)
+            if missing_refs:
+                raise ValueError(
+                    "endpoint assignment declaration references endpoints outside its tether: "
+                    f"{missing_refs!r}"
+                )
         return self
 
 
@@ -346,6 +371,16 @@ class EligibilityProof(BaseModel):
     binding_name: str
 
 
+class EndpointAssignmentProof(BaseModel):
+    """Evidence retained when a relation, rather than endpoint role, enabled orientation."""
+
+    declaration_id: str = Field(min_length=1)
+    semantics: EndpointAssignmentSemantics
+    issuer_manufacturer: str = Field(min_length=1)
+    scope: str = Field(min_length=1)
+    source_urls: list[str] = Field(min_length=1)
+
+
 class CandidatePathSelection(BaseModel):
     """Explicit identity and binding metadata for one generated candidate path."""
 
@@ -355,6 +390,7 @@ class CandidatePathSelection(BaseModel):
     attachment_assembly_ref: str | None = None
     installation_feature_id: str | None = None
     eligibility_proofs: list[EligibilityProof] = Field(default_factory=list)
+    endpoint_assignment_proofs: list[EndpointAssignmentProof] = Field(default_factory=list)
     tool_endpoint_id: str = Field(min_length=1)
     tool_target_interface_id: str = Field(min_length=1)
     anchor_endpoint_id: str = Field(min_length=1)
@@ -470,6 +506,9 @@ def generate_candidate_configurations(
 
     Multiple eligibility paths proving the same concrete feature are retained as audit
     proofs on one physical candidate rather than multiplying candidate identities.
+    Evidence-backed reversible endpoint declarations behave the same way: they may
+    permit otherwise-unknown endpoints to occupy both orientations, while the original
+    endpoint roles remain unchanged and declaration provenance stays on the selection.
 
     When ``policy_contexts`` is supplied, every generated candidate must have exactly one
     complete-selection policy context, including explicit ``not_applicable`` results.
@@ -547,7 +586,10 @@ def generate_candidate_configurations(
 
     generated: list[GeneratedCandidate] = []
     for tether in tethers:
-        endpoint_assignments = _endpoint_assignments(tether.endpoints)
+        endpoint_assignments = _endpoint_assignments(
+            tether.endpoints,
+            tether.endpoint_assignment_declarations,
+        )
         for tool_target in tool_targets:
             attachment_components = (
                 list(tool_target.assembly.components)
@@ -567,7 +609,9 @@ def generate_candidate_configurations(
                 runtime_state=runtime_state,
             )
 
-            for tool_endpoint, anchor_endpoint in endpoint_assignments:
+            for endpoint_assignment in endpoint_assignments:
+                tool_endpoint = endpoint_assignment.tool_endpoint
+                anchor_endpoint = endpoint_assignment.anchor_endpoint
                 tool_connection = _evaluate_connection(
                     tool_endpoint,
                     tool_target.target_interface,
@@ -629,6 +673,7 @@ def generate_candidate_configurations(
                                 )
                                 for match in tool_target.eligibility_matches
                             ],
+                            endpoint_assignment_proofs=endpoint_assignment.proofs,
                             tool_endpoint_id=tool_endpoint.interface_id,
                             tool_target_interface_id=tool_target.target_interface.interface_id,
                             anchor_endpoint_id=anchor_endpoint.interface_id,
@@ -707,6 +752,12 @@ class _ToolTarget(BaseModel):
     eligibility_matches: list[EligibilityMatch] = Field(default_factory=list)
 
 
+class _EndpointAssignment(BaseModel):
+    tool_endpoint: ConnectionInterface
+    anchor_endpoint: ConnectionInterface
+    proofs: list[EndpointAssignmentProof] = Field(default_factory=list)
+
+
 def _eligibility_matches_by_feature(
     matches: list[EligibilityMatch],
 ) -> dict[str, list[EligibilityMatch]]:
@@ -718,7 +769,20 @@ def _eligibility_matches_by_feature(
 
 def _endpoint_assignments(
     endpoints: list[ConnectionInterface],
-) -> list[tuple[ConnectionInterface, ConnectionInterface]]:
+    declarations: list[TetherEndpointAssignmentDeclaration],
+) -> list[_EndpointAssignment]:
+    """Return structurally admissible oriented endpoint pairs.
+
+    Explicit endpoint roles retain their existing meaning. A reversible declaration may
+    widen only an exactly-two-member pair whose individual roles are both still unknown;
+    it never rewrites those roles and never overrides fixed side evidence. Multiple
+    declarations proving the same physical orientation are retained as proofs on one
+    assignment rather than multiplying candidate identity.
+    """
+
+    endpoint_by_id = {endpoint.interface_id: endpoint for endpoint in endpoints}
+    assignments: dict[tuple[str, str], _EndpointAssignment] = {}
+
     tool_capable = [
         endpoint
         for endpoint in endpoints
@@ -729,12 +793,52 @@ def _endpoint_assignments(
         for endpoint in endpoints
         if endpoint.tether_side in {TetherSide.ANCHOR_SIDE, TetherSide.EITHER}
     ]
-    return [
-        (tool_endpoint, anchor_endpoint)
-        for tool_endpoint in tool_capable
-        for anchor_endpoint in anchor_capable
-        if tool_endpoint.interface_id != anchor_endpoint.interface_id
-    ]
+    for tool_endpoint in tool_capable:
+        for anchor_endpoint in anchor_capable:
+            if tool_endpoint.interface_id == anchor_endpoint.interface_id:
+                continue
+            key = (tool_endpoint.interface_id, anchor_endpoint.interface_id)
+            assignments[key] = _EndpointAssignment(
+                tool_endpoint=tool_endpoint,
+                anchor_endpoint=anchor_endpoint,
+            )
+
+    for declaration in sorted(declarations, key=lambda item: item.declaration_id):
+        if declaration.semantics != EndpointAssignmentSemantics.REVERSIBLE_TOOL_ANCHOR_PAIR:
+            continue
+        first, second = [endpoint_by_id[ref] for ref in declaration.endpoint_refs]
+        if (
+            first.tether_side != TetherSide.UNKNOWN
+            or second.tether_side != TetherSide.UNKNOWN
+        ):
+            continue
+
+        proof = EndpointAssignmentProof(
+            declaration_id=declaration.declaration_id,
+            semantics=declaration.semantics,
+            issuer_manufacturer=declaration.issuer_manufacturer,
+            scope=declaration.scope,
+            source_urls=declaration.source_urls,
+        )
+        for tool_endpoint, anchor_endpoint in ((first, second), (second, first)):
+            key = (tool_endpoint.interface_id, anchor_endpoint.interface_id)
+            existing = assignments.get(key)
+            if existing is None:
+                assignments[key] = _EndpointAssignment(
+                    tool_endpoint=tool_endpoint,
+                    anchor_endpoint=anchor_endpoint,
+                    proofs=[proof],
+                )
+                continue
+            proofs = {
+                item.declaration_id: item
+                for item in [*existing.proofs, proof]
+            }
+            assignments[key] = existing.model_copy(
+                update={"proofs": [proofs[key] for key in sorted(proofs)]}
+            )
+
+    return [assignments[key] for key in sorted(assignments)]
 
 
 def _evaluate_component_constraints(
