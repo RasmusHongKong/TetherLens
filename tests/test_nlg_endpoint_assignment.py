@@ -4,7 +4,7 @@ from tetherlens_ingest.endpoint_assignment import (
     EndpointAssignmentSemantics,
     resolve_tether_endpoint_assignment_declarations,
 )
-from tetherlens_ingest.models import ClaimSubjectType, ClaimType, ProductIdentity, ProductType, SourceArtifact, SourceType
+from tetherlens_ingest.models import ClaimSubjectType, ClaimType, ProductIdentity, ProductType, SourceArtifact
 
 
 URL = "https://neverletgo.com/products/extended-bungee-tool-lanyard"
@@ -92,12 +92,34 @@ def test_nlg_does_not_derive_reversibility_from_equivalent_endpoints_without_pai
     assert _assignment_claims(html) == []
 
 
+def test_nlg_does_not_treat_negated_tool_anchor_use_as_positive_assignment_evidence():
+    html = """
+    <h1>Example Dual Quick Clip Tool Lanyard</h1>
+    <div>Dual Quick Clips™.</div>
+    <div>Quick Clip™ connectors at each end reduce tangles.</div>
+    <div>Never attach tools to anchor points using this lanyard.</div>
+    """
+
+    assert _assignment_claims(html) == []
+
+
 def test_nlg_does_not_derive_reversibility_when_endpoint_labels_are_directional():
     html = """
     <h1>Example Dual Quick Clip Tool Lanyard</h1>
     <div>Tools are connected to anchor points using the lanyard.</div>
     <div>Quick Clip™ connectors at each end.</div>
     <div>Use the tool-end Quick Clip for the tool connection.</div>
+    """
+
+    assert _assignment_claims(html) == []
+
+
+def test_nlg_does_not_derive_reversibility_from_separately_assigned_quick_clips():
+    html = """
+    <h1>Example Dual Quick Clip Tool Lanyard</h1>
+    <div>Dual Quick Clips™.</div>
+    <div>Quick Clip™ connectors at each end.</div>
+    <div>Attach the red Quick Clip to the tool and the blue Quick Clip to the anchor point.</div>
     """
 
     assert _assignment_claims(html) == []
