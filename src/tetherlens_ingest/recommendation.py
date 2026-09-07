@@ -108,10 +108,12 @@ class CandidateConfiguration(BaseModel):
     Endpoint assignment declarations are structural authorization only. They may prove
     that an otherwise-unknown pair can occupy the tool/anchor positions, but they do not
     change either endpoint's recorded ``tether_side`` and do not establish connection
-    compatibility.
+    compatibility. ``tether_ref`` is retained only to qualify the local endpoint IDs
+    when such assignment evidence is present.
     """
 
     candidate_id: str = Field(min_length=1)
+    tether_ref: str | None = Field(default=None, min_length=1)
     object_mass_kg: float | None = None
     load_bearing_components: list[LoadBearingComponent] = Field(min_length=1)
     tether_max_length_mm: float | None = None
@@ -148,6 +150,30 @@ class CandidateConfiguration(BaseModel):
             raise ValueError(
                 "tool-side connection target role must match the candidate attachment mode"
             )
+
+        if self.endpoint_assignment_declarations:
+            if self.tether_ref is None:
+                raise ValueError(
+                    "endpoint assignment declarations require the selected tether_ref"
+                )
+            foreign_declarations = sorted(
+                declaration.declaration_id
+                for declaration in self.endpoint_assignment_declarations
+                if declaration.tether_ref != self.tether_ref
+            )
+            if foreign_declarations:
+                raise ValueError(
+                    "endpoint assignment declarations must belong to the selected tether: "
+                    f"{foreign_declarations!r}"
+                )
+            if (
+                self.tool_side_connection.endpoint_tether_side != TetherSide.UNKNOWN
+                or self.anchor_side_connection.endpoint_tether_side != TetherSide.UNKNOWN
+            ):
+                raise ValueError(
+                    "endpoint assignment declarations may be retained only for the "
+                    "unknown/unknown pair they structurally authorize"
+                )
 
         relation_authorized_unknown_pair = _has_reversible_unknown_pair_assignment(self)
         if self.tool_side_connection.endpoint_tether_side not in {
@@ -465,6 +491,8 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
 
 
 def _has_reversible_unknown_pair_assignment(candidate: CandidateConfiguration) -> bool:
+    if candidate.tether_ref is None:
+        return False
     if (
         candidate.tool_side_connection.endpoint_tether_side != TetherSide.UNKNOWN
         or candidate.anchor_side_connection.endpoint_tether_side != TetherSide.UNKNOWN
@@ -480,6 +508,7 @@ def _has_reversible_unknown_pair_assignment(candidate: CandidateConfiguration) -
 
     return any(
         declaration.semantics == EndpointAssignmentSemantics.REVERSIBLE_TOOL_ANCHOR_PAIR
+        and declaration.tether_ref == candidate.tether_ref
         and set(declaration.endpoint_refs) == selected_pair
         for declaration in candidate.endpoint_assignment_declarations
     )
