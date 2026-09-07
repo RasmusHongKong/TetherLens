@@ -2,15 +2,16 @@
 
 ## Purpose
 
-This document defines the bounded evidence-backed model used when a tether's individual connection points do not have accepted `tool_side`, `anchor_side`, or `either` roles, but accepted manufacturer evidence explicitly establishes that a pair of endpoints is reversible between the tool and anchor positions.
+This document defines the bounded evidence-backed model used when a tether's individual connection points do not have accepted `tool_side`, `anchor_side`, or `either` roles, but accepted evidence establishes that a pair of endpoints may be assigned between the tool and anchor positions in either orientation.
 
-The model exists to preserve an important distinction:
+The model exists to preserve two important distinctions:
 
 ```text
 endpoint role evidence != endpoint-pair assignment evidence
+manufacturer declaration != TetherLens evidence-derived assignment
 ```
 
-Missing endpoint role evidence must not be rewritten as `either`, and physical symmetry must not be treated as proof of interchangeability.
+Missing endpoint role evidence must not be rewritten as `either`, and physical symmetry must not be treated as proof of interchangeability by itself.
 
 ## Existing endpoint roles remain authoritative
 
@@ -45,6 +46,7 @@ A resolved `TetherEndpointAssignmentDeclaration` contains:
 - owning tether reference;
 - exactly two distinct endpoint references;
 - assignment semantics;
+- assignment basis;
 - issuer manufacturer;
 - evidence scope; and
 - source URLs.
@@ -55,22 +57,70 @@ Its meaning is narrow:
 
 It is evidence about the relationship between two endpoint subjects, not an intrinsic `either` role claim about either endpoint.
 
+## Assignment basis
+
+V1 distinguishes how the relation was established:
+
+```text
+manufacturer_declared
+```
+
+The manufacturer directly establishes reversibility, interchangeability, non-directionality, `either end` use, or an equivalently unambiguous assignment relationship.
+
+```text
+derived_endpoint_equivalence
+```
+
+TetherLens derives the same bounded relation from a conjunction of accepted first-party facts that establish endpoint-construction equivalence and undifferentiated tool-to-anchor pair use. The derived basis is retained explicitly; it must never be presented as though the manufacturer directly declared reversibility.
+
+`EndpointAssignmentProof` retains the assignment basis alongside declaration ID, semantics, issuer, scope and source URLs so rehydration cannot silently change a derived inference into a manufacturer declaration.
+
 ## Evidence threshold
 
-The declaration must come from accepted evidence that establishes reversibility, interchangeability, non-directionality, or an equivalently unambiguous assignment relationship.
+### Direct manufacturer declaration
 
-The following are not sufficient by themselves:
+A `manufacturer_declared` relation requires first-party wording that directly establishes reversibility, interchangeability, non-directionality, `either end` use, or an equivalent assignment fact.
+
+### Derived endpoint equivalence
+
+A `derived_endpoint_equivalence` relation is permitted only when all of the following are established:
+
+1. the tether has exactly two terminal endpoints in the derived pair;
+2. accepted first-party evidence affirmatively establishes the same named connector construction at both ends;
+3. accepted first-party evidence establishes tool-to-anchor pair use without distinguishing those endpoints by assigned role;
+4. neither endpoint has accepted `tool_side`, `anchor_side`, or `either` role evidence;
+5. no accepted evidence establishes different connector construction, mechanism, specification, location-specific identity, or designated use between the two ends; and
+6. the derivation is local to the concrete tether and retains the underlying evidence URL(s).
+
+The positive evidence must come from the conjunction. Absence of contrary evidence is only a veto check; it is not itself positive proof.
+
+The following remain insufficient by themselves:
 
 - identical endpoint interface types;
-- endpoints referencing the same `ConnectorSpec`;
+- endpoints referencing the same normalized `ConnectorSpec`;
 - `dual`, `double`, or `twin` connector naming;
-- connectors described as being at both ends;
+- connectors described generically as being at both ends;
+- one-connector-to-tool / one-connector-to-anchor pair-use wording;
 - absence of wording that distinguishes the ends; or
 - the fact that both connector forms could physically engage some target.
 
-Those facts may identify a symmetric-looking product, but symmetry is not evidence of non-directional use.
+Those facts may identify a symmetric-looking product or support another part of the conjunction, but none alone establishes reversible assignment.
 
-Production extraction should therefore remain fail-closed until manufacturer wording clears the assignment-evidence threshold.
+## First production derivation: NLG Quick Clip pair
+
+The first production rule is deliberately narrower than the general conceptual threshold.
+
+For NLG Quick Clip tethers, ingestion may emit a `derived_endpoint_equivalence` / `reversible_tool_anchor_pair` relation only when the same local evidence set establishes:
+
+- exactly two unresolved tether endpoints;
+- both endpoints are `clip` interfaces bound to the normalized `quick_clip` connector spec;
+- wording equivalent to `Quick Clip connectors at each/both end`, affirmatively establishing the same named connector construction at the two ends;
+- explicit tool-to-anchor tether use; and
+- no endpoint-labelled directional wording or separately named connector form that would undermine equivalence.
+
+This rule is not SKU-specific. NLG 101434 is the first known positive catalogue case because its current first-party product wording establishes both tool-to-anchor use and `360° Quick Clip™ connectors at each end`.
+
+The extractor intentionally does **not** derive assignment from `dual Quick Clips` plus tool/anchor pair-use wording alone.
 
 ## Candidate-generation semantics
 
@@ -100,13 +150,14 @@ Endpoint-assignment evidence is retained on generated candidate selections as `E
 
 - declaration ID;
 - semantics;
+- assignment basis;
 - issuer manufacturer;
 - evidence scope; and
 - source URLs.
 
 The declaration is also retained on the generated configuration only where it structurally authorizes the selected unknown/unknown pair.
 
-Candidate identity remains physical. It continues to include the selected tool endpoint and anchor endpoint IDs, so the two orientations are distinct candidates. Evidence references are not added to the canonical candidate ID.
+Candidate identity remains physical. It continues to include the selected tool endpoint and anchor endpoint IDs, so the two orientations are distinct candidates. Evidence references and assignment basis are not added to the canonical candidate ID.
 
 Multiple declarations proving the same orientation therefore remain multiple audit proofs for one physical candidate rather than multiplying candidate identity.
 
@@ -133,13 +184,21 @@ Assignment evidence therefore cannot create connector/interface compatibility, b
 
 Hard candidate viability remains owned by `CandidateEvaluation`, and ranking/context remain downstream of that hard decision.
 
+## Catalogue recommendation vs pre-use verification
+
+Endpoint assignment needed to generate/recommend a catalogue configuration must be justified from catalogue evidence before recommendation. TetherLens must not rely on the worker already possessing and inspecting a candidate tether in order to rescue missing catalogue assignment semantics.
+
+A later pre-use workflow may verify installation or use conditions on a selected product, but that is separate from establishing the catalogue relation required to recommend the product in the first place.
+
 ## V1 non-goals
 
 V1 deliberately does not introduce:
 
 - product-level `non_directional = true` booleans;
 - automatic `UNKNOWN -> EITHER` promotion;
-- inference from identical hardware or connector specifications;
+- a blanket `dual/double/twin -> reversible` inference;
+- derivation from a shared normalized `ConnectorSpec` alone;
+- derived-equivalence rules for generic dual carabiners outside a proven first-party evidence pattern;
 - assignment rules for three-or-more endpoint sets or branched tethers;
 - precedence rules that combine a reversible declaration with partially known endpoint roles;
 - SKU-pair recommendation logic;
@@ -148,12 +207,14 @@ V1 deliberately does not introduce:
 
 Those should be added only when a concrete evidence-backed decision need requires them.
 
-## Representative evidence boundary
+## Representative evidence findings
 
-Existing symmetric-looking catalogue cases remain useful regression examples rather than automatic positive declarations.
+The first-party evidence review after PR #45 established a useful boundary:
 
-- NLG 101434 has two Quick Clip endpoints with no accepted individual role claims. Its physical symmetry does not itself establish interchangeability.
-- Hilti 2261970 and representative Stopdrop double-carabiner topology likewise show that repeated/shared connector hardware is insufficient by itself.
-- NLG 101756 demonstrates the opposite case: a product described as double-carabiner can still have accepted directional endpoint evidence, with one connector assigned to the anchor/belt side and another to tool attachment.
+- **NLG 101434 — positive production case.** Current first-party copy establishes `360° Quick Clip™ connectors at each end` and that the tether connects tools to anchor points. This clears the narrow derived-equivalence conjunction without claiming that NLG literally said `either end`.
+- **NLG 101519 — promising future case.** First-party material describes the pair collectively as dual carabiners of the same construction, and the datasheet supplies tool/anchor pair-use evidence. The strongest conjunction currently depends on datasheet evidence not yet part of the ordinary NLG primary-page ingestion path, so no production rule is added for it in this slice.
+- **Hilti 2261970 — remains unknown.** Double-carabiner topology and one/second-carabiner use wording do not independently establish that both ends are the same connector construction.
+- **StopDrop SDCOIL32 — remains unknown.** `2 locking screwgate carabiner` establishes multiplicity and mechanism family, but the reviewed evidence does not establish the complete equivalence-plus-pair-use conjunction.
+- **NLG 101756 — strong negative control.** The product is marketed as double-carabiner but first-party evidence distinguishes an integral anchor/belt carabiner from a tool-side 360° Rotobiner. Explicit directional evidence wins and prevents any symmetry-derived widening.
 
-The production extractor should therefore be introduced only when first-party wording explicitly establishes the reversible assignment relationship for the concrete tether endpoint pair.
+The practical conclusion is not that symmetric-looking tethers are assumed directional. Their assignment remains unknown until either direct reversible wording or the bounded evidence-derived equivalence conjunction establishes the relation.
