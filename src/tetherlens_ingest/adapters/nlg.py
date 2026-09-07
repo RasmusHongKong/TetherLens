@@ -472,14 +472,23 @@ def _tether_endpoint_assignment_claims(
     ]
 
 
-def _affirmative_tool_anchor_use(text: str) -> str | None:
-    """Return one affirmative line-level tool-to-anchor use statement.
+def _evidence_fragments(text: str) -> list[str]:
+    """Return page-text fragments while preserving HTML-node locality.
 
-    ``page_text`` preserves HTML text nodes as separate lines. Keeping this evidence
-    line-local prevents an unrelated prohibition from being joined to a positive phrase
-    elsewhere on the page, and an explicit negation of the attachment/connect action is
-    never accepted as pair-use evidence.
+    ``page_text`` joins stripped HTML text nodes with an unindented newline, while a
+    source line-wrap inside one text node commonly retains indentation. Treat the former
+    as an evidence boundary and normalize the latter as ordinary whitespace.
     """
+
+    return [
+        re.sub(r"\s+", " ", fragment).strip()
+        for fragment in re.split(r"\n(?=\S)", text)
+        if fragment.strip()
+    ]
+
+
+def _affirmative_tool_anchor_use(text: str) -> str | None:
+    """Return one affirmative local tool-to-anchor use statement."""
 
     patterns = (
         r"\btools?\b.{0,80}\b(?:connect\w*|attach\w*)\b.{0,80}\banchor(?:\s+points?)?\b",
@@ -495,11 +504,11 @@ def _affirmative_tool_anchor_use(text: str) -> str | None:
         re.I,
     )
 
-    for line in text.splitlines():
-        if negated_action.search(line):
+    for fragment in _evidence_fragments(text):
+        if negated_action.search(fragment):
             continue
         for pattern in patterns:
-            match = re.search(pattern, line, re.I)
+            match = re.search(pattern, fragment, re.I)
             if match:
                 return match.group(0)
     return None
@@ -526,10 +535,10 @@ def _has_directional_quick_clip_assignment(text: str) -> bool:
         ),
     )
 
-    for line in text.splitlines():
-        if endpoint_label.search(line):
+    for fragment in _evidence_fragments(text):
+        if endpoint_label.search(fragment):
             return True
-        if any(pattern.search(line) for pattern in separately_assigned_pair):
+        if any(pattern.search(fragment) for pattern in separately_assigned_pair):
             return True
     return False
 
