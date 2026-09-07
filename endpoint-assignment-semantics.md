@@ -115,8 +115,10 @@ For NLG Quick Clip tethers, ingestion may emit a `derived_endpoint_equivalence` 
 - exactly two unresolved tether endpoints;
 - both endpoints are `clip` interfaces bound to the normalized `quick_clip` connector spec;
 - wording equivalent to `Quick Clip connectors at each/both end`, affirmatively establishing the same named connector construction at the two ends;
-- explicit tool-to-anchor tether use; and
-- no endpoint-labelled directional wording or separately named connector form that would undermine equivalence.
+- affirmative tool-to-anchor tether use; and
+- no endpoint-labelled, separately designated, or separately named connector evidence that would make the ends directional or undermine equivalence.
+
+A prohibition such as `never attach tools to anchor points` cannot satisfy the pair-use requirement. Likewise, wording that separately designates two Quick Clips to opposite sides — for example a red clip to the tool and a blue clip to the anchor — is directional evidence and vetoes the derived relation even when the page also says that Quick Clip connectors are present at each end.
 
 This rule is not SKU-specific. NLG 101434 is the first known positive catalogue case because its current first-party product wording establishes both tool-to-anchor use and `360° Quick Clip™ connectors at each end`.
 
@@ -143,6 +145,22 @@ endpoint B -> tool side; endpoint A -> anchor side
 The underlying endpoint objects remain unchanged.
 
 If either endpoint already has a fixed or otherwise known role, v1 does not use the reversible declaration to widen the pair. This prevents relation evidence from overriding stronger endpoint-specific evidence and leaves mixed known/unknown cases fail-closed.
+
+## Selection significance and user-facing semantics
+
+Endpoint direction is primarily a **configuration-validity constraint**, not a product-ranking attribute.
+
+For product selection, the practical question is:
+
+> Does at least one manufacturer-permitted endpoint assignment produce a viable tool-side connection and a viable anchor-side connection for this job?
+
+A directional tether may therefore remain a perfectly suitable product when its permitted orientation works. Direction becomes selection-critical only when endpoint identity changes the result — for example because the two ends use different connector constructions, different mechanisms or geometry, different manufacturer-designated uses, or different compatibility with the selected tool and anchor interfaces.
+
+A reversible relation does not make a tether better and must not improve its rank merely because both orientations are permitted. Its purpose is to prevent an otherwise valid symmetric product from being blocked simply because the catalogue does not assign arbitrary `tool_side` / `anchor_side` identities to equivalent ends.
+
+Internally, the two reversible orientations remain distinct physical candidates long enough for endpoint-to-target compatibility, hard constraints, provenance and installation semantics to be evaluated correctly. They must not be collapsed before evaluation because endpoint-specific facts can make apparently similar orientations behave differently.
+
+Downstream presentation should, however, avoid showing duplicate user-facing product recommendations solely because a genuinely reversible pair produced two equivalent internal orientations. When the selected product is reversible and both orientations are equivalent for the chosen configuration, TetherLens should present one product solution and communicate the appropriate installation meaning — effectively that either equivalent end may occupy the tool/anchor position — rather than presenting two competing product choices.
 
 ## Provenance and identity
 
