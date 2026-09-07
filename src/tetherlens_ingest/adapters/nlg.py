@@ -429,38 +429,17 @@ def _tether_endpoint_assignment_claims(
     if not equivalent_match:
         return []
 
-    tool_anchor_use = (
-        re.search(
-            r"\btools?\b.{0,80}\b(?:connect\w*|attach\w*)\b.{0,80}\banchor(?:\s+points?)?\b",
-            text,
-            re.I | re.S,
-        )
-        or re.search(
-            r"\b(?:connect\w*|attach\w*|attachment)\b.{0,80}\btools?\b.{0,40}"
-            r"\b(?:and|to)\b.{0,40}\banchor(?:\s+points?)?\b",
-            text,
-            re.I | re.S,
-        )
-        or re.search(
-            r"\b(?:connect\w*|attach\w*|attachment)\b.{0,80}\banchor(?:\s+points?)?\b.{0,40}"
-            r"\b(?:and|to)\b.{0,40}\btools?\b",
-            text,
-            re.I | re.S,
-        )
-    )
+    tool_anchor_use = _affirmative_tool_anchor_use(text)
     if not tool_anchor_use:
         return []
 
     # A shared Quick Clip name is not allowed to conceal a separately named endpoint,
-    # nor may explicit tool/anchor/belt-end labels be widened into reversibility.
+    # nor may any explicit endpoint-specific tool/anchor assignment be widened into
+    # reversibility. In particular, two separately described Quick Clips assigned to
+    # opposite sides are directional evidence even if the page also says "at each end".
     if re.search(r"\b(?:rotobiner|carabiner|snap\s*hook|cord\s+loop)\b", text, re.I):
         return []
-    if re.search(
-        r"\b(?:tool|anchor|belt|harness)[-\s]+(?:side|end)\b.{0,50}\bquick\s*clip\b"
-        r"|\bquick\s*clip\b.{0,50}\b(?:tool|anchor|belt|harness)[-\s]+(?:side|end)\b",
-        text,
-        re.I | re.S,
-    ):
+    if _has_directional_quick_clip_assignment(text):
         return []
 
     declaration_ref = "endpoint_assignment:quick_clip_equivalent_pair"
@@ -468,7 +447,7 @@ def _tether_endpoint_assignment_claims(
         "Derived from first-party evidence of Quick Clip connectors at each/both end "
         "and undifferentiated tool-to-anchor tether use"
     )
-    evidence_raw = f"{equivalent_match.group(0)}; {tool_anchor_use.group(0)}"
+    evidence_raw = f"{equivalent_match.group(0)}; {tool_anchor_use}"
     values = [
         ("endpoint_assignment.member_ref", "connection_point_1"),
         ("endpoint_assignment.member_ref", "connection_point_2"),
@@ -491,6 +470,68 @@ def _tether_endpoint_assignment_claims(
         )
         for key, value in values
     ]
+
+
+def _affirmative_tool_anchor_use(text: str) -> str | None:
+    """Return one affirmative line-level tool-to-anchor use statement.
+
+    ``page_text`` preserves HTML text nodes as separate lines. Keeping this evidence
+    line-local prevents an unrelated prohibition from being joined to a positive phrase
+    elsewhere on the page, and an explicit negation of the attachment/connect action is
+    never accepted as pair-use evidence.
+    """
+
+    patterns = (
+        r"\btools?\b.{0,80}\b(?:connect\w*|attach\w*)\b.{0,80}\banchor(?:\s+points?)?\b",
+        r"\b(?:connect\w*|attach\w*|attachment)\b.{0,80}\btools?\b.{0,40}"
+        r"\b(?:and|to)\b.{0,40}\banchor(?:\s+points?)?\b",
+        r"\b(?:connect\w*|attach\w*|attachment)\b.{0,80}\banchor(?:\s+points?)?\b.{0,40}"
+        r"\b(?:and|to)\b.{0,40}\btools?\b",
+    )
+    negated_action = re.compile(
+        r"\b(?:never|not|do\s+not|don't|must\s+not|shall\s+not|should\s+not|"
+        r"cannot|can't|prohibit\w*|forbid\w*)\b.{0,80}"
+        r"\b(?:connect\w*|attach\w*|attachment)\b",
+        re.I,
+    )
+
+    for line in text.splitlines():
+        if negated_action.search(line):
+            continue
+        for pattern in patterns:
+            match = re.search(pattern, line, re.I)
+            if match:
+                return match.group(0)
+    return None
+
+
+def _has_directional_quick_clip_assignment(text: str) -> bool:
+    """Reject explicit Quick Clip-to-side designations before deriving reversibility."""
+
+    endpoint_label = re.compile(
+        r"\b(?:tool|anchor|belt|harness)[-\s]+(?:side|end)\b.{0,50}\bquick\s*clip\b"
+        r"|\bquick\s*clip\b.{0,50}\b(?:tool|anchor|belt|harness)[-\s]+(?:side|end)\b",
+        re.I,
+    )
+    separately_assigned_pair = (
+        re.compile(
+            r"\bquick\s*clip\b.{0,80}\b(?:to|for)\s+(?:the\s+)?tool\b.{0,120}"
+            r"\bquick\s*clip\b.{0,80}\b(?:to|for)\s+(?:the\s+)?anchor(?:\s+point)?\b",
+            re.I,
+        ),
+        re.compile(
+            r"\bquick\s*clip\b.{0,80}\b(?:to|for)\s+(?:the\s+)?anchor(?:\s+point)?\b.{0,120}"
+            r"\bquick\s*clip\b.{0,80}\b(?:to|for)\s+(?:the\s+)?tool\b",
+            re.I,
+        ),
+    )
+
+    for line in text.splitlines():
+        if endpoint_label.search(line):
+            return True
+        if any(pattern.search(line) for pattern in separately_assigned_pair):
+            return True
+    return False
 
 
 def _interface_supports_either_role(text: str, interface_pattern: str) -> bool:
