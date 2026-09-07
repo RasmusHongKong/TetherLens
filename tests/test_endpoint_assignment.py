@@ -10,6 +10,7 @@ from tetherlens_ingest.candidate_generation import (
 from tetherlens_ingest.connection import (
     ConnectionInterface,
     ConnectionInterfaceRole,
+    ConnectionStatus,
     ConnectorSpec,
     TetherSide,
 )
@@ -19,6 +20,7 @@ from tetherlens_ingest.endpoint_assignment import (
     resolve_tether_endpoint_assignment_declarations,
 )
 from tetherlens_ingest.models import CandidateClaim, ClaimSubjectType
+from tetherlens_ingest.recommendation import evaluate_candidate_configuration
 
 
 TETHER_REF = "product:tether-reversible"
@@ -180,6 +182,39 @@ def test_reversible_declaration_generates_both_orientations_without_promoting_ro
         proof = candidate.selection.endpoint_assignment_proofs[0]
         assert proof.declaration_id == "assignment:reversible-pair"
         assert proof.source_urls == sorted([SOURCE_URL, SUPPORTING_URL])
+
+
+def test_assignment_evidence_does_not_create_connection_compatibility():
+    unknown_clip = tether(declarations=[declaration()]).model_copy(
+        update={
+            "endpoints": [
+                ConnectionInterface(
+                    interface_id="end_a",
+                    role=ConnectionInterfaceRole.TETHER_CONNECTION,
+                    interface_type="clip",
+                    tether_side=TetherSide.UNKNOWN,
+                ),
+                ConnectionInterface(
+                    interface_id="end_b",
+                    role=ConnectionInterfaceRole.TETHER_CONNECTION,
+                    interface_type="clip",
+                    tether_side=TetherSide.UNKNOWN,
+                ),
+            ],
+            "connector_specs": {},
+        }
+    )
+
+    generated = generate_candidate_configurations(tool(), [unknown_clip], [anchor()])
+    assert len(generated) == 2
+
+    for candidate in generated:
+        evaluation = evaluate_candidate_configuration(candidate.configuration)
+        assert evaluation.recommendation_state is None
+        assert all(
+            connection.status == ConnectionStatus.UNRESOLVED
+            for connection in evaluation.connections
+        )
 
 
 def test_reversible_declaration_does_not_override_explicit_fixed_roles():
