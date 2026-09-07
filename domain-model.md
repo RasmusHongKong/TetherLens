@@ -171,13 +171,35 @@ Typical attributes may include:
 
 - `id`
 - `tether_id`
-- `role` — `tool_side`, `anchor_side`, or `either`
+- `role` — `tool_side`, `anchor_side`, `either`, or not established
 - `interface_type` — e.g. carabiner, loop, ring, hook, other
 - `connector_spec_id`, where a discrete connector is present
 - `leg_id`, where required for branched or multi-leg tethers
 - relevant interface dimensions
 
 This allows TetherLens to represent products with two, three, or more connection points without hard-coding `connector_a` and `connector_b`.
+
+`either` is an affirmative endpoint-role fact: it means accepted evidence establishes that the individual endpoint may serve either side. Missing role evidence is different and must remain not established/`unknown`; it must not be promoted to `either` merely because two endpoints look identical, reference the same connector specification, or lack a stated distinction.
+
+#### TetherEndpointAssignmentDeclaration
+
+A `TetherEndpointAssignmentDeclaration` represents accepted evidence about how a set of tether endpoints may be assigned within a candidate path when that relationship is not properly represented as an intrinsic role on either individual endpoint.
+
+The first bounded semantic is `reversible_tool_anchor_pair`: accepted evidence establishes that exactly two named endpoints may occupy the tool-side and anchor-side positions in either orientation.
+
+Typical attributes may include:
+
+- `id`
+- `tether_id`
+- `endpoint_ids[]`
+- assignment semantic
+- issuer/manufacturer
+- evidence scope
+- source/evidence references
+
+This relation is separate from `TetherConnectionPoint.role`. A reversible-pair declaration does not rewrite either endpoint to `either`; the individual roles may remain unknown. It is also separate from connection compatibility: proving that endpoint A or B may occupy the tool/anchor position does not prove that either endpoint can safely engage a selected target interface.
+
+The relation must remain tether-owned because endpoint IDs are local and may repeat across products. Symmetric hardware, shared `ConnectorSpec`, `dual` / `double` naming, connectors at each end, or absence of contrary evidence are not sufficient by themselves to create this declaration. See `endpoint-assignment-semantics.md` for the executable v1 evidence and provenance rules.
 
 #### ConnectorSpec
 
@@ -463,7 +485,7 @@ A candidate may include:
 - tether;
 - anchor attachment, if required;
 - anchorage method;
-- relevant configuration metadata.
+- relevant configuration metadata, including selected endpoint identities and any operative endpoint-assignment declaration provenance.
 
 CandidateConfiguration may be an ephemeral runtime object rather than a permanently curated database record.
 
@@ -538,6 +560,8 @@ This may come from:
 
 The model must distinguish `no native tether point` from `no information available`.
 
+Endpoint assignment is a prerequisite to composing an oriented candidate path, but it is not itself interface compatibility. A role-backed or relation-backed assignment must still pass the ordinary connection-compatibility reasoning for the selected endpoint/target pair.
+
 ## Secondary enrichment facts
 
 Examples include:
@@ -564,6 +588,8 @@ The domain model should distinguish:
 - superseded.
 
 A missing value should not silently mean "safe", "compatible", or "not relevant".
+
+For endpoint roles specifically, missing/not-established must remain distinct from the affirmative `either` role. A separate accepted endpoint-assignment relation may authorize a candidate orientation without changing that unknown role state.
 
 ## Product readiness
 
@@ -604,6 +630,12 @@ Tool ──manufacturer-backed relationship──> Battery
                  │
                  ▼
         load reasoning mass
+
+TetherConnectionPoint(s)
+  │
+  ├── individual role evidence ──> tool_side / anchor_side / either
+  │
+  └── optional accepted pair relation ──> reversible tool/anchor assignment
 
 Source
   │

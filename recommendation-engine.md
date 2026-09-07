@@ -173,6 +173,8 @@ The system should avoid requiring a manually curated exact tethering pairing for
 
 Candidate generation should increasingly rely on reusable product facts, explicit manufacturer configuration relationships, interface rules, and controlled runtime verification where catalogue evidence cannot economically establish every physical fit in advance.
 
+Tether endpoint assignment must remain evidence-backed. Individual endpoint roles may authorize `tool_side`, `anchor_side`, or `either`; a missing role remains `unknown` and must not be promoted from connector symmetry or absence of contrary evidence. Where accepted manufacturer evidence explicitly establishes that two named unknown-role endpoints are reversible between tool and anchor positions, candidate generation may instead use a separate `reversible_tool_anchor_pair` relation to authorize both physical orientations. That relation does not rewrite either endpoint role and does not establish connector/interface compatibility. See `endpoint-assignment-semantics.md` for the bounded relation, evidence threshold, ownership and provenance rules.
+
 ## Step 4: apply hard constraints
 
 At minimum, the MVP should enforce:
