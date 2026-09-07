@@ -10,6 +10,7 @@ from .models import CandidateClaim, ClaimSubjectType
 
 MEMBER_REF_KEY = "endpoint_assignment.member_ref"
 SEMANTICS_KEY = "endpoint_assignment.semantics"
+BASIS_KEY = "endpoint_assignment.basis"
 ISSUER_MANUFACTURER_KEY = "endpoint_assignment.issuer_manufacturer"
 SCOPE_KEY = "endpoint_assignment.scope"
 
@@ -20,18 +21,28 @@ class EndpointAssignmentSemantics(StrEnum):
     REVERSIBLE_TOOL_ANCHOR_PAIR = "reversible_tool_anchor_pair"
 
 
+class EndpointAssignmentBasis(StrEnum):
+    """How an accepted endpoint-assignment relation was established."""
+
+    MANUFACTURER_DECLARED = "manufacturer_declared"
+    DERIVED_ENDPOINT_EQUIVALENCE = "derived_endpoint_equivalence"
+
+
 class TetherEndpointAssignmentDeclaration(BaseModel):
     """Accepted evidence about how a set of tether endpoints may be assigned.
 
     The declaration is intentionally separate from ``ConnectionInterface.tether_side``.
     It does not rewrite missing endpoint roles to ``either``; it records a relationship
-    between concrete endpoint subjects owned by one tether product.
+    between concrete endpoint subjects owned by one tether product. ``basis`` keeps a
+    manufacturer declaration distinct from a TetherLens derivation over accepted
+    first-party endpoint-equivalence evidence.
     """
 
     declaration_id: str = Field(min_length=1)
     tether_ref: str = Field(min_length=1)
     endpoint_refs: list[str] = Field(min_length=2, max_length=2)
     semantics: EndpointAssignmentSemantics
+    basis: EndpointAssignmentBasis
     issuer_manufacturer: str = Field(min_length=1)
     scope: str = Field(min_length=1)
     source_urls: list[str] = Field(min_length=1)
@@ -96,6 +107,19 @@ def resolve_tether_endpoint_assignment_declarations(
                 f"{semantics_raw!r}"
             ) from exc
 
+        basis_raw = _required_text(
+            declaration_claims,
+            BASIS_KEY,
+            declaration_id,
+        )
+        try:
+            basis = EndpointAssignmentBasis(basis_raw)
+        except ValueError as exc:
+            raise ValueError(
+                f"unsupported endpoint assignment basis on {declaration_id!r}: "
+                f"{basis_raw!r}"
+            ) from exc
+
         issuer_manufacturer = _required_text(
             declaration_claims,
             ISSUER_MANUFACTURER_KEY,
@@ -121,6 +145,7 @@ def resolve_tether_endpoint_assignment_declarations(
                 tether_ref=tether_ref,
                 endpoint_refs=endpoint_refs,
                 semantics=semantics,
+                basis=basis,
                 issuer_manufacturer=issuer_manufacturer,
                 scope=scope,
                 source_urls=source_urls,
