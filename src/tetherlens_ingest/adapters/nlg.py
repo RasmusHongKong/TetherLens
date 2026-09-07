@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from typing import Any
 from urllib.parse import urljoin
 
-from tetherlens_ingest.models import CandidateClaim, ClaimSubjectType, ProductIdentity, ProductType, SourceArtifact
+from tetherlens_ingest.models import CandidateClaim, ClaimSubjectType, ClaimType, ProductIdentity, ProductType, SourceArtifact
 from tetherlens_ingest.normalize import length_to_mm, opening_action_count, parse_length_range_mm, parse_mass
 from .base import ManufacturerAdapter
 from .common import page_text
@@ -112,6 +112,13 @@ class NLGAdapter(ManufacturerAdapter):
             if identity.product_type == ProductType.TETHER:
                 topology_claims = _tether_topology_claims(identity, text, artifact.url)
                 claims.extend(topology_claims)
+                claims.extend(
+                    _tether_endpoint_assignment_claims(
+                        text,
+                        artifact.url,
+                        topology_claims,
+                    )
+                )
 
                 connection_count = _tether_connection_count(identity, text)
                 topology_count = len({
@@ -262,6 +269,9 @@ class NLGAdapter(ManufacturerAdapter):
         url: str,
         subject_type: ClaimSubjectType = ClaimSubjectType.PRODUCT,
         subject_ref: str = "self",
+        *,
+        evidence_method: str = "manufacturer_stated",
+        claim_type: ClaimType | None = None,
     ) -> CandidateClaim:
         return CandidateClaim(
             subject_type=subject_type,
@@ -271,7 +281,9 @@ class NLGAdapter(ManufacturerAdapter):
             unit=unit,
             raw_value=raw,
             source_url=url,
-            extractor="nlg.v0.6",
+            evidence_method=evidence_method,
+            extractor="nlg.v0.7",
+            claim_type=claim_type,
         )
 
 
@@ -353,6 +365,132 @@ def _tether_topology_claims(identity: ProductIdentity, text: str, url: str) -> l
         point("connection_point_2", "carabiner", "double/dual carabiner", connector_spec_ref="tether_connector")
 
     return claims
+
+
+def _tether_endpoint_assignment_claims(
+    text: str,
+    url: str,
+    topology_claims: list[CandidateClaim],
+) -> list[CandidateClaim]:
+    """Derive one bounded reversible Quick Clip pair from strong first-party evidence.
+
+    This is deliberately stricter than topology extraction. ``dual`` / ``double``
+    naming, a shared normalized connector spec, connectors at both ends, or tool/anchor
+    pair-use wording are never sufficient separately. The first production derivation
+    requires affirmative wording that the same named Quick Clip construction is present
+    at each/both end, explicit tool-to-anchor tether use, exactly two unresolved Quick
+    Clip endpoints, and no endpoint-specific directional or mixed-connector evidence.
+    """
+
+    endpoint_claims = [
+        claim
+        for claim in topology_claims
+        if claim.subject_type == ClaimSubjectType.TETHER_CONNECTION_POINT
+    ]
+    endpoint_refs = sorted(
+        {
+            claim.subject_ref
+            for claim in endpoint_claims
+            if claim.property_key == "connection_point.interface_type"
+        }
+    )
+    if endpoint_refs != ["connection_point_1", "connection_point_2"]:
+        return []
+    if any(claim.property_key == "connection_point.role" for claim in endpoint_claims):
+        return []
+
+    interface_types = {
+        claim.subject_ref: str(claim.value)
+        for claim in endpoint_claims
+        if claim.property_key == "connection_point.interface_type"
+    }
+    connector_refs = {
+        claim.subject_ref: str(claim.value)
+        for claim in endpoint_claims
+        if claim.property_key == "connection_point.connector_spec_ref"
+    }
+    if interface_types != {
+        "connection_point_1": "clip",
+        "connection_point_2": "clip",
+    }:
+        return []
+    if connector_refs != {
+        "connection_point_1": "quick_clip",
+        "connection_point_2": "quick_clip",
+    }:
+        return []
+
+    equivalent_match = re.search(
+        r"\bquick\s*clips?\s*[™®]?\s+connectors?\s+"
+        r"(?:at|on)\s+(?:each|both)\s+ends?\b",
+        text,
+        re.I,
+    )
+    if not equivalent_match:
+        return []
+
+    tool_anchor_use = (
+        re.search(
+            r"\btools?\b.{0,80}\b(?:connect\w*|attach\w*)\b.{0,80}\banchor(?:\s+points?)?\b",
+            text,
+            re.I | re.S,
+        )
+        or re.search(
+            r"\b(?:connect\w*|attach\w*|attachment)\b.{0,80}\btools?\b.{0,40}"
+            r"\b(?:and|to)\b.{0,40}\banchor(?:\s+points?)?\b",
+            text,
+            re.I | re.S,
+        )
+        or re.search(
+            r"\b(?:connect\w*|attach\w*|attachment)\b.{0,80}\banchor(?:\s+points?)?\b.{0,40}"
+            r"\b(?:and|to)\b.{0,40}\btools?\b",
+            text,
+            re.I | re.S,
+        )
+    )
+    if not tool_anchor_use:
+        return []
+
+    # A shared Quick Clip name is not allowed to conceal a separately named endpoint,
+    # nor may explicit tool/anchor/belt-end labels be widened into reversibility.
+    if re.search(r"\b(?:rotobiner|carabiner|snap\s*hook|cord\s+loop)\b", text, re.I):
+        return []
+    if re.search(
+        r"\b(?:tool|anchor|belt|harness)[-\s]+(?:side|end)\b.{0,50}\bquick\s*clip\b"
+        r"|\bquick\s*clip\b.{0,50}\b(?:tool|anchor|belt|harness)[-\s]+(?:side|end)\b",
+        text,
+        re.I | re.S,
+    ):
+        return []
+
+    declaration_ref = "endpoint_assignment:quick_clip_equivalent_pair"
+    scope = (
+        "Derived from first-party evidence of Quick Clip connectors at each/both end "
+        "and undifferentiated tool-to-anchor tether use"
+    )
+    evidence_raw = f"{equivalent_match.group(0)}; {tool_anchor_use.group(0)}"
+    values = [
+        ("endpoint_assignment.member_ref", "connection_point_1"),
+        ("endpoint_assignment.member_ref", "connection_point_2"),
+        ("endpoint_assignment.semantics", "reversible_tool_anchor_pair"),
+        ("endpoint_assignment.basis", "derived_endpoint_equivalence"),
+        ("endpoint_assignment.issuer_manufacturer", "NLG"),
+        ("endpoint_assignment.scope", scope),
+    ]
+    return [
+        NLGAdapter._claim(
+            key,
+            value,
+            None,
+            evidence_raw,
+            url,
+            ClaimSubjectType.TETHER_ENDPOINT_ASSIGNMENT,
+            declaration_ref,
+            evidence_method="derived_endpoint_equivalence",
+            claim_type=ClaimType.DERIVED,
+        )
+        for key, value in values
+    ]
 
 
 def _interface_supports_either_role(text: str, interface_pattern: str) -> bool:
