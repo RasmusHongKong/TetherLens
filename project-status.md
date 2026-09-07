@@ -76,7 +76,9 @@ The derived route does **not** make any single weak clue sufficient. `dual` / `d
 
 The relation does not mutate either endpoint role, does not override fixed or partially known role evidence, and does not establish connector/interface compatibility. Assignment declarations are tether-owned so repeated local endpoint IDs cannot leak authorization across products. Generated candidates retain declaration basis and provenance separately from canonical candidate identity; rehydration requires the retained selection proofs to match the operative declarations exactly.
 
-See `endpoint-assignment-semantics.md` for the full v1 evidence threshold, production rule and evidence findings.
+Endpoint assignment is a **configuration-validity constraint rather than a product-ranking attribute**. For product selection, one manufacturer-permitted orientation that produces a viable tool-side connection and a viable anchor-side connection is sufficient. A reversible pair does not make a tether preferable merely because both orientations are allowed. Reversible orientations remain separate internally through endpoint-to-target evaluation and provenance checks, but equivalent orientations should not surface as duplicate user-facing product recommendations solely because the physical ends can be swapped.
+
+See `endpoint-assignment-semantics.md` for the full v1 evidence threshold, production rule, selection significance and evidence findings.
 
 ### Hard candidate evaluation
 
@@ -219,7 +221,7 @@ V1 requires exactly two distinct endpoint references owned by the same tether. I
 
 The declaration retains assignment basis, issuer, scope and source URLs. `CandidateConfiguration` retains the selected `tether_ref` so authorization cannot leak across tethers with repeated local endpoint IDs. `GeneratedCandidate` requires the selection-level `EndpointAssignmentProof` values — including basis — to be the exact deterministic projection of the operative declarations.
 
-The derived-equivalence threshold is conjunctive: affirmative same-construction endpoint evidence plus undifferentiated tool-to-anchor pair use, with explicit directional/different-end evidence acting as a veto. A shared generic connector description or manufacturer silence is not positive proof.
+The derived-equivalence threshold is conjunctive: affirmative same-construction endpoint evidence plus undifferentiated tool-to-anchor pair use, with explicit directional/different-end evidence acting as a veto. A shared generic connector description or manufacturer silence is not positive proof. Negated pair-use wording cannot satisfy the positive-use requirement, and separately designated connectors assigned to opposite sides are directional evidence rather than reversible evidence.
 
 The relation is not a compatibility basis, ranking preference or SKU-pair rule.
 
@@ -266,9 +268,9 @@ It must not rewrite the original global selector result.
 
 ## Benchmark state
 
-The latest fully validated supply-side ingestion/readiness benchmark is the PR #46 ingestion-live-smoke run (workflow run **34109544693**):
+The latest fully validated supply-side ingestion/readiness benchmark is the hardened PR #46 ingestion-live-smoke run (workflow run **34121871239**):
 
-- unit tests: **397 passed**;
+- unit tests: **399 passed**;
 - Batch 1 live acquisition: **12/12 products**;
 - Batch 1 extraction: **54 TP / 0 FP / 0 FN**;
 - Batch 1 micro precision/recall: **1.0 / 1.0**;
@@ -279,7 +281,7 @@ The latest fully validated supply-side ingestion/readiness benchmark is the PR #
 - fresh Batch 2 recommendation-data coverage: **46/46 requirements**, **8/8 products complete**; and
 - the immutable Batch 2 blind artifact remains unchanged as the historical pre-fix baseline.
 
-The PR #46 live run confirms that the current first-party NLG 101434 page satisfies the bounded derived-equivalence extractor and that the updated post-blind golden scores without unexpected or forbidden claims. The immutable blind artifact remains unchanged.
+The hardened PR #46 live run confirms that the current first-party NLG 101434 page satisfies the bounded derived-equivalence extractor, that explicit negated/directional regression cases remain fail-closed, and that the updated post-blind golden scores without unexpected or forbidden claims. The immutable blind artifact remains unchanged.
 
 The catalogue benchmark remains primarily a supply-side ingestion/recommendation-readiness benchmark. Candidate generation/evaluation/selection/session/context behavior is still covered mainly by focused executable tests; there is not yet a separate end-to-end golden recommendation benchmark.
 
@@ -330,6 +332,7 @@ Do not build a general CAD model.
 - endpoint-pair assignment evidence must remain separate from individual endpoint role evidence;
 - assignment provenance must distinguish manufacturer declaration from TetherLens derivation;
 - no reversible assignment from `dual` / `double` / `twin`, a shared normalized connector spec, pair-use wording or manufacturer silence alone;
+- endpoint assignment is a configuration-validity constraint, not a ranking preference; one viable permitted orientation is sufficient for product selection, and equivalent reversible orientations should not become duplicate user-facing product recommendations;
 - catalogue assignment required for recommendation must not depend on physical inspection of a tether the worker may not possess;
 - keep manufacturer scope, technical fit, installation constraints, policy, context, ranking and session outcomes separate;
 - hard candidate viability remains owned exclusively by `CandidateEvaluation`;
