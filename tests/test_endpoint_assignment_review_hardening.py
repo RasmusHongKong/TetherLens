@@ -15,6 +15,7 @@ from tetherlens_ingest.connection import (
     TetherSide,
 )
 from tetherlens_ingest.endpoint_assignment import (
+    EndpointAssignmentBasis,
     EndpointAssignmentSemantics,
     TetherEndpointAssignmentDeclaration,
 )
@@ -40,6 +41,7 @@ def _declaration(*, tether_ref: str = TETHER_REF) -> TetherEndpointAssignmentDec
         tether_ref=tether_ref,
         endpoint_refs=["end_a", "end_b"],
         semantics=EndpointAssignmentSemantics.REVERSIBLE_TOOL_ANCHOR_PAIR,
+        basis=EndpointAssignmentBasis.MANUFACTURER_DECLARED,
         issuer_manufacturer="Example Manufacturer",
         scope="Either tether end may serve tool or anchor side",
         source_urls=["https://manufacturer.test/reversible-tether"],
@@ -129,6 +131,15 @@ def test_rehydrated_generated_candidate_rejects_forged_assignment_provenance():
     candidate = _relation_candidate()
     payload = candidate.model_dump(mode="json")
     payload["selection"]["endpoint_assignment_proofs"][0]["issuer_manufacturer"] = "Other Manufacturer"
+
+    with pytest.raises(ValueError, match="assignment proofs do not match configuration"):
+        GeneratedCandidate.model_validate(payload)
+
+
+def test_rehydrated_generated_candidate_rejects_forged_assignment_basis():
+    candidate = _relation_candidate()
+    payload = candidate.model_dump(mode="json")
+    payload["selection"]["endpoint_assignment_proofs"][0]["basis"] = "derived_endpoint_equivalence"
 
     with pytest.raises(ValueError, match="assignment proofs do not match configuration"):
         GeneratedCandidate.model_validate(payload)
