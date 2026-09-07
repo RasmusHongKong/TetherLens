@@ -4,7 +4,14 @@ from tetherlens_ingest.endpoint_assignment import (
     EndpointAssignmentSemantics,
     resolve_tether_endpoint_assignment_declarations,
 )
-from tetherlens_ingest.models import ClaimSubjectType, ClaimType, ProductIdentity, ProductType, SourceArtifact
+from tetherlens_ingest.models import (
+    ClaimSubjectType,
+    ClaimType,
+    ProductIdentity,
+    ProductType,
+    SourceArtifact,
+    SourceType,
+)
 
 
 URL = "https://neverletgo.com/products/extended-bungee-tool-lanyard"
