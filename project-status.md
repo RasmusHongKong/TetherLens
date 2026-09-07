@@ -266,19 +266,20 @@ It must not rewrite the original global selector result.
 
 ## Benchmark state
 
-The last fully validated supply-side ingestion/readiness benchmark is the PR #45 baseline:
+The latest fully validated supply-side ingestion/readiness benchmark is the PR #46 ingestion-live-smoke run (workflow run **34109544693**):
 
+- unit tests: **397 passed**;
 - Batch 1 live acquisition: **12/12 products**;
 - Batch 1 extraction: **54 TP / 0 FP / 0 FN**;
 - Batch 1 micro precision/recall: **1.0 / 1.0**;
 - Batch 1 recommendation-data coverage: **27/29 requirements**, with the two remaining requirements classified as existing `source_blocked` cases;
 - fresh Batch 2 post-blind acquisition: **8/8 products**;
-- fresh Batch 2 extraction: **87 TP / 0 FP / 0 FN**;
+- fresh Batch 2 extraction: **94 TP / 0 FP / 0 FN**;
 - fresh Batch 2 micro precision/recall: **1.0 / 1.0**;
-- fresh Batch 2 recommendation-data coverage: **44/44 requirements**, **8/8 products complete**; and
+- fresh Batch 2 recommendation-data coverage: **46/46 requirements**, **8/8 products complete**; and
 - the immutable Batch 2 blind artifact remains unchanged as the historical pre-fix baseline.
 
-PR #46 updates the post-blind Batch 2 golden for NLG 101434 with six endpoint-assignment claims and one additional recommendation-data requirement. Those new totals should be treated as pending until the PR #46 ingestion-live-smoke workflow validates current live manufacturer evidence; the immutable blind artifact remains unchanged.
+The PR #46 live run confirms that the current first-party NLG 101434 page satisfies the bounded derived-equivalence extractor and that the updated post-blind golden scores without unexpected or forbidden claims. The immutable blind artifact remains unchanged.
 
 The catalogue benchmark remains primarily a supply-side ingestion/recommendation-readiness benchmark. Candidate generation/evaluation/selection/session/context behavior is still covered mainly by focused executable tests; there is not yet a separate end-to-end golden recommendation benchmark.
 
