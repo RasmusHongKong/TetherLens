@@ -34,6 +34,7 @@ from .constraints import (
     evaluate_product_constraints,
 )
 from .endpoint_assignment import (
+    EndpointAssignmentBasis,
     EndpointAssignmentSemantics,
     TetherEndpointAssignmentDeclaration,
 )
@@ -376,6 +377,7 @@ class EndpointAssignmentProof(BaseModel):
 
     declaration_id: str = Field(min_length=1)
     semantics: EndpointAssignmentSemantics
+    basis: EndpointAssignmentBasis
     issuer_manufacturer: str = Field(min_length=1)
     scope: str = Field(min_length=1)
     source_urls: list[str] = Field(min_length=1)
@@ -466,6 +468,7 @@ class GeneratedCandidate(BaseModel):
                 EndpointAssignmentProof(
                     declaration_id=declaration.declaration_id,
                     semantics=declaration.semantics,
+                    basis=declaration.basis,
                     issuer_manufacturer=declaration.issuer_manufacturer,
                     scope=declaration.scope,
                     source_urls=declaration.source_urls,
@@ -850,6 +853,7 @@ def _endpoint_assignments(
         proof = EndpointAssignmentProof(
             declaration_id=declaration.declaration_id,
             semantics=declaration.semantics,
+            basis=declaration.basis,
             issuer_manufacturer=declaration.issuer_manufacturer,
             scope=declaration.scope,
             source_urls=declaration.source_urls,
