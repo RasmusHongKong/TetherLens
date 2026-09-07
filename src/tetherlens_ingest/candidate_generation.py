@@ -703,6 +703,9 @@ def generate_candidate_configurations(
                             policy_applicability = policy_context.policy_applicability
                             policy_status = policy_context.policy_status
 
+                        assignment_proof_ids = {
+                            proof.declaration_id for proof in endpoint_assignment.proofs
+                        }
                         candidate_id = _candidate_id(selection)
                         configuration = CandidateConfiguration(
                             candidate_id=candidate_id,
@@ -716,6 +719,11 @@ def generate_candidate_configurations(
                             product_constraint_evaluations=constraint_evaluations,
                             attachment_mode=tool_target.attachment_mode,
                             attachment_eligibility=tool_target.eligibility,
+                            endpoint_assignment_declarations=[
+                                declaration
+                                for declaration in tether.endpoint_assignment_declarations
+                                if declaration.declaration_id in assignment_proof_ids
+                            ],
                             tool_side_connection=tool_connection,
                             anchor_side_connection=anchor_connection,
                             policy_applicability=policy_applicability,
