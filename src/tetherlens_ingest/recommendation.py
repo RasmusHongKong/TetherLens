@@ -14,6 +14,10 @@ from .connection import (
     TetherSide,
 )
 from .constraints import ProductConstraintEvaluation, ProductConstraintStatus
+from .endpoint_assignment import (
+    EndpointAssignmentSemantics,
+    TetherEndpointAssignmentDeclaration,
+)
 
 
 class RecommendationState(StrEnum):
@@ -100,6 +104,11 @@ class CandidateConfiguration(BaseModel):
     retained on the configuration but are deferred to downstream context evaluation.
     This keeps raw claim keys and manufacturer-specific extraction details out of
     recommendation composition without turning absent work context into a hard failure.
+
+    Endpoint assignment declarations are structural authorization only. They may prove
+    that an otherwise-unknown pair can occupy the tool/anchor positions, but they do not
+    change either endpoint's recorded ``tether_side`` and do not establish connection
+    compatibility.
     """
 
     candidate_id: str = Field(min_length=1)
@@ -110,6 +119,9 @@ class CandidateConfiguration(BaseModel):
     product_constraint_evaluations: list[ProductConstraintEvaluation] = Field(default_factory=list)
     attachment_mode: CandidateAttachmentMode
     attachment_eligibility: EligibilityEvaluation | None = None
+    endpoint_assignment_declarations: list[TetherEndpointAssignmentDeclaration] = Field(
+        default_factory=list
+    )
     tool_side_connection: ConnectionEvaluation
     anchor_side_connection: ConnectionEvaluation
     policy_applicability: PolicyApplicability
@@ -136,10 +148,12 @@ class CandidateConfiguration(BaseModel):
             raise ValueError(
                 "tool-side connection target role must match the candidate attachment mode"
             )
+
+        relation_authorized_unknown_pair = _has_reversible_unknown_pair_assignment(self)
         if self.tool_side_connection.endpoint_tether_side not in {
             TetherSide.TOOL_SIDE,
             TetherSide.EITHER,
-        }:
+        } and not relation_authorized_unknown_pair:
             raise ValueError("tool-side connection must use a tool-capable tether endpoint")
         if self.anchor_side_connection.target_role not in _ANCHOR_SIDE_TARGET_ROLES:
             raise ValueError(
@@ -148,7 +162,7 @@ class CandidateConfiguration(BaseModel):
         if self.anchor_side_connection.endpoint_tether_side not in {
             TetherSide.ANCHOR_SIDE,
             TetherSide.EITHER,
-        }:
+        } and not relation_authorized_unknown_pair:
             raise ValueError("anchor-side connection must use an anchor-capable tether endpoint")
         if (
             self.attachment_mode == CandidateAttachmentMode.DIRECT
@@ -447,6 +461,27 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
         pending_verification_connection_ids=pending_verification_connection_ids,
         pending_action_constraint_ids=pending_action_constraint_ids,
         review_required=any(connection.review_required for connection in candidate.connections),
+    )
+
+
+def _has_reversible_unknown_pair_assignment(candidate: CandidateConfiguration) -> bool:
+    if (
+        candidate.tool_side_connection.endpoint_tether_side != TetherSide.UNKNOWN
+        or candidate.anchor_side_connection.endpoint_tether_side != TetherSide.UNKNOWN
+    ):
+        return False
+
+    selected_pair = {
+        candidate.tool_side_connection.endpoint_id,
+        candidate.anchor_side_connection.endpoint_id,
+    }
+    if len(selected_pair) != 2:
+        return False
+
+    return any(
+        declaration.semantics == EndpointAssignmentSemantics.REVERSIBLE_TOOL_ANCHOR_PAIR
+        and set(declaration.endpoint_refs) == selected_pair
+        for declaration in candidate.endpoint_assignment_declarations
     )
 
 
