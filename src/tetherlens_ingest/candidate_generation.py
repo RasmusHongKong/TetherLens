@@ -444,6 +444,8 @@ class GeneratedCandidate(BaseModel):
         )
         if configuration.attachment_mode != expected_mode:
             raise ValueError("generated selection attachment mode does not match configuration")
+        if configuration.tether_ref is not None and configuration.tether_ref != selection.tether_ref:
+            raise ValueError("generated selection tether does not match configuration")
         if configuration.tool_side_connection.endpoint_id != selection.tool_endpoint_id:
             raise ValueError("generated selection tool endpoint does not match configuration")
         if (
@@ -458,6 +460,29 @@ class GeneratedCandidate(BaseModel):
             != selection.anchor_target_interface_id
         ):
             raise ValueError("generated selection anchor target does not match configuration")
+
+        expected_assignment_proofs = sorted(
+            [
+                EndpointAssignmentProof(
+                    declaration_id=declaration.declaration_id,
+                    semantics=declaration.semantics,
+                    issuer_manufacturer=declaration.issuer_manufacturer,
+                    scope=declaration.scope,
+                    source_urls=declaration.source_urls,
+                )
+                for declaration in configuration.endpoint_assignment_declarations
+            ],
+            key=lambda proof: proof.declaration_id,
+        )
+        actual_assignment_proofs = sorted(
+            selection.endpoint_assignment_proofs,
+            key=lambda proof: proof.declaration_id,
+        )
+        if actual_assignment_proofs != expected_assignment_proofs:
+            raise ValueError(
+                "generated selection endpoint assignment proofs do not match configuration"
+            )
+
         if has_attachment:
             eligibility = configuration.attachment_eligibility
             if eligibility is None or eligibility.status != EligibilityStatus.ELIGIBLE:
@@ -709,6 +734,7 @@ def generate_candidate_configurations(
                         candidate_id = _candidate_id(selection)
                         configuration = CandidateConfiguration(
                             candidate_id=candidate_id,
+                            tether_ref=tether.tether_ref,
                             object_mass_kg=tool.object_mass_kg,
                             load_bearing_components=_load_bearing_components(
                                 attachment_components,
