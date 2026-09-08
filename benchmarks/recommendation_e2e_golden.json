@@ -21,16 +21,16 @@
       "selection_state": "no_suitable_recommendation",
       "ranked_viable_count": 0,
       "blocked_count": 2,
-      "required_blocked_check_semantics": [
-        {
+      "blocked_candidate_semantics": {
+        "under_capacity": {
           "check_type": "load_capacity",
           "status": "failed"
         },
-        {
+        "unresolved_tool_connection": {
           "check_type": "connection_compatibility",
           "status": "unresolved"
         }
-      ]
+      }
     }
   }
 }
