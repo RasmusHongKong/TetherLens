@@ -1,0 +1,36 @@
+{
+  "version": "1.0",
+  "description": "Small semantic end-to-end recommendation contract. Expected outcomes are expressed in reusable recommendation semantics rather than product/SKU pairs or canonical candidate identities.",
+  "scenarios": {
+    "manufacturer_declared_ranked_selection": {
+      "generated_count": 2,
+      "evaluation_count": 2,
+      "selection_state": "selected",
+      "ranked_viable_count": 2,
+      "blocked_count": 0,
+      "selected_recommendation_state": "recommended_with_constraints",
+      "selected_pending_verification_count": 1,
+      "selected_anchor_status": "compatible",
+      "selected_anchor_basis": "manufacturer_declared",
+      "selected_anchor_issuer_manufacturer": "NLG",
+      "runner_up_pending_verification_count": 2
+    },
+    "complete_hard_exhaustion": {
+      "generated_count": 2,
+      "evaluation_count": 2,
+      "selection_state": "no_suitable_recommendation",
+      "ranked_viable_count": 0,
+      "blocked_count": 2,
+      "required_blocked_check_semantics": [
+        {
+          "check_type": "load_capacity",
+          "status": "failed"
+        },
+        {
+          "check_type": "connection_compatibility",
+          "status": "unresolved"
+        }
+      ]
+    }
+  }
+}
