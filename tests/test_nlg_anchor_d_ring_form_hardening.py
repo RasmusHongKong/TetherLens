@@ -51,3 +51,35 @@ def test_trailing_avoidance_prohibition_fails_closed():
         )
         == []
     )
+
+
+def test_review_denied_and_external_d_ring_relations_fail_closed():
+    prohibited = (
+        "This anchor does not include a D Ring for lanyard attachment.",
+        "This anchor doesn't include a D Ring for lanyard attachment.",
+        "This anchor requires a D Ring for lanyard attachment.",
+        "This anchor requires an accessory that includes a D Ring for lanyard attachment.",
+        "You can't attach a tool lanyard to the D Ring.",
+    )
+    for body in prohibited:
+        assert anchor_d_ring_claims(body) == [], body
+
+
+def test_affirmative_provision_relations_remain_valid():
+    positive = (
+        "This anchor includes a D Ring for lanyard attachment.",
+        "This anchor features a D Ring for secure lanyard attachment.",
+        "This anchor requires no drilling and includes a D Ring for lanyard attachment.",
+    )
+    for body in positive:
+        claims = anchor_d_ring_claims(body)
+        assert {claim.property_key: claim.value for claim in claims} == {
+            "interface.role": "anchor_attachment_tether_side",
+            "interface.type": "ring",
+            "interface.attribute.ring_form": "d_ring",
+        }, body
+
+
+def test_indefinite_external_d_ring_is_not_direct_use_evidence():
+    assert anchor_d_ring_claims("Attach a tool lanyard to a D Ring.") == []
+    assert anchor_d_ring_claims("Attach a tool lanyard to the D Ring.")
