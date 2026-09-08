@@ -6,6 +6,12 @@ from tetherlens_ingest.candidate_generation import (
     CandidateComponentOption,
     ResolvedToolCandidate,
     TetherOption,
+    ToolAttachmentAssemblyOption,
+)
+from tetherlens_ingest.compatibility import (
+    AttachmentEligibility,
+    EligibilityPath,
+    FeaturePredicate,
 )
 from tetherlens_ingest.connection import (
     ConnectionInterface,
@@ -13,13 +19,22 @@ from tetherlens_ingest.connection import (
     ConnectorSpec,
     TetherSide,
 )
+from tetherlens_ingest.constraints import resolve_product_constraints
 from tetherlens_ingest.declared_compatibility import (
     connection_contexts_from_compatibility_declarations,
     resolve_connector_interface_compatibility_declarations,
 )
-from tetherlens_ingest.models import CandidateClaim, ClaimSubjectType
+from tetherlens_ingest.models import (
+    CandidateClaim,
+    ClaimSubjectType,
+    ClaimType,
+    ConstraintOperator,
+)
 from tetherlens_ingest.recommendation_run import RecommendationRunResult, run_recommendation
-from tetherlens_ingest.resolution import resolve_connection_interfaces
+from tetherlens_ingest.resolution import (
+    resolve_connection_interfaces,
+    resolve_tool_interface_features,
+)
 
 
 GOLDEN_PATH = (
@@ -27,6 +42,8 @@ GOLDEN_PATH = (
 )
 DECLARATION_URL = "https://go.neverletgo.com/hubfs/Product/Datasheet/101456.pdf"
 ANCHOR_URL = "https://neverletgo.com/products/wristband/"
+TOOL_URL = "https://example.test/benchmark-tool"
+TOOL_ATTACHMENT_URL = "https://example.test/benchmark-tool-attachment"
 PROHIBITED_GOLDEN_IDENTITY_KEYS = {"id", "ids", "ref", "refs", "sku", "skus"}
 PROHIBITED_GOLDEN_IDENTITY_SUFFIXES = (
     "_id",
@@ -45,6 +62,8 @@ def _accepted_claim(
     property_key: str,
     value,
     source_url: str,
+    claim_type: ClaimType | None = None,
+    constraint_operator: ConstraintOperator | None = None,
 ) -> CandidateClaim:
     return CandidateClaim(
         subject_type=subject_type,
@@ -53,6 +72,8 @@ def _accepted_claim(
         value=value,
         source_url=source_url,
         extractor="benchmark.accepted_fixture",
+        claim_type=claim_type,
+        constraint_operator=constraint_operator,
     )
 
 
@@ -121,6 +142,122 @@ def _tool() -> ResolvedToolCandidate:
                 interface_type="ring",
             )
         ],
+    )
+
+
+def _resolved_surface_tool() -> ResolvedToolCandidate:
+    claims: list[CandidateClaim] = []
+    for subject_ref, surface_profile in (
+        ("benchmark_tool_surface_flat", "flat"),
+        ("benchmark_tool_surface_curved", "curved"),
+    ):
+        claims.extend(
+            [
+                _accepted_claim(
+                    subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+                    subject_ref=subject_ref,
+                    property_key="feature.kind",
+                    value="surface",
+                    source_url=TOOL_URL,
+                ),
+                _accepted_claim(
+                    subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+                    subject_ref=subject_ref,
+                    property_key="feature.attribute.surface_profile",
+                    value=surface_profile,
+                    source_url=TOOL_URL,
+                ),
+                _accepted_claim(
+                    subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+                    subject_ref=subject_ref,
+                    property_key="feature.attribute.surface_condition.clean",
+                    value=True,
+                    source_url=TOOL_URL,
+                ),
+            ]
+        )
+
+    features = resolve_tool_interface_features(claims)
+    assert len(features) == 2
+    return ResolvedToolCandidate(
+        tool_ref="benchmark:surface-tool",
+        object_mass_kg=2.0,
+        features=features,
+    )
+
+
+def _surface_attachment_assembly() -> ToolAttachmentAssemblyOption:
+    source_product_ref = "benchmark:attachment-product"
+    constraint_claims = [
+        _accepted_claim(
+            subject_type=ClaimSubjectType.PRODUCT,
+            subject_ref="self",
+            property_key="installation_surface_profile",
+            value="flat",
+            source_url=TOOL_ATTACHMENT_URL,
+            claim_type=ClaimType.DECLARED_CONSTRAINT,
+            constraint_operator=ConstraintOperator.REQUIRES,
+        ),
+        _accepted_claim(
+            subject_type=ClaimSubjectType.PRODUCT,
+            subject_ref="self",
+            property_key="required_surface_condition",
+            value="clean",
+            source_url=TOOL_ATTACHMENT_URL,
+            claim_type=ClaimType.DECLARED_CONSTRAINT,
+            constraint_operator=ConstraintOperator.REQUIRES,
+        ),
+    ]
+    constraints = resolve_product_constraints(
+        constraint_claims,
+        source_product_ref=source_product_ref,
+    )
+    assert len(constraints) == 2
+
+    provided_interfaces = resolve_connection_interfaces(
+        [
+            _accepted_claim(
+                subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+                subject_ref="benchmark_attachment_tether_ring",
+                property_key="interface.role",
+                value="tool_attachment_tether_side",
+                source_url=TOOL_ATTACHMENT_URL,
+            ),
+            _accepted_claim(
+                subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+                subject_ref="benchmark_attachment_tether_ring",
+                property_key="interface.type",
+                value="ring",
+                source_url=TOOL_ATTACHMENT_URL,
+            ),
+        ]
+    )
+    assert len(provided_interfaces) == 1
+
+    return ToolAttachmentAssemblyOption(
+        assembly_ref="benchmark:surface-attachment-assembly",
+        components=[
+            CandidateComponentOption(
+                component_ref="benchmark:surface-attachment-component",
+                source_product_ref=source_product_ref,
+                rated_capacity_kg=5.0,
+                product_constraints=constraints,
+            )
+        ],
+        eligibility=AttachmentEligibility(
+            paths=[
+                EligibilityPath(
+                    binding_name="surface",
+                    requirements=[
+                        FeaturePredicate(
+                            property_key="feature_kind",
+                            value="surface",
+                        )
+                    ],
+                )
+            ]
+        ),
+        provided_interfaces=provided_interfaces,
     )
 
 
@@ -284,6 +421,21 @@ def _complete_hard_exhaustion_run() -> RecommendationRunResult:
     )
 
 
+def _tool_attachment_feature_bound_selection_run() -> tuple[
+    RecommendationRunResult,
+    ResolvedToolCandidate,
+]:
+    tool = _resolved_surface_tool()
+    target = _resolved_d_ring_anchor()
+    result = run_recommendation(
+        tool,
+        [_carabiner_tether("tool-attachment", capacity_kg=5.0)],
+        [_anchor_path(target)],
+        tool_attachment_assemblies=[_surface_attachment_assembly()],
+    )
+    return result, tool
+
+
 def _load_golden() -> dict:
     return json.loads(GOLDEN_PATH.read_text(encoding="utf-8"))
 
@@ -359,6 +511,53 @@ def _selection_summary(result: RecommendationRunResult) -> dict:
     return summary
 
 
+def _tool_attachment_summary(
+    result: RecommendationRunResult,
+    tool: ResolvedToolCandidate,
+) -> dict:
+    selected = result.selection.selected
+    assert selected is not None
+
+    generated = selected.generated_candidate
+    selection = generated.selection
+    configuration = generated.configuration
+    selected_feature_id = selection.installation_feature_id
+    assert selected_feature_id is not None
+
+    feature_by_id = {feature.feature_id: feature for feature in tool.features}
+    selected_feature = feature_by_id[selected_feature_id]
+    product_constraints = configuration.product_constraint_evaluations
+
+    return {
+        "generated_count": len(result.generated_candidates),
+        "evaluation_count": len(result.evaluations),
+        "selection_state": result.selection.state.value,
+        "ranked_viable_count": len(result.selection.ranked_viable_candidates),
+        "blocked_count": len(result.selection.blocked_candidates),
+        "selected_recommendation_state": selected.evaluation.recommendation_state.value,
+        "selected_pending_verification_count": len(
+            selected.evaluation.pending_verification_connection_ids
+        ),
+        "selected_attachment_mode": configuration.attachment_mode.value,
+        "selected_binding_names": sorted(
+            proof.binding_name for proof in selection.eligibility_proofs
+        ),
+        "selected_surface_profile": selected_feature.attributes["surface_profile"],
+        "selected_constraint_statuses": {
+            evaluation.constraint_key: evaluation.status.value
+            for evaluation in product_constraints
+        },
+        "selected_all_constraints_bound_to_selected_feature": all(
+            evaluation.installation_feature_id == selected_feature_id
+            for evaluation in product_constraints
+        ),
+        "selected_tool_target_role": configuration.tool_side_connection.target_role.value,
+        "selected_component_roles": [
+            component.role.value for component in selection.components
+        ],
+    }
+
+
 def test_recommendation_golden_is_semantic_answer_key_not_product_configuration():
     keys = _mapping_keys(_load_golden())
     prohibited = {
@@ -418,3 +617,51 @@ def test_complete_evaluated_set_can_conclude_no_suitable_recommendation():
 
     assert len(result.generated_candidates) == len(result.evaluations) == 2
     assert all(evaluation.recommendation_state is None for evaluation in result.evaluations)
+
+
+def test_tool_attachment_path_preserves_feature_bound_constraints_through_selection():
+    expected = _load_golden()["scenarios"]["tool_attachment_feature_bound_selection"]
+    result, tool = _tool_attachment_feature_bound_selection_run()
+
+    _assert_complete_provenance(result)
+    expected_summary = {
+        key: value
+        for key, value in expected.items()
+        if key != "blocked_candidate_semantics"
+    }
+    assert _tool_attachment_summary(result, tool) == expected_summary
+
+    selected = result.selection.selected
+    assert selected is not None
+    assert selected == result.selection.ranked_viable_candidates[0]
+
+    feature_by_id = {feature.feature_id: feature for feature in tool.features}
+    blocked = result.selection.blocked_candidates
+    assert len(blocked) == 1
+    blocked_candidate = blocked[0]
+    blocked_selection = blocked_candidate.generated_candidate.selection
+    blocked_feature_id = blocked_selection.installation_feature_id
+    assert blocked_feature_id is not None
+
+    required = expected["blocked_candidate_semantics"]["installation_surface_mismatch"]
+    blocked_feature = feature_by_id[blocked_feature_id]
+    assert blocked_feature.attributes["surface_profile"] == required["surface_profile"]
+
+    blocking_semantics = {
+        (check.check_type.value, check.status.value)
+        for check in blocked_candidate.evaluation.checks
+        if check.status.value in {"failed", "unresolved"}
+    }
+    assert blocking_semantics == {(required["check_type"], required["status"])}
+
+    failed_constraints = [
+        evaluation
+        for evaluation in blocked_candidate.generated_candidate.configuration.product_constraint_evaluations
+        if evaluation.status.value == "failed"
+    ]
+    assert len(failed_constraints) == 1
+    failed_constraint = failed_constraints[0]
+    assert failed_constraint.constraint_key == required["constraint_key"]
+    assert (
+        failed_constraint.installation_feature_id == blocked_selection.installation_feature_id
+    ) is required["constraint_bound_to_selected_feature"]
