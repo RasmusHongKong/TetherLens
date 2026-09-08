@@ -1,6 +1,6 @@
 {
-  "version": "1.1",
-  "description": "Batch 2 NLG post-blind contract. Blind run 130 remains immutable. Version 1.1 adds the first evidence-derived reversible endpoint assignment for NLG 101434 while preserving Quick Clip mechanism semantics, repeated container interfaces, ToolAttachment topology, reusable applicability and installation-constraint semantics, and existing evidence tensions.",
+  "version": "1.2",
+  "description": "Batch 2 NLG post-blind contract. Blind run 130 remains immutable. Version 1.2 adds evidence-backed singular anchor-side D-ring form for NLG 101365 while preserving reversible Quick Clip endpoint assignment, Quick Clip mechanism semantics, repeated container interfaces, ToolAttachment topology, reusable applicability and installation-constraint semantics, and existing evidence tensions.",
   "blind_reference": {
     "workflow_run_id": 32273707247,
     "artifact_id": 9373169405,
@@ -134,7 +134,10 @@
     },
     "NLG:101365": {
       "expected_claims": [
-        {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":3.0}
+        {"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":3.0},
+        {"subject_type":"physical_interface","subject_ref":"lanyard_anchor_d_ring","property_key":"interface.role","value":"anchor_attachment_tether_side"},
+        {"subject_type":"physical_interface","subject_ref":"lanyard_anchor_d_ring","property_key":"interface.type","value":"ring"},
+        {"subject_type":"physical_interface","subject_ref":"lanyard_anchor_d_ring","property_key":"interface.attribute.ring_form","value":"d_ring"}
       ],
       "forbidden_claims": [],
       "ignored_claims": [
@@ -142,7 +145,10 @@
       ],
       "recommendation_data": {
         "baseline_requirements": [
-          {"name":"rated_capacity","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":3.0}],"gap_if_missing":"extraction_gap"}
+          {"name":"rated_capacity","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":3.0}],"gap_if_missing":"extraction_gap"},
+          {"name":"anchor_interface_role","any_of":[{"subject_type":"physical_interface","subject_ref":"lanyard_anchor_d_ring","property_key":"interface.role","value":"anchor_attachment_tether_side"}],"gap_if_missing":"extraction_gap"},
+          {"name":"anchor_interface_type","any_of":[{"subject_type":"physical_interface","subject_ref":"lanyard_anchor_d_ring","property_key":"interface.type","value":"ring"}],"gap_if_missing":"extraction_gap"},
+          {"name":"anchor_ring_form","any_of":[{"subject_type":"physical_interface","subject_ref":"lanyard_anchor_d_ring","property_key":"interface.attribute.ring_form","value":"d_ring"}],"gap_if_missing":"extraction_gap"}
         ],
         "known_gaps": [
           {"category":"evidence_conflict","field":"max_recommended_attached_mass_kg","detail":"Current NLG product-page copy states a 1 kg wrist recommendation while a current NLG datasheet states 1.5 kg. Neither value is accepted for recommendation logic until same-priority manufacturer evidence is reconciled."}
