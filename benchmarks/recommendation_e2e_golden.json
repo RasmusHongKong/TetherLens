@@ -51,7 +51,7 @@
       },
       "selected_all_constraints_bound_to_selected_feature": true,
       "selected_tool_target_role": "tool_attachment_tether_side",
-      "selected_component_roles": [
+      "selected_component_role_set": [
         "anchor",
         "tether",
         "tool_attachment"
