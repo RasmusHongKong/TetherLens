@@ -122,12 +122,12 @@ Global selector exhaustion therefore remains safe only at the complete run bound
 
 The benchmark starts at accepted claims / normalized resolved facts rather than live acquisition. It therefore complements the supply-side goldens rather than duplicating them.
 
-The v1 golden deliberately contains only semantic expected outcomes. It does not contain SKU pairs, tool/tether/anchor product refs, or canonical candidate IDs, and a regression explicitly rejects those identity fields from the answer key.
+The v1 golden deliberately contains only semantic expected outcomes. It does not contain SKU pairs, tool/tether/anchor product refs, or canonical candidate IDs; a regression recursively rejects identity-shaped keys such as `*_id`, `*_ref`, and `*_sku` forms from the answer key.
 
 The initial two scenarios prove:
 
 - a reusable manufacturer-declared Quick Clip -> evidence-backed D-ring anchor context survives declaration resolution, candidate binding, hard evaluation and ranking; the otherwise-equivalent path with fewer pending physical verifications is selected under the existing lexicographic ranking semantics; and
-- `no_suitable_recommendation` is reached only for a non-empty complete generated set after both alternatives have been evaluated and blocked by existing hard semantics.
+- `no_suitable_recommendation` is reached only for a non-empty complete generated set after both alternatives have been evaluated, with the under-capacity alternative blocked by `load_capacity / failed` and the separate adequate-capacity alternative blocked by `connection_compatibility / unresolved`.
 
 The benchmark does not add a new scorer, recommendation path, compatibility family or exhaustion rule. See `recommendation-benchmark.md` for the durable contract.
 
@@ -301,7 +301,7 @@ Use only when the complete non-empty generated set has exact evaluation coverage
 
 Unknown reach/environment facts remain selectable fallback uncertainty and therefore prevent false context-only exhaustion.
 
-PR #48 adds the first golden regression over this global boundary: a non-empty two-candidate run may conclude `no_suitable_recommendation` only after both generated candidates are retained, exactly evaluated and blocked by existing hard semantics.
+PR #48 adds the first golden regression over this global boundary: a non-empty two-candidate run may conclude `no_suitable_recommendation` only after both generated candidates are retained and exactly evaluated, with each expected hard blocker bound to the intended semantic alternative rather than merely appearing somewhere in the blocked set.
 
 ### Session-local `exhausted`
 
@@ -311,9 +311,9 @@ It must not rewrite the original global selector result.
 
 ## Benchmark state
 
-The latest fully validated supply-side ingestion/readiness benchmark is the final PR #47 ingestion-live-smoke run (workflow run **34179982391**, head `7c853af69ce4178175a0d494645f7aaa8b3304c2`):
+The latest executable validation before the final PR #48 documentation-alignment commits is workflow run **34224552379** on review-fix head `b96fa8a37bb2c8c682f7dc98ce02307c4aaa8e3a`. The complete `Ingestion live smoke` workflow passed:
 
-- unit test suite: **passed**;
+- unit test suite: **533 passed**;
 - Batch 1 live acquisition: **12/12 products**;
 - Batch 1 extraction: **54 TP / 0 FP / 0 FN**;
 - Batch 1 micro precision/recall: **1.0 / 1.0**;
@@ -321,19 +321,18 @@ The latest fully validated supply-side ingestion/readiness benchmark is the fina
 - fresh Batch 2 post-blind acquisition: **8/8 products**;
 - fresh Batch 2 extraction: **97 TP / 0 FP / 0 FN**;
 - fresh Batch 2 micro precision/recall: **1.0 / 1.0**;
-- fresh Batch 2 recommendation-data coverage: **49/49 requirements**, **8/8 products complete**; and
-- the immutable Batch 2 blind artifact remains unchanged as the historical pre-fix baseline.
+- fresh Batch 2 recommendation-data coverage: **49/49 requirements**, **8/8 products complete**;
+- the immutable Batch 2 blind artifact remained unchanged as the historical pre-fix baseline; and
+- benchmark artifact upload completed successfully.
 
-The final PR #47 run confirms that the current first-party NLG 101365 page satisfies the bounded singular anchor-D-ring extractor, that the new target resolves with `ring_form = d_ring`, and that denied/external/indefinite/plural relation regressions remain fail-closed after Review hardening. The same run preserves the PR #46 derived Quick Clip endpoint-equivalence behavior and all existing Batch 1 and Batch 2 expectations.
+This run validates the final executable review hardening for PR #48: the recommendation golden path is independent of process working directory, the parsed golden recursively rejects identity-shaped answer-key fields, and the exhaustion scenario binds the expected hard blocking semantic to each intended alternative rather than accepting a flattened union across blocked candidates.
 
-PR #48 adds a separate downstream recommendation golden rather than changing the supply-side benchmark. Its first implementation head `db42516e4c256a91e45ed11f3ce62a3eabeb939d` passed the complete `Ingestion live smoke` workflow in run **34182695426**, including the new end-to-end recommendation benchmark plus all existing unit/live/Batch 1/Batch 2 checks.
-
-The recommendation golden currently contains two semantic scenarios:
+PR #48 adds a separate downstream recommendation golden without changing the supply-side benchmark or production recommendation/compatibility code. The recommendation golden currently contains two semantic scenarios:
 
 - a manufacturer-declared connection path whose selected candidate is `recommended_with_constraints`, retains `COMPATIBLE / MANUFACTURER_DECLARED` on the anchor side and outranks a comparable alternative because it has one rather than two pending physical verifications; and
-- a non-empty two-candidate run whose complete evaluated set is hard-blocked, allowing bounded `no_suitable_recommendation`.
+- a non-empty two-candidate run in which the `under_capacity` semantic alternative is blocked by `load_capacity / failed` while the separate `unresolved_tool_connection` alternative is blocked by `connection_compatibility / unresolved`, allowing bounded `no_suitable_recommendation` only after complete evaluation.
 
-The answer key intentionally omits SKU pairs, runtime product refs and canonical candidate IDs. The catalogue benchmark remains the supply-side ingestion/recommendation-readiness benchmark; the recommendation golden is the downstream semantic contract.
+The answer key intentionally omits SKU pairs, runtime product refs and canonical candidate IDs. Semantic scenario-role labels describe expected behavior without identifying a real product or runtime candidate. The catalogue benchmark remains the supply-side ingestion/recommendation-readiness benchmark; the recommendation golden is the downstream semantic contract.
 
 ## Recorded evidence/semantic gaps
 
