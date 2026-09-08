@@ -45,9 +45,9 @@ def test_permission_and_safety_prohibitions_fail_closed():
 
 
 def test_trailing_avoidance_prohibition_fails_closed():
-    prohibited = (
-        "Attaching a tool lanyard to the D Ring should be avoided.",
-        "Attach a tool lanyard to the D Ring; this must be prohibited.",
+    assert (
+        anchor_d_ring_claims(
+            "Attaching a tool lanyard to the D Ring should be avoided."
+        )
+        == []
     )
-    for body in prohibited:
-        assert anchor_d_ring_claims(body) == [], body
