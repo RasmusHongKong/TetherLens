@@ -57,18 +57,22 @@ _NEGATED_RELATION_PREFIX = re.compile(
     r"\bcannot(?:\s+(?:use|using))?|"
     r"\bnever(?:\s+(?:use|using))?|"
     r"\bavoid(?:\s+(?:use|using))?|"
+    r"\b(?:is|are|was|were)\s+not\s+(?:permitted|allowed|safe)\s+to|"
     r"\b(?:prohibited|forbidden)\s+to"
     r")\s*$",
     re.I,
 )
 _POST_RELATION_PROHIBITION = re.compile(
+    r"(?:"
     r"^\s*(?:,?\s*(?:but|yet|however)\b)?[^.!?;]{0,80}"
     r"\b(?:"
     r"(?:must|should|shall|may|can)\s+not|"
     r"cannot|can't|"
     r"(?:do|does|did)\s+not|"
     r"never"
-    r")\b[^.!?;]{0,60}\b(?:use|attach|connect|clip|hook)\w*\b",
+    r")\b[^.!?;]{0,60}\b(?:use|attach|connect|clip|hook)\w*\b"
+    r"|^\s*(?:,?\s*)?(?:should|must)\s+be\s+(?:avoided|prohibited|forbidden)\b"
+    r")",
     re.I,
 )
 
