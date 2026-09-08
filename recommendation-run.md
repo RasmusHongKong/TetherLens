@@ -334,10 +334,21 @@ The lower-layer selector tests remain responsible for detailed baseline preceden
 
 The session tests separately own terminal condition resolution, candidate scoping, immutable evaluation preservation, lazy fallback, session exhaustion, and session-result self-consistency.
 
-A separate recommendation-run/session golden benchmark is not required yet. The ingestion benchmark remains a supply-side catalogue/readiness benchmark, while the small number of contextual/session families is more directly expressed by focused executable tests.
+## End-to-end recommendation golden
+
+PR #48 adds the first separate downstream semantic golden over this run boundary. It is intentionally distinct from the supply-side ingestion/readiness benchmark and from the session-local fallback model.
+
+`tests/test_recommendation_benchmark.py` constructs generic normalized runtime fixtures independently of `benchmarks/recommendation_e2e_golden.json`. The golden records expected recommendation semantics only; it does not provide runtime candidate construction and does not contain SKU pairs, product refs or canonical candidate IDs.
+
+The initial two scenarios exercise:
+
+- a manufacturer-declared Quick Clip -> evidence-backed D-ring anchor connection that survives accepted-claim resolution, declaration binding, generation, hard evaluation and ranking; and
+- a non-empty globally exhausted run in which every generated alternative is exactly evaluated before `no_suitable_recommendation` is permitted.
+
+The benchmark deliberately reuses `run_recommendation()` rather than creating a parallel scorer or orchestration model. Its provenance assertions also require the selection partitions to retain the original generated candidates and corresponding hard evaluations.
+
+See `recommendation-benchmark.md` for the complete benchmark boundary, golden-data restrictions and v1 scenario semantics.
 
 ## Next architecture step
 
-After the generic session fallback layer, the cleanest downstream slice is the family-specific bridge from validated runtime observations/actions into candidate-scoped `SessionConditionResolution` records.
-
-That bridge should reuse the existing bounded connection-verification evaluator and normalized product-constraint runtime semantics. It must not accept generic `looks safe` / `user says fit` assertions, mutate the original hard `CandidateEvaluation`, or promote successful session observations into universal catalogue/SKU-pair compatibility.
+The recommendation golden should grow only when another stable reusable path benefits from system-level coverage. The highest-value next extension is a ToolAttachment-mediated scenario crossing explicit feature eligibility, selected installation-feature binding, normalized installation constraints, the provided tether interface, candidate generation and hard evaluation without introducing a golden SKU pair.

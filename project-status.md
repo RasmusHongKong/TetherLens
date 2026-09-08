@@ -2,13 +2,13 @@
 
 _Last updated: 2026-09-08_
 
-This document is the operational handoff for the current TetherLens ingestion, compatibility, candidate-generation/evaluation/selection, recommendation-run, session-resolution, and contextual reasoning stack. It records the semantics that should be preserved and the highest-value remaining workstreams.
+This document is the operational handoff for the current TetherLens ingestion, compatibility, candidate-generation/evaluation/selection, recommendation-run, session-resolution, contextual reasoning, and recommendation-benchmark stack. It records the semantics that should be preserved and the highest-value remaining workstreams.
 
-For durable design details, use the dedicated documents including `product-vision.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `connection-compatibility.md`, `connector-mechanism-semantics.md`, `connector-declared-compatibility.md`, `anchor-interface-form.md`, `endpoint-assignment-semantics.md`, `cinch-loop-semantics.md`, `tool-attachment-compatibility.md`, `tool-anatomy-selection-semantics.md`, `container-interface-topology.md`, `candidate-ranking-selection.md`, `recommendation-run.md`, `recommendation-session.md`, `environmental-context.md`, `benchmark-goals.md`, and `ingestion-benchmark.md`.
+For durable design details, use the dedicated documents including `product-vision.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `connection-compatibility.md`, `connector-mechanism-semantics.md`, `connector-declared-compatibility.md`, `anchor-interface-form.md`, `endpoint-assignment-semantics.md`, `cinch-loop-semantics.md`, `tool-attachment-compatibility.md`, `tool-anatomy-selection-semantics.md`, `container-interface-topology.md`, `candidate-ranking-selection.md`, `recommendation-run.md`, `recommendation-session.md`, `environmental-context.md`, `recommendation-benchmark.md`, `benchmark-goals.md`, and `ingestion-benchmark.md`.
 
 ## Current development line
 
-The current development line through PR #47 includes:
+The current development line through PR #48 includes:
 
 - PR #17 — Batch 2 blind NLG holdout and post-blind evaluation path;
 - PR #18 — explicit tether endpoint topology;
@@ -39,8 +39,9 @@ The current development line through PR #47 includes:
 - PR #43 — evidence-backed cinch-loop mechanism and bounded `cinch_loop_to_closed_interface.v1` runtime verification;
 - PR #44 — reusable manufacturer-declared connector/interface compatibility claims and candidate-context binding, with the first bounded NLG Quick Clip -> D-ring anchor declaration;
 - PR #45 — evidence-backed reversible tether endpoint assignment using a separate tether-owned relation, preserving `TetherSide.UNKNOWN`, candidate identity and declaration provenance without inferring direction from symmetric hardware;
-- PR #46 — explicit endpoint-assignment basis provenance plus the first bounded production `derived_endpoint_equivalence` extraction for an NLG dual-Quick-Clip tether when first-party endpoint-construction equivalence and undifferentiated tool-to-anchor use are both established; and
-- PR #47 — evidence-backed singular anchor-side D-ring form extraction for NLG AnchorAttachments, using `interface.attribute.ring_form = d_ring` on a concrete `anchor_attachment_tether_side` interface so the existing PR #44 Quick Clip declaration can bind without generic-ring promotion, geometry inference or SKU-pair logic.
+- PR #46 — explicit endpoint-assignment basis provenance plus the first bounded production `derived_endpoint_equivalence` extraction for an NLG dual-Quick-Clip tether when first-party endpoint-construction equivalence and undifferentiated tool-to-anchor use are both established;
+- PR #47 — evidence-backed singular anchor-side D-ring form extraction for NLG AnchorAttachments, using `interface.attribute.ring_form = d_ring` on a concrete `anchor_attachment_tether_side` interface so the existing PR #44 Quick Clip declaration can bind without generic-ring promotion, geometry inference or SKU-pair logic; and
+- PR #48 — the first semantic end-to-end recommendation golden, exercising accepted/resolved evidence through complete recommendation-run selection for a manufacturer-declared connection path and a non-empty globally exhausted path without golden SKU-pair or candidate-ID expectations.
 
 PR #16 remains closed unmerged; its useful catalogue-discovery/scoring work was carried forward through PR #19 and its older topology semantics should not be revived.
 
@@ -114,6 +115,21 @@ Ranking remains lexicographic rather than weighted. It does not prefer brands, d
 `recommendation_run.py` owns complete generation -> evaluation -> selection execution. It evaluates every generated candidate exactly once and passes that exact set to selection.
 
 Global selector exhaustion therefore remains safe only at the complete run boundary.
+
+### End-to-end recommendation benchmark
+
+`tests/test_recommendation_benchmark.py` and `benchmarks/recommendation_e2e_golden.json` now provide the first semantic golden over the complete recommendation run.
+
+The benchmark starts at accepted claims / normalized resolved facts rather than live acquisition. It therefore complements the supply-side goldens rather than duplicating them.
+
+The v1 golden deliberately contains only semantic expected outcomes. It does not contain SKU pairs, tool/tether/anchor product refs, or canonical candidate IDs; a regression recursively rejects identity-shaped keys such as `*_id`, `*_ref`, and `*_sku` forms from the answer key.
+
+The initial two scenarios prove:
+
+- a reusable manufacturer-declared Quick Clip -> evidence-backed D-ring anchor context survives declaration resolution, candidate binding, hard evaluation and ranking; the otherwise-equivalent path with fewer pending physical verifications is selected under the existing lexicographic ranking semantics; and
+- `no_suitable_recommendation` is reached only for a non-empty complete generated set after both alternatives have been evaluated, with the under-capacity alternative blocked by `load_capacity / failed` and the separate adequate-capacity alternative blocked by `connection_compatibility / unresolved`.
+
+The benchmark does not add a new scorer, recommendation path, compatibility family or exhaustion rule. See `recommendation-benchmark.md` for the durable contract.
 
 ### Session-local condition resolution
 
@@ -285,6 +301,8 @@ Use only when the complete non-empty generated set has exact evaluation coverage
 
 Unknown reach/environment facts remain selectable fallback uncertainty and therefore prevent false context-only exhaustion.
 
+PR #48 adds the first golden regression over this global boundary: a non-empty two-candidate run may conclude `no_suitable_recommendation` only after both generated candidates are retained and exactly evaluated, with each expected hard blocker bound to the intended semantic alternative rather than merely appearing somewhere in the blocked set.
+
 ### Session-local `exhausted`
 
 Possible only after an originating run already had a selected/ranked selectable stream. It means every candidate in that original stream later failed at least one session-local condition.
@@ -293,9 +311,9 @@ It must not rewrite the original global selector result.
 
 ## Benchmark state
 
-The latest fully validated supply-side ingestion/readiness benchmark is the final PR #47 ingestion-live-smoke run (workflow run **34179982391**, head `7c853af69ce4178175a0d494645f7aaa8b3304c2`):
+The latest executable validation before the final PR #48 documentation-alignment commits is workflow run **34224552379** on review-fix head `b96fa8a37bb2c8c682f7dc98ce02307c4aaa8e3a`. The complete `Ingestion live smoke` workflow passed:
 
-- unit test suite: **passed**;
+- unit test suite: **533 passed**;
 - Batch 1 live acquisition: **12/12 products**;
 - Batch 1 extraction: **54 TP / 0 FP / 0 FN**;
 - Batch 1 micro precision/recall: **1.0 / 1.0**;
@@ -303,12 +321,18 @@ The latest fully validated supply-side ingestion/readiness benchmark is the fina
 - fresh Batch 2 post-blind acquisition: **8/8 products**;
 - fresh Batch 2 extraction: **97 TP / 0 FP / 0 FN**;
 - fresh Batch 2 micro precision/recall: **1.0 / 1.0**;
-- fresh Batch 2 recommendation-data coverage: **49/49 requirements**, **8/8 products complete**; and
-- the immutable Batch 2 blind artifact remains unchanged as the historical pre-fix baseline.
+- fresh Batch 2 recommendation-data coverage: **49/49 requirements**, **8/8 products complete**;
+- the immutable Batch 2 blind artifact remained unchanged as the historical pre-fix baseline; and
+- benchmark artifact upload completed successfully.
 
-The final PR #47 run confirms that the current first-party NLG 101365 page satisfies the bounded singular anchor-D-ring extractor, that the new target resolves with `ring_form = d_ring`, and that denied/external/indefinite/plural relation regressions remain fail-closed after Review hardening. The same run preserves the PR #46 derived Quick Clip endpoint-equivalence behavior and all existing Batch 1 and Batch 2 expectations.
+This run validates the final executable review hardening for PR #48: the recommendation golden path is independent of process working directory, the parsed golden recursively rejects identity-shaped answer-key fields, and the exhaustion scenario binds the expected hard blocking semantic to each intended alternative rather than accepting a flattened union across blocked candidates.
 
-The catalogue benchmark remains primarily a supply-side ingestion/recommendation-readiness benchmark. Candidate generation/evaluation/selection/session/context behavior is still covered mainly by focused executable tests; there is not yet a separate end-to-end golden recommendation benchmark.
+PR #48 adds a separate downstream recommendation golden without changing the supply-side benchmark or production recommendation/compatibility code. The recommendation golden currently contains two semantic scenarios:
+
+- a manufacturer-declared connection path whose selected candidate is `recommended_with_constraints`, retains `COMPATIBLE / MANUFACTURER_DECLARED` on the anchor side and outranks a comparable alternative because it has one rather than two pending physical verifications; and
+- a non-empty two-candidate run in which the `under_capacity` semantic alternative is blocked by `load_capacity / failed` while the separate `unresolved_tool_connection` alternative is blocked by `connection_compatibility / unresolved`, allowing bounded `no_suitable_recommendation` only after complete evaluation.
+
+The answer key intentionally omits SKU pairs, runtime product refs and canonical candidate IDs. Semantic scenario-role labels describe expected behavior without identifying a real product or runtime candidate. The catalogue benchmark remains the supply-side ingestion/recommendation-readiness benchmark; the recommendation golden is the downstream semantic contract.
 
 ## Recorded evidence/semantic gaps
 
@@ -327,19 +351,20 @@ The reusable symmetric-endpoint model gap is also closed, and PR #46 provides th
 
 ## Next highest-value workstreams
 
-### 1. End-to-end recommendation benchmark coverage
+### 1. ToolAttachment-mediated end-to-end benchmark coverage
 
-The current supply-side goldens can mark a product recommendation-data complete even when downstream role/assignment/compatibility semantics still prevent candidate selection.
+The first downstream golden deliberately stays small. It proves a direct-tool manufacturer-declared path and complete hard exhaustion, but it does not yet cross the ToolAttachment assembly/eligibility/install-constraint composition boundary.
 
-The next highest-value benchmark layer should exercise a small representative set from accepted claims/resolved facts through candidate generation, hard evaluation and selection. It should remain separate from the immutable Batch 2 blind artifact and should avoid golden SKU-pair recommendations.
+The next benchmark extension should therefore use one stable reusable ToolAttachment path to prove, end to end:
 
-The first cases should be chosen to exercise reusable semantics rather than brand outcomes, for example:
+- accepted/resolved tool feature semantics;
+- explicit attachment eligibility and selected-feature binding;
+- normalized installation/product constraints scoped to that selected feature/component;
+- the ToolAttachment-provided tether interface;
+- candidate generation and retained component/feature provenance; and
+- hard evaluation/selection without a golden SKU pair.
 
-- a straightforward direct candidate;
-- a ToolAttachment-mediated candidate;
-- a manufacturer-declared connection path such as Quick Clip -> evidence-backed D-ring anchor;
-- a conditional/runtime-verification path; and
-- an exhausted/no-suitable case where the full generated set is known and every alternative has been evaluated.
+Prefer one representative scenario over broad coverage. Do not add a ToolAttachment golden until the fixture can exercise existing generic semantics without introducing new product-specific rules.
 
 ### 2. Extend target-interface form only where recurring evidence justifies it
 
@@ -373,6 +398,8 @@ PRs that materially change durable architecture, evidence semantics, compatibili
 
 - every PR must update `project-status.md` before merge, with deeper design docs updated when their durable semantics change;
 - no SKU-specific extraction, compatibility, generation, ranking, session or recommendation branches;
+- recommendation golden answer keys must contain semantic expected outcomes, not runtime product configuration, SKU pairs or canonical candidate IDs;
+- goldens validate outputs and must never be fed back into runtime construction;
 - no inferred compatibility from interface names alone;
 - no promotion of `UNKNOWN` endpoint role to `EITHER` without explicit role evidence;
 - endpoint-pair assignment evidence must remain separate from individual endpoint role evidence;
@@ -395,6 +422,6 @@ PRs that materially change durable architecture, evidence semantics, compatibili
 - preserve the immutable Batch 2 blind artifact and use fresh post-blind evaluation for regression checking; and
 - prefer small reusable evidence primitives over broad vocabularies introduced without a concrete decision need.
 
-## Suggested fresh-chat starting point after PR #47
+## Suggested fresh-chat starting point after PR #48
 
-> Continue TetherLens from merged `main` after PR #47. Start with the next highest-value gap: end-to-end recommendation benchmark coverage. Inspect the current supply-side goldens plus candidate generation, hard evaluation, selection and recommendation-run orchestration. Define the smallest representative benchmark slice that proves reusable recommendation semantics end to end — including at least one manufacturer-declared connection path and one exhausted/no-suitable case — without introducing golden SKU-pair compatibility or weakening existing hard constraints.
+> Continue TetherLens from merged `main` after PR #48. Inspect the new end-to-end recommendation golden and tackle the next highest-value downstream gap: ToolAttachment-mediated benchmark coverage. Define the smallest generic scenario that crosses accepted/resolved tool features, explicit attachment eligibility, selected installation-feature binding, normalized product/install constraints, the ToolAttachment-provided tether interface, candidate generation, hard evaluation and selection — while keeping the golden semantic rather than SKU-pair based and without changing existing compatibility or hard-constraint rules.
