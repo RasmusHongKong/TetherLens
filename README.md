@@ -24,3 +24,7 @@ TetherLens is initially intended as a guidance and specification tool rather tha
 ## Project status
 
 For the current ingestion implementation state, latest benchmark result, known gaps and next workstreams, see [`project-status.md`](project-status.md).
+
+## Development workflow
+
+Documentation is part of the definition of done for every pull request. **Every PR must include, at minimum, an update to [`project-status.md`](project-status.md)** so the operational handoff reflects the code that is actually being merged. PRs that materially change durable architecture, evidence semantics or recommendation behavior should also update the relevant design document(s).
