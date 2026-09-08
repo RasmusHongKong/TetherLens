@@ -392,17 +392,29 @@ def test_complete_evaluated_set_can_conclude_no_suitable_recommendation():
     expected_summary = {
         key: value
         for key, value in expected.items()
-        if key != "required_blocked_check_semantics"
+        if key != "blocked_candidate_semantics"
     }
     assert _selection_summary(result) == expected_summary
 
-    blocked_check_semantics = {
-        (check.check_type.value, check.status.value)
+    blocked_by_tether_ref = {
+        candidate.generated_candidate.selection.tether_ref: candidate
         for candidate in result.selection.blocked_candidates
-        for check in candidate.evaluation.checks
     }
-    for required in expected["required_blocked_check_semantics"]:
-        assert (required["check_type"], required["status"]) in blocked_check_semantics
+    scenario_bindings = {
+        "under_capacity": "benchmark:tether:under-capacity",
+        "unresolved_tool_connection": "benchmark:tether:unresolved-tool-connection",
+    }
+    assert set(blocked_by_tether_ref) == set(scenario_bindings.values())
+
+    for scenario_role, tether_ref in scenario_bindings.items():
+        candidate = blocked_by_tether_ref[tether_ref]
+        blocking_semantics = {
+            (check.check_type.value, check.status.value)
+            for check in candidate.evaluation.checks
+            if check.status.value in {"failed", "unresolved"}
+        }
+        required = expected["blocked_candidate_semantics"][scenario_role]
+        assert blocking_semantics == {(required["check_type"], required["status"])}
 
     assert len(result.generated_candidates) == len(result.evaluations) == 2
     assert all(evaluation.recommendation_state is None for evaluation in result.evaluations)
