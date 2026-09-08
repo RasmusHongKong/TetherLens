@@ -8,7 +8,7 @@ For durable design details, use the dedicated documents including `product-visio
 
 ## Current development line
 
-The current development line through PR #48 includes:
+The current development line through PR #49 includes:
 
 - PR #17 — Batch 2 blind NLG holdout and post-blind evaluation path;
 - PR #18 — explicit tether endpoint topology;
@@ -40,8 +40,9 @@ The current development line through PR #48 includes:
 - PR #44 — reusable manufacturer-declared connector/interface compatibility claims and candidate-context binding, with the first bounded NLG Quick Clip -> D-ring anchor declaration;
 - PR #45 — evidence-backed reversible tether endpoint assignment using a separate tether-owned relation, preserving `TetherSide.UNKNOWN`, candidate identity and declaration provenance without inferring direction from symmetric hardware;
 - PR #46 — explicit endpoint-assignment basis provenance plus the first bounded production `derived_endpoint_equivalence` extraction for an NLG dual-Quick-Clip tether when first-party endpoint-construction equivalence and undifferentiated tool-to-anchor use are both established;
-- PR #47 — evidence-backed singular anchor-side D-ring form extraction for NLG AnchorAttachments, using `interface.attribute.ring_form = d_ring` on a concrete `anchor_attachment_tether_side` interface so the existing PR #44 Quick Clip declaration can bind without generic-ring promotion, geometry inference or SKU-pair logic; and
-- PR #48 — the first semantic end-to-end recommendation golden, exercising accepted/resolved evidence through complete recommendation-run selection for a manufacturer-declared connection path and a non-empty globally exhausted path without golden SKU-pair or candidate-ID expectations.
+- PR #47 — evidence-backed singular anchor-side D-ring form extraction for NLG AnchorAttachments, using `interface.attribute.ring_form = d_ring` on a concrete `anchor_attachment_tether_side` interface so the existing PR #44 Quick Clip declaration can bind without generic-ring promotion, geometry inference or SKU-pair logic;
+- PR #48 — the first semantic end-to-end recommendation golden, exercising accepted/resolved evidence through complete recommendation-run selection for a manufacturer-declared connection path and a non-empty globally exhausted path without golden SKU-pair or candidate-ID expectations; and
+- PR #49 — ToolAttachment-mediated recommendation golden coverage, exercising accepted/resolved tool features, explicit selected-feature eligibility binding, normalized installation constraints, a ToolAttachment-provided tether interface, complete generation/hard evaluation and selection without production rule changes or golden product identity.
 
 PR #16 remains closed unmerged; its useful catalogue-discovery/scoring work was carried forward through PR #19 and its older topology semantics should not be revived.
 
@@ -118,18 +119,21 @@ Global selector exhaustion therefore remains safe only at the complete run bound
 
 ### End-to-end recommendation benchmark
 
-`tests/test_recommendation_benchmark.py` and `benchmarks/recommendation_e2e_golden.json` now provide the first semantic golden over the complete recommendation run.
+`tests/test_recommendation_benchmark.py` and `benchmarks/recommendation_e2e_golden.json` provide the semantic golden over the complete recommendation run.
 
 The benchmark starts at accepted claims / normalized resolved facts rather than live acquisition. It therefore complements the supply-side goldens rather than duplicating them.
 
-The v1 golden deliberately contains only semantic expected outcomes. It does not contain SKU pairs, tool/tether/anchor product refs, or canonical candidate IDs; a regression recursively rejects identity-shaped keys such as `*_id`, `*_ref`, and `*_sku` forms from the answer key.
+The golden deliberately contains only semantic expected outcomes. It does not contain SKU pairs, tool/tether/anchor/attachment product refs, or canonical candidate IDs; a regression recursively rejects identity-shaped keys such as `*_id`, `*_ref`, and `*_sku` forms from the answer key.
 
-The initial two scenarios prove:
+The current three scenarios prove:
 
-- a reusable manufacturer-declared Quick Clip -> evidence-backed D-ring anchor context survives declaration resolution, candidate binding, hard evaluation and ranking; the otherwise-equivalent path with fewer pending physical verifications is selected under the existing lexicographic ranking semantics; and
-- `no_suitable_recommendation` is reached only for a non-empty complete generated set after both alternatives have been evaluated, with the under-capacity alternative blocked by `load_capacity / failed` and the separate adequate-capacity alternative blocked by `connection_compatibility / unresolved`.
+- a reusable manufacturer-declared Quick Clip -> evidence-backed D-ring anchor context survives declaration resolution, candidate binding, hard evaluation and ranking; the otherwise-equivalent path with fewer pending physical verifications is selected under the existing lexicographic ranking semantics;
+- `no_suitable_recommendation` is reached only for a non-empty complete generated set after both alternatives have been evaluated, with the under-capacity alternative blocked by `load_capacity / failed` and the separate adequate-capacity alternative blocked by `connection_compatibility / unresolved`; and
+- a ToolAttachment path preserves two accepted surface-feature subjects independently through explicit normalized eligibility, selected installation-feature binding, resolved ToolAttachment installation constraints, the ToolAttachment-provided tether interface, candidate generation and hard evaluation, so the flat/clean installation remains selectable while the separately bound curved/clean installation is blocked specifically by the existing `installation_surface_profile` hard product constraint.
 
-The benchmark does not add a new scorer, recommendation path, compatibility family or exhaustion rule. See `recommendation-benchmark.md` for the durable contract.
+The ToolAttachment scenario deliberately supplies its generic `feature_kind = surface` eligibility as a normalized runtime primitive at the benchmark seam. It does not add a production `surface_bonded_attachment` selection-class compiler merely for fixture convenience. Accepted feature, product-constraint and provided-interface claims still flow through their normal resolvers.
+
+The benchmark does not add a new scorer, recommendation path, compatibility family, hard-constraint rule or exhaustion rule. See `recommendation-benchmark.md` for the durable contract.
 
 ### Session-local condition resolution
 
@@ -311,9 +315,9 @@ It must not rewrite the original global selector result.
 
 ## Benchmark state
 
-The latest executable validation before the final PR #48 documentation-alignment commits is workflow run **34224552379** on review-fix head `b96fa8a37bb2c8c682f7dc98ce02307c4aaa8e3a`. The complete `Ingestion live smoke` workflow passed:
+The latest complete validation is PR #49 workflow run **34231166525** on executable head `49e4ab421e67ef2e5134f99650073447b375b951`. The complete `Ingestion live smoke` workflow passed:
 
-- unit test suite: **533 passed**;
+- unit test suite: **418 passed**;
 - Batch 1 live acquisition: **12/12 products**;
 - Batch 1 extraction: **54 TP / 0 FP / 0 FN**;
 - Batch 1 micro precision/recall: **1.0 / 1.0**;
@@ -325,12 +329,13 @@ The latest executable validation before the final PR #48 documentation-alignment
 - the immutable Batch 2 blind artifact remained unchanged as the historical pre-fix baseline; and
 - benchmark artifact upload completed successfully.
 
-This run validates the final executable review hardening for PR #48: the recommendation golden path is independent of process working directory, the parsed golden recursively rejects identity-shaped answer-key fields, and the exhaustion scenario binds the expected hard blocking semantic to each intended alternative rather than accepting a flattened union across blocked candidates.
+This run validates the executable PR #49 ToolAttachment golden on top of the PR #48 recommendation benchmark contract. The new scenario resolves two accepted tool features independently, resolves accepted product/install constraints and the ToolAttachment-provided tether interface, generates one candidate per explicit feature binding, evaluates the complete generated set, and selects only the hard-viable flat/clean installation while the curved installation is blocked by `product_constraint / failed` for `installation_surface_profile`.
 
-PR #48 adds a separate downstream recommendation golden without changing the supply-side benchmark or production recommendation/compatibility code. The recommendation golden currently contains two semantic scenarios:
+The recommendation golden now contains three semantic scenarios:
 
-- a manufacturer-declared connection path whose selected candidate is `recommended_with_constraints`, retains `COMPATIBLE / MANUFACTURER_DECLARED` on the anchor side and outranks a comparable alternative because it has one rather than two pending physical verifications; and
-- a non-empty two-candidate run in which the `under_capacity` semantic alternative is blocked by `load_capacity / failed` while the separate `unresolved_tool_connection` alternative is blocked by `connection_compatibility / unresolved`, allowing bounded `no_suitable_recommendation` only after complete evaluation.
+- a manufacturer-declared connection path whose selected candidate is `recommended_with_constraints`, retains `COMPATIBLE / MANUFACTURER_DECLARED` on the anchor side and outranks a comparable alternative because it has one rather than two pending physical verifications;
+- a non-empty two-candidate run in which the `under_capacity` semantic alternative is blocked by `load_capacity / failed` while the separate `unresolved_tool_connection` alternative is blocked by `connection_compatibility / unresolved`, allowing bounded `no_suitable_recommendation` only after complete evaluation; and
+- a ToolAttachment-mediated two-feature run in which both surface features are explicitly eligible, the selected feature is retained through constraint evaluation, the flat/clean path remains selectable, and the separate curved/clean path is blocked specifically by the existing hard installation-surface-profile constraint.
 
 The answer key intentionally omits SKU pairs, runtime product refs and canonical candidate IDs. Semantic scenario-role labels describe expected behavior without identifying a real product or runtime candidate. The catalogue benchmark remains the supply-side ingestion/recommendation-readiness benchmark; the recommendation golden is the downstream semantic contract.
 
@@ -349,24 +354,11 @@ The first recurring target-interface form gap is now closed for a singular ancho
 
 The reusable symmetric-endpoint model gap is also closed, and PR #46 provides the first production evidence-derived assignment case. Broader symmetric-looking dual-ended products remain an evidence problem rather than a reason to weaken endpoint roles globally: each future derivation must clear an evidence pattern strong enough to establish the same endpoint construction plus undifferentiated pair use.
 
+PR #49 closes the ToolAttachment-mediated end-to-end benchmark gap without expanding production semantics. The downstream golden now proves selected-feature binding through normalized installation constraints and selection; further benchmark growth should be driven by concrete regression risk rather than scenario count.
+
 ## Next highest-value workstreams
 
-### 1. ToolAttachment-mediated end-to-end benchmark coverage
-
-The first downstream golden deliberately stays small. It proves a direct-tool manufacturer-declared path and complete hard exhaustion, but it does not yet cross the ToolAttachment assembly/eligibility/install-constraint composition boundary.
-
-The next benchmark extension should therefore use one stable reusable ToolAttachment path to prove, end to end:
-
-- accepted/resolved tool feature semantics;
-- explicit attachment eligibility and selected-feature binding;
-- normalized installation/product constraints scoped to that selected feature/component;
-- the ToolAttachment-provided tether interface;
-- candidate generation and retained component/feature provenance; and
-- hard evaluation/selection without a golden SKU pair.
-
-Prefer one representative scenario over broad coverage. Do not add a ToolAttachment golden until the fixture can exercise existing generic semantics without introducing new product-specific rules.
-
-### 2. Extend target-interface form only where recurring evidence justifies it
+### 1. Extend target-interface form only where recurring evidence justifies it
 
 PR #47 establishes the first production `ring_form = d_ring` target without upgrading generic rings. Further form work should remain similarly concrete.
 
@@ -374,17 +366,23 @@ Potential future cases include repeated container D-rings or plural anchor sets,
 
 Do not build a broad ring taxonomy for its own sake.
 
-### 3. Extend derived endpoint equivalence only from recurring evidence patterns
+### 2. Extend derived endpoint equivalence only from recurring evidence patterns
 
 NLG 101519 is a useful next evidence candidate if/when first-party datasheet acquisition becomes part of the normal NLG source graph. Generic dual-carabiner derivation should not be introduced merely because most products are expected to be symmetric.
 
 Any additional production family should first establish a repeatable first-party pattern for same endpoint construction and tool-to-anchor pair use, with directional/mixed-end evidence as a hard veto.
 
-### 4. Selective geometry/evidence work
+### 3. Selective geometry/evidence work
 
 Continue geometry, measurements and document-join work only when one primitive closes a recurring uncertainty, proves a reusable hard rule, or materially reduces runtime verification burden.
 
 Do not build a general CAD model.
+
+### 4. Further downstream goldens only for durable regression seams
+
+Session fallback and contextual feasibility are already covered by focused executable tests. Add system-level golden scenarios there only when a concrete integration risk or regression demonstrates that the recommendation-run contract needs another durable semantic case.
+
+Do not expand the golden solely for broader product or SKU coverage.
 
 ## Documentation workflow
 
@@ -422,6 +420,6 @@ PRs that materially change durable architecture, evidence semantics, compatibili
 - preserve the immutable Batch 2 blind artifact and use fresh post-blind evaluation for regression checking; and
 - prefer small reusable evidence primitives over broad vocabularies introduced without a concrete decision need.
 
-## Suggested fresh-chat starting point after PR #48
+## Suggested fresh-chat starting point after PR #49
 
-> Continue TetherLens from merged `main` after PR #48. Inspect the new end-to-end recommendation golden and tackle the next highest-value downstream gap: ToolAttachment-mediated benchmark coverage. Define the smallest generic scenario that crosses accepted/resolved tool features, explicit attachment eligibility, selected installation-feature binding, normalized product/install constraints, the ToolAttachment-provided tether interface, candidate generation, hard evaluation and selection — while keeping the golden semantic rather than SKU-pair based and without changing existing compatibility or hard-constraint rules.
+> Continue TetherLens from merged `main` after PR #49. Inspect the completed three-scenario end-to-end recommendation golden, then tackle the next highest-value evidence/model gap: extend target-interface form only where a recurring recommendation path justifies it. Preserve concrete interface identity and structural role, do not promote generic rings to D-rings, and require evidence-backed semantics before changing compatibility or hard constraints.
