@@ -145,7 +145,7 @@ The tool has no direct tether interface. Candidate generation therefore emits tw
 
 The flat/clean candidate passes both installation constraints and remains selectable. The separately bound curved/clean candidate fails only the existing hard `installation_surface_profile` product constraint. Selection must therefore choose the one hard-viable ToolAttachment path.
 
-The golden records only reusable semantics: two generated/evaluated paths, one viable and one blocked, ToolAttachment mode, the surface eligibility proof, selected flat-surface semantics, and the `installation_surface_mismatch` blocker. Runtime feature/component/assembly/product/candidate identities remain fixture-local.
+The golden records only reusable semantics: two generated/evaluated paths, one viable and one blocked, ToolAttachment mode, the surface eligibility proof, selected flat-surface semantics, the presence of tool-attachment/tether/anchor component roles without depending on their serialization order, and the `installation_surface_mismatch` blocker. Runtime feature/component/assembly/product/candidate identities remain fixture-local.
 
 This scenario catches regressions where feature identity is lost between resolution and generation, eligibility and installation constraints are accidentally evaluated against different features, ToolAttachment component provenance is discarded, the provided tether interface is bypassed, or a hard installation failure leaks into ranking as a preference.
 
@@ -158,7 +158,7 @@ The benchmark asserts that:
 - generated and evaluated ID sets match exactly;
 - the three selection partitions cover the exact generated set;
 - each partitioned `EvaluatedCandidate` retains the corresponding original `GeneratedCandidate` and `CandidateEvaluation`;
-- ToolAttachment paths retain their selected installation feature, eligibility proof and selected component role; and
+- ToolAttachment paths retain their selected installation feature, eligibility proof and selected component roles; and
 - selected output equals rank 1 of the complete ranked selectable list.
 
 These assertions intentionally exercise the same completeness/provenance boundary used for ordinary recommendation runs rather than reconstructing candidate identity from product references.
