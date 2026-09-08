@@ -17,24 +17,37 @@ from .nlg_declared_compatibility import NLGAdapter as BaseNLGAdapter
 
 _INTERFACE_REF = "lanyard_anchor_d_ring"
 _D_RING = r"d[\s-]?ring(?!s\b)"
-_D_RING_NP = rf"(?:a|an|one|single|the)\s+(?:[\w®™+.-]+\s+){{0,4}}{_D_RING}"
+_D_RING_NP = rf"(?:a|an|one|single|the|this|its)\s+(?:[\w®™+.-]+\s+){{0,4}}{_D_RING}"
+_REFERENTIAL_D_RING_NP = rf"(?:the|this|its)\s+(?:[\w®™+.-]+\s+){{0,4}}{_D_RING}"
 _LANYARD = r"(?:tool\s+)?lanyards?"
+_AFFIRMATIVE_PROVISION = (
+    r"(?:"
+    r"utili[sz](?:e|es)|"
+    r"features?|includes?|incorporates?|provides?|has|"
+    r"comes?\s+with|is\s+equipped\s+with"
+    r")"
+)
 
+# A noun phrase such as ``a D Ring for lanyard attachment`` is not sufficient by
+# itself: it can sit under denial or an external requirement. These provision shapes
+# therefore include the governing affirmative verb in the match. Direct use wording is
+# kept separate and requires a referential target rather than an arbitrary ``a D Ring``.
 _POSITIVE_RELATIONS = (
     re.compile(
-        rf"\b(?P<relation>{_D_RING_NP}\s+for\s+"
+        rf"\b(?P<relation>{_AFFIRMATIVE_PROVISION}\s+{_D_RING_NP}\s+for\s+"
         rf"(?:(?:quick\s+and\s+easy|easy|secure|direct)\s+)?"
         rf"{_LANYARD}\s+attachment)\b",
         re.I,
     ),
     re.compile(
-        rf"\b(?P<relation>{_D_RING_NP}\s+to\s+"
+        rf"\b(?P<relation>{_AFFIRMATIVE_PROVISION}\s+{_D_RING_NP}\s+to\s+"
         rf"(?:attach|connect|clip|hook)\w*\s+(?:a\s+|the\s+|your\s+)?{_LANYARD})\b",
         re.I,
     ),
     re.compile(
         rf"\b(?P<relation>(?:attach|connect|clip|hook)\w*\s+"
-        rf"(?:a\s+|the\s+|your\s+)?{_LANYARD}\s+(?:directly\s+)?to\s+{_D_RING_NP})\b",
+        rf"(?:a\s+|the\s+|your\s+)?{_LANYARD}\s+(?:directly\s+)?to\s+"
+        rf"{_REFERENTIAL_D_RING_NP})\b",
         re.I,
     ),
 )
@@ -48,12 +61,13 @@ _PLURAL_D_RING_LANYARD = re.compile(
     re.I,
 )
 
-# Negation is checked only at the local relation boundary. Unrelated wording such as
-# ``does not contain metal and utilises a D Ring...`` must not suppress a later
-# affirmative interface statement.
+# Polarity is checked against the local predicate prefix, not the whole clause. That
+# preserves a later coordinated positive predicate (``requires no drilling and includes
+# a D Ring...``) while rejecting ``does not include...`` and ``can't attach...``.
 _NEGATED_RELATION_PREFIX = re.compile(
     r"(?:"
     r"\b(?:do|does|did|must|should|shall|may|can)\s+not(?:\s+(?:use|using))?|"
+    r"\b(?:don't|doesn't|didn't|can't|couldn't|shouldn't|mustn't|won't|wouldn't)|"
     r"\bcannot(?:\s+(?:use|using))?|"
     r"\bnever(?:\s+(?:use|using))?|"
     r"\bavoid(?:\s+(?:use|using))?|"
@@ -62,6 +76,17 @@ _NEGATED_RELATION_PREFIX = re.compile(
     r")\s*$",
     re.I,
 )
+
+# Reject a provision/use relation when its local governor explicitly frames another
+# item as required. This is intentionally bounded to the current predicate span so an
+# unrelated earlier requirement does not suppress a later affirmative coordinated
+# provision claim.
+_EXTERNAL_REQUIREMENT_PREFIX = re.compile(
+    r"\b(?:requires?|needs?|depends?\s+on|must\s+(?:have|include|use)|"
+    r"(?:used|works?|compatible)\s+with)\b[^.!?;]{0,80}$",
+    re.I,
+)
+
 _POST_RELATION_PROHIBITION = re.compile(
     r"(?:"
     r"^\s*(?:,?\s*(?:but|yet|however)\b)?[^.!?;]{0,80}"
@@ -129,12 +154,28 @@ def _singular_anchor_d_ring_evidence(html: str) -> str | None:
             match = pattern.search(clause)
             if match is None:
                 continue
-            if _NEGATED_RELATION_PREFIX.search(clause[: match.start()]):
+            local_prefix = _local_predicate_prefix(clause[: match.start()])
+            if _NEGATED_RELATION_PREFIX.search(local_prefix):
+                continue
+            if _EXTERNAL_REQUIREMENT_PREFIX.search(local_prefix):
                 continue
             if _POST_RELATION_PROHIBITION.search(clause[match.end() :]):
                 continue
             return match.group("relation").strip()
     return None
+
+
+def _local_predicate_prefix(prefix: str) -> str:
+    """Return the prefix owned by the current coordinated predicate.
+
+    ``and``/``but`` delimit a new coordinated predicate for the narrow purposes of the
+    polarity/requirement guard. Strong punctuation is already split by the shared HTML
+    clause renderer; the final segment is enough to distinguish ``requires X that
+    includes...`` from ``requires no drilling and includes...``.
+    """
+
+    parts = re.split(r"\b(?:and|but)\b", prefix, flags=re.I)
+    return parts[-1].strip(" ,")
 
 
 def _anchor_d_ring_claims(
