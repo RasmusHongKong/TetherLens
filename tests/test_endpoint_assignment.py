@@ -15,6 +15,7 @@ from tetherlens_ingest.connection import (
     TetherSide,
 )
 from tetherlens_ingest.endpoint_assignment import (
+    EndpointAssignmentBasis,
     EndpointAssignmentSemantics,
     TetherEndpointAssignmentDeclaration,
     resolve_tether_endpoint_assignment_declarations,
@@ -32,10 +33,12 @@ def assignment_claims(
     *,
     declaration_id: str = "assignment:reversible-pair",
     members: tuple[str, ...] = ("end_a", "end_b"),
+    basis: str = "manufacturer_declared",
 ) -> list[CandidateClaim]:
     values = [
         *[("endpoint_assignment.member_ref", member) for member in members],
         ("endpoint_assignment.semantics", "reversible_tool_anchor_pair"),
+        ("endpoint_assignment.basis", basis),
         ("endpoint_assignment.issuer_manufacturer", "Example Manufacturer"),
         ("endpoint_assignment.scope", "Either tether end may serve tool or anchor side"),
     ]
@@ -125,7 +128,7 @@ def anchor() -> AnchorPathOption:
     )
 
 
-def test_resolver_retains_relation_members_owner_and_source_provenance():
+def test_resolver_retains_relation_members_owner_basis_and_source_provenance():
     resolved = resolve_tether_endpoint_assignment_declarations(
         assignment_claims(),
         tether_ref=TETHER_REF,
@@ -137,6 +140,7 @@ def test_resolver_retains_relation_members_owner_and_source_provenance():
     assert out.tether_ref == TETHER_REF
     assert out.endpoint_refs == ["end_a", "end_b"]
     assert out.semantics == EndpointAssignmentSemantics.REVERSIBLE_TOOL_ANCHOR_PAIR
+    assert out.basis == EndpointAssignmentBasis.MANUFACTURER_DECLARED
     assert out.issuer_manufacturer == "Example Manufacturer"
     assert out.scope == "Either tether end may serve tool or anchor side"
     assert out.source_urls == sorted([SOURCE_URL, SUPPORTING_URL])
@@ -152,6 +156,14 @@ def test_resolver_requires_exactly_two_distinct_members():
     with pytest.raises(ValueError, match="exactly two distinct endpoint members"):
         resolve_tether_endpoint_assignment_declarations(
             assignment_claims(members=("end_a", "end_b", "end_c")),
+            tether_ref=TETHER_REF,
+        )
+
+
+def test_resolver_rejects_unsupported_assignment_basis():
+    with pytest.raises(ValueError, match="unsupported endpoint assignment basis"):
+        resolve_tether_endpoint_assignment_declarations(
+            assignment_claims(basis="hardware_looks_symmetric"),
             tether_ref=TETHER_REF,
         )
 
@@ -181,6 +193,7 @@ def test_reversible_declaration_generates_both_orientations_without_promoting_ro
         assert len(candidate.selection.endpoint_assignment_proofs) == 1
         proof = candidate.selection.endpoint_assignment_proofs[0]
         assert proof.declaration_id == "assignment:reversible-pair"
+        assert proof.basis == EndpointAssignmentBasis.MANUFACTURER_DECLARED
         assert proof.source_urls == sorted([SOURCE_URL, SUPPORTING_URL])
 
 

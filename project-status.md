@@ -8,7 +8,7 @@ For durable design details, use the dedicated documents including `product-visio
 
 ## Current development line
 
-The current development line through PR #45 includes:
+The current development line through PR #46 includes:
 
 - PR #17 — Batch 2 blind NLG holdout and post-blind evaluation path;
 - PR #18 — explicit tether endpoint topology;
@@ -37,8 +37,9 @@ The current development line through PR #45 includes:
 - PR #41 — explicit environmental contextual feasibility using accepted `prohibited_exposure` constraints;
 - PR #42 — evidence-backed Quick Clip mechanism semantics, preserving `clip` while recording `opening_mechanism = trigger_operated` without gated-family promotion;
 - PR #43 — evidence-backed cinch-loop mechanism and bounded `cinch_loop_to_closed_interface.v1` runtime verification;
-- PR #44 — reusable manufacturer-declared connector/interface compatibility claims and candidate-context binding, with the first bounded NLG Quick Clip -> D-ring anchor declaration; and
-- PR #45 — evidence-backed reversible tether endpoint assignment using a separate tether-owned relation, preserving `TetherSide.UNKNOWN`, candidate identity and declaration provenance without inferring direction from symmetric hardware.
+- PR #44 — reusable manufacturer-declared connector/interface compatibility claims and candidate-context binding, with the first bounded NLG Quick Clip -> D-ring anchor declaration;
+- PR #45 — evidence-backed reversible tether endpoint assignment using a separate tether-owned relation, preserving `TetherSide.UNKNOWN`, candidate identity and declaration provenance without inferring direction from symmetric hardware; and
+- PR #46 — explicit endpoint-assignment basis provenance plus the first bounded production `derived_endpoint_equivalence` extraction for an NLG dual-Quick-Clip tether when first-party endpoint-construction equivalence and undifferentiated tool-to-anchor use are both established.
 
 PR #16 remains closed unmerged; its useful catalogue-discovery/scoring work was carried forward through PR #19 and its older topology semantics should not be revived.
 
@@ -60,11 +61,24 @@ UNKNOWN              -> not assigned from endpoint role alone
 
 `TetherSide.UNKNOWN` must not be promoted to `either` from connector symmetry or missing contrary evidence.
 
-PR #45 adds a separate evidence-backed assignment relation for the bounded case where accepted manufacturer evidence establishes that exactly two named tether endpoints form a reversible tool/anchor pair. A valid `reversible_tool_anchor_pair` declaration may authorize both physical orientations only when both covered endpoints still have `TetherSide.UNKNOWN`.
+PR #45 adds a separate assignment relation for the bounded case where accepted evidence establishes that exactly two named tether endpoints form a reversible tool/anchor pair. A valid `reversible_tool_anchor_pair` declaration may authorize both physical orientations only when both covered endpoints still have `TetherSide.UNKNOWN`.
 
-The relation does not mutate either endpoint role, does not override fixed or partially known role evidence, and does not establish connector/interface compatibility. Assignment declarations are tether-owned so repeated local endpoint IDs cannot leak authorization across products. Generated candidates retain declaration provenance separately from canonical candidate identity; rehydration requires the retained selection proofs to match the operative declarations exactly.
+PR #46 makes the provenance basis explicit:
 
-See `endpoint-assignment-semantics.md` for the full v1 evidence threshold and non-goals.
+```text
+manufacturer_declared
+derived_endpoint_equivalence
+```
+
+`manufacturer_declared` means the manufacturer directly establishes reversibility/interchangeability. `derived_endpoint_equivalence` means TetherLens derives the same bounded assignment relation from a conjunction of accepted first-party facts. The first production derivation is deliberately limited to the NLG Quick Clip evidence pattern where the same named Quick Clip construction is affirmatively established at each/both end, tool-to-anchor tether use is established, both endpoint roles remain unknown, and no directional/mixed-connector evidence exists.
+
+The derived route does **not** make any single weak clue sufficient. `dual` / `double` / `twin` naming, shared normalized `ConnectorSpec`, connectors at both ends, one-to-tool/one-to-anchor wording, or absence of directional wording remain insufficient by themselves.
+
+The relation does not mutate either endpoint role, does not override fixed or partially known role evidence, and does not establish connector/interface compatibility. Assignment declarations are tether-owned so repeated local endpoint IDs cannot leak authorization across products. Generated candidates retain declaration basis and provenance separately from canonical candidate identity; rehydration requires the retained selection proofs to match the operative declarations exactly.
+
+Endpoint assignment is a **configuration-validity constraint rather than a product-ranking attribute**. For product selection, one manufacturer-permitted orientation that produces a viable tool-side connection and a viable anchor-side connection is sufficient. A reversible pair does not make a tether preferable merely because both orientations are allowed. Reversible orientations remain separate internally through endpoint-to-target evaluation and provenance checks, but equivalent orientations should not surface as duplicate user-facing product recommendations solely because the physical ends can be swapped.
+
+See `endpoint-assignment-semantics.md` for the full v1 evidence threshold, production rule, selection significance and evidence findings.
 
 ### Hard candidate evaluation
 
@@ -105,6 +119,8 @@ Global selector exhaustion therefore remains safe only at the complete run bound
 `recommendation_session.py` and `recommendation_session_adapter.py` resolve already-pending runtime verifications/pre-use actions without regenerating, re-evaluating, or re-ranking survivors.
 
 Session outcomes remain candidate/configuration evidence. They never become persistent catalogue compatibility claims.
+
+A worker is expected to have the Tool, but candidate tether products may not yet be physically present during recommendation. Runtime inspection of a candidate tether therefore must not be required to establish catalogue endpoint assignment needed for recommendation. Pre-use checks may validate installation/use conditions after selection, but they do not rescue missing catalogue assignment semantics.
 
 ## Current connection-compatibility families
 
@@ -152,7 +168,7 @@ target ring_form = d_ring
 issuer = NLG
 ```
 
-The new `connection_compatibility` claim subject retains the declaration primitives and source provenance. `resolve_connector_interface_compatibility_declarations()` resolves them into reusable declarations, and `connection_contexts_from_compatibility_declarations()` binds them to concrete endpoint/target pairs only when the primitives match.
+The `connection_compatibility` claim subject retains the declaration primitives and source provenance. `resolve_connector_interface_compatibility_declarations()` resolves them into reusable declarations, and `connection_contexts_from_compatibility_declarations()` binds them to concrete endpoint/target pairs only when the primitives match.
 
 The resulting candidate context reuses the existing `ConnectionManufacturerAssessment(position = explicitly_compatible)` and normal `manufacturer_declared` precedence path. No new Quick Clip hard evaluator is introduced.
 
@@ -203,15 +219,26 @@ reversible_tool_anchor_pair
 
 V1 requires exactly two distinct endpoint references owned by the same tether. It applies only when both individual endpoint roles remain `UNKNOWN`, and permits the two oriented candidate assignments without rewriting either endpoint to `EITHER`.
 
-The declaration retains issuer, scope and source URLs. `CandidateConfiguration` retains the selected `tether_ref` so authorization cannot leak across tethers with repeated local endpoint IDs. `GeneratedCandidate` requires the selection-level `EndpointAssignmentProof` values to be the exact deterministic projection of the operative declarations.
+The declaration retains assignment basis, issuer, scope and source URLs. `CandidateConfiguration` retains the selected `tether_ref` so authorization cannot leak across tethers with repeated local endpoint IDs. `GeneratedCandidate` requires the selection-level `EndpointAssignmentProof` values — including basis — to be the exact deterministic projection of the operative declarations.
 
-The relation is not a compatibility basis, ranking preference or SKU-pair rule. Identical hardware, shared connector specs, `dual`/`double` naming, connectors at each end, or absence of a stated difference remain insufficient evidence of reversibility.
+The derived-equivalence threshold is conjunctive: affirmative same-construction endpoint evidence plus undifferentiated tool-to-anchor pair use, with explicit directional/different-end evidence acting as a veto. A shared generic connector description or manufacturer silence is not positive proof. Negated pair-use wording cannot satisfy the positive-use requirement, and separately designated connectors assigned to opposite sides are directional evidence rather than reversible evidence.
+
+The relation is not a compatibility basis, ranking preference or SKU-pair rule.
+
+### Representative endpoint-assignment evidence findings
+
+- **NLG 101434:** first production positive for the bounded Quick Clip derived-equivalence rule. Current first-party copy establishes `360° Quick Clip™ connectors at each end` together with tool-to-anchor tether use.
+- **NLG 101519:** promising future evidence case; same-construction carabiner wording is available, while the strongest pair-use evidence reviewed is in a datasheet not yet part of ordinary NLG primary-page ingestion.
+- **Hilti 2261970:** remains unknown. Double-carabiner topology and one/second-carabiner use wording do not independently establish the same connector construction at both ends.
+- **StopDrop SDCOIL32:** remains unknown. `2 locking screwgate carabiner` establishes multiplicity/mechanism family but not the full equivalence-plus-pair-use conjunction.
+- **NLG 101756:** strong negative control. First-party evidence explicitly distinguishes an integral anchor/belt carabiner from a tool-side Rotobiner; directional evidence wins and prevents symmetry-derived widening.
 
 ## Provenance principles currently in force
 
 - manufacturer wording and URLs stay attached to atomic claims;
 - accepted declared compatibility retains issuer and scope;
-- accepted endpoint-assignment relations retain owner, issuer, scope and source URLs;
+- accepted endpoint-assignment relations retain owner, assignment basis, issuer, scope and source URLs;
+- derived endpoint assignment must remain visibly derived rather than being represented as a manufacturer declaration;
 - candidate generation retains selected component, feature, endpoint, target and owner identity;
 - selection-level endpoint-assignment proofs must exactly match the operative configuration declarations;
 - ranking retains the original `GeneratedCandidate` and `CandidateEvaluation` rather than reconstructing provenance from IDs;
@@ -241,19 +268,20 @@ It must not rewrite the original global selector result.
 
 ## Benchmark state
 
-The supply-side ingestion/readiness benchmark remains healthy through PR #45:
+The latest fully validated supply-side ingestion/readiness benchmark is the hardened PR #46 ingestion-live-smoke run (workflow run **34121871239**):
 
+- unit tests: **399 passed**;
 - Batch 1 live acquisition: **12/12 products**;
 - Batch 1 extraction: **54 TP / 0 FP / 0 FN**;
 - Batch 1 micro precision/recall: **1.0 / 1.0**;
 - Batch 1 recommendation-data coverage: **27/29 requirements**, with the two remaining requirements classified as existing `source_blocked` cases;
 - fresh Batch 2 post-blind acquisition: **8/8 products**;
-- fresh Batch 2 extraction: **87 TP / 0 FP / 0 FN**;
+- fresh Batch 2 extraction: **94 TP / 0 FP / 0 FN**;
 - fresh Batch 2 micro precision/recall: **1.0 / 1.0**;
-- fresh Batch 2 recommendation-data coverage: **44/44 requirements**, **8/8 products complete**; and
+- fresh Batch 2 recommendation-data coverage: **46/46 requirements**, **8/8 products complete**; and
 - the immutable Batch 2 blind artifact remains unchanged as the historical pre-fix baseline.
 
-PR #44 introduced focused executable coverage for product 101456 evidence but did not add that product to the existing Batch 1/Batch 2 goldens. PR #45 adds focused downstream endpoint-assignment and provenance-hardening tests without changing the supply-side goldens. The complete ingestion-live-smoke workflow remains green on the PR #45 head.
+The hardened PR #46 live run confirms that the current first-party NLG 101434 page satisfies the bounded derived-equivalence extractor, that explicit negated/directional regression cases remain fail-closed, and that the updated post-blind golden scores without unexpected or forbidden claims. The immutable blind artifact remains unchanged.
 
 The catalogue benchmark remains primarily a supply-side ingestion/recommendation-readiness benchmark. Candidate generation/evaluation/selection/session/context behavior is still covered mainly by focused executable tests; there is not yet a separate end-to-end golden recommendation benchmark.
 
@@ -268,29 +296,27 @@ The existing Batch 2 evidence gaps remain explicit:
 | NLG 101756 | Heavy Duty Retractable Lanyard, Double Carabiner | `public_fact_ambiguous` | connector locking mode not established as manual vs automatic |
 | NLG 101520 | Ascent™ Pouch | `public_fact_not_established` | external daisy-chain presence is established, but an individual loop/site count is not publicly established |
 
-The former symmetric-endpoint model gap is now closed at the reusable runtime level. The remaining gap is evidentiary/ingestion-specific: representative symmetric-looking tethers may still have two physically similar endpoints with no accepted first-party evidence explicitly establishing reversibility. Those products must continue to fail closed rather than being promoted from symmetry alone.
+The reusable symmetric-endpoint model gap is closed, and PR #46 adds the first production evidence-derived assignment case. Broader symmetric-looking dual-ended products remain an evidence problem rather than a reason to weaken endpoint roles globally: each future derivation must clear an evidence pattern strong enough to establish the same endpoint construction plus undifferentiated pair use.
 
 ## Next highest-value workstreams
 
-### 1. Find production-grade reversible-endpoint evidence before adding extraction
-
-PR #45 deliberately introduces no production manufacturer extractor. The next endpoint-assignment step should inspect first-party instructions/datasheets for representative dual-Quick-Clip and dual-carabiner tethers and look specifically for wording that unambiguously establishes reversibility, interchangeability, non-directionality, `either end`, or an equivalent relationship.
-
-Only if that evidence clears the threshold in `endpoint-assignment-semantics.md` should ingestion emit `tether_endpoint_assignment` claims. Pair-use wording such as one connector to the tool and one to the anchor, identical connector hardware, shared `ConnectorSpec`, or `dual` / `double` naming remains insufficient by itself.
-
-A first production extractor should stay narrow, local and provenance-preserving, with negative cases for merely symmetric wording.
-
-### 2. Target-interface form enrichment where it unlocks recurring paths
+### 1. Target-interface form enrichment where it unlocks recurring paths
 
 PR #44 requires an explicit target `ring_form = d_ring` before the Quick Clip declaration can bind. Existing generic `ring` evidence must not be silently upgraded.
 
 Future ingestion work should add D-ring form claims only where first-party wording/geometry is directly bound to the concrete target interface. Prioritize this when it unlocks recurring real anchor paths rather than adding broad taxonomy for its own sake.
 
-### 3. End-to-end recommendation benchmark coverage
+### 2. End-to-end recommendation benchmark coverage
 
-The current supply-side goldens can mark a product recommendation-data complete even when downstream role/assignment semantics still prevent candidate generation.
+The current supply-side goldens can mark a product recommendation-data complete even when downstream role/assignment/compatibility semantics still prevent candidate selection.
 
 A future benchmark layer should therefore exercise a small representative set from accepted claims/resolved facts through candidate generation, hard evaluation and selection. It should remain separate from the immutable Batch 2 blind artifact and should avoid golden SKU-pair recommendations.
+
+### 3. Extend derived endpoint equivalence only from recurring evidence patterns
+
+NLG 101519 is a useful next evidence candidate if/when first-party datasheet acquisition becomes part of the normal NLG source graph. Generic dual-carabiner derivation should not be introduced merely because most products are expected to be symmetric.
+
+Any additional production family should first establish a repeatable first-party pattern for same endpoint construction and tool-to-anchor pair use, with directional/mixed-end evidence as a hard veto.
 
 ### 4. Selective geometry/evidence work
 
@@ -304,7 +330,10 @@ Do not build a general CAD model.
 - no inferred compatibility from interface names alone;
 - no promotion of `UNKNOWN` endpoint role to `EITHER` without explicit role evidence;
 - endpoint-pair assignment evidence must remain separate from individual endpoint role evidence;
-- identical hardware or connector symmetry must not be treated as interchangeability evidence;
+- assignment provenance must distinguish manufacturer declaration from TetherLens derivation;
+- no reversible assignment from `dual` / `double` / `twin`, a shared normalized connector spec, pair-use wording or manufacturer silence alone;
+- endpoint assignment is a configuration-validity constraint, not a ranking preference; one viable permitted orientation is sufficient for product selection, and equivalent reversible orientations should not become duplicate user-facing product recommendations;
+- catalogue assignment required for recommendation must not depend on physical inspection of a tether the worker may not possess;
 - keep manufacturer scope, technical fit, installation constraints, policy, context, ranking and session outcomes separate;
 - hard candidate viability remains owned exclusively by `CandidateEvaluation`;
 - contextual feasibility/ranking must never rescue a hard-blocked candidate;
@@ -319,6 +348,6 @@ Do not build a general CAD model.
 - preserve the immutable Batch 2 blind artifact and use fresh post-blind evaluation for regression checking; and
 - prefer small reusable evidence primitives over broad vocabularies introduced without a concrete decision need.
 
-## Suggested fresh-chat starting point after PR #45
+## Suggested fresh-chat starting point after PR #46
 
-> Continue TetherLens from merged `main` after PR #45. Inspect the new endpoint-assignment declaration model together with representative first-party dual-Quick-Clip and dual-carabiner instructions/datasheets. Determine whether any manufacturer evidence explicitly clears the `reversible_tool_anchor_pair` threshold strongly enough for a first narrow production extractor. Do not infer interchangeability from identical hardware, `dual` / `double` naming, connectors at each end, or pair-use wording alone. If no evidence clears the threshold, leave production extraction absent and recommend the next highest-value downstream gap instead.
+> Continue TetherLens from merged `main` after PR #46. Start with the next highest-value downstream gap: target-interface form enrichment where it can unlock existing manufacturer-declared Quick Clip -> D-ring compatibility. Inspect current generic ring interfaces, the `ring_form = d_ring` binding requirement from PR #44, representative first-party anchor/container evidence and benchmark gaps. Define the smallest evidence-backed D-ring form extraction/resolution slice without upgrading generic rings, inferring geometry from names alone, or introducing SKU-pair compatibility logic.
