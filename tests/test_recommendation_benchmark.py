@@ -22,9 +22,20 @@ from tetherlens_ingest.recommendation_run import RecommendationRunResult, run_re
 from tetherlens_ingest.resolution import resolve_connection_interfaces
 
 
-GOLDEN_PATH = Path("benchmarks/recommendation_e2e_golden.json")
+GOLDEN_PATH = (
+    Path(__file__).resolve().parents[1] / "benchmarks" / "recommendation_e2e_golden.json"
+)
 DECLARATION_URL = "https://go.neverletgo.com/hubfs/Product/Datasheet/101456.pdf"
 ANCHOR_URL = "https://neverletgo.com/products/wristband/"
+PROHIBITED_GOLDEN_IDENTITY_KEYS = {"id", "ids", "ref", "refs", "sku", "skus"}
+PROHIBITED_GOLDEN_IDENTITY_SUFFIXES = (
+    "_id",
+    "_ids",
+    "_ref",
+    "_refs",
+    "_sku",
+    "_skus",
+)
 
 
 def _accepted_claim(
@@ -277,6 +288,20 @@ def _load_golden() -> dict:
     return json.loads(GOLDEN_PATH.read_text(encoding="utf-8"))
 
 
+def _mapping_keys(value) -> set[str]:
+    if isinstance(value, dict):
+        keys = set(value)
+        for nested in value.values():
+            keys.update(_mapping_keys(nested))
+        return keys
+    if isinstance(value, list):
+        keys: set[str] = set()
+        for nested in value:
+            keys.update(_mapping_keys(nested))
+        return keys
+    return set()
+
+
 def _assert_complete_provenance(result: RecommendationRunResult) -> None:
     generated_ids = {
         candidate.configuration.candidate_id for candidate in result.generated_candidates
@@ -335,15 +360,14 @@ def _selection_summary(result: RecommendationRunResult) -> dict:
 
 
 def test_recommendation_golden_is_semantic_answer_key_not_product_configuration():
-    text = GOLDEN_PATH.read_text(encoding="utf-8")
-    for forbidden_key in (
-        '"candidate_id"',
-        '"tool_ref"',
-        '"tether_ref"',
-        '"anchor_path_ref"',
-        '"sku"',
-    ):
-        assert forbidden_key not in text
+    keys = _mapping_keys(_load_golden())
+    prohibited = {
+        key
+        for key in keys
+        if key in PROHIBITED_GOLDEN_IDENTITY_KEYS
+        or key.endswith(PROHIBITED_GOLDEN_IDENTITY_SUFFIXES)
+    }
+    assert prohibited == set()
 
 
 def test_manufacturer_declared_path_ranks_end_to_end_from_accepted_evidence():
