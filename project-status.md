@@ -315,7 +315,7 @@ It must not rewrite the original global selector result.
 
 ## Benchmark state
 
-The latest complete validation is PR #49 workflow run **34231166525** on executable head `49e4ab421e67ef2e5134f99650073447b375b951`. The complete `Ingestion live smoke` workflow passed:
+The latest complete executable validation for PR #49 is workflow run **34231166525** on head `49e4ab421e67ef2e5134f99650073447b375b951`. The complete `Ingestion live smoke` workflow passed:
 
 - unit test suite: **418 passed**;
 - Batch 1 live acquisition: **12/12 products**;
