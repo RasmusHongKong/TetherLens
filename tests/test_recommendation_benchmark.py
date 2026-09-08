@@ -552,9 +552,9 @@ def _tool_attachment_summary(
             for evaluation in product_constraints
         ),
         "selected_tool_target_role": configuration.tool_side_connection.target_role.value,
-        "selected_component_roles": [
-            component.role.value for component in selection.components
-        ],
+        "selected_component_role_set": sorted(
+            {component.role.value for component in selection.components}
+        ),
     }
 
 
