@@ -44,7 +44,7 @@ It may contain expected semantic outcomes such as:
 - recommendation state;
 - pending-condition counts;
 - connection status and compatibility basis;
-- blocked-check type/status expectations; and
+- blocked-check type/status expectations associated with semantic scenario roles; and
 - retained evidence issuer where provenance itself is part of the contract.
 
 It must not contain runtime product configuration such as:
@@ -54,7 +54,9 @@ It must not contain runtime product configuration such as:
 - canonical candidate IDs; or
 - product-specific compatibility lookup rules.
 
-The executable fixtures are constructed independently of the golden. A dedicated regression asserts that product/candidate identity fields do not enter the golden answer key.
+The executable fixtures are constructed independently of the golden. A dedicated regression recursively inspects the parsed answer key and rejects identity-shaped keys such as `*_id`, `*_ref`, and `*_sku` forms so runtime product/candidate identity cannot drift into the golden contract.
+
+Semantic scenario-role labels such as `under_capacity` are allowed because they describe the expected reason an alternative is blocked without identifying a real product or runtime candidate.
 
 ## Initial v1 scenarios
 
@@ -96,7 +98,9 @@ Only then may the complete run conclude:
 selection.state = no_suitable_recommendation
 ```
 
-The golden therefore records non-empty generation, exact evaluation count, zero ranked selectable candidates, two blocked candidates, and the presence of both hard failure semantics.
+The golden therefore records non-empty generation, exact evaluation count, zero ranked selectable candidates and two blocked candidates. It associates `load_capacity / failed` with the semantic `under_capacity` role and `connection_compatibility / unresolved` with the `unresolved_tool_connection` role.
+
+The executable fixture binds those roles to the two generic candidates locally and asserts that each candidate's complete blocking-status set is exactly the expected singleton. A flattened union of blockers across the candidate set is not sufficient.
 
 This case must remain distinct from `no_generated_candidates`.
 
