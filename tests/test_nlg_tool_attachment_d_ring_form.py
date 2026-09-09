@@ -90,6 +90,26 @@ def test_generic_ring_and_d_ring_product_name_do_not_invent_d_ring_form():
     assert resolve_connection_interfaces(claims) == []
 
 
+def test_plural_d_rings_do_not_enrich_legacy_singular_interface_subject():
+    claims = NLGAdapter().extract(
+        identity(),
+        [artifact("<p>A secure tether point with D Rings.</p>")],
+    )
+
+    physical_claims = [
+        claim
+        for claim in claims
+        if claim.subject_type == ClaimSubjectType.PHYSICAL_INTERFACE
+        and claim.subject_ref == "tether_side_ring"
+    ]
+    by_key = {claim.property_key: claim for claim in physical_claims}
+
+    # The upstream topology behavior is deliberately left unchanged in this slice.
+    assert by_key["interface.role"].value == "tool_attachment_tether_side"
+    assert by_key["interface.type"].value == "ring"
+    assert "interface.attribute.ring_form" not in by_key
+
+
 def test_tool_attachment_d_ring_form_does_not_create_compatibility_basis():
     target = resolve_connection_interfaces(d_ring_claims())[0]
     endpoint = ConnectionInterface(
