@@ -83,7 +83,7 @@ class NLGAdapter(BaseNLGAdapter):
             return claims
 
         for artifact in artifacts:
-            claims.extend(_carabiner_endpoint_assignment_claims(artifact, claims))
+            claims.extend(_carabiner_endpoint_assignment_claims(identity, artifact, claims))
         return _dedupe_claims(claims)
 
 
@@ -106,6 +106,11 @@ def _looks_like_dual_carabiner_assignment_candidate(text: str) -> bool:
     return True
 
 
+def _is_allowed_nlg_url(url: str) -> bool:
+    host = (urlparse(url).hostname or "").casefold()
+    return host in _ALLOWED_NLG_HOSTS
+
+
 def _first_party_datasheet_url(source_artifact: SourceArtifact) -> str | None:
     """Return one explicitly labelled first-party PDF datasheet link from the page."""
 
@@ -117,8 +122,7 @@ def _first_party_datasheet_url(source_artifact: SourceArtifact) -> str | None:
 
         url = urljoin(source_artifact.url, str(anchor["href"]))
         parsed = urlparse(url)
-        host = (parsed.hostname or "").casefold()
-        if host not in _ALLOWED_NLG_HOSTS:
+        if not _is_allowed_nlg_url(url):
             continue
         if not parsed.path.casefold().endswith(".pdf"):
             continue
@@ -126,11 +130,48 @@ def _first_party_datasheet_url(source_artifact: SourceArtifact) -> str | None:
     return None
 
 
+def _identity_bound_first_party_datasheet(
+    identity: ProductIdentity,
+    artifact: SourceArtifact,
+) -> bool:
+    """Require the fetched artifact itself to remain first-party and product-bound."""
+
+    if artifact.source_type != SourceType.MANUFACTURER_DOCUMENT:
+        return False
+    if artifact.metadata.get("role") != "product_datasheet":
+        return False
+    if artifact.metadata.get("relationship_basis") != "first_party_product_download":
+        return False
+    if not _is_allowed_nlg_url(artifact.url):
+        return False
+    if artifact.content_type.casefold() != "application/pdf":
+        return False
+
+    sku = (identity.sku or "").strip()
+    if not sku:
+        return False
+
+    text = re.sub(r"\s+", " ", page_text(artifact.body))
+    escaped_sku = re.escape(sku)
+    return bool(
+        re.search(
+            rf"\b(?:product\s*(?:code|id)|sku|item\s*(?:code|number))\b"
+            rf".{{0,30}}(?<!\w){escaped_sku}(?!\w)",
+            text,
+            re.I,
+        )
+    )
+
+
 def _carabiner_endpoint_assignment_claims(
+    identity: ProductIdentity,
     artifact: SourceArtifact,
     claims: list[CandidateClaim],
 ) -> list[CandidateClaim]:
     """Derive a reversible pair only from one fully sufficient first-party artifact."""
+
+    if not _identity_bound_first_party_datasheet(identity, artifact):
+        return []
 
     endpoint_claims = [
         claim
@@ -171,7 +212,7 @@ def _carabiner_endpoint_assignment_claims(
         return []
 
     text = page_text(artifact.body)
-    equivalent_match = _collective_double_action_pair(text)
+    equivalent_match = _affirmative_collective_double_action_pair(text)
     if equivalent_match is None:
         return []
 
@@ -213,18 +254,56 @@ def _carabiner_endpoint_assignment_claims(
     ]
 
 
-def _collective_double_action_pair(text: str) -> str | None:
-    """Require a shared action construction on the plural pair, not just multiplicity."""
+def _affirmative_collective_double_action_pair(text: str) -> str | None:
+    """Require affirmative, product-local shared construction on the plural pair."""
 
     pattern = re.compile(
         r"\b(?:dual|twin|two)\s+(?:[\w™®-]+\s+){0,3}"
         r"double[-\s]?action\s+carabiners?\b",
         re.I,
     )
+    negated_prefix = re.compile(
+        r"\b(?:no|not|never|neither|without|does\s+not|doesn't|do\s+not|don't|"
+        r"is\s+not|isn't|are\s+not|aren't)\b[^.;:]{0,70}$",
+        re.I,
+    )
+    comparative_context = re.compile(
+        r"\b(?:unlike|whereas|compared\s+(?:to|with)|in\s+contrast\s+to)\b"
+        r"|\b(?:another|other|previous|earlier|competitor(?:'s)?)\s+"
+        r"(?:product|model|lanyard|tether)\b",
+        re.I,
+    )
+
     for fragment in _evidence_fragments(text):
-        if match := pattern.search(fragment):
+        for match in pattern.finditer(fragment):
+            prefix = fragment[max(0, match.start() - 100):match.start()]
+            context = fragment[
+                max(0, match.start() - 120):min(len(fragment), match.end() + 120)
+            ]
+            if negated_prefix.search(prefix):
+                continue
+            if comparative_context.search(context):
+                continue
             return match.group(0)
     return None
+
+
+def _has_distinguished_carabiner_assignment(fragment: str) -> bool:
+    """Detect two locally distinguished carabiners assigned to opposite roles."""
+
+    roles: set[str] = set()
+    clauses = re.split(r"\s*(?:;|,|\band\b|\bwhile\b|\bwhereas\b)\s*", fragment, flags=re.I)
+    for clause in clauses:
+        if not re.search(r"\bcarabiners?\b", clause, re.I):
+            continue
+        tool = bool(re.search(r"\btool\b", clause, re.I))
+        anchor = bool(re.search(r"\banchor(?:\s+point)?\b", clause, re.I))
+        if tool == anchor:
+            continue
+        if not re.search(r"\b(?:attach\w*|connect\w*|to|for|used\s+on)\b", clause, re.I):
+            continue
+        roles.add("tool" if tool else "anchor")
+    return roles == {"tool", "anchor"}
 
 
 def _has_obvious_directional_split(text: str) -> bool:
@@ -254,6 +333,8 @@ def _has_obvious_directional_split(text: str) -> bool:
         if endpoint_label.search(fragment):
             return True
         if any(pattern.search(fragment) for pattern in one_other_pair):
+            return True
+        if _has_distinguished_carabiner_assignment(fragment):
             return True
 
     # Preserve the established 101756-style mixed/directional construction veto.
