@@ -106,7 +106,9 @@ The following remain insufficient by themselves:
 
 Those facts may identify a symmetric-looking product or support another part of the conjunction, but none alone establishes reversible assignment.
 
-## First production derivation: NLG Quick Clip pair
+## Production derivations
+
+### NLG Quick Clip pair
 
 The first production rule is deliberately narrower than the general conceptual threshold.
 
@@ -123,6 +125,32 @@ A prohibition such as `never attach tools to anchor points` cannot satisfy the p
 This rule is not SKU-specific. NLG 101434 is the first known positive catalogue case because its current first-party product wording establishes both tool-to-anchor use and `360° Quick Clip™ connectors at each end`.
 
 The extractor intentionally does **not** derive assignment from `dual Quick Clips` plus tool/anchor pair-use wording alone.
+
+### NLG collective double-action carabiner pair
+
+PR #51 adds a second production evidence family without changing the reusable relation or candidate-generation semantics.
+
+The source graph is deliberately decision-bound. It does **not** crawl NLG datasheets generally. A first-party product-page datasheet may be followed only when the primary product evidence already identifies a symmetric-looking dual/twin/double carabiner tether candidate and does not itself establish an obvious directional split or mixed named connector construction. The link must be explicitly labelled `Datasheet`, and the requested document must be an NLG-hosted PDF.
+
+Trust is revalidated on the fetched artifact rather than inherited from the request. After redirects, the final artifact URL must still be on an allowed NLG host, the artifact must retain the purpose-scoped product-datasheet relationship, and an explicit Product Code/SKU in the document must match the current product identity. A document that fails those checks is rejected before inherited NLG extraction, so a wrong-product or redirected external PDF cannot contribute unrelated catalogue claims merely because it was reached through a trusted product page.
+
+The trusted datasheet may then emit the existing `derived_endpoint_equivalence` / `reversible_tool_anchor_pair` relation only when one artifact itself establishes the full conjunction:
+
+- exactly two unresolved tether endpoints;
+- both endpoints remain concrete `carabiner` interfaces bound to the existing `tether_connector` connector-spec subject;
+- an affirmative, product-local collective construction phrase equivalent to `dual/twin/two ... double-action carabiners`, rather than multiplicity wording alone;
+- affirmative undifferentiated tool-to-anchor pair use expressed as an actual attachment/connection relationship, not mere co-occurrence of `tool` and `anchor` terms; and
+- no endpoint labels, one/other or first/second side assignments, Rotobiner/Quick Clip/snap-hook/loop split, or other evidence that distinguishes the two ends.
+
+Polarity is part of both positive predicates. Construction wording negated before or after the phrase, comparison/other-product wording, and pair-use wording that is denied or prohibited cannot satisfy the conjunction. Separately distinguished carabiners assigned to opposite sides — regardless of whether the distinction is colour, size, position, or another descriptor — are directional evidence and veto derivation. That identity check is sentence-local: repeated references to the same undifferentiated plural carabiner construction do not become a false directional split merely because tool and anchor roles are mentioned in separate clauses.
+
+The collective action construction is intentionally required. `dual carabiners`, `twin carabiners`, a shared `ConnectorSpec`, generic pair-use wording, or tool/anchor keyword co-occurrence remain insufficient separately or in weaker combinations. Product names may identify the source-graph candidate but cannot establish the assignment relation.
+
+NLG 101519 is the first positive case. Its primary page identifies the Twin Carabiner product and a dual double-action carabiner pair, while the first-party datasheet states that the dual double-action carabiners provide attachment to the tool and anchor point. The resulting relation keeps `connection_point_1` and `connection_point_2` as concrete endpoint identities with `TetherSide.UNKNOWN`; it authorizes the two bounded orientations without rewriting either endpoint to `either`.
+
+NLG 101756 remains a hard negative control. Its first-party evidence distinguishes an integral belt/anchor carabiner from the tool-side Rotobiner, so the directional/mixed-construction evidence prevents both decision-bound datasheet traversal for equivalence and any reversible assignment derivation.
+
+This new evidence family remains assignment-only. It does not establish that either carabiner can engage a particular D-ring, ToolAttachment interface, anchor, container interface, handle or tool point. Those connections still require their ordinary independent compatibility basis.
 
 ## Candidate-generation semantics
 
@@ -216,7 +244,7 @@ V1 deliberately does not introduce:
 - automatic `UNKNOWN -> EITHER` promotion;
 - a blanket `dual/double/twin -> reversible` inference;
 - derivation from a shared normalized `ConnectorSpec` alone;
-- derived-equivalence rules for generic dual carabiners outside a proven first-party evidence pattern;
+- blanket derived-equivalence rules for generic dual carabiners outside a proven first-party evidence pattern;
 - assignment rules for three-or-more endpoint sets or branched tethers;
 - precedence rules that combine a reversible declaration with partially known endpoint roles;
 - SKU-pair recommendation logic;
@@ -227,12 +255,12 @@ Those should be added only when a concrete evidence-backed decision need require
 
 ## Representative evidence findings
 
-The first-party evidence review after PR #45 established a useful boundary:
+The first-party evidence review now establishes the following boundary:
 
-- **NLG 101434 — positive production case.** Current first-party copy establishes `360° Quick Clip™ connectors at each end` and that the tether connects tools to anchor points. This clears the narrow derived-equivalence conjunction without claiming that NLG literally said `either end`.
-- **NLG 101519 — promising future case.** First-party material describes the pair collectively as dual carabiners of the same construction, and the datasheet supplies tool/anchor pair-use evidence. The strongest conjunction currently depends on datasheet evidence not yet part of the ordinary NLG primary-page ingestion path, so no production rule is added for it in this slice.
+- **NLG 101434 — positive production case.** Current first-party copy establishes `360° Quick Clip™ connectors at each end` and that the tether connects tools to anchor points. This clears the narrow Quick Clip derived-equivalence conjunction without claiming that NLG literally said `either end`.
+- **NLG 101519 — positive production case through decision-bound datasheet evidence.** The product page identifies the symmetric-looking twin/dual double-action carabiner pair but does not itself supply the complete tool-to-anchor conjunction. The first-party datasheet supplies the missing pair-use evidence on the same collective double-action carabiner subject, allowing the existing derived relation to resolve without SKU-specific assignment logic.
 - **Hilti 2261970 — remains unknown.** Double-carabiner topology and one/second-carabiner use wording do not independently establish that both ends are the same connector construction.
-- **StopDrop SDCOIL32 — remains unknown.** `2 locking screwgate carabiner` establishes multiplicity and mechanism family, but the reviewed evidence does not establish the complete equivalence-plus-pair-use conjunction.
+- **StopDrop SDCOIL32 — remains unknown.** `2 locking screwgate carabiner` establishes multiplicity and mechanism family, but the reviewed evidence does not establish the complete equivalence-plus-pair-use conjunction under a production evidence family.
 - **NLG 101756 — strong negative control.** The product is marketed as double-carabiner but first-party evidence distinguishes an integral anchor/belt carabiner from a tool-side 360° Rotobiner. Explicit directional evidence wins and prevents any symmetry-derived widening.
 
-The practical conclusion is not that symmetric-looking tethers are assumed directional. Their assignment remains unknown until either direct reversible wording or the bounded evidence-derived equivalence conjunction establishes the relation.
+The practical conclusion is not that symmetric-looking tethers are assumed directional. Their assignment remains unknown until either direct reversible wording or one of the bounded evidence-derived equivalence conjunctions establishes the relation.

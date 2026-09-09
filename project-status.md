@@ -8,7 +8,7 @@ For durable design details, use the dedicated documents including `product-visio
 
 ## Current development line
 
-The current development line through PR #50 includes:
+The current development line through PR #51 includes:
 
 - PR #17 — Batch 2 blind NLG holdout and post-blind evaluation path;
 - PR #18 — explicit tether endpoint topology;
@@ -42,8 +42,9 @@ The current development line through PR #50 includes:
 - PR #46 — explicit endpoint-assignment basis provenance plus the first bounded production `derived_endpoint_equivalence` extraction for an NLG dual-Quick-Clip tether when first-party endpoint-construction equivalence and undifferentiated tool-to-anchor use are both established;
 - PR #47 — evidence-backed singular anchor-side D-ring form extraction for NLG AnchorAttachments, using `interface.attribute.ring_form = d_ring` on a concrete `anchor_attachment_tether_side` interface so the existing PR #44 Quick Clip declaration can bind without generic-ring promotion, geometry inference or SKU-pair logic;
 - PR #48 — the first semantic end-to-end recommendation golden, exercising accepted/resolved evidence through complete recommendation-run selection for a manufacturer-declared connection path and a non-empty globally exhausted path without golden SKU-pair or candidate-ID expectations;
-- PR #49 — ToolAttachment-mediated recommendation golden coverage, exercising accepted/resolved tool features, explicit selected-feature eligibility binding, normalized installation constraints, a ToolAttachment-provided tether interface, complete generation/hard evaluation and selection without production rule changes or golden product identity; and
-- PR #50 — evidence-backed ToolAttachment target-form enrichment, preserving `ring_form = d_ring` on an already-concrete `tool_attachment_tether_side` ring when the accepted local interface evidence itself identifies one singular D-ring, while keeping generic/plural rings fail-closed and leaving compatibility/hard constraints unchanged.
+- PR #49 — ToolAttachment-mediated recommendation golden coverage, exercising accepted/resolved tool features, explicit selected-feature eligibility binding, normalized installation constraints, a ToolAttachment-provided tether interface, complete generation/hard evaluation and selection without production rule changes or golden product identity;
+- PR #50 — evidence-backed ToolAttachment target-form enrichment, preserving `ring_form = d_ring` on an already-concrete `tool_attachment_tether_side` ring when the accepted local interface evidence itself identifies one singular D-ring, while keeping generic/plural rings fail-closed and leaving compatibility/hard constraints unchanged; and
+- PR #51 — decision-bound first-party NLG datasheet acquisition for a symmetric-looking dual-carabiner assignment gap plus a second bounded `derived_endpoint_equivalence` production family, with final-host and product-identity revalidation, affirmative/local construction and pair-use evidence, directional-endpoint vetoes, concrete endpoint identity, `TetherSide.UNKNOWN`, and compatibility separation preserved.
 
 PR #16 remains closed unmerged; its useful catalogue-discovery/scoring work was carried forward through PR #19 and its older topology semantics should not be revived.
 
@@ -74,7 +75,9 @@ manufacturer_declared
 derived_endpoint_equivalence
 ```
 
-`manufacturer_declared` means the manufacturer directly establishes reversibility/interchangeability. `derived_endpoint_equivalence` means TetherLens derives the same bounded assignment relation from a conjunction of accepted first-party facts. The first production derivation is deliberately limited to the NLG Quick Clip evidence pattern where the same named Quick Clip construction is affirmatively established at each/both end, tool-to-anchor tether use is established, both endpoint roles remain unknown, and no directional/mixed-connector evidence exists.
+`manufacturer_declared` means the manufacturer directly establishes reversibility/interchangeability. `derived_endpoint_equivalence` means TetherLens derives the same bounded assignment relation from a conjunction of accepted first-party facts. PR #46 supplies the first production derivation through the NLG Quick Clip evidence pattern where the same named Quick Clip construction is affirmatively established at each/both end, tool-to-anchor tether use is established, both endpoint roles remain unknown, and no directional/mixed-connector evidence exists.
+
+PR #51 adds a second bounded production evidence family without widening the reusable relation. A first-party NLG datasheet may be followed only when the primary page already identifies a symmetric-looking dual/twin/double carabiner tether and does not expose an obvious directional or mixed named-connector split. The link must be explicitly labelled `Datasheet`; after fetch/redirect, the final artifact must still be an NLG-hosted product datasheet whose explicit Product Code/SKU matches the current product identity. Rejected documents are excluded before inherited NLG extraction. Assignment is then derived only when one trusted artifact itself establishes exactly two unresolved carabiner endpoints, an affirmative product-local collective construction equivalent to `dual/twin/two ... double-action carabiners`, an actual affirmative undifferentiated tool-to-anchor attachment/connection relationship, and no directional/mixed-end veto evidence. Negation or prohibition before or after the positive phrase, other-product/comparison wording, mere tool/anchor term co-occurrence, or separately distinguished carabiners assigned to opposite roles all fail closed. Directional identity checks remain sentence-local so repeated references to one undifferentiated plural pair do not create a false split. NLG 101519 is the first positive case; NLG 101756 remains the directional negative control.
 
 The derived route does **not** make any single weak clue sufficient. `dual` / `double` / `twin` naming, shared normalized `ConnectorSpec`, connectors at both ends, one-to-tool/one-to-anchor wording, or absence of directional wording remain insufficient by themselves.
 
@@ -82,7 +85,7 @@ The relation does not mutate either endpoint role, does not override fixed or pa
 
 Endpoint assignment is a **configuration-validity constraint rather than a product-ranking attribute**. For product selection, one manufacturer-permitted orientation that produces a viable tool-side connection and a viable anchor-side connection is sufficient. A reversible pair does not make a tether preferable merely because both orientations are allowed. Reversible orientations remain separate internally through endpoint-to-target evaluation and provenance checks, but equivalent orientations should not surface as duplicate user-facing product recommendations solely because the physical ends can be swapped.
 
-See `endpoint-assignment-semantics.md` for the full v1 evidence threshold, production rule, selection significance and evidence findings.
+See `endpoint-assignment-semantics.md` for the full v1 evidence threshold, production rules, selection significance and evidence findings.
 
 ### Hard candidate evaluation
 
@@ -288,15 +291,17 @@ The declaration retains assignment basis, issuer, scope and source URLs. `Candid
 
 The derived-equivalence threshold is conjunctive: affirmative same-construction endpoint evidence plus undifferentiated tool-to-anchor pair use, with explicit directional/different-end evidence acting as a veto. A shared generic connector description or manufacturer silence is not positive proof. Negated pair-use wording cannot satisfy the positive-use requirement, and separately designated connectors assigned to opposite sides are directional evidence rather than reversible evidence.
 
+PR #51 keeps that threshold intact while adding one more bounded evidence family. The NLG source graph follows an explicitly labelled first-party datasheet only for the specific symmetric-looking dual-carabiner assignment gap; it does not establish a general document-crawling policy. The fetched document must remain on an approved NLG host after redirects, retain the purpose-scoped datasheet relationship, and explicitly match the current product identity before it may participate in extraction. The complete assignment conjunction must then be affirmative and local on one trusted artifact: collective double-action construction, a genuine tool-to-anchor attachment/connection relationship rather than keyword co-occurrence, and no sentence-local evidence that separately distinguished carabiners have opposite roles. Rejected documents contribute no inherited NLG claims.
+
 The relation is not a compatibility basis, ranking preference or SKU-pair rule.
 
 ### Representative endpoint-assignment evidence findings
 
 - **NLG 101434:** first production positive for the bounded Quick Clip derived-equivalence rule. Current first-party copy establishes `360° Quick Clip™ connectors at each end` together with tool-to-anchor tether use.
-- **NLG 101519:** promising future evidence case; same-construction carabiner wording is available, while the strongest pair-use evidence reviewed is in a datasheet not yet part of ordinary NLG primary-page ingestion.
+- **NLG 101519:** second positive production case through decision-bound first-party datasheet evidence. The primary page establishes the symmetric-looking dual double-action carabiner pair; the identity-bound datasheet supplies tool-to-anchor pair use on the same affirmative collective double-action construction, allowing the existing derived relation without rewriting endpoint roles or introducing a SKU-specific assignment rule.
 - **Hilti 2261970:** remains unknown. Double-carabiner topology and one/second-carabiner use wording do not independently establish the same connector construction at both ends.
 - **StopDrop SDCOIL32:** remains unknown. `2 locking screwgate carabiner` establishes multiplicity/mechanism family but not the full equivalence-plus-pair-use conjunction.
-- **NLG 101756:** strong negative control. First-party evidence explicitly distinguishes an integral anchor/belt carabiner from a tool-side Rotobiner; directional evidence wins and prevents symmetry-derived widening.
+- **NLG 101756:** strong negative control. First-party evidence explicitly distinguishes an integral anchor/belt carabiner from a tool-side Rotobiner; directional evidence wins, prevents decision-bound equivalence datasheet traversal, and prevents symmetry-derived widening.
 
 ## Provenance principles currently in force
 
@@ -304,6 +309,7 @@ The relation is not a compatibility basis, ranking preference or SKU-pair rule.
 - accepted declared compatibility retains issuer and scope;
 - accepted endpoint-assignment relations retain owner, assignment basis, issuer, scope and source URLs;
 - derived endpoint assignment must remain visibly derived rather than being represented as a manufacturer declaration;
+- decision-bound supporting-document traversal must remain first-party, purpose-scoped, identity-bound and revalidate the final fetched host after redirects; rejected documents must fail closed before inherited extraction rather than becoming generic evidence sources;
 - target-interface form is evidence on a concrete physical interface, not a product-name or generic-type inference;
 - candidate generation retains selected component, feature, endpoint, target and owner identity;
 - selection-level endpoint-assignment proofs must exactly match the operative configuration declarations;
@@ -336,9 +342,9 @@ It must not rewrite the original global selector result.
 
 ## Benchmark state
 
-The latest complete executable validation for the reviewed PR #50 implementation is workflow run **34303731195** on head `1d833e1e7f5ece5a79b44fae4b8481b232d5f013`. The complete `Ingestion live smoke` workflow passed:
+The latest complete executable validation of the reviewed PR #51 implementation before this documentation-only handoff commit is workflow run **34323977717**, exercising the pull-request merge ref `62d96e79d1bfab824834099e4334c960b2459a6b` built from PR head `e84d54a3accdc7f6de843dc42b20b6248b81ec10`. The complete `Ingestion live smoke` workflow passed:
 
-- unit test suite: **422 passed**;
+- unit test suite: **437 passed**;
 - Batch 1 live acquisition: **12/12 products**;
 - Batch 1 extraction: **55 TP / 0 FP / 0 FN**;
 - Batch 1 micro precision/recall: **1.0 / 1.0**;
@@ -350,7 +356,9 @@ The latest complete executable validation for the reviewed PR #50 implementation
 - the immutable Batch 2 blind artifact remained unchanged as the historical pre-fix baseline; and
 - benchmark artifact upload completed successfully.
 
-This run validates the PR #50 form-enrichment boundary on top of the PR #49 ToolAttachment-mediated recommendation golden. The same generic enrichment is exercised by two independent supply-side ToolAttachment cases: NLG 101363 in Batch 1 and NLG 101481 in Batch 2. Both retain the existing concrete `tether_side_ring` subject and `tool_attachment_tether_side` role while adding only `interface.attribute.ring_form = d_ring` from explicit local singular D-ring interface evidence. The focused plural regression separately proves that plural D-ring wording does not receive that form enrichment.
+The focused PR #51 regressions exercise the final evidence boundary without adding a benchmark SKU contract. They cover qualified first-party datasheet traversal and positive relation resolution; primary-page insufficiency; multiplicity-plus-pair-use insufficiency; final-host revalidation after redirects; explicit product-code/SKU identity binding; rejection of wrong-product and off-host documents before inherited claim extraction; negated, prohibited, comparative and postposed-negative construction/use wording; grammatical tool-to-anchor relation rather than term co-occurrence; separately distinguished carabiners assigned to opposite roles; sentence-local distinction tracking that preserves repeated undifferentiated plural references; the NLG 101756-style Rotobiner split; and rejection of external datasheet links. The positive fixture resolves the same existing `reversible_tool_anchor_pair` declaration with `derived_endpoint_equivalence` provenance and the two concrete endpoint references.
+
+The Batch 1 and Batch 2 live benchmark cohorts are intentionally unchanged by PR #51. The new NLG 101519 path is covered as a focused vertical acquisition/extraction regression rather than being inserted into an existing frozen or semantic-golden cohort solely to increase product coverage.
 
 The recommendation golden itself remains the same three semantic scenarios:
 
@@ -358,7 +366,7 @@ The recommendation golden itself remains the same three semantic scenarios:
 - a non-empty two-candidate run in which the `under_capacity` semantic alternative is blocked by `load_capacity / failed` while the separate `unresolved_tool_connection` alternative is blocked by `connection_compatibility / unresolved`, allowing bounded `no_suitable_recommendation` only after complete evaluation; and
 - a ToolAttachment-mediated two-feature run in which both surface features are explicitly eligible, the selected feature is retained through constraint evaluation, the flat/clean path remains selectable, and the separate curved/clean path is blocked specifically by the existing hard installation-surface-profile constraint.
 
-PR #50 does not add a compatibility outcome or a fourth system-level scenario because target form alone is not a compatibility basis and the existing ToolAttachment recommendation path already provides the downstream seam that justifies preserving the fact.
+PR #51 does not add a compatibility outcome or a fourth system-level scenario because endpoint assignment remains a structural generation authorization and the downstream reversible-assignment semantics were already established by PRs #45-#46.
 
 The answer key intentionally omits SKU pairs, runtime product refs and canonical candidate IDs. Semantic scenario-role labels describe expected behavior without identifying a real product or runtime candidate. The catalogue benchmark remains the supply-side ingestion/recommendation-readiness benchmark; the recommendation golden is the downstream semantic contract.
 
@@ -373,11 +381,11 @@ The existing Batch 2 evidence gaps remain explicit:
 | NLG 101756 | Heavy Duty Retractable Lanyard, Double Carabiner | `public_fact_ambiguous` | connector locking mode not established as manual vs automatic |
 | NLG 101520 | Ascent™ Pouch | `public_fact_not_established` | external daisy-chain presence is established, but an individual loop/site count is not publicly established |
 
-PR #47 closed the first singular anchor-side D-ring form gap. PR #50 now closes the recurring ToolAttachment target-form preservation gap for already-concrete `tool_attachment_tether_side` D-ring interfaces. Neither change promotes generic rings, rewrites structural roles, supplies geometry or creates compatibility from form alone.
+PR #47 closed the first singular anchor-side D-ring form gap. PR #50 closes the recurring ToolAttachment target-form preservation gap for already-concrete `tool_attachment_tether_side` D-ring interfaces. Neither change promotes generic rings, rewrites structural roles, supplies geometry or creates compatibility from form alone.
 
 Repeated/plural target form remains evidence- and decision-bound. NLG 101492 already has concrete repeated internal container interfaces but should gain narrower form only when that fact closes a recurring recommendation/evaluation uncertainty. NLG 101705 still lacks sufficiently explicit per-set count/identity for its functionally distinct D-ring groups. NLG 101520 generic internal anchors remain form-unknown. The review-added singular guard also prevents ambiguous plural ToolAttachment wording from receiving `ring_form = d_ring` on the legacy singular subject.
 
-The reusable symmetric-endpoint model gap is also closed, and PR #46 provides the first production evidence-derived assignment case. Broader symmetric-looking dual-ended products remain an evidence problem rather than a reason to weaken endpoint roles globally: each future derivation must clear an evidence pattern strong enough to establish the same endpoint construction plus undifferentiated pair use.
+The reusable symmetric-endpoint model remains closed by PRs #45-#46, and PR #51 now supplies the second bounded production evidence-derived assignment family. NLG 101519 is therefore no longer an outstanding source-graph gap. Broader symmetric-looking dual-ended products remain evidence problems rather than a reason to weaken endpoint roles globally: each future derivation must establish a new repeatable first-party evidence pattern strong enough to prove the same endpoint construction plus undifferentiated pair use.
 
 PR #49 closes the ToolAttachment-mediated end-to-end benchmark gap without expanding production semantics. Further benchmark growth should be driven by concrete regression risk rather than scenario count.
 
@@ -391,17 +399,17 @@ The next form slice should not be selected merely because a catalogue page conta
 
 Do not build a broad ring taxonomy for its own sake.
 
-### 2. Extend derived endpoint equivalence only from recurring evidence patterns
+### 2. Extend derived endpoint equivalence only when another recurring evidence family earns it
 
-NLG 101519 is a useful next evidence candidate if/when first-party datasheet acquisition becomes part of the normal NLG source graph. Generic dual-carabiner derivation should not be introduced merely because most products are expected to be symmetric.
+PR #51 closes the previously identified NLG 101519 source-graph/equivalence gap. Do not generalize from that result to all dual/twin/double carabiner products, and do not turn the decision-bound NLG datasheet lookup into a normal document crawl.
 
-Any additional production family should first establish a repeatable first-party pattern for same endpoint construction and tool-to-anchor pair use, with directional/mixed-end evidence as a hard veto.
+Any additional production family should first demonstrate a recurring first-party pattern for same endpoint construction plus undifferentiated tool-to-anchor pair use, with directional/mixed-end evidence as a hard veto. A new source join is justified only when it is necessary to close that concrete decision gap and can remain first-party, purpose-scoped, identity-bound and revalidated at the final fetched host.
 
 ### 3. Selective geometry/evidence work
 
 Continue geometry, measurements and document-join work only when one primitive closes a recurring uncertainty, proves a reusable hard rule, or materially reduces runtime verification burden.
 
-Do not build a general CAD model.
+Do not repurpose overall product dimensions as gate/section geometry, and do not build a general CAD model.
 
 ### 4. Further downstream goldens only for durable regression seams
 
@@ -428,6 +436,7 @@ PRs that materially change durable architecture, evidence semantics, compatibili
 - endpoint-pair assignment evidence must remain separate from individual endpoint role evidence;
 - assignment provenance must distinguish manufacturer declaration from TetherLens derivation;
 - no reversible assignment from `dual` / `double` / `twin`, a shared normalized connector spec, pair-use wording or manufacturer silence alone;
+- decision-bound supporting-document traversal must stay first-party, purpose-scoped and identity-bound, must revalidate the final fetched host after redirects, and must fail closed before inherited extraction rather than becoming generic manufacturer-document crawling;
 - endpoint assignment is a configuration-validity constraint, not a ranking preference; one viable permitted orientation is sufficient for product selection, and equivalent reversible orientations should not become duplicate user-facing product recommendations solely because the physical ends can be swapped;
 - catalogue assignment required for recommendation must not depend on physical inspection of a tether the worker may not possess;
 - target-interface form must remain bound to concrete accepted evidence; generic `ring` must not silently become `d_ring`;
@@ -445,6 +454,6 @@ PRs that materially change durable architecture, evidence semantics, compatibili
 - preserve the immutable Batch 2 blind artifact and use fresh post-blind evaluation for regression checking; and
 - prefer small reusable evidence primitives over broad vocabularies introduced without a concrete decision need.
 
-## Suggested fresh-chat starting point after PR #50
+## Suggested fresh-chat starting point after PR #51
 
-> Continue TetherLens from merged `main` after PR #50. Inspect the completed target-interface-form model and current recommendation/evidence gaps, then choose the next smallest reusable slice only where accepted evidence closes a recurring downstream uncertainty. Preserve concrete interface/endpoint identity and structural role, keep form separate from compatibility, and do not widen hard constraints or inference from generic catalogue wording.
+> Continue TetherLens from merged `main` after PR #51. Inspect the remaining recommendation/evidence uncertainties now that NLG 101519 has a bounded first-party datasheet-backed endpoint-assignment path. Choose the next smallest reusable slice only where accepted evidence closes a recurring downstream decision gap. Preserve concrete endpoint/interface identity and structural roles, keep endpoint assignment separate from compatibility, keep supporting-document traversal decision-bound, identity-bound and final-host validated, and do not widen hard constraints or inference from generic catalogue wording.
