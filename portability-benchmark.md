@@ -145,6 +145,40 @@ Changes should be judged by movement toward A/B support, not simply by making a 
 
 A new reusable class C primitive should be introduced only when the product evidence establishes its semantics and the concept is expected to recur. A class D implementation should be treated as a design smell requiring explicit justification.
 
+## Portability phase objective and exit condition
+
+Portability is an architecture-stabilization phase, not an end state for TetherLens. The purpose is to discover the remaining recurring abstractions while unfamiliar tethering products still have enough diversity to challenge an NLG-shaped core, then deliberately reduce the rate at which new products require core changes.
+
+The intended loop is:
+
+```text
+sample unfamiliar cross-vendor products
+  -> classify A / B / C / D against the current core
+  -> implement only evidence-backed reusable C primitives
+  -> prove B-class vendor ingestion into unchanged downstream semantics
+  -> repeat with a materially different cohort
+```
+
+Progress should be judged by trends rather than by forcing a numerical threshold from the first cohort. Useful signals include:
+
+- the share of new products landing in A or B;
+- the number of new reusable C primitives required per cohort;
+- whether one C primitive unlocks several products, manufacturers or tool-feature families;
+- the rate of downstream compatibility/generation/evaluation/ranking changes caused by new catalogue products;
+- the rate of D-class one-off exceptions; and
+- human effort and evidence-resolution cost required to make products recommendation-ready.
+
+The portability-led architecture phase should be considered mature enough to de-emphasize when successive representative cross-vendor additions are predominantly A/B, new C findings are occasional and clearly reusable, D remains absent or exceptional, and new manufacturers mostly require acquisition/extraction/evidence work rather than changes to recommendation semantics.
+
+At that point the centre of gravity should shift deliberately toward:
+
+- catalogue throughput and coverage across the major tethering manufacturers;
+- scaling the much larger tool catalogue through reusable tool features and operational configuration facts rather than pairwise mappings;
+- resolving evidence and measurement gaps efficiently; and
+- returning attention to the demand-side MVP: tool recognition, targeted context capture and the field recommendation workflow.
+
+Portability cohorts should continue after that transition as periodic stress/regression tests. They should no longer be the default reason to deepen the ontology.
+
 ## Follow-on strategy
 
 The strongest next core slice is now the recurring **single-feature captive eligibility** gap, because one generic improvement would cover products from both GRIPPS and FallTech and likely many additional ToolAttachments. The implementation should extend the existing feature-bound eligibility composition without weakening the current NLG `captive handle OR captive through-opening` case.
