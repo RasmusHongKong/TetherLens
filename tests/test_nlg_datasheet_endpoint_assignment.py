@@ -221,15 +221,32 @@ def test_nlg_does_not_derive_from_other_product_construction_comparison():
     assert _assignment_claims(claims) == []
 
 
+def test_nlg_does_not_derive_from_postposed_tool_anchor_prohibition():
+    for pair_use in (
+        "Attachment to tools and anchor points is not permitted.",
+        "Connection of tools to anchor points is prohibited.",
+    ):
+        body = f"""
+        Product Code: 101519
+        Dual double-action carabiners are fitted to this tether.
+        {pair_use}
+        """
+
+        claims = NLGAdapter().extract(_identity(), [_datasheet(body)])
+
+        assert _assignment_claims(claims) == []
+
+
 def test_nlg_does_not_derive_from_wrong_first_party_datasheet_identity():
     body = """
     Product Code: 999999
+    Max Load: 9 KG
     Dual double-action carabiners allow secure attachment to your tool and anchor point.
     """
 
     claims = NLGAdapter().extract(_identity(), [_datasheet(body)])
 
-    assert _assignment_claims(claims) == []
+    assert claims == []
 
 
 def test_nlg_does_not_derive_after_datasheet_redirects_off_first_party_host():
@@ -240,19 +257,22 @@ def test_nlg_does_not_derive_after_datasheet_redirects_off_first_party_host():
     """
     datasheet_text = """
     Product Code: 101519
+    Max Load: 9 KG
     Dual double-action carabiners allow secure attachment to your tool and anchor point.
     """
+    redirected_url = "https://example.test/redirected-101519.pdf"
     fetcher = FakeFetcher(
         page_html=page_html,
         datasheet_text=datasheet_text,
-        datasheet_artifact_url="https://example.test/redirected-101519.pdf",
+        datasheet_artifact_url=redirected_url,
     )
 
     result = IngestionRunner(fetcher).ingest(_identity(), NLGAdapter())
 
     assert len(result.artifacts) == 2
-    assert result.artifacts[1].url == "https://example.test/redirected-101519.pdf"
+    assert result.artifacts[1].url == redirected_url
     assert _assignment_claims(result.claims) == []
+    assert all(claim.source_url != redirected_url for claim in result.claims)
 
 
 def test_nlg_directional_rotobiner_product_does_not_request_datasheet_or_gain_reversibility():
