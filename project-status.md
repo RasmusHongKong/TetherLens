@@ -43,7 +43,7 @@ The current development line through PR #50 includes:
 - PR #47 — evidence-backed singular anchor-side D-ring form extraction for NLG AnchorAttachments, using `interface.attribute.ring_form = d_ring` on a concrete `anchor_attachment_tether_side` interface so the existing PR #44 Quick Clip declaration can bind without generic-ring promotion, geometry inference or SKU-pair logic;
 - PR #48 — the first semantic end-to-end recommendation golden, exercising accepted/resolved evidence through complete recommendation-run selection for a manufacturer-declared connection path and a non-empty globally exhausted path without golden SKU-pair or candidate-ID expectations;
 - PR #49 — ToolAttachment-mediated recommendation golden coverage, exercising accepted/resolved tool features, explicit selected-feature eligibility binding, normalized installation constraints, a ToolAttachment-provided tether interface, complete generation/hard evaluation and selection without production rule changes or golden product identity; and
-- PR #50 — evidence-backed ToolAttachment target-form enrichment, preserving `ring_form = d_ring` on an already-concrete `tool_attachment_tether_side` ring when the accepted local interface evidence itself identifies a D-ring, while keeping generic rings generic and leaving compatibility/hard constraints unchanged.
+- PR #50 — evidence-backed ToolAttachment target-form enrichment, preserving `ring_form = d_ring` on an already-concrete `tool_attachment_tether_side` ring when the accepted local interface evidence itself identifies one singular D-ring, while keeping generic/plural rings fail-closed and leaving compatibility/hard constraints unchanged.
 
 PR #16 remains closed unmerged; its useful catalogue-discovery/scoring work was carried forward through PR #19 and its older topology semantics should not be revived.
 
@@ -230,7 +230,7 @@ See `connector-declared-compatibility.md` for the declaration/binding model and 
 
 ### ToolAttachment-provided D-ring form
 
-PR #50 preserves narrower form on an existing ToolAttachment-provided tether interface only after the established ToolAttachment interface extractor has already created the concrete subject from affirmative local D-ring/tether-point or tool-lanyard evidence.
+PR #50 preserves narrower form on an existing ToolAttachment-provided tether interface only after the established ToolAttachment interface extractor has already created the topology subject from affirmative local D-ring/tether-point or tool-lanyard evidence.
 
 The recurring normalized result is:
 
@@ -240,7 +240,9 @@ interface_type = ring
 attributes = { ring_form: d_ring }
 ```
 
-The form layer does not create interface identity, rewrite structural role or independently scan product names for `D Ring`. Generic ring evidence remains generic. The supply-side benchmark now proves the same evidence pattern on NLG 101363 and NLG 101481.
+The form layer does not create interface identity, rewrite structural role or independently scan product names for `D Ring`. Generic ring evidence remains generic. The supply-side benchmark proves the same singular evidence pattern on NLG 101363 and NLG 101481.
+
+A review hardening guard also prevents plural D-ring wording from enriching the legacy singular `tether_side_ring` subject. The upstream topology behavior is deliberately unchanged in this slice; PR #50 simply refuses narrower form where the raw evidence does not establish one concrete D-ring identity.
 
 This is deliberately not a compatibility rule. PR #44 still requires `anchor_attachment_tether_side`, so the enriched ToolAttachment target cannot satisfy that declaration. Focused coverage also proves that a carabiner engaging the enriched ToolAttachment D-ring remains `UNRESOLVED` without an independent compatibility basis. No declaration matcher, evaluator, runtime-verification family, candidate hard constraint or ranking rule changes.
 
@@ -334,23 +336,29 @@ It must not rewrite the original global selector result.
 
 ## Benchmark state
 
-The latest complete executable validation for PR #50 is workflow run **34301848210** on head `40f08e3443590d6f9c56a6fbca981e7338b280f0`. The complete `Ingestion live smoke` workflow passed:
+The latest complete executable validation for the reviewed PR #50 implementation is workflow run **34303731195** on head `1d833e1e7f5ece5a79b44fae4b8481b232d5f013`. The complete `Ingestion live smoke` workflow passed:
 
-- unit test suite: **421 passed**;
+- unit test suite: **422 passed**;
 - Batch 1 live acquisition: **12/12 products**;
 - Batch 1 extraction: **55 TP / 0 FP / 0 FN**;
 - Batch 1 micro precision/recall: **1.0 / 1.0**;
-- Batch 1 recommendation-data coverage: the new ToolAttachment D-ring-form requirement is satisfied and the two pre-existing `source_blocked` requirements remain unchanged;
+- Batch 1 recommendation-data coverage: **28/30 requirements**, with the two remaining requirements classified as existing `source_blocked` cases;
 - fresh Batch 2 post-blind acquisition: **8/8 products**;
-- fresh Batch 2 extraction: **99 TP / 0 FP / 0 FN**;
+- fresh Batch 2 extraction: **98 TP / 0 FP / 0 FN**;
 - fresh Batch 2 micro precision/recall: **1.0 / 1.0**;
-- fresh Batch 2 recommendation-data coverage: **51/51 requirements**, **8/8 products complete**;
+- fresh Batch 2 recommendation-data coverage: **50/50 requirements**, **8/8 products complete**;
 - the immutable Batch 2 blind artifact remained unchanged as the historical pre-fix baseline; and
 - benchmark artifact upload completed successfully.
 
-This run validates the PR #50 form-enrichment boundary on top of the PR #49 ToolAttachment-mediated recommendation golden. The same generic enrichment is exercised by two independent supply-side ToolAttachment cases: NLG 101363 in Batch 1 and NLG 101481 in Batch 2. Both retain the existing concrete `tether_side_ring` subject and `tool_attachment_tether_side` role while adding only `interface.attribute.ring_form = d_ring` from explicit local D-ring interface evidence.
+This run validates the PR #50 form-enrichment boundary on top of the PR #49 ToolAttachment-mediated recommendation golden. The same generic enrichment is exercised by two independent supply-side ToolAttachment cases: NLG 101363 in Batch 1 and NLG 101481 in Batch 2. Both retain the existing concrete `tether_side_ring` subject and `tool_attachment_tether_side` role while adding only `interface.attribute.ring_form = d_ring` from explicit local singular D-ring interface evidence. The focused plural regression separately proves that plural D-ring wording does not receive that form enrichment.
 
-The recommendation golden itself remains the same three semantic scenarios. PR #50 does not add a compatibility outcome or a fourth system-level scenario because target form alone is not a compatibility basis and the existing ToolAttachment recommendation path already provides the downstream seam that justifies preserving the fact.
+The recommendation golden itself remains the same three semantic scenarios:
+
+- a manufacturer-declared connection path whose selected candidate is `recommended_with_constraints`, retains `COMPATIBLE / MANUFACTURER_DECLARED` on the anchor side and outranks a comparable alternative because it has one rather than two pending physical verifications;
+- a non-empty two-candidate run in which the `under_capacity` semantic alternative is blocked by `load_capacity / failed` while the separate `unresolved_tool_connection` alternative is blocked by `connection_compatibility / unresolved`, allowing bounded `no_suitable_recommendation` only after complete evaluation; and
+- a ToolAttachment-mediated two-feature run in which both surface features are explicitly eligible, the selected feature is retained through constraint evaluation, the flat/clean path remains selectable, and the separate curved/clean path is blocked specifically by the existing hard installation-surface-profile constraint.
+
+PR #50 does not add a compatibility outcome or a fourth system-level scenario because target form alone is not a compatibility basis and the existing ToolAttachment recommendation path already provides the downstream seam that justifies preserving the fact.
 
 The answer key intentionally omits SKU pairs, runtime product refs and canonical candidate IDs. Semantic scenario-role labels describe expected behavior without identifying a real product or runtime candidate. The catalogue benchmark remains the supply-side ingestion/recommendation-readiness benchmark; the recommendation golden is the downstream semantic contract.
 
@@ -367,7 +375,7 @@ The existing Batch 2 evidence gaps remain explicit:
 
 PR #47 closed the first singular anchor-side D-ring form gap. PR #50 now closes the recurring ToolAttachment target-form preservation gap for already-concrete `tool_attachment_tether_side` D-ring interfaces. Neither change promotes generic rings, rewrites structural roles, supplies geometry or creates compatibility from form alone.
 
-Repeated/plural target form remains evidence- and decision-bound. NLG 101492 already has concrete repeated internal container interfaces but should gain narrower form only when that fact closes a recurring recommendation/evaluation uncertainty. NLG 101705 still lacks sufficiently explicit per-set count/identity for its functionally distinct D-ring groups. NLG 101520 generic internal anchors remain form-unknown.
+Repeated/plural target form remains evidence- and decision-bound. NLG 101492 already has concrete repeated internal container interfaces but should gain narrower form only when that fact closes a recurring recommendation/evaluation uncertainty. NLG 101705 still lacks sufficiently explicit per-set count/identity for its functionally distinct D-ring groups. NLG 101520 generic internal anchors remain form-unknown. The review-added singular guard also prevents ambiguous plural ToolAttachment wording from receiving `ring_form = d_ring` on the legacy singular subject.
 
 The reusable symmetric-endpoint model gap is also closed, and PR #46 provides the first production evidence-derived assignment case. Broader symmetric-looking dual-ended products remain an evidence problem rather than a reason to weaken endpoint roles globally: each future derivation must clear an evidence pattern strong enough to establish the same endpoint construction plus undifferentiated pair use.
 
