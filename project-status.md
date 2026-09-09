@@ -2,13 +2,13 @@
 
 _Last updated: 2026-09-09_
 
-This document is the operational handoff for the current TetherLens ingestion, compatibility, candidate-generation/evaluation/selection, recommendation-run, session-resolution, contextual reasoning, and recommendation-benchmark stack. It records the semantics that should be preserved and the highest-value remaining workstreams.
+This document is the operational handoff for the current TetherLens ingestion, compatibility, candidate-generation/evaluation/selection, recommendation-run, session-resolution, contextual reasoning, recommendation-benchmark, and cross-vendor portability stack. It records the semantics that should be preserved and the highest-value remaining workstreams.
 
-For durable design details, use the dedicated documents including `product-vision.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `connection-compatibility.md`, `connector-mechanism-semantics.md`, `connector-declared-compatibility.md`, `anchor-interface-form.md`, `endpoint-assignment-semantics.md`, `cinch-loop-semantics.md`, `tool-attachment-compatibility.md`, `tool-anatomy-selection-semantics.md`, `container-interface-topology.md`, `candidate-ranking-selection.md`, `recommendation-run.md`, `recommendation-session.md`, `environmental-context.md`, `recommendation-benchmark.md`, `benchmark-goals.md`, and `ingestion-benchmark.md`.
+For durable design details, use the dedicated documents including `product-vision.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `connection-compatibility.md`, `connector-mechanism-semantics.md`, `connector-declared-compatibility.md`, `anchor-interface-form.md`, `endpoint-assignment-semantics.md`, `cinch-loop-semantics.md`, `tool-attachment-compatibility.md`, `tool-anatomy-selection-semantics.md`, `container-interface-topology.md`, `candidate-ranking-selection.md`, `recommendation-run.md`, `recommendation-session.md`, `environmental-context.md`, `recommendation-benchmark.md`, `portability-benchmark.md`, `benchmark-goals.md`, and `ingestion-benchmark.md`.
 
 ## Current development line
 
-The current development line through PR #51 includes:
+The current development line through PR #52 includes:
 
 - PR #17 — Batch 2 blind NLG holdout and post-blind evaluation path;
 - PR #18 — explicit tether endpoint topology;
@@ -43,8 +43,9 @@ The current development line through PR #51 includes:
 - PR #47 — evidence-backed singular anchor-side D-ring form extraction for NLG AnchorAttachments, using `interface.attribute.ring_form = d_ring` on a concrete `anchor_attachment_tether_side` interface so the existing PR #44 Quick Clip declaration can bind without generic-ring promotion, geometry inference or SKU-pair logic;
 - PR #48 — the first semantic end-to-end recommendation golden, exercising accepted/resolved evidence through complete recommendation-run selection for a manufacturer-declared connection path and a non-empty globally exhausted path without golden SKU-pair or candidate-ID expectations;
 - PR #49 — ToolAttachment-mediated recommendation golden coverage, exercising accepted/resolved tool features, explicit selected-feature eligibility binding, normalized installation constraints, a ToolAttachment-provided tether interface, complete generation/hard evaluation and selection without production rule changes or golden product identity;
-- PR #50 — evidence-backed ToolAttachment target-form enrichment, preserving `ring_form = d_ring` on an already-concrete `tool_attachment_tether_side` ring when the accepted local interface evidence itself identifies one singular D-ring, while keeping generic/plural rings fail-closed and leaving compatibility/hard constraints unchanged; and
-- PR #51 — decision-bound first-party NLG datasheet acquisition for a symmetric-looking dual-carabiner assignment gap plus a second bounded `derived_endpoint_equivalence` production family, with final-host and product-identity revalidation, affirmative/local construction and pair-use evidence, directional-endpoint vetoes, concrete endpoint identity, `TetherSide.UNKNOWN`, and compatibility separation preserved.
+- PR #50 — evidence-backed ToolAttachment target-form enrichment, preserving `ring_form = d_ring` on an already-concrete `tool_attachment_tether_side` ring when the accepted local interface evidence itself identifies one singular D-ring, while keeping generic/plural rings fail-closed and leaving compatibility/hard constraints unchanged;
+- PR #51 — decision-bound first-party NLG datasheet acquisition for a symmetric-looking dual-carabiner assignment gap plus a second bounded `derived_endpoint_equivalence` production family, with final-host and product-identity revalidation, affirmative/local construction and pair-use evidence, directional-endpoint vetoes, concrete endpoint identity, `TetherSide.UNKNOWN`, and compatibility separation preserved; and
+- PR #52 — the first frozen cross-vendor portability audit after the NLG-heavy development phase, covering eight unseen GRIPPS, FallTech, Ty-Flot and Dropsafe Tether/ToolAttachment products and classifying the smallest required change as facts-only, vendor-ingestion-only, new reusable primitive or SKU-specific exception without changing production recommendation semantics.
 
 PR #16 remains closed unmerged; its useful catalogue-discovery/scoring work was carried forward through PR #19 and its older topology semantics should not be revived.
 
@@ -138,6 +139,25 @@ The current three scenarios prove:
 The ToolAttachment scenario deliberately supplies its generic `feature_kind = surface` eligibility as a normalized runtime primitive at the benchmark seam. It does not add a production `surface_bonded_attachment` selection-class compiler merely for fixture convenience. Accepted feature, product-constraint and provided-interface claims still flow through their normal resolvers.
 
 The benchmark does not add a new scorer, recommendation path, compatibility family, hard-constraint rule or exhaustion rule. See `recommendation-benchmark.md` for the durable contract.
+
+### Cross-vendor portability benchmark
+
+PR #52 adds a separate supply-side architecture audit in `benchmarks/cross_vendor_portability_v1.json`, guarded by `tests/test_portability_benchmark.py` and documented in `portability-benchmark.md`.
+
+The core is frozen at merged `main` after PR #51. The cohort deliberately excludes NLG and contains two products each from GRIPPS, FallTech, Ty-Flot and Dropsafe. Products are classified by the smallest change required for correct participation:
+
+```text
+A facts_only
+B vendor_ingestion_only
+C new_reusable_primitive
+D sku_specific_exception
+```
+
+The initial result is **0 A / 7 B / 1 C / 0 D**. The lack of A-class products is expected because these manufacturers do not yet have normal production adapters. The important signal is that seven products appear to fit the existing normalized domain/recommendation core without a new compatibility, generation, ranking or SKU-pair rule.
+
+The sole provisional C-class case is Ty-Flot `COLDSH41X35` Cold Shrink. Its diameter fit, capacity and maximum-tether-length constraints map to existing concepts, but the shrink/contraction retention mechanism is not cleanly represented by the current ToolAttachment attachment-method vocabulary. Do not add a new code until its installation evidence is checked against `mechanical_capture`, `cinch`, `wrap` and `through_feature` and the new mechanism is shown to be reusable.
+
+The cohort also confirms that evidence gaps must remain separate from architecture portability. For example, Dropsafe twin carabiners fit the endpoint/connector model, but twin hardware alone still cannot establish reversibility; Ty-Flot cord-loop wording cannot be promoted to cinch without accepted mechanism evidence.
 
 ### Session-local condition resolution
 
@@ -303,6 +323,8 @@ The relation is not a compatibility basis, ranking preference or SKU-pair rule.
 - **StopDrop SDCOIL32:** remains unknown. `2 locking screwgate carabiner` establishes multiplicity/mechanism family but not the full equivalence-plus-pair-use conjunction.
 - **NLG 101756:** strong negative control. First-party evidence explicitly distinguishes an integral anchor/belt carabiner from a tool-side Rotobiner; directional evidence wins, prevents decision-bound equivalence datasheet traversal, and prevents symmetry-derived widening.
 
+PR #52 adds two useful external controls without changing this model. GRIPPS H01079 explicitly distinguishes a large dedicated anchor-end carabiner from a smaller dedicated tool-end carabiner, demonstrating that cross-vendor dual-carabiner products can map directly to fixed endpoint roles. Dropsafe twin-carabiner products demonstrate the opposite evidence boundary: shared/twin hardware fits the existing endpoint model, but public multiplicity/mechanism wording alone does not justify reversible assignment.
+
 ## Provenance principles currently in force
 
 - manufacturer wording and URLs stay attached to atomic claims;
@@ -342,7 +364,7 @@ It must not rewrite the original global selector result.
 
 ## Benchmark state
 
-The latest complete executable validation of the reviewed PR #51 implementation before this documentation-only handoff commit is workflow run **34323977717**, exercising the pull-request merge ref `62d96e79d1bfab824834099e4334c960b2459a6b` built from PR head `e84d54a3accdc7f6de843dc42b20b6248b81ec10`. The complete `Ingestion live smoke` workflow passed:
+The latest complete executable validation before PR #52 is the reviewed PR #51 workflow run **34323977717**, exercising the pull-request merge ref `62d96e79d1bfab824834099e4334c960b2459a6b` built from PR head `e84d54a3accdc7f6de843dc42b20b6248b81ec10`. The complete `Ingestion live smoke` workflow passed:
 
 - unit test suite: **437 passed**;
 - Batch 1 live acquisition: **12/12 products**;
@@ -356,9 +378,7 @@ The latest complete executable validation of the reviewed PR #51 implementation 
 - the immutable Batch 2 blind artifact remained unchanged as the historical pre-fix baseline; and
 - benchmark artifact upload completed successfully.
 
-The focused PR #51 regressions exercise the final evidence boundary without adding a benchmark SKU contract. They cover qualified first-party datasheet traversal and positive relation resolution; primary-page insufficiency; multiplicity-plus-pair-use insufficiency; final-host revalidation after redirects; explicit product-code/SKU identity binding; rejection of wrong-product and off-host documents before inherited claim extraction; negated, prohibited, comparative and postposed-negative construction/use wording; grammatical tool-to-anchor relation rather than term co-occurrence; separately distinguished carabiners assigned to opposite roles; sentence-local distinction tracking that preserves repeated undifferentiated plural references; the NLG 101756-style Rotobiner split; and rejection of external datasheet links. The positive fixture resolves the same existing `reversible_tool_anchor_pair` declaration with `derived_endpoint_equivalence` provenance and the two concrete endpoint references.
-
-The Batch 1 and Batch 2 live benchmark cohorts are intentionally unchanged by PR #51. The new NLG 101519 path is covered as a focused vertical acquisition/extraction regression rather than being inserted into an existing frozen or semantic-golden cohort solely to increase product coverage.
+PR #52 adds no production extraction/compatibility/recommendation changes and deliberately leaves the existing Batch 1, Batch 2 and recommendation goldens unchanged. Its new portability test is a frozen architecture-audit contract rather than a live ingestion scorer. `tests/test_portability_benchmark.py` guards the eight-product manufacturer balance, freeze point, classification vocabulary, initial **7 B / 1 C / 0 D** result and the presence of reuse/stressor archetypes.
 
 The recommendation golden itself remains the same three semantic scenarios:
 
@@ -366,9 +386,7 @@ The recommendation golden itself remains the same three semantic scenarios:
 - a non-empty two-candidate run in which the `under_capacity` semantic alternative is blocked by `load_capacity / failed` while the separate `unresolved_tool_connection` alternative is blocked by `connection_compatibility / unresolved`, allowing bounded `no_suitable_recommendation` only after complete evaluation; and
 - a ToolAttachment-mediated two-feature run in which both surface features are explicitly eligible, the selected feature is retained through constraint evaluation, the flat/clean path remains selectable, and the separate curved/clean path is blocked specifically by the existing hard installation-surface-profile constraint.
 
-PR #51 does not add a compatibility outcome or a fourth system-level scenario because endpoint assignment remains a structural generation authorization and the downstream reversible-assignment semantics were already established by PRs #45-#46.
-
-The answer key intentionally omits SKU pairs, runtime product refs and canonical candidate IDs. Semantic scenario-role labels describe expected behavior without identifying a real product or runtime candidate. The catalogue benchmark remains the supply-side ingestion/recommendation-readiness benchmark; the recommendation golden is the downstream semantic contract.
+The answer key intentionally omits SKU pairs, runtime product refs and canonical candidate IDs. Semantic scenario-role labels describe expected behavior without identifying a real product or runtime candidate. The catalogue benchmark remains the supply-side ingestion/recommendation-readiness benchmark; the recommendation golden is the downstream semantic contract; and the portability benchmark tests whether the core abstractions appear reusable before new manufacturer implementation work begins.
 
 ## Recorded evidence/semantic gaps
 
@@ -387,35 +405,67 @@ Repeated/plural target form remains evidence- and decision-bound. NLG 101492 alr
 
 The reusable symmetric-endpoint model remains closed by PRs #45-#46, and PR #51 now supplies the second bounded production evidence-derived assignment family. NLG 101519 is therefore no longer an outstanding source-graph gap. Broader symmetric-looking dual-ended products remain evidence problems rather than a reason to weaken endpoint roles globally: each future derivation must establish a new repeatable first-party evidence pattern strong enough to prove the same endpoint construction plus undifferentiated pair use.
 
-PR #49 closes the ToolAttachment-mediated end-to-end benchmark gap without expanding production semantics. Further benchmark growth should be driven by concrete regression risk rather than scenario count.
+PR #49 closes the ToolAttachment-mediated end-to-end benchmark gap without expanding production semantics. Further recommendation-golden growth should be driven by concrete regression risk rather than scenario count.
+
+The portability cohort adds one provisional model gap: Ty-Flot Cold Shrink retention. Treat it as a class C candidate, not an established new code. First confirm whether existing `mechanical_capture` is semantically adequate and whether the contraction mechanism recurs sufficiently to deserve a reusable attachment-method primitive.
+
+## Catalogue asymmetry and scaling philosophy
+
+TetherLens should explicitly exploit the asymmetry between the two sides of the catalogue: there are very many tool types and individual tool models, but a much smaller set of commercially relevant tethering components and recurring attachment/connector mechanisms.
+
+The intended scaling model is therefore not a tool-by-tether compatibility matrix. It is:
+
+```text
+many tools
+  -> reusable tool/anatomy/configuration facts
+
+relatively few tethering products
+  -> deeply modelled reusable attachment/connector/capacity/constraint primitives
+
+existing rules
+  -> many candidate configurations
+```
+
+This makes careful modelling of tethering products high leverage when the resulting primitive can apply across many tools. It does not justify indefinite depth on rare branded wording. Prefer a tether-product enrichment when it unlocks many tool/configuration combinations, establishes a recurring evidence family or proves a reusable hard/verification rule. Defer narrow catalogue details whose only immediate effect is one manufacturer/SKU path.
+
+`portability-benchmark.md` is the durable statement of this principle and the first frozen cross-vendor test.
 
 ## Next highest-value workstreams
 
-### 1. Extend target-interface form only when it closes a concrete downstream uncertainty
+### 1. Prove B-class portability with two cross-vendor vertical slices
 
-PRs #47 and #50 establish the reusable pattern: preserve narrower form on an already-evidence-backed concrete interface, keep structural role unchanged, and do not treat form itself as compatibility.
+The next implementation work should no longer default to another NLG enrichment. Start from the frozen PR #52 cohort and choose products already classified as fitting the current core.
 
-The next form slice should not be selected merely because a catalogue page contains richer D-ring wording. It should first identify a recurring recommendation, declaration-binding, geometry or hard-evaluation uncertainty that the narrower form would actually resolve. NLG 101492 remains a candidate only if its repeated `container_connection` D-ring form becomes decision-relevant; NLG 101705 remains blocked on plural identity/count; NLG 101520 remains generic.
+The strongest first pair is:
 
-Do not build a broad ring taxonomy for its own sake.
+- **FallTech 5318A10** — exercise the existing `cinch` ToolAttachment mechanism, captive through-opening eligibility, rated capacity and ToolAttachment-provided D-ring interface; and
+- **GRIPPS H01079** — exercise explicit directional tether endpoints and dual-action carabiner facts without using or weakening derived endpoint equivalence.
 
-### 2. Extend derived endpoint equivalence only when another recurring evidence family earns it
+Implement manufacturer-specific acquisition/extraction only as needed to emit existing normalized primitives. Do not alter downstream compatibility, hard evaluation, ranking or SKU-pair semantics merely to make the products pass.
 
-PR #51 closes the previously identified NLG 101519 source-graph/equivalence gap. Do not generalize from that result to all dual/twin/double carabiner products, and do not turn the decision-bound NLG datasheet lookup into a normal document crawl.
+The objective is to demonstrate that a new manufacturer can move from B toward ordinary fact ingestion while the core stays frozen.
 
-Any additional production family should first demonstrate a recurring first-party pattern for same endpoint construction plus undifferentiated tool-to-anchor pair use, with directional/mixed-end evidence as a hard veto. A new source join is justified only when it is necessary to close that concrete decision gap and can remain first-party, purpose-scoped, identity-bound and revalidated at the final fetched host.
+### 2. Review the first genuine C-class candidate: Ty-Flot Cold Shrink
 
-### 3. Selective geometry/evidence work
+After at least one B-class path is proven, inspect the first-party Cold Shrink installation material closely.
 
-Continue geometry, measurements and document-join work only when one primitive closes a recurring uncertainty, proves a reusable hard rule, or materially reduces runtime verification burden.
+Determine whether the current `mechanical_capture` primitive can faithfully describe retention by collapsing shrink tubing. If not, define the smallest manufacturer-neutral retention mechanism necessary to represent elastic/contraction capture and prove it with evidence. Do not introduce `cold_shrink` merely as a branded/product-name alias.
 
-Do not repurpose overall product dimensions as gate/section geometry, and do not build a general CAD model.
+Keep diameter-fit, capacity and maximum-tether-length constraints in their existing families.
+
+### 3. Resume selective NLG/geometry/evidence work only when cross-vendor decisions justify it
+
+The NLG line remains valuable, but additional target-form, endpoint-equivalence, geometry or supporting-document work should now compete against cross-vendor leverage.
+
+Continue such work only when one primitive closes a recurring uncertainty, proves a reusable hard rule, materially reduces runtime verification burden, or is shown by the portability cohort to recur across manufacturers.
+
+Do not repurpose overall product dimensions as gate/section geometry, do not build a general CAD model, and do not broaden NLG-specific source traversal into generic crawling without a concrete decision need.
 
 ### 4. Further downstream goldens only for durable regression seams
 
 Session fallback and contextual feasibility are already covered by focused executable tests. Add system-level golden scenarios there only when a concrete integration risk or regression demonstrates that the recommendation-run contract needs another durable semantic case.
 
-Do not expand the golden solely for broader product or SKU coverage.
+Do not expand the golden solely for broader product or SKU coverage. Use the portability benchmark, rather than the downstream recommendation golden, for cross-vendor architecture sampling.
 
 ## Documentation workflow
 
@@ -428,6 +478,10 @@ PRs that materially change durable architecture, evidence semantics, compatibili
 ## Working principles for the next phase
 
 - every PR must update `project-status.md` before merge, with deeper design docs updated when their durable semantics change;
+- exploit catalogue asymmetry deliberately: invest in reusable tethering-product primitives that can unlock many tools, rather than constructing or approximating a tool-by-tether SKU matrix;
+- judge new cross-vendor products by A/B/C/D portability class, and treat class D SKU-specific recommendation logic as a design smell requiring explicit justification;
+- manufacturer-specific acquisition/extraction is acceptable when it emits vendor-neutral facts; manufacturer-specific downstream compatibility/generation/ranking logic is not the default solution;
+- use the frozen cross-vendor cohort to test the current core before widening it; do not change the core simply because a new vendor expresses an existing concept differently;
 - no SKU-specific extraction, compatibility, generation, ranking, session or recommendation branches;
 - recommendation golden answer keys must contain semantic expected outcomes, not runtime product configuration, SKU pairs or canonical candidate IDs;
 - goldens validate outputs and must never be fed back into runtime construction;
@@ -454,6 +508,6 @@ PRs that materially change durable architecture, evidence semantics, compatibili
 - preserve the immutable Batch 2 blind artifact and use fresh post-blind evaluation for regression checking; and
 - prefer small reusable evidence primitives over broad vocabularies introduced without a concrete decision need.
 
-## Suggested fresh-chat starting point after PR #51
+## Suggested fresh-chat starting point after PR #52
 
-> Continue TetherLens from merged `main` after PR #51. Inspect the remaining recommendation/evidence uncertainties now that NLG 101519 has a bounded first-party datasheet-backed endpoint-assignment path. Choose the next smallest reusable slice only where accepted evidence closes a recurring downstream decision gap. Preserve concrete endpoint/interface identity and structural roles, keep endpoint assignment separate from compatibility, keep supporting-document traversal decision-bound, identity-bound and final-host validated, and do not widen hard constraints or inference from generic catalogue wording.
+> Continue TetherLens from merged `main` after PR #52. Use the frozen cross-vendor portability cohort rather than returning immediately to NLG enrichment. Inspect the FallTech 5318A10 and GRIPPS H01079 first-party source surfaces and current adapter architecture, then choose the smallest first B-class vertical slice that can emit existing normalized primitives without changing downstream compatibility, hard evaluation, ranking or SKU-pair rules. Keep the portability A/B/C/D classification explicit, preserve missing evidence as missing, and only add a new reusable core primitive when a cross-vendor product genuinely cannot be represented faithfully by the existing model.
