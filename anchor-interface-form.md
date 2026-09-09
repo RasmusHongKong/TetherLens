@@ -84,7 +84,7 @@ The recommendation golden itself does not need a new expected compatibility outc
 
 ## Evidence and polarity boundary
 
-The underlying ToolAttachment interface extractor remains authoritative for whether a concrete tether-side interface exists. Its existing fail-closed controls include:
+The underlying ToolAttachment interface extractor remains authoritative for whether a tether-side topology subject exists. Its existing fail-closed controls include:
 
 - product-name-only or bare `D Ring` references;
 - generic `ring` wording;
@@ -94,9 +94,11 @@ The underlying ToolAttachment interface extractor remains authoritative for whet
 - subject switches in which another loop or component owns the lanyard relation; and
 - unrelated D-rings that are not the supplied tether interface.
 
-The target-form layer adds no broader grammar. It simply requires that an already-produced `tool_attachment_tether_side` `interface.type = ring` claim retain explicit D-ring wording in its own raw evidence before copying `ring_form = d_ring` to that subject.
+The target-form layer adds no broader positive grammar. It requires that an already-produced `tool_attachment_tether_side` `interface.type = ring` claim retain **singular** D-ring wording in its own raw evidence before copying `ring_form = d_ring` to that subject.
 
-A product name such as `Mini Adhesive D Ring` is therefore still insufficient by itself. A generic ring is still a generic ring.
+That singular guard is intentional. The legacy ToolAttachment topology grammar can still materialize its historical `tether_side_ring` subject for some plural D-ring wording shapes. PR #50 does not change that pre-existing topology behavior, but it refuses to enrich such a subject with narrower form because the plural evidence does not establish one concrete D-ring identity.
+
+A product name such as `Mini Adhesive D Ring` is therefore still insufficient by itself. A generic ring is still a generic ring, and plural D-ring evidence is not collapsed into singular form evidence.
 
 ## Structural role is preserved
 
@@ -166,7 +168,8 @@ Focused executable coverage verifies:
 
 - preservation of ToolAttachment interface identity and `tool_attachment_tether_side` role;
 - D-ring attribute resolution through the existing generic `ConnectionInterface.attributes` path;
-- product-name/generic-ring fail-closed behavior; and
+- product-name/generic-ring fail-closed behavior;
+- plural D-ring evidence does not enrich the legacy singular interface subject; and
 - no compatibility widening from the newly preserved form.
 
 ## Non-goals
