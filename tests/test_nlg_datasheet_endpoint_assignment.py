@@ -197,10 +197,34 @@ def test_nlg_does_not_derive_when_separately_distinguished_carabiners_are_direct
     assert _assignment_claims(claims) == []
 
 
+def test_nlg_does_not_treat_repeated_collective_carabiners_as_distinguished_ends():
+    body = """
+    Product Code: 101519
+    Dual double-action carabiners are fitted to this tether.
+    The carabiners attach to the tool and the carabiners connect to the anchor point.
+    """
+
+    claims = NLGAdapter().extract(_identity(), [_datasheet(body)])
+
+    assert len(_assignment_claims(claims)) == 6
+
+
 def test_nlg_does_not_derive_from_negated_double_action_construction():
     body = """
     Product Code: 101519
     This product does not use dual double-action carabiners.
+    The tether allows secure attachment to your tool and anchor point.
+    """
+
+    claims = NLGAdapter().extract(_identity(), [_datasheet(body)])
+
+    assert _assignment_claims(claims) == []
+
+
+def test_nlg_does_not_derive_from_postposed_negated_double_action_construction():
+    body = """
+    Product Code: 101519
+    Dual double-action carabiners are not fitted to this tether.
     The tether allows secure attachment to your tool and anchor point.
     """
 
@@ -214,6 +238,18 @@ def test_nlg_does_not_derive_from_other_product_construction_comparison():
     Product Code: 101519
     Another lanyard uses dual double-action carabiners.
     This tether allows secure attachment to your tool and anchor point.
+    """
+
+    claims = NLGAdapter().extract(_identity(), [_datasheet(body)])
+
+    assert _assignment_claims(claims) == []
+
+
+def test_nlg_does_not_derive_when_tool_is_only_context_for_anchor_connection():
+    body = """
+    Product Code: 101519
+    Dual double-action carabiners are fitted to this tether.
+    Inspect tools before you connect the lanyard to an anchor point.
     """
 
     claims = NLGAdapter().extract(_identity(), [_datasheet(body)])
