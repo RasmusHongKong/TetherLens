@@ -52,7 +52,9 @@ Each cohort product is assigned one portability class based on the smallest chan
 
 Class B is not considered an architectural failure. A manufacturer adapter that emits vendor-neutral facts is expected supply-side work. Class D is the main warning signal.
 
-Evidence availability is also kept separate from portability. A product can fit the current core while remaining recommendation-blocked because the public source does not establish endpoint assignment, loop engagement method, geometry or another mandatory fact. Missing evidence must not be turned into a new rule merely to make the cohort pass.
+Evidence availability and evidence reconciliation are also kept separate from portability. A product can fit the current core while remaining recommendation-blocked because the public source does not establish endpoint assignment, loop engagement method, geometry or another mandatory fact, or because first-party evidence conflicts internally. Missing or conflicting evidence must not be turned into a new rule merely to make the cohort pass.
+
+Two V1 products make that distinction concrete. The current GRIPPS H01079 page uses both `36.3 kg / 80 lb` and `36.9 kg / 81 lb` load wording, while the current Ty-Flot CC2956WR14LRD page describes a `5 lb` rating but also lists `Max Tool Weight 2 lb`. Both remain B-class because the current core already represents rated capacity; neither disputed value should be considered recommendation-ready until the evidence is reconciled.
 
 ## V1 cohort
 
