@@ -14,7 +14,7 @@ from .nlg_anchor_interface_form import NLGAdapter as BaseNLGAdapter
 from .nlg_connector_mechanism import _dedupe_claims
 
 
-_D_RING_EVIDENCE = re.compile(r"\bd[\s-]?rings?\b", re.I)
+_SINGULAR_D_RING_EVIDENCE = re.compile(r"\bd[\s-]?ring\b", re.I)
 
 
 class NLGAdapter(BaseNLGAdapter):
@@ -24,7 +24,9 @@ class NLGAdapter(BaseNLGAdapter):
     when manufacturer evidence itself binds a D-ring to the provided tether point or
     lanyard connection. This final enrichment layer retains that narrower form on the
     same subject; it does not create an interface, infer form from a product name, or
-    widen the interface's structural role.
+    widen the interface's structural role. Plural D-ring wording is not enriched onto
+    the legacy singular interface subject because that wording does not establish one
+    concrete physical identity.
     """
 
     extractor = "nlg.v0.15"
@@ -54,7 +56,7 @@ class NLGAdapter(BaseNLGAdapter):
                 or claim.property_key != "interface.type"
                 or claim.value != "ring"
                 or claim.raw_value is None
-                or _D_RING_EVIDENCE.search(claim.raw_value) is None
+                or _SINGULAR_D_RING_EVIDENCE.search(claim.raw_value) is None
             ):
                 continue
 
