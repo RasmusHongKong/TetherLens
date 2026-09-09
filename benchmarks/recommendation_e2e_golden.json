@@ -1,5 +1,5 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "description": "Small semantic end-to-end recommendation contract. Expected outcomes are expressed in reusable recommendation semantics rather than product/SKU pairs or canonical candidate identities.",
   "scenarios": {
     "manufacturer_declared_ranked_selection": {
@@ -29,6 +29,40 @@
         "unresolved_tool_connection": {
           "check_type": "connection_compatibility",
           "status": "unresolved"
+        }
+      }
+    },
+    "tool_attachment_feature_bound_selection": {
+      "generated_count": 2,
+      "evaluation_count": 2,
+      "selection_state": "selected",
+      "ranked_viable_count": 1,
+      "blocked_count": 1,
+      "selected_recommendation_state": "recommended_with_constraints",
+      "selected_pending_verification_count": 2,
+      "selected_attachment_mode": "tool_attachment",
+      "selected_binding_names": [
+        "surface"
+      ],
+      "selected_surface_profile": "flat",
+      "selected_constraint_statuses": {
+        "installation_surface_profile": "passed",
+        "required_surface_condition": "passed"
+      },
+      "selected_all_constraints_bound_to_selected_feature": true,
+      "selected_tool_target_role": "tool_attachment_tether_side",
+      "selected_component_role_set": [
+        "anchor",
+        "tether",
+        "tool_attachment"
+      ],
+      "blocked_candidate_semantics": {
+        "installation_surface_mismatch": {
+          "surface_profile": "curved",
+          "check_type": "product_constraint",
+          "status": "failed",
+          "constraint_key": "installation_surface_profile",
+          "constraint_bound_to_selected_feature": true
         }
       }
     }
