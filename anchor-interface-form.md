@@ -4,7 +4,7 @@
 
 This note defines production target-interface form enrichment used to bind an already-established structural interface to narrower manufacturer-stated physical form without inventing topology or compatibility.
 
-The first slice was the singular NLG Adjustable Wristband anchor D-ring. The next justified slice is the concrete D-ring interface already provided by an NLG ToolAttachment and exercised by the ToolAttachment-mediated recommendation path.
+The first slice was the singular NLG Adjustable Wristband anchor D-ring. The next justified slice is the concrete D-ring interface already provided by NLG ToolAttachments and exercised by the ToolAttachment-mediated recommendation path.
 
 The governing rule is:
 
@@ -48,7 +48,12 @@ The extraction is evidence-led rather than SKU-led. Product identity scopes the 
 
 The existing NLG ToolAttachment interface extractor already has a stricter prerequisite than a generic ring detector. It creates the concrete `tether_side_ring` subject only when affirmative manufacturer evidence itself binds a **D-ring** to the tether point or tool-lanyard connection supplied by the attachment.
 
-For example, the current NLG Mini Adhesive D Ring evidence identifies the D-ring and states that it creates a tether point for attaching a tool lanyard. The existing extraction path therefore already establishes:
+Two existing benchmark products demonstrate the recurring pattern:
+
+- NLG 101363 supplies a secure tether point with a rotating D-ring on the 360 D Ring Loop Tool Tether; and
+- NLG 101481 identifies the Mini Adhesive D Ring and states that it creates a tether point for attaching a tool lanyard.
+
+The existing extraction path therefore already establishes, from local evidence rather than product identity:
 
 ```text
 subject_type = physical_interface
@@ -71,7 +76,9 @@ The form layer deliberately runs after the established ToolAttachment interface 
 
 PR #49 added a semantic end-to-end recommendation scenario in which a ToolAttachment-provided tether interface survives accepted evidence, selected installation-feature binding, normalized product/install constraints, candidate generation, hard evaluation and selection.
 
-That makes `tool_attachment_tether_side` a recurring downstream recommendation seam rather than merely catalogue metadata. Preserving manufacturer-stated D-ring form on the already-resolved interface is therefore useful evidence fidelity without adding a new decision rule.
+The supply-side goldens then show the same evidence-backed D-ring form on two separate ToolAttachment products, NLG 101363 and NLG 101481. This is therefore a recurring structural/evidence seam rather than a one-product exception.
+
+Preserving manufacturer-stated D-ring form on the already-resolved interface improves evidence fidelity at a downstream recommendation boundary without adding a new decision rule.
 
 The recommendation golden itself does not need a new expected compatibility outcome for this enrichment. Form becomes available to future evidence-backed declarations or geometry rules only if those rules are independently justified.
 
@@ -145,10 +152,11 @@ Repeated form should be added only when both conditions are true:
 
 ## Benchmark boundary
 
-The Batch 2 post-blind golden now expects:
+The supply-side goldens now expect:
 
-- NLG 101365 to retain its singular `anchor_attachment_tether_side` ring with `ring_form = d_ring`;
-- NLG 101481 to retain its concrete `tool_attachment_tether_side` `tether_side_ring` and add `ring_form = d_ring` on that exact subject;
+- Batch 1 NLG 101363 to retain its concrete `tool_attachment_tether_side` `tether_side_ring` and add `ring_form = d_ring` on that exact subject;
+- Batch 2 NLG 101365 to retain its singular `anchor_attachment_tether_side` ring with `ring_form = d_ring`;
+- Batch 2 NLG 101481 to retain its concrete `tool_attachment_tether_side` `tether_side_ring` and add `ring_form = d_ring` on that exact subject;
 - NLG 101492 to remain unchanged as repeated `container_connection` ring topology without D-ring form enrichment in this slice; and
 - NLG 101520 generic internal anchors to remain form-unknown.
 
