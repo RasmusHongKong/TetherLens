@@ -1,6 +1,6 @@
 # TetherLens Project Status
 
-_Last updated: 2026-09-08_
+_Last updated: 2026-09-09_
 
 This document is the operational handoff for the current TetherLens ingestion, compatibility, candidate-generation/evaluation/selection, recommendation-run, session-resolution, contextual reasoning, and recommendation-benchmark stack. It records the semantics that should be preserved and the highest-value remaining workstreams.
 
@@ -8,7 +8,7 @@ For durable design details, use the dedicated documents including `product-visio
 
 ## Current development line
 
-The current development line through PR #49 includes:
+The current development line through PR #50 includes:
 
 - PR #17 — Batch 2 blind NLG holdout and post-blind evaluation path;
 - PR #18 — explicit tether endpoint topology;
@@ -41,8 +41,9 @@ The current development line through PR #49 includes:
 - PR #45 — evidence-backed reversible tether endpoint assignment using a separate tether-owned relation, preserving `TetherSide.UNKNOWN`, candidate identity and declaration provenance without inferring direction from symmetric hardware;
 - PR #46 — explicit endpoint-assignment basis provenance plus the first bounded production `derived_endpoint_equivalence` extraction for an NLG dual-Quick-Clip tether when first-party endpoint-construction equivalence and undifferentiated tool-to-anchor use are both established;
 - PR #47 — evidence-backed singular anchor-side D-ring form extraction for NLG AnchorAttachments, using `interface.attribute.ring_form = d_ring` on a concrete `anchor_attachment_tether_side` interface so the existing PR #44 Quick Clip declaration can bind without generic-ring promotion, geometry inference or SKU-pair logic;
-- PR #48 — the first semantic end-to-end recommendation golden, exercising accepted/resolved evidence through complete recommendation-run selection for a manufacturer-declared connection path and a non-empty globally exhausted path without golden SKU-pair or candidate-ID expectations; and
-- PR #49 — ToolAttachment-mediated recommendation golden coverage, exercising accepted/resolved tool features, explicit selected-feature eligibility binding, normalized installation constraints, a ToolAttachment-provided tether interface, complete generation/hard evaluation and selection without production rule changes or golden product identity.
+- PR #48 — the first semantic end-to-end recommendation golden, exercising accepted/resolved evidence through complete recommendation-run selection for a manufacturer-declared connection path and a non-empty globally exhausted path without golden SKU-pair or candidate-ID expectations;
+- PR #49 — ToolAttachment-mediated recommendation golden coverage, exercising accepted/resolved tool features, explicit selected-feature eligibility binding, normalized installation constraints, a ToolAttachment-provided tether interface, complete generation/hard evaluation and selection without production rule changes or golden product identity; and
+- PR #50 — evidence-backed ToolAttachment target-form enrichment, preserving `ring_form = d_ring` on an already-concrete `tool_attachment_tether_side` ring when the accepted local interface evidence itself identifies a D-ring, while keeping generic rings generic and leaving compatibility/hard constraints unchanged.
 
 PR #16 remains closed unmerged; its useful catalogue-discovery/scoring work was carried forward through PR #19 and its older topology semantics should not be revived.
 
@@ -227,6 +228,24 @@ Important remaining scope boundaries:
 
 See `connector-declared-compatibility.md` for the declaration/binding model and `anchor-interface-form.md` for the PR #47 evidence boundary.
 
+### ToolAttachment-provided D-ring form
+
+PR #50 preserves narrower form on an existing ToolAttachment-provided tether interface only after the established ToolAttachment interface extractor has already created the concrete subject from affirmative local D-ring/tether-point or tool-lanyard evidence.
+
+The recurring normalized result is:
+
+```text
+role = tool_attachment_tether_side
+interface_type = ring
+attributes = { ring_form: d_ring }
+```
+
+The form layer does not create interface identity, rewrite structural role or independently scan product names for `D Ring`. Generic ring evidence remains generic. The supply-side benchmark now proves the same evidence pattern on NLG 101363 and NLG 101481.
+
+This is deliberately not a compatibility rule. PR #44 still requires `anchor_attachment_tether_side`, so the enriched ToolAttachment target cannot satisfy that declaration. Focused coverage also proves that a carabiner engaging the enriched ToolAttachment D-ring remains `UNRESOLVED` without an independent compatibility basis. No declaration matcher, evaluator, runtime-verification family, candidate hard constraint or ranking rule changes.
+
+Repeated container form remains deferred: NLG 101492 already has six concrete internal `container_connection` ring identities and promising D-ring evidence, but narrower form does not yet close a recurring recommendation/evaluation uncertainty. NLG 101705 remains fail-closed because its plural brace-mounting and tool-anchor D-ring sets do not yet have sufficiently concrete per-set identity/count evidence for safe materialization.
+
 ## Manufacturer-declared compatibility model
 
 A `ConnectorInterfaceCompatibilityDeclaration` contains reusable interface facts rather than product pairs:
@@ -315,27 +334,23 @@ It must not rewrite the original global selector result.
 
 ## Benchmark state
 
-The latest complete executable validation for PR #49 is workflow run **34231166525** on head `49e4ab421e67ef2e5134f99650073447b375b951`. The complete `Ingestion live smoke` workflow passed:
+The latest complete executable validation for PR #50 is workflow run **34301848210** on head `40f08e3443590d6f9c56a6fbca981e7338b280f0`. The complete `Ingestion live smoke` workflow passed:
 
-- unit test suite: **418 passed**;
+- unit test suite: **421 passed**;
 - Batch 1 live acquisition: **12/12 products**;
-- Batch 1 extraction: **54 TP / 0 FP / 0 FN**;
+- Batch 1 extraction: **55 TP / 0 FP / 0 FN**;
 - Batch 1 micro precision/recall: **1.0 / 1.0**;
-- Batch 1 recommendation-data coverage: **27/29 requirements**, with the two remaining requirements classified as existing `source_blocked` cases;
+- Batch 1 recommendation-data coverage: the new ToolAttachment D-ring-form requirement is satisfied and the two pre-existing `source_blocked` requirements remain unchanged;
 - fresh Batch 2 post-blind acquisition: **8/8 products**;
-- fresh Batch 2 extraction: **97 TP / 0 FP / 0 FN**;
+- fresh Batch 2 extraction: **99 TP / 0 FP / 0 FN**;
 - fresh Batch 2 micro precision/recall: **1.0 / 1.0**;
-- fresh Batch 2 recommendation-data coverage: **49/49 requirements**, **8/8 products complete**;
+- fresh Batch 2 recommendation-data coverage: **51/51 requirements**, **8/8 products complete**;
 - the immutable Batch 2 blind artifact remained unchanged as the historical pre-fix baseline; and
 - benchmark artifact upload completed successfully.
 
-This run validates the executable PR #49 ToolAttachment golden on top of the PR #48 recommendation benchmark contract. The new scenario resolves two accepted tool features independently, resolves accepted product/install constraints and the ToolAttachment-provided tether interface, generates one candidate per explicit feature binding, evaluates the complete generated set, and selects only the hard-viable flat/clean installation while the curved installation is blocked by `product_constraint / failed` for `installation_surface_profile`.
+This run validates the PR #50 form-enrichment boundary on top of the PR #49 ToolAttachment-mediated recommendation golden. The same generic enrichment is exercised by two independent supply-side ToolAttachment cases: NLG 101363 in Batch 1 and NLG 101481 in Batch 2. Both retain the existing concrete `tether_side_ring` subject and `tool_attachment_tether_side` role while adding only `interface.attribute.ring_form = d_ring` from explicit local D-ring interface evidence.
 
-The recommendation golden now contains three semantic scenarios:
-
-- a manufacturer-declared connection path whose selected candidate is `recommended_with_constraints`, retains `COMPATIBLE / MANUFACTURER_DECLARED` on the anchor side and outranks a comparable alternative because it has one rather than two pending physical verifications;
-- a non-empty two-candidate run in which the `under_capacity` semantic alternative is blocked by `load_capacity / failed` while the separate `unresolved_tool_connection` alternative is blocked by `connection_compatibility / unresolved`, allowing bounded `no_suitable_recommendation` only after complete evaluation; and
-- a ToolAttachment-mediated two-feature run in which both surface features are explicitly eligible, the selected feature is retained through constraint evaluation, the flat/clean path remains selectable, and the separate curved/clean path is blocked specifically by the existing hard installation-surface-profile constraint.
+The recommendation golden itself remains the same three semantic scenarios. PR #50 does not add a compatibility outcome or a fourth system-level scenario because target form alone is not a compatibility basis and the existing ToolAttachment recommendation path already provides the downstream seam that justifies preserving the fact.
 
 The answer key intentionally omits SKU pairs, runtime product refs and canonical candidate IDs. Semantic scenario-role labels describe expected behavior without identifying a real product or runtime candidate. The catalogue benchmark remains the supply-side ingestion/recommendation-readiness benchmark; the recommendation golden is the downstream semantic contract.
 
@@ -350,19 +365,21 @@ The existing Batch 2 evidence gaps remain explicit:
 | NLG 101756 | Heavy Duty Retractable Lanyard, Double Carabiner | `public_fact_ambiguous` | connector locking mode not established as manual vs automatic |
 | NLG 101520 | Ascent™ Pouch | `public_fact_not_established` | external daisy-chain presence is established, but an individual loop/site count is not publicly established |
 
-The first recurring target-interface form gap is now closed for a singular anchor-side D-ring: NLG 101365 can materialize a concrete `anchor_attachment_tether_side` ring with `ring_form = d_ring`, allowing the existing PR #44 declaration to bind. This does **not** close plural/repeated-interface identity, container-role, generic-ring or geometry questions; those remain evidence-bound and should be extended only when a recurring recommendation path needs them.
+PR #47 closed the first singular anchor-side D-ring form gap. PR #50 now closes the recurring ToolAttachment target-form preservation gap for already-concrete `tool_attachment_tether_side` D-ring interfaces. Neither change promotes generic rings, rewrites structural roles, supplies geometry or creates compatibility from form alone.
+
+Repeated/plural target form remains evidence- and decision-bound. NLG 101492 already has concrete repeated internal container interfaces but should gain narrower form only when that fact closes a recurring recommendation/evaluation uncertainty. NLG 101705 still lacks sufficiently explicit per-set count/identity for its functionally distinct D-ring groups. NLG 101520 generic internal anchors remain form-unknown.
 
 The reusable symmetric-endpoint model gap is also closed, and PR #46 provides the first production evidence-derived assignment case. Broader symmetric-looking dual-ended products remain an evidence problem rather than a reason to weaken endpoint roles globally: each future derivation must clear an evidence pattern strong enough to establish the same endpoint construction plus undifferentiated pair use.
 
-PR #49 closes the ToolAttachment-mediated end-to-end benchmark gap without expanding production semantics. The downstream golden now proves selected-feature binding through normalized installation constraints and selection; further benchmark growth should be driven by concrete regression risk rather than scenario count.
+PR #49 closes the ToolAttachment-mediated end-to-end benchmark gap without expanding production semantics. Further benchmark growth should be driven by concrete regression risk rather than scenario count.
 
 ## Next highest-value workstreams
 
-### 1. Extend target-interface form only where recurring evidence justifies it
+### 1. Extend target-interface form only when it closes a concrete downstream uncertainty
 
-PR #47 establishes the first production `ring_form = d_ring` target without upgrading generic rings. Further form work should remain similarly concrete.
+PRs #47 and #50 establish the reusable pattern: preserve narrower form on an already-evidence-backed concrete interface, keep structural role unchanged, and do not treat form itself as compatibility.
 
-Potential future cases include repeated container D-rings or plural anchor sets, but only after the system has an evidence-backed way to preserve interface count/identity and structural role. NLG 101705 should not be collapsed from plural D-rings into one anonymous target, NLG 101492 remains `container_connection`, and NLG 101520 generic anchor points remain unknown type unless stronger first-party form evidence is available.
+The next form slice should not be selected merely because a catalogue page contains richer D-ring wording. It should first identify a recurring recommendation, declaration-binding, geometry or hard-evaluation uncertainty that the narrower form would actually resolve. NLG 101492 remains a candidate only if its repeated `container_connection` D-ring form becomes decision-relevant; NLG 101705 remains blocked on plural identity/count; NLG 101520 remains generic.
 
 Do not build a broad ring taxonomy for its own sake.
 
@@ -403,7 +420,7 @@ PRs that materially change durable architecture, evidence semantics, compatibili
 - endpoint-pair assignment evidence must remain separate from individual endpoint role evidence;
 - assignment provenance must distinguish manufacturer declaration from TetherLens derivation;
 - no reversible assignment from `dual` / `double` / `twin`, a shared normalized connector spec, pair-use wording or manufacturer silence alone;
-- endpoint assignment is a configuration-validity constraint, not a ranking preference; one viable permitted orientation is sufficient for product selection, and equivalent reversible orientations should not become duplicate user-facing product recommendations;
+- endpoint assignment is a configuration-validity constraint, not a ranking preference; one viable permitted orientation is sufficient for product selection, and equivalent reversible orientations should not become duplicate user-facing product recommendations solely because the physical ends can be swapped;
 - catalogue assignment required for recommendation must not depend on physical inspection of a tether the worker may not possess;
 - target-interface form must remain bound to concrete accepted evidence; generic `ring` must not silently become `d_ring`;
 - keep manufacturer scope, technical fit, installation constraints, policy, context, ranking and session outcomes separate;
@@ -420,6 +437,6 @@ PRs that materially change durable architecture, evidence semantics, compatibili
 - preserve the immutable Batch 2 blind artifact and use fresh post-blind evaluation for regression checking; and
 - prefer small reusable evidence primitives over broad vocabularies introduced without a concrete decision need.
 
-## Suggested fresh-chat starting point after PR #49
+## Suggested fresh-chat starting point after PR #50
 
-> Continue TetherLens from merged `main` after PR #49. Inspect the completed three-scenario end-to-end recommendation golden, then tackle the next highest-value evidence/model gap: extend target-interface form only where a recurring recommendation path justifies it. Preserve concrete interface identity and structural role, do not promote generic rings to D-rings, and require evidence-backed semantics before changing compatibility or hard constraints.
+> Continue TetherLens from merged `main` after PR #50. Inspect the completed target-interface-form model and current recommendation/evidence gaps, then choose the next smallest reusable slice only where accepted evidence closes a recurring downstream uncertainty. Preserve concrete interface/endpoint identity and structural role, keep form separate from compatibility, and do not widen hard constraints or inference from generic catalogue wording.
