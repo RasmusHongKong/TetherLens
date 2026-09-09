@@ -209,6 +209,34 @@ A scalable strategy should work on products that were not used to develop it. Ma
 
 A manufacturer strategy that performs well only on the development SKU has not demonstrated catalogue scalability.
 
+## Cross-vendor portability and architecture stabilization
+
+Ingestion generalization and domain portability are related but different questions. A new manufacturer may legitimately require a new acquisition/extraction adapter while still proving that the normalized domain and recommendation core are reusable.
+
+For tethering products, use the portability classes defined in `portability-benchmark.md`:
+
+```text
+A = facts only
+B = vendor ingestion only
+C = new reusable primitive
+D = SKU-specific exception
+```
+
+Class B is normal manufacturer-onboarding work. Class C is architectural discovery and should become less frequent as the model matures. Class D is the principal warning signal because it indicates pressure toward one-off application logic.
+
+Portability should be measured across representative unseen cross-vendor cohorts rather than inferred from one manufacturer's catalogue. Useful supply-side metrics include:
+
+- A/B/C/D distribution for newly sampled tethering products;
+- downstream core-change rate per new product and per new manufacturer;
+- reusable-primitive leverage, measured by how many products, manufacturers or tool-feature families one new primitive unlocks;
+- one-off exception rate;
+- time and human effort to move a B-class product from public evidence to normalized/recommendation-ready data; and
+- evidence-conflict or unresolved-fact rate, tracked separately from architecture class.
+
+The objective is not to drive every product artificially into A/B. Genuine recurring C-class findings are valuable because they reveal missing reusable concepts. The desired trend is that successive diverse cohorts become predominantly A/B, new C primitives become occasional and broadly useful, D remains absent or exceptional, and onboarding new manufacturers rarely changes downstream compatibility, candidate generation, hard evaluation or ranking semantics.
+
+This also defines an exit condition for the portability-led architecture phase. Once that pattern is stable, work should shift toward catalogue throughput, tool-side scale and the worker-facing MVP rather than continuing ontology enrichment simply because more product detail exists. Portability cohorts should remain as periodic regression/stress tests after that transition.
+
 ## Economic scalability
 
 A fact that can eventually be found is not necessarily economically ingestible.
@@ -244,6 +272,9 @@ The following rules should guide future benchmark design and scoring:
 11. **Reserve expensive general search for exceptional cases.** Deterministic manufacturer and qualified-source graph traversal should be exhausted first.
 12. **Separate evidence fitness from retrievability.** A trustworthy source that the runtime cannot fetch reliably may remain useful evidence in principle while being unsuitable for the normal unattended acquisition path.
 13. **Verify the resolved evidence identity before assigning source priority.** Request origin, domain, or query text alone must not promote a search/fallback/different-product response to manufacturer or exact-SKU evidence.
+14. **Measure portability separately from ingestion effort.** A new vendor adapter is expected; a new downstream recommendation rule for one product is not.
+15. **Prefer high-leverage reusable C primitives over one-off completion.** A missing concept is worth adding when it recurs and unlocks multiple products or tool-feature families, not merely because one SKU can mention it.
+16. **Treat architecture stabilization as a phase with an exit.** When successive diverse cohorts are mostly A/B with rare reusable C findings and no meaningful D pressure, shift development emphasis toward catalogue scale and the demand-side MVP.
 
 ## Immediate implication for Batch 1
 
