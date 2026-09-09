@@ -2,19 +2,19 @@
 
 ## Purpose
 
-This note defines production target-interface form enrichment used to bind already-established structural interfaces to narrower manufacturer-stated physical form without inventing topology.
+This note defines production target-interface form enrichment used to bind an already-established structural interface to narrower manufacturer-stated physical form without inventing topology or compatibility.
 
-The first slice was the singular NLG Adjustable Wristband anchor D-ring. The second slice is the six already-distinct internal D-ring interfaces on the NLG Tall Tool Bag.
+The first slice was the singular NLG Adjustable Wristband anchor D-ring. The next justified slice is the concrete D-ring interface already provided by an NLG ToolAttachment and exercised by the ToolAttachment-mediated recommendation path.
 
 The governing rule is:
 
-> **A physical-interface form may be normalized only when accepted manufacturer wording can be bound unambiguously to the concrete tether interface or already-resolved repeated interface set being represented. A generic ring, a product name, or an unresolved repeated interface set must not be upgraded to a D-ring.**
+> **A physical-interface form may be normalized only when accepted manufacturer wording directly and unambiguously binds that form to the concrete tether interface being represented. A generic ring, a product name, imagery, or an unresolved plural set must not be upgraded to a D-ring.**
 
 ## Shared representation
 
 `ConnectionInterface` already retains arbitrary accepted `interface.attribute.*` claims in `attributes`.
 
-The normalized runtime pattern is therefore:
+The normalized runtime pattern remains:
 
 ```text
 ConnectionInterface(
@@ -26,13 +26,13 @@ ConnectionInterface(
 
 No new domain field or D-ring-specific runtime class is required.
 
-`interface.type = ring` remains the broader topology fact. `ring_form = d_ring` is a narrower accepted physical-form fact and must remain absent when the source establishes only a generic ring or when the form evidence cannot be bound to a concrete interface identity.
+`interface.type = ring` is the broader topology fact. `ring_form = d_ring` is a narrower accepted physical-form fact. The latter must remain absent when the source establishes only a generic ring or when D-ring wording cannot be bound to the exact interface subject.
 
 ## Singular anchor slice
 
 Current NLG first-party wording for the Adjustable Wristband states that the product creates an anchor point on the wrist and utilises a durable plastic D ring for quick and easy lanyard attachment.
 
-That wording establishes one singular physical interface with the narrow primitives:
+That wording establishes one singular physical interface:
 
 ```text
 subject_type = physical_interface
@@ -44,62 +44,52 @@ interface.attribute.ring_form = d_ring
 
 The extraction is evidence-led rather than SKU-led. Product identity scopes the owning catalogue item, but the SKU or product name is not used to manufacture the D-ring form.
 
-## Repeated container slice
+## ToolAttachment-provided interface slice
 
-The Tall Tool Bag evidence establishes two complementary facts:
+The existing NLG ToolAttachment interface extractor already has a stricter prerequisite than a generic ring detector. It creates the concrete `tether_side_ring` subject only when affirmative manufacturer evidence itself binds a **D-ring** to the tether point or tool-lanyard connection supplied by the attachment.
+
+For example, the current NLG Mini Adhesive D Ring evidence identifies the D-ring and states that it creates a tether point for attaching a tool lanyard. The existing extraction path therefore already establishes:
 
 ```text
-8 load-rated anchor points — 2 external, 6 internal
-6 integrated D Rings for tool lanyard attachment
+subject_type = physical_interface
+subject_ref = tether_side_ring
+interface.role = tool_attachment_tether_side
+interface.type = ring
 ```
 
-The existing container-topology resolver already materializes the count/location fact as eight concrete subjects and can bind the unlocated six-count D-ring observation to exactly one resolved set: the six internal anchors.
-
-The form layer therefore enriches those existing subjects only:
+The target-form layer preserves the narrower form on that exact same subject:
 
 ```text
-internal_anchor_1 ... internal_anchor_6
-interface.role = container_connection
-interface.location_description = internal
-interface.type = ring
 interface.attribute.ring_form = d_ring
 ```
 
-The two external anchors remain separate `container_connection` interfaces with unknown form. The four external tool holders remain outside `ConnectionInterface`.
+This is an enrichment of an existing concrete interface, not a second interface extraction. Subject identity, structural role, raw evidence and source provenance are retained.
 
-This is not plural collapse. Interface count and identity already exist before the form attribute is added. The form enrichment reuses each concrete subject and the D-ring evidence already bound to its `interface.type = ring` claim.
+The form layer deliberately runs after the established ToolAttachment interface grammar. It does not independently search a product page for a D-ring phrase and cannot create `tether_side_ring` when the underlying interface extractor has failed closed.
 
-## Identity boundary
+## Why this path is justified now
 
-Repeated form may be normalized only after topology has preserved the individual interface subjects and the form evidence maps unambiguously to that exact set.
+PR #49 added a semantic end-to-end recommendation scenario in which a ToolAttachment-provided tether interface survives accepted evidence, selected installation-feature binding, normalized product/install constraints, candidate generation, hard evaluation and selection.
 
-A repeated D-ring phrase does **not** by itself authorize new interface subjects.
+That makes `tool_attachment_tether_side` a recurring downstream recommendation seam rather than merely catalogue metadata. Preserving manufacturer-stated D-ring form on the already-resolved interface is therefore useful evidence fidelity without adding a new decision rule.
 
-For example:
+The recommendation golden itself does not need a new expected compatibility outcome for this enrichment. Form becomes available to future evidence-backed declarations or geometry rules only if those rules are independently justified.
 
-- a `4 external / 4 internal` anchor split plus an unlocated `4 D-rings` phrase is ambiguous and remains form-unknown;
-- generic `ring` wording is not a D-ring claim;
-- unknown-form anchor points remain unknown even when imagery appears ring-like; and
-- a product name containing `D Ring` cannot supply physical form to another subject.
+## Evidence and polarity boundary
 
-The singular anchor extractor continues to fail closed on plural D-ring/lanyard wording because that path does not independently establish repeated interface identity.
+The underlying ToolAttachment interface extractor remains authoritative for whether a concrete tether-side interface exists. Its existing fail-closed controls include:
 
-## Polarity, function and clause binding
-
-The D-ring form must remain attached to affirmative manufacturer evidence and an already-established tether function.
-
-The singular anchor extractor fails closed for:
-
-- product-name-only or bare D-ring references;
+- product-name-only or bare `D Ring` references;
 - generic `ring` wording;
-- cross-block D-ring/lanyard co-occurrence;
-- interrogative wording;
+- cross-block D-ring/tether-point co-occurrence;
 - direct negation or prohibition;
-- permission/safety prohibitions such as `not permitted`, `not allowed` or `not safe`;
-- trailing avoidance/prohibition wording; and
-- D-rings whose stated purpose is another function such as brace mounting.
+- permission/safety prohibitions;
+- subject switches in which another loop or component owns the lanyard relation; and
+- unrelated D-rings that are not the supplied tether interface.
 
-The container form path adds no separate topology or function inference. It only copies `d_ring` form from an already-produced `container_connection` subject whose own `interface.type = ring` evidence explicitly contains D-ring wording. Existing container guards therefore continue to reject mounting D-rings, tool holders and ambiguous repeated sets before form enrichment can occur.
+The target-form layer adds no broader grammar. It simply requires that an already-produced `tool_attachment_tether_side` `interface.type = ring` claim retain explicit D-ring wording in its own raw evidence before copying `ring_form = d_ring` to that subject.
+
+A product name such as `Mini Adhesive D Ring` is therefore still insufficient by itself. A generic ring is still a generic ring.
 
 ## Structural role is preserved
 
@@ -107,16 +97,16 @@ D-ring form never rewrites structural role.
 
 In particular:
 
-- wrist/anchor-attachment D-rings remain `anchor_attachment_tether_side`;
-- container D-rings remain `container_connection`;
-- ToolAttachment-provided D-rings remain `tool_attachment_tether_side`; and
-- a ring on any other function is not promoted into one of those roles merely because its form is a D-ring.
+- the Adjustable Wristband D-ring remains `anchor_attachment_tether_side`;
+- a ToolAttachment-provided D-ring remains `tool_attachment_tether_side`;
+- container interfaces remain `container_connection`; and
+- another D-ring function is not promoted into one of these roles merely because the physical form is a D-ring.
 
-The Comfort Safety Belt remains an important control. Current first-party evidence distinguishes top D-rings used for braces from bottom D-rings used as tool anchors, but the current text does not establish a concrete per-set count/identity suitable for materializing those plural interfaces. The existing `bottom_d_ring` capacity fact is therefore not widened into fabricated connection-interface subjects in this slice.
+This distinction is important because form and function answer different questions. `d_ring` describes physical form; it does not mean `anchor`.
 
 ## Relationship to Quick Clip compatibility
 
-PR #44 defines the reusable NLG Quick Clip -> D-ring anchor declaration with the target requirements:
+PR #44 defines the reusable NLG Quick Clip -> D-ring **anchor** declaration with the target requirements:
 
 ```text
 target role = anchor_attachment_tether_side
@@ -124,31 +114,52 @@ target interface type = ring
 target attribute ring_form = d_ring
 ```
 
-This target role remains unchanged.
+The role requirement remains unchanged.
 
-Container D-ring enrichment does **not** make `container_connection` targets satisfy that anchor declaration. No declaration matcher, compatibility evaluator or hard constraint is changed by this work.
+A ToolAttachment target with:
 
-Once an accepted interface of the correct declared structural role independently satisfies a supported declaration, the existing binder/evaluator may use its attributes in the normal way. Product identity continues to scope candidate context only; it is not the compatibility rule.
+```text
+role = tool_attachment_tether_side
+interface_type = ring
+ring_form = d_ring
+```
+
+therefore does **not** satisfy the PR #44 declaration. This slice does not modify declaration matching, the connection evaluator, compatibility precedence, candidate hard constraints, or runtime-verification families.
+
+Focused regression coverage confirms that an ordinary carabiner endpoint engaging the enriched ToolAttachment D-ring remains `UNRESOLVED` when no acceptable compatibility basis is established. Form evidence alone is not compatibility evidence.
+
+## Container and plural-interface boundary
+
+This slice does not extend D-ring form to repeated container or belt interfaces.
+
+NLG 101492 remains an important future candidate because the existing topology layer already preserves six distinct internal `container_connection` ring subjects. Current evidence also uses D-ring wording for those internal tethering points. However, the narrower form does not currently close a recurring recommendation, compatibility or hard-evaluation gap, so this PR deliberately leaves those container interfaces unchanged.
+
+NLG 101705 remains a stronger fail-closed control. Current first-party evidence distinguishes top D-rings used for brace mounting from bottom D-rings used as tool anchors, but does not establish a concrete per-set count/identity suitable for materializing the plural interface sets. The existing `bottom_d_ring` capacity fact is not widened into fabricated connection-interface subjects.
+
+NLG 101520 generic internal anchor points also remain form-unknown unless stronger first-party form evidence becomes available.
+
+Repeated form should be added only when both conditions are true:
+
+1. concrete interface count/identity and structural role are already evidence-backed; and
+2. preserving the narrower form closes a recurring recommendation/evaluation uncertainty rather than merely expanding taxonomy.
 
 ## Benchmark boundary
 
-The Batch 2 post-blind golden expects:
+The Batch 2 post-blind golden now expects:
 
-- NLG 101365 to retain the singular `anchor_attachment_tether_side` ring with `ring_form = d_ring`;
-- NLG 101492 to retain six distinct internal `container_connection` ring subjects and add `ring_form = d_ring` to each of those exact subjects;
-- NLG 101492's two external anchors to remain form-unknown; and
-- NLG 101520's generic internal anchor points to remain form-unknown.
+- NLG 101365 to retain its singular `anchor_attachment_tether_side` ring with `ring_form = d_ring`;
+- NLG 101481 to retain its concrete `tool_attachment_tether_side` `tether_side_ring` and add `ring_form = d_ring` on that exact subject;
+- NLG 101492 to remain unchanged as repeated `container_connection` ring topology without D-ring form enrichment in this slice; and
+- NLG 101520 generic internal anchors to remain form-unknown.
 
 The immutable Batch 2 blind artifact remains unchanged.
 
 Focused executable coverage verifies:
 
-- preservation of all six repeated container interface identities and structural role;
+- preservation of ToolAttachment interface identity and `tool_attachment_tether_side` role;
 - D-ring attribute resolution through the existing generic `ConnectionInterface.attributes` path;
-- generic-ring fail-closed behavior;
-- ambiguous equal-count repeated-set fail-closed behavior;
-- mounting D-ring rejection; and
-- continued singular-anchor behavior through the existing tests.
+- product-name/generic-ring fail-closed behavior; and
+- no compatibility widening from the newly preserved form.
 
 ## Non-goals
 
@@ -156,10 +167,12 @@ This slice does not:
 
 - upgrade generic rings to D-rings;
 - infer D-ring form from a product name or imagery;
-- create repeated interface count or identity from a plural D-ring phrase;
+- create a ToolAttachment interface from form evidence alone;
+- materialize repeated interface count or identity;
+- enrich container D-rings merely because evidence exists;
 - add D-ring geometry or dimensions;
-- rewrite container interfaces as anchor-attachment interfaces;
+- rewrite ToolAttachment or container interfaces as anchor-attachment interfaces;
 - change Quick Clip connector semantics or declaration scope;
-- change declaration matching, compatibility evaluation or hard constraints;
+- change declaration matching, compatibility evaluation, runtime verification or hard constraints;
 - create SKU-pair compatibility; or
 - materialize the Comfort Safety Belt's plural D-ring sets without stronger identity/count evidence.
