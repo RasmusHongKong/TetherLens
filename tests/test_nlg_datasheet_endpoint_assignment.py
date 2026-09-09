@@ -22,9 +22,16 @@ DATASHEET_URL = (
 
 
 class FakeFetcher:
-    def __init__(self, *, page_html: str, datasheet_text: str):
+    def __init__(
+        self,
+        *,
+        page_html: str,
+        datasheet_text: str,
+        datasheet_artifact_url: str = DATASHEET_URL,
+    ):
         self.page_html = page_html
         self.datasheet_text = datasheet_text
+        self.datasheet_artifact_url = datasheet_artifact_url
         self.calls: list[tuple[str, SourceType]] = []
 
     def get(self, url, source_type=SourceType.MANUFACTURER_WEBPAGE):
@@ -38,7 +45,7 @@ class FakeFetcher:
             )
         if url == DATASHEET_URL:
             return SourceArtifact(
-                url=url,
+                url=self.datasheet_artifact_url,
                 source_type=source_type,
                 content_type="application/pdf",
                 body=self.datasheet_text,
@@ -69,6 +76,19 @@ def _primary(body: str, *, url: str = PAGE_URL) -> SourceArtifact:
     )
 
 
+def _datasheet(body: str, *, url: str = DATASHEET_URL) -> SourceArtifact:
+    return SourceArtifact(
+        url=url,
+        source_type=SourceType.MANUFACTURER_DOCUMENT,
+        content_type="application/pdf",
+        body=body,
+        metadata={
+            "role": "product_datasheet",
+            "relationship_basis": "first_party_product_download",
+        },
+    )
+
+
 def _assignment_claims(claims):
     return [
         claim
@@ -91,6 +111,7 @@ def test_nlg_source_graph_fetches_first_party_datasheet_only_for_dual_carabiner_
     """
     datasheet_text = """
     NLG GO Bungee Tool Lanyard, Twin Carabiner
+    Product Code: 101519
     The dual double-action carabiners allow for easy yet secure attachment to your tool
     and anchor point, whilst the low resistance makes it comfortable for all-day use.
     """
@@ -130,8 +151,7 @@ def test_nlg_primary_page_alone_does_not_derive_twin_carabiner_reversibility():
     page_html = f"""
     <h1>GO Bungee Tool Lanyard, Twin Carabiner</h1>
     <p>
-      It comes with dual sturdy double-action carabiners so that it can attach easily
-      to all common hand tools.
+      Dual double-action carabiners allow secure attachment to your tool and anchor point.
     </p>
     <a href="{DATASHEET_URL}">Datasheet</a>
     """
@@ -143,34 +163,96 @@ def test_nlg_primary_page_alone_does_not_derive_twin_carabiner_reversibility():
 
 def test_nlg_does_not_derive_carabiner_equivalence_from_multiplicity_and_pair_use_alone():
     body = """
-    <h1>Example Twin Carabiner Tool Lanyard</h1>
-    <p>Dual carabiners allow secure attachment to your tool and anchor point.</p>
+    Product Code: 101519
+    Dual carabiners allow secure attachment to your tool and anchor point.
     """
 
-    claims = NLGAdapter().extract(
-        _identity(name="Example Twin Carabiner Tool Lanyard", sku="example"),
-        [_primary(body)],
-    )
+    claims = NLGAdapter().extract(_identity(), [_datasheet(body)])
 
     assert _assignment_claims(claims) == []
 
 
 def test_nlg_does_not_derive_carabiner_equivalence_when_first_party_copy_assigns_ends():
     body = """
-    <h1>Example Twin Carabiner Tool Lanyard</h1>
-    <p>
-      Dual double-action carabiners allow secure attachment to your tool and anchor point.
-      The tool-end carabiner is used on the tool and the anchor-end carabiner is used on
-      the anchor.
-    </p>
+    Product Code: 101519
+    Dual double-action carabiners allow secure attachment to your tool and anchor point.
+    The tool-end carabiner is used on the tool and the anchor-end carabiner is used on
+    the anchor.
     """
 
-    claims = NLGAdapter().extract(
-        _identity(name="Example Twin Carabiner Tool Lanyard", sku="example"),
-        [_primary(body)],
-    )
+    claims = NLGAdapter().extract(_identity(), [_datasheet(body)])
 
     assert _assignment_claims(claims) == []
+
+
+def test_nlg_does_not_derive_when_separately_distinguished_carabiners_are_directional():
+    body = """
+    Product Code: 101519
+    Dual double-action carabiners allow secure attachment to your tool and anchor point.
+    Attach the red carabiner to the tool and the blue carabiner to the anchor.
+    """
+
+    claims = NLGAdapter().extract(_identity(), [_datasheet(body)])
+
+    assert _assignment_claims(claims) == []
+
+
+def test_nlg_does_not_derive_from_negated_double_action_construction():
+    body = """
+    Product Code: 101519
+    This product does not use dual double-action carabiners.
+    The tether allows secure attachment to your tool and anchor point.
+    """
+
+    claims = NLGAdapter().extract(_identity(), [_datasheet(body)])
+
+    assert _assignment_claims(claims) == []
+
+
+def test_nlg_does_not_derive_from_other_product_construction_comparison():
+    body = """
+    Product Code: 101519
+    Another lanyard uses dual double-action carabiners.
+    This tether allows secure attachment to your tool and anchor point.
+    """
+
+    claims = NLGAdapter().extract(_identity(), [_datasheet(body)])
+
+    assert _assignment_claims(claims) == []
+
+
+def test_nlg_does_not_derive_from_wrong_first_party_datasheet_identity():
+    body = """
+    Product Code: 999999
+    Dual double-action carabiners allow secure attachment to your tool and anchor point.
+    """
+
+    claims = NLGAdapter().extract(_identity(), [_datasheet(body)])
+
+    assert _assignment_claims(claims) == []
+
+
+def test_nlg_does_not_derive_after_datasheet_redirects_off_first_party_host():
+    page_html = f"""
+    <h1>GO Bungee Tool Lanyard, Twin Carabiner</h1>
+    <p>Dual sturdy double-action carabiners for common hand tools.</p>
+    <a href="{DATASHEET_URL}">Datasheet</a>
+    """
+    datasheet_text = """
+    Product Code: 101519
+    Dual double-action carabiners allow secure attachment to your tool and anchor point.
+    """
+    fetcher = FakeFetcher(
+        page_html=page_html,
+        datasheet_text=datasheet_text,
+        datasheet_artifact_url="https://example.test/redirected-101519.pdf",
+    )
+
+    result = IngestionRunner(fetcher).ingest(_identity(), NLGAdapter())
+
+    assert len(result.artifacts) == 2
+    assert result.artifacts[1].url == "https://example.test/redirected-101519.pdf"
+    assert _assignment_claims(result.claims) == []
 
 
 def test_nlg_directional_rotobiner_product_does_not_request_datasheet_or_gain_reversibility():
