@@ -78,11 +78,23 @@ class NLGAdapter(BaseNLGAdapter):
         identity: ProductIdentity,
         artifacts: list[SourceArtifact],
     ) -> list[CandidateClaim]:
-        claims = list(super().extract(identity, artifacts))
+        effective_artifacts = artifacts
+        if identity.product_type == ProductType.TETHER:
+            # A decision-bound datasheet that fails final-host, content-type or product-
+            # identity validation is rejected as evidence altogether. Do not let inherited
+            # NLG layers consume ordinary safety-relevant facts from that document either.
+            effective_artifacts = [
+                artifact
+                for artifact in artifacts
+                if not _is_decision_bound_datasheet(artifact)
+                or _identity_bound_first_party_datasheet(identity, artifact)
+            ]
+
+        claims = list(super().extract(identity, effective_artifacts))
         if identity.product_type != ProductType.TETHER:
             return claims
 
-        for artifact in artifacts:
+        for artifact in effective_artifacts:
             claims.extend(_carabiner_endpoint_assignment_claims(identity, artifact, claims))
         return _dedupe_claims(claims)
 
@@ -130,17 +142,23 @@ def _first_party_datasheet_url(source_artifact: SourceArtifact) -> str | None:
     return None
 
 
+def _is_decision_bound_datasheet(artifact: SourceArtifact) -> bool:
+    """Identify only the purpose-scoped datasheet edge introduced by this adapter."""
+
+    return (
+        artifact.source_type == SourceType.MANUFACTURER_DOCUMENT
+        and artifact.metadata.get("role") == "product_datasheet"
+        and artifact.metadata.get("relationship_basis") == "first_party_product_download"
+    )
+
+
 def _identity_bound_first_party_datasheet(
     identity: ProductIdentity,
     artifact: SourceArtifact,
 ) -> bool:
     """Require the fetched artifact itself to remain first-party and product-bound."""
 
-    if artifact.source_type != SourceType.MANUFACTURER_DOCUMENT:
-        return False
-    if artifact.metadata.get("role") != "product_datasheet":
-        return False
-    if artifact.metadata.get("relationship_basis") != "first_party_product_download":
+    if not _is_decision_bound_datasheet(artifact):
         return False
     if not _is_allowed_nlg_url(artifact.url):
         return False
@@ -216,7 +234,7 @@ def _carabiner_endpoint_assignment_claims(
     if equivalent_match is None:
         return []
 
-    tool_anchor_use = _affirmative_tool_anchor_use(text)
+    tool_anchor_use = _affirmative_assignment_tool_anchor_use(text)
     if tool_anchor_use is None:
         return []
 
@@ -285,6 +303,35 @@ def _affirmative_collective_double_action_pair(text: str) -> str | None:
             if comparative_context.search(context):
                 continue
             return match.group(0)
+    return None
+
+
+def _affirmative_assignment_tool_anchor_use(text: str) -> str | None:
+    """Require pair-use wording to remain affirmative after the matched relation too."""
+
+    postposed_prohibition = re.compile(
+        r"\b(?:is|are|was|were)\s+"
+        r"(?:(?:strictly|expressly|explicitly)\s+)?"
+        r"(?:not\s+(?:permitted|allowed|approved|authorized|recommended)"
+        r"|prohibited|forbidden|disallowed)\b"
+        r"|\b(?:must|shall|should|may)\s+not\s+be\s+"
+        r"(?:used|made|performed|attempted|permitted|allowed)\b"
+        r"|\b(?:prohibited|forbidden|disallowed)\b",
+        re.I,
+    )
+
+    for fragment in _evidence_fragments(text):
+        match_text = _affirmative_tool_anchor_use(fragment)
+        if match_text is None:
+            continue
+        start = fragment.casefold().find(match_text.casefold())
+        if start < 0:
+            continue
+        tail = fragment[start + len(match_text):]
+        local_tail = re.split(r"[.;]", tail, maxsplit=1)[0]
+        if postposed_prohibition.search(local_tail):
+            continue
+        return match_text
     return None
 
 
