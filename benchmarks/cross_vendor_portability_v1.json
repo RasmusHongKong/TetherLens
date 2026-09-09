@@ -1,0 +1,214 @@
+{
+  "benchmark": "cross_vendor_portability_v1",
+  "created_at": "2026-09-09",
+  "freeze_point": {
+    "branch": "main",
+    "commit": "7e9785456e3f52511f017fdc0a3f19afc1c652c7",
+    "through_pr": 51
+  },
+  "classification": {
+    "A": "facts_only",
+    "B": "vendor_ingestion_only",
+    "C": "new_reusable_primitive",
+    "D": "sku_specific_exception"
+  },
+  "products": [
+    {
+      "manufacturer": "GRIPPS",
+      "sku": "H01079",
+      "name": "Webbing Tether Heavy-Duty Dual-Action Carabiner - 36.3kg / 80lb",
+      "product_type": "Tether",
+      "source_url": "https://gripps.com/products/webbing-extra-heavy-duty-dual-action-tether",
+      "archetypes": ["dual_carabiner", "directional_endpoints", "high_capacity_webbing_tether"],
+      "observed_public_facts": [
+        "dual-action carabiners at both ends",
+        "dedicated anchor end is the large carabiner",
+        "dedicated tool end is the small carabiner",
+        "published maximum load"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "explicit tether endpoints",
+        "tool_side / anchor_side endpoint roles",
+        "carabiner ConnectorSpec",
+        "rated capacity",
+        "ordinary candidate generation and hard evaluation"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "GRIPPS acquisition/extraction and evidence normalization only; the directional topology is already representable."
+    },
+    {
+      "manufacturer": "GRIPPS",
+      "sku": "H01055",
+      "name": "Tool Hitch - 16kg / 35lb",
+      "product_type": "ToolAttachment",
+      "source_url": "https://gripps.com/en-ca/products/tool-hitch",
+      "archetypes": ["tool_attachment", "cinch", "closed_handle"],
+      "observed_public_facts": [
+        "simple choking mechanism",
+        "fastens closed-handled power tools",
+        "creates a tool tethering connection point",
+        "16 kg maximum load"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "attachment_method_code = cinch",
+        "closed/captive handle feature eligibility",
+        "ToolAttachment-provided tether interface",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "GRIPPS-specific extraction must bind the choke mechanism, eligible handle feature and provided tether interface."
+    },
+    {
+      "manufacturer": "FallTech",
+      "sku": "5318A10",
+      "name": "15 lb Tool Attachment with choke-on cinch-loop and D-ring",
+      "product_type": "ToolAttachment",
+      "source_url": "https://www.falltech.com/product/5318a10/",
+      "archetypes": ["tool_attachment", "cinch", "captive_eye", "d_ring"],
+      "observed_public_facts": [
+        "designed for tools with captive-eye attachment points",
+        "choke-on design",
+        "integrated D-ring tether connection",
+        "15 lb capacity"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "attachment_method_code = cinch",
+        "captive through-opening eligibility",
+        "tool_attachment_tether_side ring interface",
+        "ring_form = d_ring",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "FallTech-specific extraction only; the complete normalized ToolAttachment path already exists."
+    },
+    {
+      "manufacturer": "FallTech",
+      "sku": "5027B",
+      "name": "15 lb Tool Tether with choke-on cinch-loop and steel carabiner, 36 in",
+      "product_type": "Tether",
+      "source_url": "https://www.falltech.com/product/5027b/",
+      "archetypes": ["carabiner_loop_tether", "cinch_loop", "elastic_tether"],
+      "observed_public_facts": [
+        "steel carabiner",
+        "choke-on cinch-loop",
+        "elastic tether construction",
+        "15 lb capacity"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "mixed tether endpoint topology",
+        "carabiner ConnectorSpec",
+        "loop endpoint with engagement_method = cinch",
+        "cinch_loop_to_closed_interface.v1",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "FallTech extraction must preserve endpoint identity/direction and explicit cinch evidence; no new connection family is indicated."
+    },
+    {
+      "manufacturer": "Ty-Flot",
+      "sku": "CC2956WR14LRD",
+      "name": "Coil Tool Tether with Double Action Swivel Carabiner and HD Cord Loop",
+      "product_type": "Tether",
+      "source_url": "https://guardianfall.com/product/coil-tool-tethers/CC2956WR14LRD",
+      "archetypes": ["coil_tether", "carabiner_loop_tether", "swivel"],
+      "observed_public_facts": [
+        "double-action swivel carabiner",
+        "HD cord loop",
+        "relaxed and extended lengths",
+        "2 lb maximum tool weight"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "mixed tether endpoint topology",
+        "carabiner connector mechanism attributes",
+        "loop endpoint",
+        "minimum/retracted and maximum/extended length facts",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "Ty-Flot/Guardian acquisition and endpoint semantics need extraction; whether the cord loop is a cinch mechanism must remain evidence-bound."
+    },
+    {
+      "manufacturer": "Ty-Flot",
+      "sku": "COLDSH41X35",
+      "name": "Cold Shrink Attachment, 4.1 in by 3.5 in",
+      "product_type": "ToolAttachment",
+      "source_url": "https://guardianfall.com/product/cold-shrink-series/COLDSH41X35",
+      "archetypes": ["tool_attachment", "cold_shrink", "diameter_fit"],
+      "observed_public_facts": [
+        "shrink tubing collapses onto the tool after the core is removed",
+        "fits 1.00 to 1.65 inch diameter",
+        "10 lb maximum tool weight",
+        "48 inch maximum tether length"
+      ],
+      "classification": "C",
+      "core_fit": [
+        "ToolAttachment entity",
+        "external-section/diameter feature fit",
+        "rated capacity",
+        "maximum tether length constraint"
+      ],
+      "required_core_changes": [
+        "add one reusable ToolAttachment retention mechanism for cold-shrink / elastic contraction if existing mechanical_capture cannot faithfully represent it"
+      ],
+      "portability_gap": "The installation geometry largely fits existing feature/dimension semantics, but the retention mechanism is not cleanly represented by the current attachment-method vocabulary."
+    },
+    {
+      "manufacturer": "Dropsafe",
+      "sku": "S017001100501",
+      "name": "Bungee Tool Lanyard - Twin Carabiners - 6.8 kg / 15 lbs",
+      "product_type": "Tether",
+      "source_url": "https://dropsafe.com/products/dropsafe-tether-double-trisafe-bungee-lanyard",
+      "archetypes": ["dual_carabiner", "triple_action", "auto_locking", "bungee_tether"],
+      "observed_public_facts": [
+        "two Trisafe carabiners",
+        "triple-action auto-locking mechanism",
+        "published hook opening",
+        "relaxed and stretched lengths",
+        "6.8 kg maximum dynamic load"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "dual concrete tether endpoints",
+        "carabiner ConnectorSpec",
+        "opening-action and locking attributes",
+        "gate-admission geometry",
+        "minimum/retracted and maximum/extended lengths",
+        "rated capacity",
+        "reversible endpoint-assignment relation if sufficient evidence establishes it"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "Dropsafe extraction is needed. Twin hardware alone must not be treated as reversible; assignment should stay unknown unless accepted evidence establishes direction or equivalence."
+    },
+    {
+      "manufacturer": "Dropsafe",
+      "sku": "S017001100301",
+      "name": "Bungee Tool Lanyard - Cord Loop - 6.8 kg / 15 lbs",
+      "product_type": "Tether",
+      "source_url": "https://dropsafe.com/products/dropsafe-tether-trisafe-cord-loop-bungee-lanyard",
+      "archetypes": ["carabiner_loop_tether", "triple_action", "auto_locking", "bungee_tether"],
+      "observed_public_facts": [
+        "Trisafe carabiner and cord loop ends",
+        "triple-action auto-locking carabiner",
+        "published hook opening",
+        "relaxed and stretched lengths",
+        "6.8 kg maximum dynamic load"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "mixed tether endpoint topology",
+        "carabiner ConnectorSpec",
+        "loop endpoint",
+        "gate-admission geometry",
+        "minimum/retracted and maximum/extended lengths",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "Dropsafe extraction is needed. The loop must remain a plain loop unless separate accepted evidence establishes cinching or another engagement method."
+    }
+  ]
+}
