@@ -423,7 +423,11 @@ def _has_distinguished_carabiner_assignment(fragment: str) -> bool:
 
     tool_labels: set[str] = set()
     anchor_labels: set[str] = set()
-    clauses = re.split(r"\s*(?:;|,|\band\b|\bwhile\b|\bwhereas\b)\s*", fragment, flags=re.I)
+    clauses = re.split(
+        r"\s*(?:[.;:,]|\band\b|\bwhile\b|\bwhereas\b)\s*",
+        fragment,
+        flags=re.I,
+    )
     for clause in clauses:
         labels = _distinguished_carabiner_labels(clause)
         if not labels:
