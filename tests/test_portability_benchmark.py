@@ -43,7 +43,7 @@ def test_cross_vendor_portability_cohort_is_frozen_and_diverse() -> None:
 def test_initial_portability_assessment_separates_ingestion_from_core_change() -> None:
     products = _load()["products"]
 
-    assert Counter(product["classification"] for product in products) == {"B": 7, "C": 1}
+    assert Counter(product["classification"] for product in products) == {"B": 5, "C": 3}
     assert not [product for product in products if product["classification"] == "D"]
 
     for product in products:
@@ -57,6 +57,19 @@ def test_initial_portability_assessment_separates_ingestion_from_core_change() -
             assert product["required_core_changes"] == []
         else:
             assert product["required_core_changes"]
+
+
+def test_single_feature_eligibility_gap_recurs_across_vendors() -> None:
+    products = _load()["products"]
+    single_feature_cases = [
+        product for product in products if "single_feature_eligibility" in product["archetypes"]
+    ]
+
+    assert {(product["manufacturer"], product["sku"]) for product in single_feature_cases} == {
+        ("GRIPPS", "H01055"),
+        ("FallTech", "5318A10"),
+    }
+    assert all(product["classification"] == "C" for product in single_feature_cases)
 
 
 def test_portability_cohort_contains_both_reuse_and_stressor_archetypes() -> None:
@@ -75,6 +88,7 @@ def test_portability_cohort_contains_both_reuse_and_stressor_archetypes() -> Non
         "d_ring",
         "coil_tether",
         "cold_shrink",
+        "single_feature_eligibility",
         "triple_action",
         "auto_locking",
     } <= archetypes
