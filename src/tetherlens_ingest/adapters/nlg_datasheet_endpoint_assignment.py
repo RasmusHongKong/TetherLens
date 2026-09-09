@@ -17,7 +17,6 @@ from tetherlens_ingest.models import (
 )
 
 from .common import page_text
-from .nlg import _affirmative_tool_anchor_use
 from .nlg_connector_mechanism import _dedupe_claims
 from .nlg_target_interface_form import NLGAdapter as BaseNLGAdapter
 
@@ -25,6 +24,28 @@ from .nlg_target_interface_form import NLGAdapter as BaseNLGAdapter
 _EXTRACTOR = "nlg.v0.16"
 _CARABINER_PAIR_REF = "endpoint_assignment:carabiner_equivalent_pair"
 _ALLOWED_NLG_HOSTS = {"neverletgo.com", "www.neverletgo.com", "go.neverletgo.com"}
+_GENERIC_CARABINER_DESCRIPTORS = {
+    "the",
+    "a",
+    "an",
+    "one",
+    "first",
+    "second",
+    "other",
+    "double",
+    "dual",
+    "twin",
+    "double-action",
+    "single-action",
+    "triple-action",
+    "locking",
+    "lock",
+    "auto-locking",
+    "automatic",
+    "manual",
+    "sturdy",
+    "integral",
+}
 
 
 class NLGAdapter(BaseNLGAdapter):
@@ -285,6 +306,13 @@ def _affirmative_collective_double_action_pair(text: str) -> str | None:
         r"is\s+not|isn't|are\s+not|aren't)\b[^.;:]{0,70}$",
         re.I,
     )
+    negated_suffix = re.compile(
+        r"^\s*(?:(?:is|are|was|were|has|have|had|does|do|did|can|could|may|might|"
+        r"must|shall|should|will|would)\s+)?"
+        r"(?:(?:expressly|explicitly|normally)\s+)?"
+        r"(?:not(?!\s+only\b)|never|no\s+longer)\b",
+        re.I,
+    )
     comparative_context = re.compile(
         r"\b(?:unlike|whereas|compared\s+(?:to|with)|in\s+contrast\s+to)\b"
         r"|\b(?:another|other|previous|earlier|competitor(?:'s)?)\s+"
@@ -295,10 +323,13 @@ def _affirmative_collective_double_action_pair(text: str) -> str | None:
     for fragment in _evidence_fragments(text):
         for match in pattern.finditer(fragment):
             prefix = fragment[max(0, match.start() - 100):match.start()]
+            suffix = fragment[match.end():min(len(fragment), match.end() + 80)]
             context = fragment[
                 max(0, match.start() - 120):min(len(fragment), match.end() + 120)
             ]
             if negated_prefix.search(prefix):
+                continue
+            if negated_suffix.search(suffix):
                 continue
             if comparative_context.search(context):
                 continue
@@ -307,8 +338,41 @@ def _affirmative_collective_double_action_pair(text: str) -> str | None:
 
 
 def _affirmative_assignment_tool_anchor_use(text: str) -> str | None:
-    """Require pair-use wording to remain affirmative after the matched relation too."""
+    """Require an affirmative relation that actually binds the tool to the anchor."""
 
+    patterns = (
+        re.compile(
+            r"\btools?\b\s+"
+            r"(?:(?:is|are|was|were|can|could|may|might|must|shall|should|will|would)\s+)?"
+            r"(?:(?:to\s+)?be\s+)?(?:connect\w*|attach\w*)\b"
+            r".{0,30}\bto\b.{0,30}\banchor(?:\s+points?)?\b",
+            re.I,
+        ),
+        re.compile(
+            r"\b(?:connect\w*|attach\w*)\b\s+(?:the\s+|your\s+|a\s+|an\s+)?tools?\b"
+            r".{0,30}\bto\b.{0,30}\banchor(?:\s+points?)?\b",
+            re.I,
+        ),
+        re.compile(
+            r"\battachment\b.{0,25}\bto\b.{0,20}"
+            r"\b(?:the\s+|your\s+|a\s+|an\s+)?tools?\b"
+            r".{0,20}\b(?:and|to)\b.{0,20}\banchor(?:\s+points?)?\b",
+            re.I,
+        ),
+        re.compile(
+            r"\bcarabiners?\b.{0,35}\b(?:connect\w*|attach\w*)\b"
+            r".{0,30}\b(?:the\s+)?tool\b.{0,50}\band\b"
+            r".{0,35}\bcarabiners?\b.{0,35}\b(?:connect\w*|attach\w*)\b"
+            r".{0,30}\b(?:the\s+)?anchor(?:\s+point)?\b",
+            re.I,
+        ),
+    )
+    negated_prefix = re.compile(
+        r"\b(?:no|not|never|do\s+not|don't|does\s+not|doesn't|must\s+not|"
+        r"shall\s+not|should\s+not|cannot|can't|prohibit\w*|forbid\w*)\b"
+        r"[^.;:]{0,60}$",
+        re.I,
+    )
     postposed_prohibition = re.compile(
         r"\b(?:is|are|was|were)\s+"
         r"(?:(?:strictly|expressly|explicitly)\s+)?"
@@ -321,27 +385,48 @@ def _affirmative_assignment_tool_anchor_use(text: str) -> str | None:
     )
 
     for fragment in _evidence_fragments(text):
-        match_text = _affirmative_tool_anchor_use(fragment)
-        if match_text is None:
-            continue
-        start = fragment.casefold().find(match_text.casefold())
-        if start < 0:
-            continue
-        tail = fragment[start + len(match_text):]
-        local_tail = re.split(r"[.;]", tail, maxsplit=1)[0]
-        if postposed_prohibition.search(local_tail):
-            continue
-        return match_text
+        for pattern in patterns:
+            for match in pattern.finditer(fragment):
+                prefix = fragment[max(0, match.start() - 80):match.start()]
+                if negated_prefix.search(prefix):
+                    continue
+                tail = fragment[match.end():]
+                local_tail = re.split(r"[.;]", tail, maxsplit=1)[0]
+                if postposed_prohibition.search(local_tail):
+                    continue
+                return match.group(0)
     return None
 
 
-def _has_distinguished_carabiner_assignment(fragment: str) -> bool:
-    """Detect two locally distinguished carabiners assigned to opposite roles."""
+def _distinguished_carabiner_labels(clause: str) -> set[str]:
+    """Return non-generic descriptors attached to singular carabiner mentions."""
 
-    roles: set[str] = set()
+    labels: set[str] = set()
+    pattern = re.compile(
+        r"\b(?P<label1>[\w-]+)(?:\s+(?P<label2>[\w-]+))?\s+carabiner\b",
+        re.I,
+    )
+    for match in pattern.finditer(clause):
+        words = [
+            word.casefold()
+            for word in (match.group("label1"), match.group("label2"))
+            if word
+        ]
+        words = [word for word in words if word not in _GENERIC_CARABINER_DESCRIPTORS]
+        if words:
+            labels.add(" ".join(words))
+    return labels
+
+
+def _has_distinguished_carabiner_assignment(fragment: str) -> bool:
+    """Detect two differently identified carabiners assigned to opposite roles."""
+
+    tool_labels: set[str] = set()
+    anchor_labels: set[str] = set()
     clauses = re.split(r"\s*(?:;|,|\band\b|\bwhile\b|\bwhereas\b)\s*", fragment, flags=re.I)
     for clause in clauses:
-        if not re.search(r"\bcarabiners?\b", clause, re.I):
+        labels = _distinguished_carabiner_labels(clause)
+        if not labels:
             continue
         tool = bool(re.search(r"\btool\b", clause, re.I))
         anchor = bool(re.search(r"\banchor(?:\s+point)?\b", clause, re.I))
@@ -349,8 +434,12 @@ def _has_distinguished_carabiner_assignment(fragment: str) -> bool:
             continue
         if not re.search(r"\b(?:attach\w*|connect\w*|to|for|used\s+on)\b", clause, re.I):
             continue
-        roles.add("tool" if tool else "anchor")
-    return roles == {"tool", "anchor"}
+        if tool:
+            tool_labels.update(labels)
+        else:
+            anchor_labels.update(labels)
+
+    return any(tool_label != anchor_label for tool_label in tool_labels for anchor_label in anchor_labels)
 
 
 def _has_obvious_directional_split(text: str) -> bool:
