@@ -1,6 +1,6 @@
 {
-  "version": "1.2",
-  "description": "Batch 2 NLG post-blind contract. Blind run 130 remains immutable. Version 1.2 adds evidence-backed singular anchor-side D-ring form for NLG 101365 while preserving reversible Quick Clip endpoint assignment, Quick Clip mechanism semantics, repeated container interfaces, ToolAttachment topology, reusable applicability and installation-constraint semantics, and existing evidence tensions.",
+  "version": "1.3",
+  "description": "Batch 2 NLG post-blind contract. Blind run 130 remains immutable. Version 1.3 preserves evidence-backed D-ring form on the already-concrete ToolAttachment-provided tether interface for NLG 101481 while retaining the singular anchor-side D-ring form for NLG 101365, keeping generic/unknown rings unpromoted, and preserving existing endpoint, repeated-container, applicability and installation-constraint semantics.",
   "blind_reference": {
     "workflow_run_id": 32273707247,
     "artifact_id": 9373169405,
@@ -110,7 +110,8 @@
         {"subject_type":"product","subject_ref":"self","property_key":"minimum_bond_time_h","value":24.0},
         {"subject_type":"product","subject_ref":"self","property_key":"pre_use_attachment_test_required","value":true},
         {"subject_type":"physical_interface","subject_ref":"tether_side_ring","property_key":"interface.role","value":"tool_attachment_tether_side"},
-        {"subject_type":"physical_interface","subject_ref":"tether_side_ring","property_key":"interface.type","value":"ring"}
+        {"subject_type":"physical_interface","subject_ref":"tether_side_ring","property_key":"interface.type","value":"ring"},
+        {"subject_type":"physical_interface","subject_ref":"tether_side_ring","property_key":"interface.attribute.ring_form","value":"d_ring"}
       ],
       "forbidden_claims": [], "ignored_claims": [],
       "recommendation_data": {
@@ -125,7 +126,8 @@
           {"name":"minimum_bond_time","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"minimum_bond_time_h","value":24.0}],"gap_if_missing":"extraction_gap"},
           {"name":"pre_use_attachment_test","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"pre_use_attachment_test_required","value":true}],"gap_if_missing":"extraction_gap"},
           {"name":"provided_tether_interface_role","any_of":[{"subject_type":"physical_interface","subject_ref":"tether_side_ring","property_key":"interface.role","value":"tool_attachment_tether_side"}],"gap_if_missing":"extraction_gap"},
-          {"name":"provided_tether_interface_type","any_of":[{"subject_type":"physical_interface","subject_ref":"tether_side_ring","property_key":"interface.type","value":"ring"}],"gap_if_missing":"extraction_gap"}
+          {"name":"provided_tether_interface_type","any_of":[{"subject_type":"physical_interface","subject_ref":"tether_side_ring","property_key":"interface.type","value":"ring"}],"gap_if_missing":"extraction_gap"},
+          {"name":"provided_tether_interface_form","any_of":[{"subject_type":"physical_interface","subject_ref":"tether_side_ring","property_key":"interface.attribute.ring_form","value":"d_ring"}],"gap_if_missing":"extraction_gap"}
         ],
         "known_gaps": [
           {"category":"evidence_scope_tension","field":"surface_profile","detail":"Current NLG descriptive copy says the adhesive D Ring can work on curved surfaces while current product instructions prescribe installation on a flat surface. Recommendation eligibility follows the prescriptive installation constraint; the broader curved-surface capability remains retained but does not expand eligibility until reconciled."}
