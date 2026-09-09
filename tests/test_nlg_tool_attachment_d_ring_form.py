@@ -1,5 +1,11 @@
 from tetherlens_ingest.adapters import NLGAdapter
-from tetherlens_ingest.connection import ConnectionInterfaceRole
+from tetherlens_ingest.connection import (
+    ConnectionInterface,
+    ConnectionInterfaceRole,
+    ConnectionStatus,
+    TetherSide,
+    evaluate_endpoint_engagement,
+)
 from tetherlens_ingest.models import (
     ClaimSubjectType,
     ProductIdentity,
@@ -29,11 +35,19 @@ def identity(name: str = "Tool Attachment") -> ProductIdentity:
     )
 
 
-def test_explicit_tool_attachment_d_ring_preserves_form_on_same_interface_subject():
-    claims = NLGAdapter().extract(
+def d_ring_claims():
+    return NLGAdapter().extract(
         identity(),
-        [artifact("<p>The D Ring creates a secure tether point to attach a tool lanyard.</p>")],
+        [
+            artifact(
+                "<p>The D Ring creates a secure tether point to attach a tool lanyard.</p>"
+            )
+        ],
     )
+
+
+def test_explicit_tool_attachment_d_ring_preserves_form_on_same_interface_subject():
+    claims = d_ring_claims()
 
     physical_claims = [
         claim
@@ -62,7 +76,11 @@ def test_explicit_tool_attachment_d_ring_preserves_form_on_same_interface_subjec
 def test_generic_ring_and_d_ring_product_name_do_not_invent_d_ring_form():
     claims = NLGAdapter().extract(
         identity("Mini Adhesive D Ring"),
-        [artifact("<p>The ring creates a secure tether point to attach a tool lanyard.</p>")],
+        [
+            artifact(
+                "<p>The ring creates a secure tether point to attach a tool lanyard.</p>"
+            )
+        ],
     )
 
     assert not any(
@@ -70,3 +88,21 @@ def test_generic_ring_and_d_ring_product_name_do_not_invent_d_ring_form():
         for claim in claims
     )
     assert resolve_connection_interfaces(claims) == []
+
+
+def test_tool_attachment_d_ring_form_does_not_create_compatibility_basis():
+    target = resolve_connection_interfaces(d_ring_claims())[0]
+    endpoint = ConnectionInterface(
+        interface_id="tool_endpoint",
+        role=ConnectionInterfaceRole.TETHER_CONNECTION,
+        interface_type="carabiner",
+        tether_side=TetherSide.TOOL_SIDE,
+    )
+
+    result = evaluate_endpoint_engagement(endpoint, target)
+
+    assert result.status == ConnectionStatus.UNRESOLVED
+    assert result.compatible is False
+    assert result.reason == (
+        "interface topology is plausible but no acceptable compatibility basis is established"
+    )
