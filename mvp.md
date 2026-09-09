@@ -66,6 +66,29 @@ The system can record where mandatory facts and rules came from without making i
 
 As more products are added, the proportion of products requiring one-off rules or manually authored pairings should remain low.
 
+### 6. Catalogue asymmetry creates reusable leverage
+
+The real product universe is asymmetric: there are very many tool types and individual tool models, while the number of commercially relevant tethering components and recurring attachment/connector mechanisms is much smaller.
+
+TetherLens should exploit that asymmetry rather than approximate a tool-by-tether compatibility matrix.
+
+The smaller tethering-product side deserves enough modelling depth to capture reusable attachment methods, connector/interface semantics, capacities, lengths and installation constraints because one well-modelled tethering primitive can unlock recommendations across many tools. The much larger tool catalogue should then scale primarily by recording tool identity, operational mass/configuration and reusable physical features that those tethering primitives can bind to.
+
+Conceptually:
+
+```text
+many tool models
+  -> reusable tool features / operational configuration facts
+
+relatively fewer tethering products
+  -> reusable attachment / connector / capacity / constraint primitives
+
+existing rules
+  -> candidate configurations
+```
+
+This does not mean every tether SKU warrants bespoke semantic work. Detailed modelling is high leverage when the result is reusable across tools or manufacturers; narrow branded wording or rare catalogue detail should be deferred when it only unlocks one isolated SKU path.
+
 ## MVP user
 
 The demand-side MVP is designed for a worker using a mobile phone at the point of use.
@@ -316,9 +339,12 @@ Create only the reusable rules required to produce sensible recommendations for 
 
 Add a second batch of previously unseen tools and components without redesigning the model.
 
+The second batch should deliberately include tethering products from manufacturers not used to shape the initial semantics. Because tethering-product primitives are expected to have high leverage across many tool models, cross-vendor portability of the smaller tethering catalogue is a particularly important stress test of the architecture.
+
 Measure:
 
 - how many products become recommendation-ready through fact capture alone;
+- how often a new manufacturer requires only acquisition/extraction work while the normalized core remains unchanged;
 - how often additional configuration relationships/profiles are required for cordless tools;
 - how often internal measurement is required;
 - how often a new reusable rule is genuinely needed;
@@ -326,7 +352,7 @@ Measure:
 - how many candidate configurations become available automatically; and
 - whether existing products need to be manually edited as a side effect.
 
-If most new products require custom rules or hand-authored tethering pairings, the model is not yet scalable.
+If most new products require custom rules or hand-authored tethering pairings, the model is not yet scalable. Manufacturer-specific parsing is expected; manufacturer- or SKU-specific downstream recommendation logic should remain rare.
 
 ## Suggested MVP data concepts
 
@@ -400,6 +426,8 @@ How often adding a product requires no new rule.
 
 How many viable candidate configurations become possible from newly added facts without manually authoring each tethering pairing.
 
+For tethering products, also observe how many distinct tools/features become eligible through one newly normalized reusable mechanism or interface fact. High leverage on the smaller tethering-product side is an explicit scalability objective.
+
 ### Maintenance locality
 
 Changing one product fact should not require manual updates across many unrelated compatibility records. When a Tool-body or Battery mass Claim changes, dependent operational profiles should be identifiable from explicit dependency links and re-derived locally.
@@ -468,9 +496,10 @@ Before expanding TetherLens, the MVP should answer:
 10. How often is internal measurement required?
 11. Can new products reuse existing rules?
 12. Does the number of one-off exceptions remain manageable as the catalogue grows?
-13. How often does TetherLens genuinely need to return no suitable recommendation?
-14. Do workers continue to trust the system when the best available option is imperfect?
-15. Is maintaining the product, evidence, configuration-profile, and rule base operationally practical?
+13. Does the smaller tethering-product catalogue produce reusable primitives with leverage across many tool models?
+14. How often does TetherLens genuinely need to return no suitable recommendation?
+15. Do workers continue to trust the system when the best available option is imperfect?
+16. Is maintaining the product, evidence, configuration-profile, and rule base operationally practical?
 
 ## Exit criteria
 
@@ -483,6 +512,7 @@ The MVP is successful enough to justify expansion when:
 - useful recommendations can be made without manually validating every exact tethering combination;
 - mixed-manufacturer tethering configurations can be represented and evaluated;
 - new products can usually be added through fact capture and evidence rather than one-off application judgement;
+- tethering-product primitives demonstrate reuse across many tool models rather than requiring a growing tool-by-tether pairing matrix;
 - rule reuse remains high as the catalogue grows;
 - mandatory evidence and derived operational dependencies remain traceable;
 - no-suitable-recommendation outcomes are limited to genuine hard-stop cases; and
