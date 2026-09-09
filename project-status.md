@@ -447,6 +447,27 @@ This makes careful modelling of tethering products high leverage when the result
 
 `portability-benchmark.md` is the durable statement of this principle and the first frozen cross-vendor test.
 
+## Portability phase objective
+
+The current cross-vendor work is an **architecture-stabilization phase**, not the destination of the MVP. The aim is to use unfamiliar tethering products to discover the remaining recurring abstractions, while measuring whether the rate of core changes falls as the model matures.
+
+The desired direction over successive representative cohorts is:
+
+```text
+more A/B outcomes
+fewer but genuinely reusable C findings
+D absent or exceptional
+downstream recommendation semantics increasingly stable
+```
+
+Do not force this trend by widening evidence or hiding real C gaps. A recurring C primitive that unlocks several products or manufacturers is useful architectural learning. The important signal is that such findings become less frequent and more leveraged over time.
+
+The portability-led phase should be de-emphasized once successive diverse additions are predominantly A/B, new C findings are occasional and clearly reusable, D remains absent or exceptional, and new manufacturers mostly require acquisition/extraction/evidence work rather than changes to compatibility, generation, hard evaluation or ranking.
+
+When that condition is reached, shift the centre of gravity toward catalogue throughput, scaling the much larger tool catalogue through reusable features/configuration facts, efficient evidence resolution, and the demand-side MVP: recognition, context capture and field recommendations. Continue portability sampling as a periodic stress/regression test rather than the default development driver.
+
+See `portability-benchmark.md` and `benchmark-goals.md` for the durable metrics and exit criteria.
+
 ## Next highest-value workstreams
 
 ### 1. Add reusable single-feature captive eligibility composition
