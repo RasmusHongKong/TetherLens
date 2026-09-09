@@ -153,11 +153,23 @@ C new_reusable_primitive
 D sku_specific_exception
 ```
 
-The initial result is **0 A / 7 B / 1 C / 0 D**. The lack of A-class products is expected because these manufacturers do not yet have normal production adapters. The important signal is that seven products appear to fit the existing normalized domain/recommendation core without a new compatibility, generation, ranking or SKU-pair rule.
+The reviewed initial result is **0 A / 5 B / 3 C / 0 D**. The lack of A-class products is expected because these manufacturers do not yet have normal production adapters. Five products appear to fit the existing normalized domain/recommendation core without a new compatibility, generation, ranking or SKU-pair rule.
 
-The sole provisional C-class case is Ty-Flot `COLDSH41X35` Cold Shrink. Its diameter fit, capacity and maximum-tether-length constraints map to existing concepts, but the shrink/contraction retention mechanism is not cleanly represented by the current ToolAttachment attachment-method vocabulary. Do not add a new code until its installation evidence is checked against `mechanical_capture`, `cinch`, `wrap` and `through_feature` and the new mechanism is shown to be reusable.
+Two of the three C-class products reveal the same reusable cross-vendor gap. The runtime `AttachmentEligibility` shape can express arbitrary feature paths, but the current production `resolve_attachment_eligibility()` compiler recognizes only `captive_feature_attachment`, which always means **captive handle OR captive through-opening**. That cannot faithfully represent GRIPPS H01055's handle-only scope or FallTech 5318A10's captive-eye-only scope without widening eligibility beyond the evidence. Both are therefore C, not B.
 
-The cohort also confirms that evidence gaps must remain separate from architecture portability. For example, Dropsafe twin carabiners fit the endpoint/connector model, but twin hardware alone still cannot establish reversibility; Ty-Flot cord-loop wording cannot be promoted to cinch without accepted mechanism evidence.
+The missing core concept is not a new manufacturer-specific anatomy type. It is narrower executable eligibility composition over existing `feature_kind` / `captive_state` primitives:
+
+```text
+captive handle only
+captive through-opening only
+captive handle OR captive through-opening
+```
+
+Each must remain separately evidence-authorized. Do not compile a single-feature statement into the broader OR class.
+
+The third provisional C-class case is Ty-Flot `COLDSH41X35` Cold Shrink. Its diameter fit, capacity and maximum-tether-length constraints map to existing concepts, but the shrink/contraction retention mechanism is not cleanly represented by the current ToolAttachment attachment-method vocabulary. Do not add a new code until its installation evidence is checked against `mechanical_capture`, `cinch`, `wrap` and `through_feature` and the new mechanism is shown to be reusable.
+
+The cohort also confirms that evidence gaps must remain separate from architecture portability. For example, Dropsafe twin carabiners fit the endpoint/connector model, but twin hardware alone still cannot establish reversibility; Ty-Flot cord-loop wording cannot be promoted to cinch without accepted mechanism evidence. First-party capacity conflicts on GRIPPS H01079 and Ty-Flot CC2956WR14LRD remain evidence-reconciliation issues rather than reasons to change their B architecture class.
 
 ### Session-local condition resolution
 
@@ -378,7 +390,7 @@ The latest complete executable validation before PR #52 is the reviewed PR #51 w
 - the immutable Batch 2 blind artifact remained unchanged as the historical pre-fix baseline; and
 - benchmark artifact upload completed successfully.
 
-PR #52 adds no production extraction/compatibility/recommendation changes and deliberately leaves the existing Batch 1, Batch 2 and recommendation goldens unchanged. Its new portability test is a frozen architecture-audit contract rather than a live ingestion scorer. `tests/test_portability_benchmark.py` guards the eight-product manufacturer balance, freeze point, classification vocabulary, initial **7 B / 1 C / 0 D** result and the presence of reuse/stressor archetypes.
+PR #52 adds no production extraction/compatibility/recommendation changes and deliberately leaves the existing Batch 1, Batch 2 and recommendation goldens unchanged. Its new portability test is a frozen architecture-audit contract rather than a live ingestion scorer. `tests/test_portability_benchmark.py` guards the eight-product manufacturer balance, freeze point, classification vocabulary, reviewed **5 B / 3 C / 0 D** result, the recurring cross-vendor single-feature eligibility gap and the presence of reuse/stressor archetypes.
 
 The recommendation golden itself remains the same three semantic scenarios:
 
@@ -407,7 +419,12 @@ The reusable symmetric-endpoint model remains closed by PRs #45-#46, and PR #51 
 
 PR #49 closes the ToolAttachment-mediated end-to-end benchmark gap without expanding production semantics. Further recommendation-golden growth should be driven by concrete regression risk rather than scenario count.
 
-The portability cohort adds one provisional model gap: Ty-Flot Cold Shrink retention. Treat it as a class C candidate, not an established new code. First confirm whether existing `mechanical_capture` is semantically adequate and whether the contraction mechanism recurs sufficiently to deserve a reusable attachment-method primitive.
+The portability cohort now records two reusable C-class gaps:
+
+1. **single-feature captive attachment eligibility composition**, shared by GRIPPS H01055 and FallTech 5318A10. Existing feature primitives are sufficient, but the production compiler cannot currently authorize only handle or only through-opening without emitting the broader OR class;
+2. **Ty-Flot Cold Shrink retention**, still provisional pending evidence review against the current attachment-method vocabulary.
+
+The first gap is higher priority because it already recurs across two manufacturers and can unlock multiple ToolAttachment families without adding a product-specific rule.
 
 ## Catalogue asymmetry and scaling philosophy
 
@@ -432,28 +449,42 @@ This makes careful modelling of tethering products high leverage when the result
 
 ## Next highest-value workstreams
 
-### 1. Prove B-class portability with two cross-vendor vertical slices
+### 1. Add reusable single-feature captive eligibility composition
 
-The next implementation work should no longer default to another NLG enrichment. Start from the frozen PR #52 cohort and choose products already classified as fitting the current core.
+The first portability review found that the current runtime eligibility model is more general than its production claim compiler. `AttachmentEligibility` can express independent paths, but `resolve_attachment_eligibility()` currently has only the bundled `captive_feature_attachment` production class.
 
-The strongest first pair is:
+Define the smallest manufacturer-neutral way to compile:
 
-- **FallTech 5318A10** — exercise the existing `cinch` ToolAttachment mechanism, captive through-opening eligibility, rated capacity and ToolAttachment-provided D-ring interface; and
-- **GRIPPS H01079** — exercise explicit directional tether endpoints and dual-action carabiner facts without using or weakening derived endpoint equivalence.
+```text
+captive handle only
+captive through-opening only
+captive handle OR captive through-opening
+```
 
-Implement manufacturer-specific acquisition/extraction only as needed to emit existing normalized primitives. Do not alter downstream compatibility, hard evaluation, ranking or SKU-pair semantics merely to make the products pass.
+while preserving exact feature binding and the existing NLG two-path semantics. Do not infer the missing alternative from the presence of one captive feature, and do not add GRIPPS/FallTech/SKU branches.
 
-The objective is to demonstrate that a new manufacturer can move from B toward ordinary fact ingestion while the core stays frozen.
+This is the strongest next slice because one reusable change closes a concrete decision gap for at least two manufacturers in the frozen cohort.
 
-### 2. Review the first genuine C-class candidate: Ty-Flot Cold Shrink
+### 2. Prove B-class portability with two cross-vendor vertical slices
 
-After at least one B-class path is proven, inspect the first-party Cold Shrink installation material closely.
+After the shared eligibility gap is closed, choose products already classified as fitting the current core and demonstrate vendor-specific extraction into unchanged downstream semantics.
+
+A strong pair is:
+
+- **GRIPPS H01079** — explicit directional tether endpoints and dual-action carabiner facts without using or weakening derived endpoint equivalence; and
+- **FallTech 5027B** — mixed carabiner/cinch-loop tether topology and the existing bounded cinch-loop connection family.
+
+Preserve the first-party capacity conflict on H01079 as unresolved until evidence reconciliation establishes a value. The portability objective is core reuse, not forced recommendation readiness.
+
+### 3. Review Ty-Flot Cold Shrink as the remaining C-class mechanism gap
+
+Inspect the first-party Cold Shrink installation material closely.
 
 Determine whether the current `mechanical_capture` primitive can faithfully describe retention by collapsing shrink tubing. If not, define the smallest manufacturer-neutral retention mechanism necessary to represent elastic/contraction capture and prove it with evidence. Do not introduce `cold_shrink` merely as a branded/product-name alias.
 
 Keep diameter-fit, capacity and maximum-tether-length constraints in their existing families.
 
-### 3. Resume selective NLG/geometry/evidence work only when cross-vendor decisions justify it
+### 4. Resume selective NLG/geometry/evidence work only when cross-vendor decisions justify it
 
 The NLG line remains valuable, but additional target-form, endpoint-equivalence, geometry or supporting-document work should now compete against cross-vendor leverage.
 
@@ -461,11 +492,7 @@ Continue such work only when one primitive closes a recurring uncertainty, prove
 
 Do not repurpose overall product dimensions as gate/section geometry, do not build a general CAD model, and do not broaden NLG-specific source traversal into generic crawling without a concrete decision need.
 
-### 4. Further downstream goldens only for durable regression seams
-
-Session fallback and contextual feasibility are already covered by focused executable tests. Add system-level golden scenarios there only when a concrete integration risk or regression demonstrates that the recommendation-run contract needs another durable semantic case.
-
-Do not expand the golden solely for broader product or SKU coverage. Use the portability benchmark, rather than the downstream recommendation golden, for cross-vendor architecture sampling.
+Further system-level recommendation goldens should still be added only for durable regression seams rather than broader SKU coverage. Use the portability benchmark, rather than the downstream recommendation golden, for cross-vendor architecture sampling.
 
 ## Documentation workflow
 
@@ -482,6 +509,7 @@ PRs that materially change durable architecture, evidence semantics, compatibili
 - judge new cross-vendor products by A/B/C/D portability class, and treat class D SKU-specific recommendation logic as a design smell requiring explicit justification;
 - manufacturer-specific acquisition/extraction is acceptable when it emits vendor-neutral facts; manufacturer-specific downstream compatibility/generation/ranking logic is not the default solution;
 - use the frozen cross-vendor cohort to test the current core before widening it; do not change the core simply because a new vendor expresses an existing concept differently;
+- never widen a single-feature attachment statement into an unevidenced alternative path merely because an existing compiler class bundles both features;
 - no SKU-specific extraction, compatibility, generation, ranking, session or recommendation branches;
 - recommendation golden answer keys must contain semantic expected outcomes, not runtime product configuration, SKU pairs or canonical candidate IDs;
 - goldens validate outputs and must never be fed back into runtime construction;
@@ -510,4 +538,4 @@ PRs that materially change durable architecture, evidence semantics, compatibili
 
 ## Suggested fresh-chat starting point after PR #52
 
-> Continue TetherLens from merged `main` after PR #52. Use the frozen cross-vendor portability cohort rather than returning immediately to NLG enrichment. Inspect the FallTech 5318A10 and GRIPPS H01079 first-party source surfaces and current adapter architecture, then choose the smallest first B-class vertical slice that can emit existing normalized primitives without changing downstream compatibility, hard evaluation, ranking or SKU-pair rules. Keep the portability A/B/C/D classification explicit, preserve missing evidence as missing, and only add a new reusable core primitive when a cross-vendor product genuinely cannot be represented faithfully by the existing model.
+> Continue TetherLens from merged `main` after PR #52. Start with the recurring class-C portability gap found across GRIPPS H01055 and FallTech 5318A10: the runtime `AttachmentEligibility` model can express feature-bound paths, but the production compiler currently only supports the combined captive-handle-OR-captive-through-opening class. Define the smallest reusable evidence/selection composition that can represent handle-only, through-opening-only and the existing OR case without widening manufacturer evidence, product/SKU branches or downstream hard rules. Preserve feature-instance binding and existing NLG semantics. After that, use GRIPPS H01079 and FallTech 5027B as B-class vertical portability proofs.
