@@ -67,7 +67,7 @@ The cohort was selected for physical diversity rather than statistical catalogue
 - double/triple-action and automatic-locking connector facts;
 - relaxed/extended tether lengths;
 - choke/cinch ToolAttachments;
-- captive-eye / through-opening eligibility;
+- captive-handle and captive-eye / through-opening eligibility;
 - D-ring target interfaces;
 - coil and bungee forms; and
 - one deliberately unfamiliar retention mechanism: Ty-Flot Cold Shrink.
@@ -76,27 +76,42 @@ The primary first-party/current product sources are retained directly in the ben
 
 ## Initial result
 
-The first architecture audit produces:
+The reviewed architecture audit produces:
 
 ```text
 A facts_only               0
-B vendor_ingestion_only    7
-C new_reusable_primitive   1
+B vendor_ingestion_only    5
+C new_reusable_primitive   3
 D sku_specific_exception   0
 ```
 
-The absence of class A is expected in this first cross-vendor slice because none of these manufacturers yet has a normal production adapter in the current repository. The significant result is that seven of eight products appear to fit the existing normalized core without a new compatibility, candidate-generation, ranking or SKU-pair rule.
+The absence of class A is expected in this first cross-vendor slice because none of these manufacturers yet has a normal production adapter in the current repository. Five products appear to fit the existing normalized core without a new compatibility, candidate-generation, ranking or SKU-pair rule.
 
-Representative reuse findings include:
+The review also exposed a useful recurring class C gap that the initial audit missed. The runtime `AttachmentEligibility` model can represent arbitrary feature-bound paths, but the production `resolve_attachment_eligibility()` compiler currently supports only one `captive_feature_attachment` selection class, which always expands to:
+
+```text
+captive handle
+OR
+captive through-opening
+```
+
+That is correct for NLG evidence that explicitly permits both alternatives, but it cannot faithfully compile a manufacturer statement that authorizes only one of them.
+
+This affects two different manufacturers in the frozen cohort:
+
+- **GRIPPS H01055 Tool Hitch** establishes closed-handle use. Treating it as the current combined class would unevidentially authorize through-openings.
+- **FallTech 5318A10** establishes captive-eye attachment points. Treating it as the current combined class would unevidentially authorize handles.
+
+Both therefore move from B to C. They expose the same reusable need: feature-scoped attachment eligibility must be able to express a single captive handle path or a single captive through-opening path without automatically widening to the other alternative. The underlying feature vocabulary, `cinch` mechanism, capacity and provided tether-interface concepts already exist; the missing piece is executable eligibility composition.
+
+Representative B-class reuse findings still include:
 
 - the GRIPPS H01079 directional heavy-duty tether maps to existing concrete endpoints plus `tool_side` / `anchor_side` roles rather than requiring symmetric-end inference;
-- the GRIPPS H01055 Tool Hitch maps to the existing `cinch` ToolAttachment mechanism and closed/captive-handle eligibility;
-- FallTech 5318A10 maps almost directly to the existing ToolAttachment path: cinch retention, captive through-opening eligibility and a ToolAttachment-provided D-ring interface;
 - FallTech 5027B maps to the existing mixed carabiner/cinch-loop tether topology and bounded cinch-loop connection family;
 - Ty-Flot CC2956WR14LRD fits existing mixed endpoint, swivel/mechanism, capacity and min/max length concepts, while its loop engagement must remain evidence-bound rather than assumed from the word `loop`;
 - both Dropsafe tether examples fit the existing carabiner/loop, action-count, locking, geometry, capacity and length vocabulary. The twin-carabiner product must remain assignment-unknown unless accepted evidence separately proves direction or reversibility.
 
-The only provisional class C case is Ty-Flot `COLDSH41X35`. Its diameter-fit, capacity and maximum-tether-length constraints fit existing concepts, but the cold-shrink retention mechanism is not cleanly represented by the current attachment-method vocabulary. Before adding a code, the next slice should confirm from the installation evidence that `mechanical_capture` would be semantically misleading and that cold-shrink/elastic-contraction is a reusable mechanism family rather than a product-name alias.
+The third class C case is Ty-Flot `COLDSH41X35`. Its diameter-fit, capacity and maximum-tether-length constraints fit existing concepts, but the cold-shrink retention mechanism is not cleanly represented by the current attachment-method vocabulary. Before adding a code, a later slice should confirm from the installation evidence that `mechanical_capture` would be semantically misleading and that cold-shrink/elastic-contraction is a reusable mechanism family rather than a product-name alias.
 
 No class D case was identified in the initial cohort.
 
@@ -111,9 +126,9 @@ It does not prove that:
 - all connector/interface compatibility is resolved;
 - all dual-ended tethers have established endpoint assignment;
 - the current vocabulary covers the full catalogues of these manufacturers; or
-- the 7B / 1C distribution will remain stable as more unusual products are sampled.
+- the 5B / 3C distribution will remain stable as more unusual products are sampled.
 
-It proves a narrower architectural point: the current core appears to describe a meaningful cross-section of non-NLG tethering products without SKU-pair logic or widespread new runtime semantics.
+It proves a narrower architectural point: the current core appears to describe a meaningful cross-section of non-NLG tethering products without SKU-pair logic, while also identifying two concrete reusable gaps rather than hiding them behind permissive normalization.
 
 ## How to use the benchmark
 
@@ -132,11 +147,28 @@ A new reusable class C primitive should be introduced only when the product evid
 
 ## Follow-on strategy
 
-The next implementation work should begin with one or two B-class products from different manufacturers, chosen to exercise existing primitives end to end with minimal new semantics. A strong first pair is:
+The strongest next core slice is now the recurring **single-feature captive eligibility** gap, because one generic improvement would cover products from both GRIPPS and FallTech and likely many additional ToolAttachments. The implementation should extend the existing feature-bound eligibility composition without weakening the current NLG `captive handle OR captive through-opening` case.
 
-- FallTech 5318A10, because it stresses the existing ToolAttachment + captive feature + D-ring path; and
-- GRIPPS H01079, because it stresses explicit directional tether endpoints without relying on the recent NLG-derived equivalence work.
+The key semantic requirement is:
 
-After those paths are demonstrated, revisit Ty-Flot Cold Shrink as the first class C candidate. Do not add a new retention code until the installation evidence has been reviewed against `mechanical_capture`, `cinch`, `wrap` and `through_feature`.
+```text
+manufacturer evidence: captive handle only
+  -> executable captive-handle path only
 
-The benchmark should then expand only when a new cohort materially tests a different mechanism or exposes a new architectural risk. Catalogue breadth is useful when it tests reuse; product count by itself is not the objective.
+manufacturer evidence: captive through-opening only
+  -> executable captive-through-opening path only
+
+manufacturer evidence: captive handle OR captive through-opening
+  -> existing two-path OR composition
+```
+
+Do not infer alternatives the source did not authorize, and do not introduce product/SKU branches.
+
+After that reusable C-class gap is closed, prove B-class portability with products from different manufacturers while keeping downstream recommendation rules unchanged. A strong pair is:
+
+- **GRIPPS H01079**, exercising explicit directional dual-carabiner endpoints without relying on recent NLG-derived equivalence; and
+- **FallTech 5027B**, exercising the existing carabiner + cinch-loop tether topology and connection semantics.
+
+Ty-Flot Cold Shrink can then be revisited as the remaining class C candidate. Do not add a new retention code until the installation evidence has been reviewed against `mechanical_capture`, `cinch`, `wrap` and `through_feature`.
+
+The benchmark should expand only when a new cohort materially tests a different mechanism or exposes a new architectural risk. Catalogue breadth is useful when it tests reuse; product count by itself is not the objective.
