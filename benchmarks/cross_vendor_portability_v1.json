@@ -46,22 +46,24 @@
       "name": "Tool Hitch - 16kg / 35lb",
       "product_type": "ToolAttachment",
       "source_url": "https://gripps.com/en-ca/products/tool-hitch",
-      "archetypes": ["tool_attachment", "cinch", "closed_handle"],
+      "archetypes": ["tool_attachment", "cinch", "closed_handle", "single_feature_eligibility"],
       "observed_public_facts": [
         "simple choking mechanism",
         "fastens closed-handled power tools",
         "creates a tool tethering connection point",
         "16 kg maximum load"
       ],
-      "classification": "B",
+      "classification": "C",
       "core_fit": [
         "attachment_method_code = cinch",
-        "closed/captive handle feature eligibility",
+        "handle feature_kind and captive_state primitives",
         "ToolAttachment-provided tether interface",
         "rated capacity"
       ],
-      "required_core_changes": [],
-      "portability_gap": "GRIPPS-specific extraction must bind the choke mechanism, eligible handle feature and provided tether interface."
+      "required_core_changes": [
+        "add reusable executable attachment eligibility for one captive handle without also authorizing a captive through-opening"
+      ],
+      "portability_gap": "The physical facts fit existing primitives, but the current captive_feature_attachment compiler always emits captive handle OR captive through-opening. Handle-only manufacturer evidence therefore cannot be represented executably without widening eligibility."
     },
     {
       "manufacturer": "FallTech",
@@ -69,23 +71,25 @@
       "name": "15 lb Tool Attachment with choke-on cinch-loop and D-ring",
       "product_type": "ToolAttachment",
       "source_url": "https://www.falltech.com/product/5318a10/",
-      "archetypes": ["tool_attachment", "cinch", "captive_eye", "d_ring"],
+      "archetypes": ["tool_attachment", "cinch", "captive_eye", "d_ring", "single_feature_eligibility"],
       "observed_public_facts": [
         "designed for tools with captive-eye attachment points",
         "choke-on design",
         "integrated D-ring tether connection",
         "15 lb capacity"
       ],
-      "classification": "B",
+      "classification": "C",
       "core_fit": [
         "attachment_method_code = cinch",
-        "captive through-opening eligibility",
+        "through_opening feature_kind and captive_state primitives",
         "tool_attachment_tether_side ring interface",
         "ring_form = d_ring",
         "rated capacity"
       ],
-      "required_core_changes": [],
-      "portability_gap": "FallTech-specific extraction only; the complete normalized ToolAttachment path already exists."
+      "required_core_changes": [
+        "add reusable executable attachment eligibility for one captive through-opening without also authorizing a captive handle"
+      ],
+      "portability_gap": "The physical facts fit existing primitives, but the current captive_feature_attachment compiler always emits captive handle OR captive through-opening. Captive-eye-only manufacturer evidence therefore cannot be represented executably without widening eligibility."
     },
     {
       "manufacturer": "FallTech",
