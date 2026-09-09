@@ -45,6 +45,15 @@ CONNECTOR_SWIVEL_KEY = "connector.swivel"
 CONNECTOR_DIMENSION_PREFIX = "connector.dimension."
 CONNECTOR_ATTRIBUTE_PREFIX = "connector.attribute."
 
+_CAPTIVE_SELECTION_FEATURE_KINDS: dict[str, tuple[FeatureKind, ...]] = {
+    "captive_feature_attachment": (
+        FeatureKind.HANDLE,
+        FeatureKind.THROUGH_OPENING,
+    ),
+    "captive_handle_attachment": (FeatureKind.HANDLE,),
+    "captive_through_opening_attachment": (FeatureKind.THROUGH_OPENING,),
+}
+
 
 class ClaimResolutionError(ValueError):
     """Accepted claims are internally inconsistent or unsupported for resolution."""
@@ -134,37 +143,45 @@ def resolve_tool_interface_features(claims: list[CandidateClaim]) -> list[ToolIn
 def resolve_attachment_eligibility(claims: list[CandidateClaim]) -> AttachmentEligibility | None:
     """Compile accepted attachment semantics into reusable feature eligibility.
 
-    The first supported selection class is intentionally geometry-led and reusable:
-    a captive-feature attachment can install on one captive handle OR one captive
-    through-opening. No tool or attachment SKU participates in this compilation.
+    Captive selection classes compose the same feature-local predicates into one or
+    more alternative paths. Manufacturer evidence may therefore authorize exactly a
+    captive handle, exactly a captive through-opening, or the existing handle OR
+    through-opening alternative without widening one scope into another. No tool or
+    attachment SKU participates in this compilation.
     """
 
     selection = _single_claim(claims, ATTACHMENT_SELECTION_CLASS_KEY)
     if selection is None:
         return None
 
-    if selection.value == "captive_feature_attachment":
-        return AttachmentEligibility(
-            paths=[
-                EligibilityPath(
-                    binding_name="handle",
-                    requirements=[
-                        FeaturePredicate(property_key="feature_kind", value="handle"),
-                        FeaturePredicate(property_key="captive_state", value="captive"),
-                    ],
-                ),
-                EligibilityPath(
-                    binding_name="opening",
-                    requirements=[
-                        FeaturePredicate(property_key="feature_kind", value="through_opening"),
-                        FeaturePredicate(property_key="captive_state", value="captive"),
-                    ],
-                ),
-            ]
+    selection_class = str(selection.value)
+    feature_kinds = _CAPTIVE_SELECTION_FEATURE_KINDS.get(selection_class)
+    if feature_kinds is None:
+        raise ClaimResolutionError(
+            f"unsupported attachment selection class: {selection.value!r}"
         )
 
-    raise ClaimResolutionError(
-        f"unsupported attachment selection class: {selection.value!r}"
+    return AttachmentEligibility(
+        paths=[_captive_feature_path(feature_kind) for feature_kind in feature_kinds]
+    )
+
+
+def _captive_feature_path(feature_kind: FeatureKind) -> EligibilityPath:
+    if feature_kind == FeatureKind.HANDLE:
+        binding_name = "handle"
+    elif feature_kind == FeatureKind.THROUGH_OPENING:
+        binding_name = "opening"
+    else:  # pragma: no cover - protected by the bounded class mapping above.
+        raise ClaimResolutionError(
+            f"unsupported captive attachment feature kind: {feature_kind.value!r}"
+        )
+
+    return EligibilityPath(
+        binding_name=binding_name,
+        requirements=[
+            FeaturePredicate(property_key="feature_kind", value=feature_kind.value),
+            FeaturePredicate(property_key="captive_state", value=CaptiveState.CAPTIVE.value),
+        ],
     )
 
 
