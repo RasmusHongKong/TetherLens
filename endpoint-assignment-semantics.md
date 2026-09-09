@@ -130,17 +130,21 @@ The extractor intentionally does **not** derive assignment from `dual Quick Clip
 
 PR #51 adds a second production evidence family without changing the reusable relation or candidate-generation semantics.
 
-The source graph is deliberately decision-bound. It does **not** crawl NLG datasheets generally. A first-party product-page datasheet may be followed only when the primary product evidence already identifies a symmetric-looking dual/twin/double carabiner tether candidate and does not itself establish an obvious directional split or mixed named connector construction. The download must be an explicitly labelled `Datasheet` PDF on an NLG-owned host.
+The source graph is deliberately decision-bound. It does **not** crawl NLG datasheets generally. A first-party product-page datasheet may be followed only when the primary product evidence already identifies a symmetric-looking dual/twin/double carabiner tether candidate and does not itself establish an obvious directional split or mixed named connector construction. The link must be explicitly labelled `Datasheet`, and the requested document must be an NLG-hosted PDF.
 
-The datasheet may then emit the existing `derived_endpoint_equivalence` / `reversible_tool_anchor_pair` relation only when one first-party artifact itself establishes the full conjunction:
+Trust is revalidated on the fetched artifact rather than inherited from the request. After redirects, the final artifact URL must still be on an allowed NLG host, the artifact must retain the purpose-scoped product-datasheet relationship, and an explicit Product Code/SKU in the document must match the current product identity. A document that fails those checks is rejected before inherited NLG extraction, so a wrong-product or redirected external PDF cannot contribute unrelated catalogue claims merely because it was reached through a trusted product page.
+
+The trusted datasheet may then emit the existing `derived_endpoint_equivalence` / `reversible_tool_anchor_pair` relation only when one artifact itself establishes the full conjunction:
 
 - exactly two unresolved tether endpoints;
 - both endpoints remain concrete `carabiner` interfaces bound to the existing `tether_connector` connector-spec subject;
-- a collective shared construction phrase equivalent to `dual/twin/two ... double-action carabiners`, rather than multiplicity wording alone;
-- affirmative tool-to-anchor pair use without assigning one named carabiner to either side; and
+- an affirmative, product-local collective construction phrase equivalent to `dual/twin/two ... double-action carabiners`, rather than multiplicity wording alone;
+- affirmative undifferentiated tool-to-anchor pair use expressed as an actual attachment/connection relationship, not mere co-occurrence of `tool` and `anchor` terms; and
 - no endpoint labels, one/other or first/second side assignments, Rotobiner/Quick Clip/snap-hook/loop split, or other evidence that distinguishes the two ends.
 
-The collective action construction is intentionally required. `dual carabiners`, `twin carabiners`, a shared `ConnectorSpec`, or generic pair-use wording remain insufficient separately or in weaker combinations. Product names may identify the source-graph candidate but cannot establish the assignment relation.
+Polarity is part of both positive predicates. Construction wording negated before or after the phrase, comparison/other-product wording, and pair-use wording that is denied or prohibited cannot satisfy the conjunction. Separately distinguished carabiners assigned to opposite sides — regardless of whether the distinction is colour, size, position, or another descriptor — are directional evidence and veto derivation. That identity check is sentence-local: repeated references to the same undifferentiated plural carabiner construction do not become a false directional split merely because tool and anchor roles are mentioned in separate clauses.
+
+The collective action construction is intentionally required. `dual carabiners`, `twin carabiners`, a shared `ConnectorSpec`, generic pair-use wording, or tool/anchor keyword co-occurrence remain insufficient separately or in weaker combinations. Product names may identify the source-graph candidate but cannot establish the assignment relation.
 
 NLG 101519 is the first positive case. Its primary page identifies the Twin Carabiner product and a dual double-action carabiner pair, while the first-party datasheet states that the dual double-action carabiners provide attachment to the tool and anchor point. The resulting relation keeps `connection_point_1` and `connection_point_2` as concrete endpoint identities with `TetherSide.UNKNOWN`; it authorizes the two bounded orientations without rewriting either endpoint to `either`.
 
