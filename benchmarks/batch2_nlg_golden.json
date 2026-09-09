@@ -1,6 +1,6 @@
 {
   "version": "1.3",
-  "description": "Batch 2 NLG post-blind contract. Blind run 130 remains immutable. Version 1.3 adds evidence-backed D-ring form to the already-distinct six internal container interfaces on NLG 101492 while preserving their container_connection role, keeping generic/unknown container anchors unpromoted, and retaining the singular anchor-side D-ring form for NLG 101365 plus existing endpoint, ToolAttachment, applicability and installation-constraint semantics.",
+  "description": "Batch 2 NLG post-blind contract. Blind run 130 remains immutable. Version 1.3 preserves evidence-backed D-ring form on the already-concrete ToolAttachment-provided tether interface for NLG 101481 while retaining the singular anchor-side D-ring form for NLG 101365, keeping generic/unknown rings unpromoted, and preserving existing endpoint, repeated-container, applicability and installation-constraint semantics.",
   "blind_reference": {
     "workflow_run_id": 32273707247,
     "artifact_id": 9373169405,
@@ -110,7 +110,8 @@
         {"subject_type":"product","subject_ref":"self","property_key":"minimum_bond_time_h","value":24.0},
         {"subject_type":"product","subject_ref":"self","property_key":"pre_use_attachment_test_required","value":true},
         {"subject_type":"physical_interface","subject_ref":"tether_side_ring","property_key":"interface.role","value":"tool_attachment_tether_side"},
-        {"subject_type":"physical_interface","subject_ref":"tether_side_ring","property_key":"interface.type","value":"ring"}
+        {"subject_type":"physical_interface","subject_ref":"tether_side_ring","property_key":"interface.type","value":"ring"},
+        {"subject_type":"physical_interface","subject_ref":"tether_side_ring","property_key":"interface.attribute.ring_form","value":"d_ring"}
       ],
       "forbidden_claims": [], "ignored_claims": [],
       "recommendation_data": {
@@ -125,7 +126,8 @@
           {"name":"minimum_bond_time","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"minimum_bond_time_h","value":24.0}],"gap_if_missing":"extraction_gap"},
           {"name":"pre_use_attachment_test","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"pre_use_attachment_test_required","value":true}],"gap_if_missing":"extraction_gap"},
           {"name":"provided_tether_interface_role","any_of":[{"subject_type":"physical_interface","subject_ref":"tether_side_ring","property_key":"interface.role","value":"tool_attachment_tether_side"}],"gap_if_missing":"extraction_gap"},
-          {"name":"provided_tether_interface_type","any_of":[{"subject_type":"physical_interface","subject_ref":"tether_side_ring","property_key":"interface.type","value":"ring"}],"gap_if_missing":"extraction_gap"}
+          {"name":"provided_tether_interface_type","any_of":[{"subject_type":"physical_interface","subject_ref":"tether_side_ring","property_key":"interface.type","value":"ring"}],"gap_if_missing":"extraction_gap"},
+          {"name":"provided_tether_interface_form","any_of":[{"subject_type":"physical_interface","subject_ref":"tether_side_ring","property_key":"interface.attribute.ring_form","value":"d_ring"}],"gap_if_missing":"extraction_gap"}
         ],
         "known_gaps": [
           {"category":"evidence_scope_tension","field":"surface_profile","detail":"Current NLG descriptive copy says the adhesive D Ring can work on curved surfaces while current product instructions prescribe installation on a flat surface. Recommendation eligibility follows the prescriptive installation constraint; the broader curved-surface capability remains retained but does not expand eligibility until reconciled."}
@@ -198,11 +200,7 @@
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"interface.type"},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_2","property_key":"interface.type"},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_3","property_key":"interface.type"},
-        {"subject_type":"physical_interface","subject_ref":"internal_anchor_4","property_key":"interface.type"},
-        {"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"interface.attribute.ring_form"},
-        {"subject_type":"physical_interface","subject_ref":"internal_anchor_2","property_key":"interface.attribute.ring_form"},
-        {"subject_type":"physical_interface","subject_ref":"internal_anchor_3","property_key":"interface.attribute.ring_form"},
-        {"subject_type":"physical_interface","subject_ref":"internal_anchor_4","property_key":"interface.attribute.ring_form"}
+        {"subject_type":"physical_interface","subject_ref":"internal_anchor_4","property_key":"interface.type"}
       ],
       "ignored_claims": [],
       "recommendation_data": {
@@ -225,32 +223,26 @@
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"interface.role","value":"container_connection"},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"interface.location_description","value":"internal"},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"interface.type","value":"ring"},
-        {"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"interface.attribute.ring_form","value":"d_ring"},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"rated_capacity_kg","value":5.0},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_2","property_key":"interface.role","value":"container_connection"},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_2","property_key":"interface.location_description","value":"internal"},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_2","property_key":"interface.type","value":"ring"},
-        {"subject_type":"physical_interface","subject_ref":"internal_anchor_2","property_key":"interface.attribute.ring_form","value":"d_ring"},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_2","property_key":"rated_capacity_kg","value":5.0},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_3","property_key":"interface.role","value":"container_connection"},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_3","property_key":"interface.location_description","value":"internal"},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_3","property_key":"interface.type","value":"ring"},
-        {"subject_type":"physical_interface","subject_ref":"internal_anchor_3","property_key":"interface.attribute.ring_form","value":"d_ring"},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_3","property_key":"rated_capacity_kg","value":5.0},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_4","property_key":"interface.role","value":"container_connection"},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_4","property_key":"interface.location_description","value":"internal"},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_4","property_key":"interface.type","value":"ring"},
-        {"subject_type":"physical_interface","subject_ref":"internal_anchor_4","property_key":"interface.attribute.ring_form","value":"d_ring"},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_4","property_key":"rated_capacity_kg","value":5.0},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_5","property_key":"interface.role","value":"container_connection"},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_5","property_key":"interface.location_description","value":"internal"},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_5","property_key":"interface.type","value":"ring"},
-        {"subject_type":"physical_interface","subject_ref":"internal_anchor_5","property_key":"interface.attribute.ring_form","value":"d_ring"},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_5","property_key":"rated_capacity_kg","value":5.0},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_6","property_key":"interface.role","value":"container_connection"},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_6","property_key":"interface.location_description","value":"internal"},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_6","property_key":"interface.type","value":"ring"},
-        {"subject_type":"physical_interface","subject_ref":"internal_anchor_6","property_key":"interface.attribute.ring_form","value":"d_ring"},
         {"subject_type":"physical_interface","subject_ref":"internal_anchor_6","property_key":"rated_capacity_kg","value":5.0},
         {"subject_type":"physical_interface","subject_ref":"external_anchor_1","property_key":"interface.role","value":"container_connection"},
         {"subject_type":"physical_interface","subject_ref":"external_anchor_1","property_key":"interface.location_description","value":"external"},
@@ -263,8 +255,6 @@
         {"subject_type":"physical_interface","subject_ref":"internal_anchor","property_key":"rated_capacity_kg"},
         {"subject_type":"physical_interface","subject_ref":"external_anchor_1","property_key":"interface.type"},
         {"subject_type":"physical_interface","subject_ref":"external_anchor_2","property_key":"interface.type"},
-        {"subject_type":"physical_interface","subject_ref":"external_anchor_1","property_key":"interface.attribute.ring_form"},
-        {"subject_type":"physical_interface","subject_ref":"external_anchor_2","property_key":"interface.attribute.ring_form"},
         {"subject_type":"physical_interface","subject_ref":"external_tool_holder_1","property_key":"interface.role"},
         {"subject_type":"physical_interface","subject_ref":"external_tool_holder_2","property_key":"interface.role"},
         {"subject_type":"physical_interface","subject_ref":"external_tool_holder_3","property_key":"interface.role"},
@@ -276,8 +266,7 @@
           {"name":"container_rated_capacity","any_of":[{"subject_type":"product","subject_ref":"self","property_key":"rated_capacity_kg","value":20.0}],"gap_if_missing":"extraction_gap"},
           {"name":"first_internal_anchor_role","any_of":[{"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"interface.role","value":"container_connection"}],"gap_if_missing":"extraction_gap"},
           {"name":"sixth_internal_anchor_role","any_of":[{"subject_type":"physical_interface","subject_ref":"internal_anchor_6","property_key":"interface.role","value":"container_connection"}],"gap_if_missing":"extraction_gap"},
-          {"name":"internal_anchor_ring_topology","any_of":[{"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"interface.type","value":"ring"}],"gap_if_missing":"extraction_gap"},
-          {"name":"internal_anchor_d_ring_form","any_of":[{"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"interface.attribute.ring_form","value":"d_ring"}],"gap_if_missing":"extraction_gap"},
+          {"name":"internal_anchor_ring_form","any_of":[{"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"interface.type","value":"ring"}],"gap_if_missing":"extraction_gap"},
           {"name":"first_external_anchor_role","any_of":[{"subject_type":"physical_interface","subject_ref":"external_anchor_1","property_key":"interface.role","value":"container_connection"}],"gap_if_missing":"extraction_gap"},
           {"name":"second_external_anchor_role","any_of":[{"subject_type":"physical_interface","subject_ref":"external_anchor_2","property_key":"interface.role","value":"container_connection"}],"gap_if_missing":"extraction_gap"},
           {"name":"internal_anchor_rated_capacity","any_of":[{"subject_type":"physical_interface","subject_ref":"internal_anchor_1","property_key":"rated_capacity_kg","value":5.0}],"gap_if_missing":"extraction_gap"},
