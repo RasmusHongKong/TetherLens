@@ -90,16 +90,29 @@ class GRIPPSAdapter(ManufacturerAdapter):
         return _dedupe(claims)
 
     def readiness_issues(self, claims, observations) -> list[ReadinessIssue] | None:
-        capacity_values = sorted({
-            float(claim.value)
+        capacity_claims = [
+            claim
             for claim in claims
             if claim.subject_type == ClaimSubjectType.PRODUCT
             and claim.subject_ref == "self"
             and claim.property_key == "rated_capacity_kg"
-        })
-        if len(capacity_values) <= 1:
+        ]
+        if len(capacity_claims) <= 1:
             return None
 
+        distinct_capacity_groups: list[CandidateClaim] = []
+        for claim in capacity_claims:
+            if any(
+                _capacity_claims_equivalent(claim, existing)
+                for existing in distinct_capacity_groups
+            ):
+                continue
+            distinct_capacity_groups.append(claim)
+
+        if len(distinct_capacity_groups) <= 1:
+            return None
+
+        capacity_values = sorted({float(claim.value) for claim in distinct_capacity_groups})
         rendered = ", ".join(f"{value:g} kg" for value in capacity_values)
         return [ReadinessIssue(
             code="EVIDENCE_CONFLICT",
@@ -122,6 +135,28 @@ def _capacity_claims(text: str, source_url: str) -> list[CandidateClaim]:
             source_url,
         ))
     return claims
+
+
+def _capacity_claims_equivalent(left: CandidateClaim, right: CandidateClaim) -> bool:
+    left_low, left_high = _capacity_rounding_interval_kg(left)
+    right_low, right_high = _capacity_rounding_interval_kg(right)
+    return left_low <= right_high and right_low <= left_high
+
+
+def _capacity_rounding_interval_kg(claim: CandidateClaim) -> tuple[float, float]:
+    match = _LOAD_RATING.search(claim.raw_value or "")
+    if match is None:
+        value = float(claim.value)
+        return value, value
+
+    value_text = match.group("value")
+    value = float(value_text)
+    decimal_places = len(value_text.partition(".")[2]) if "." in value_text else 0
+    half_step = 0.5 * (10 ** -decimal_places)
+    low = max(0.0, value - half_step)
+    high = value + half_step
+    unit = match.group("unit")
+    return mass_to_kg(low, unit), mass_to_kg(high, unit)
 
 
 def _directional_endpoint_claims(raw: str, source_url: str) -> list[CandidateClaim]:
