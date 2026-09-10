@@ -118,6 +118,31 @@ def test_gripps_keeps_conflicting_first_party_capacity_unreconciled() -> None:
     assert result.issues[0].property_key == "rated_capacity_kg"
 
 
+def test_gripps_rounded_cross_unit_capacity_equivalents_do_not_block_readiness() -> None:
+    adapter = GRIPPSAdapter()
+    artifact = _artifact(
+        "<div>Max Load: 5 kg</div><div>Maximum Load: 11 lb</div>",
+        GRIPPS_URL,
+    )
+    claims = adapter.extract(_gripps_identity(), [artifact])
+
+    capacities = sorted(
+        float(claim.value)
+        for claim in claims
+        if claim.subject_type == ClaimSubjectType.PRODUCT
+        and claim.property_key == "rated_capacity_kg"
+    )
+    assert capacities == [4.989516, 5.0]
+    assert adapter.readiness_issues(claims, []) is None
+
+    result = IngestionRunner(_SingleArtifactFetcher(artifact)).ingest(
+        _gripps_identity(),
+        adapter,
+    )
+    assert result.readiness_assessed is True
+    assert result.issues == []
+
+
 def test_gripps_explicit_direction_flows_into_existing_side_semantics_without_equivalence() -> None:
     claims = GRIPPSAdapter().extract(
         _gripps_identity(),
