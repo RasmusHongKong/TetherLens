@@ -12,6 +12,7 @@ from tetherlens_ingest.models import (
     SourceArtifact,
 )
 from tetherlens_ingest.normalize import mass_to_kg
+from tetherlens_ingest.reconciliation import mass_claims_semantically_agree
 
 from .base import ManufacturerAdapter
 from .common import page_text
@@ -97,16 +98,7 @@ class GRIPPSAdapter(ManufacturerAdapter):
             and claim.subject_ref == "self"
             and claim.property_key == "rated_capacity_kg"
         ]
-        if len(capacity_claims) <= 1:
-            return None
-
-        rounding_intervals = [
-            _capacity_rounding_interval_kg(claim)
-            for claim in capacity_claims
-        ]
-        if max(low for low, _ in rounding_intervals) <= min(
-            high for _, high in rounding_intervals
-        ):
+        if mass_claims_semantically_agree(capacity_claims):
             return None
 
         capacity_values = sorted({float(claim.value) for claim in capacity_claims})
@@ -132,22 +124,6 @@ def _capacity_claims(text: str, source_url: str) -> list[CandidateClaim]:
             source_url,
         ))
     return claims
-
-
-def _capacity_rounding_interval_kg(claim: CandidateClaim) -> tuple[float, float]:
-    match = _LOAD_RATING.search(claim.raw_value or "")
-    if match is None:
-        value = float(claim.value)
-        return value, value
-
-    value_text = match.group("value")
-    value = float(value_text)
-    decimal_places = len(value_text.partition(".")[2]) if "." in value_text else 0
-    half_step = 0.5 * (10 ** -decimal_places)
-    low = max(0.0, value - half_step)
-    high = value + half_step
-    unit = match.group("unit")
-    return mass_to_kg(low, unit), mass_to_kg(high, unit)
 
 
 def _directional_endpoint_claims(raw: str, source_url: str) -> list[CandidateClaim]:
