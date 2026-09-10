@@ -43,9 +43,9 @@ def claim(
     )
 
 
-def test_non_captive_handle_selection_class_matches_only_explicit_non_captive_handle() -> None:
+def test_handle_selection_class_accepts_handle_without_requiring_captive_state() -> None:
     eligibility = resolve_attachment_eligibility(
-        [claim("attachment_selection_class", "non_captive_handle_attachment")]
+        [claim("attachment_selection_class", "handle_attachment")]
     )
     assert eligibility is not None
 
@@ -63,6 +63,11 @@ def test_non_captive_handle_selection_class_matches_only_explicit_non_captive_ha
                 captive_state=CaptiveState.CAPTIVE,
             ),
             ToolInterfaceFeature(
+                feature_id="handle:unknown",
+                feature_kind=FeatureKind.HANDLE,
+                captive_state=CaptiveState.UNKNOWN,
+            ),
+            ToolInterfaceFeature(
                 feature_id="section:non-captive",
                 feature_kind=FeatureKind.EXTERNAL_SECTION,
                 captive_state=CaptiveState.NON_CAPTIVE,
@@ -72,13 +77,15 @@ def test_non_captive_handle_selection_class_matches_only_explicit_non_captive_ha
 
     assert result.status == EligibilityStatus.ELIGIBLE
     assert [(match.binding_name, match.feature_id) for match in result.matches] == [
-        ("handle", "handle:non-captive")
+        ("handle", "handle:non-captive"),
+        ("handle", "handle:captive"),
+        ("handle", "handle:unknown"),
     ]
 
 
-def test_non_captive_handle_selection_class_keeps_unknown_captive_state_unresolved() -> None:
+def test_handle_selection_class_does_not_widen_to_external_section() -> None:
     eligibility = resolve_attachment_eligibility(
-        [claim("attachment_selection_class", "non_captive_handle_attachment")]
+        [claim("attachment_selection_class", "handle_attachment")]
     )
     assert eligibility is not None
 
@@ -86,20 +93,20 @@ def test_non_captive_handle_selection_class_keeps_unknown_captive_state_unresolv
         eligibility,
         [
             ToolInterfaceFeature(
-                feature_id="handle:unknown",
-                feature_kind=FeatureKind.HANDLE,
-                captive_state=CaptiveState.UNKNOWN,
+                feature_id="section:non-captive",
+                feature_kind=FeatureKind.EXTERNAL_SECTION,
+                captive_state=CaptiveState.NON_CAPTIVE,
             )
         ],
     )
 
-    assert result.status == EligibilityStatus.UNRESOLVED
+    assert result.status == EligibilityStatus.INELIGIBLE
     assert result.matches == []
 
 
-def test_non_captive_handle_selection_class_contains_no_inferred_fit_dimension() -> None:
+def test_handle_selection_class_contains_no_inferred_state_or_fit_requirement() -> None:
     eligibility = resolve_attachment_eligibility(
-        [claim("attachment_selection_class", "non_captive_handle_attachment")]
+        [claim("attachment_selection_class", "handle_attachment")]
     )
     assert eligibility is not None
 
@@ -107,7 +114,8 @@ def test_non_captive_handle_selection_class_contains_no_inferred_fit_dimension()
         predicate.property_key
         for predicate in eligibility.paths[0].requirements
     ]
-    assert requirement_keys == ["feature_kind", "captive_state"]
+    assert requirement_keys == ["feature_kind"]
+    assert "captive_state" not in requirement_keys
     assert not any(key.startswith("dimension:") for key in requirement_keys)
 
 
