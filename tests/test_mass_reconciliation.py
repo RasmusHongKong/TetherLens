@@ -34,6 +34,20 @@ def test_materially_different_mass_declarations_do_not_semantically_agree() -> N
     assert mass_claims_semantically_agree([ten_pounds, five_kg]) is False
 
 
+def test_gripps_style_rounded_dual_unit_values_can_correspond() -> None:
+    metric = _claim(36.3, "load rating 36.3 kg")
+    customary = _claim(36.28739, "load rating 80 lb")
+
+    assert mass_claims_semantically_agree([metric, customary]) is True
+
+
+def test_gripps_known_material_capacity_difference_remains_a_conflict() -> None:
+    lower = _claim(36.3, "load rating 36.3 kg")
+    higher = _claim(36.9, "load rating 36.9 kg")
+
+    assert mass_claims_semantically_agree([lower, higher]) is False
+
+
 def test_source_precision_controls_mass_rounding_interval() -> None:
     claim = _claim(4.53, "maximum load 4.53 kg")
 
