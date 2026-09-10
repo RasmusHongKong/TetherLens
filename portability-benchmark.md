@@ -149,7 +149,7 @@ A new reusable class C primitive should be introduced only when the product evid
 
 `benchmarks/cross_vendor_portability_v2.json` freezes a second eight-product audit at merged `main` commit `29c01939c8e8774dcc553527255fc4281708480c`, after PR #55.
 
-The V2 cohort is fully unseen relative to V1 and contains two products each from FallTech, GRIPPS, Ergodyne and 3M. It deliberately mixes manufacturers with narrow existing adapters and manufacturers with no adapter so the audit can distinguish core reuse from catalogue-onboarding breadth.
+The V2 cohort is disjoint from V1 and also excludes the pre-PR #55 Ergodyne web ToolAttachment + required tape/wrap family that was already used as a design input in `tool-anatomy-selection-semantics.md`. It contains two products each from FallTech, GRIPPS, Ergodyne and 3M. The sample deliberately mixes manufacturers with narrow existing adapters and manufacturers with no adapter so the audit can distinguish core reuse from catalogue-onboarding breadth without counting a previously modelled architecture sample as fresh evidence.
 
 The sample covers:
 
@@ -158,7 +158,7 @@ The sample covers:
 - a GRIPPS triple-action carabiner + tail-loop tether with a malformed storefront load field;
 - a self-closing GRIPPS handle/neck ToolAttachment with size variants;
 - an Ergodyne screwgate carabiner + cinch-loop tether;
-- an Ergodyne wrap/tape-installed D-ring attachment whose tape is a separate required product;
+- an Ergodyne retractable tether with explicit anchor-side manual-locking carabiner and tool-side choking-loop roles;
 - a 3M D-ring attachment installed with a separately catalogued Quick-Wrap Tape product; and
 - a 3M slide-on Quick Spin attachment with a nominal diameter.
 
@@ -171,13 +171,13 @@ C new_reusable_primitive   2
 D sku_specific_exception   0
 ```
 
-This is a stronger portability signal than V1. Six of eight unfamiliar products fit the post-#55 domain/recommendation core without a new compatibility, candidate-generation, hard-evaluation, ranking or SKU-pair rule. The lack of A-class results is now mostly a catalogue-throughput signal: the existing GRIPPS and FallTech adapters were intentionally narrow proofs, while Ergodyne and 3M have no normal adapters yet.
+This is a stronger portability signal than V1. Six of eight fresh products fit the post-#55 domain/recommendation core without a new compatibility, candidate-generation, hard-evaluation, ranking or SKU-pair rule. The lack of A-class results is now mostly a catalogue-throughput signal: the existing GRIPPS and FallTech adapters were intentionally narrow proofs, while Ergodyne and 3M have no normal adapters yet.
 
-### Required companion products are existing-core reuse
+### Required companion products remain existing-core reuse
 
-V2 deliberately includes two independently branded tape-installed D-ring systems: Ergodyne Squids 3707 + 3755 Tape Trap and 3M 1500007 + Quick-Wrap Tape II.
+The V2 cohort contains one 3M D-ring system whose installation requires separately catalogued Quick-Wrap Tape II. The same general tape/wrap assembly pattern had already been considered before PR #55 using an Ergodyne architecture sample, which is why that Ergodyne ToolAttachment family is now explicitly excluded from the fresh V2 cohort.
 
-At first glance these look like a missing companion-product primitive. They are not. The technical schema already has a manufacturer-backed `required_pairing` relationship and candidate generation already accepts ToolAttachment assemblies with one or many component instances. The correct architecture is therefore:
+The 3M case still provides a useful cross-vendor reuse check: the technical schema already has a manufacturer-backed `required_pairing` relationship and candidate generation already accepts ToolAttachment assemblies with one or many component instances. The correct architecture remains:
 
 ```text
 accepted manufacturer pairing
@@ -186,7 +186,7 @@ accepted manufacturer pairing
   -> preserve ordinary capacity / interface / constraint semantics
 ```
 
-Both cases are B, not C. Vendor acquisition/composition must establish the relationship and component identities, but downstream recommendation semantics must not gain a product-pair exception.
+3M 1500007 is therefore B, not C. Vendor acquisition/composition must establish the relationship and component identities, but downstream recommendation semantics must not gain a product-pair exception. This is confirmation that an already-designed generic assembly model ports to another manufacturer, not a claim that V2 newly discovered the companion-product primitive.
 
 ### Remaining recurring C gap: non-captive capture fit
 
