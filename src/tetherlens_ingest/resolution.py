@@ -190,13 +190,13 @@ def _captive_feature_path(feature_kind: FeatureKind) -> EligibilityPath:
 
 
 def _external_section_path(claims: list[CandidateClaim]) -> EligibilityPath:
-    """Build one external-section fit path from existing interface-dimension claims.
+    """Build one external-section fit path from complete source-local evidence.
 
-    Diameter bounds remain attached to one physical-interface subject. Missing,
-    incomplete, multiply-scoped, or conflicting accepted fit evidence fails closed
-    rather than degrading to geometry-only eligibility or merging envelopes.
-    Equivalent dimensions expressed in different units are compared only after
-    conversion to the canonical millimeter representation.
+    Diameter bounds remain attached to one physical-interface subject and one evidence
+    source. Missing, incomplete, multiply-scoped, or conflicting accepted fit evidence
+    fails closed rather than degrading to geometry-only eligibility or synthesizing a
+    wider envelope from independently accepted bounds. Equivalent complete envelopes
+    expressed in different units are compared after millimeter normalization.
     """
 
     grouped: dict[str, list[CandidateClaim]] = defaultdict(list)
@@ -221,25 +221,41 @@ def _external_section_path(claims: list[CandidateClaim]) -> EligibilityPath:
         )
 
     subject_ref, fit_claims = next(iter(grouped.items()))
-    min_mm = _single_dimension_mm(
-        fit_claims,
-        f"{INTERFACE_DIMENSION_PREFIX}min_diameter",
-    )
-    max_mm = _single_dimension_mm(
-        fit_claims,
-        f"{INTERFACE_DIMENSION_PREFIX}max_diameter",
-    )
-    if min_mm is None or max_mm is None:
+    by_source: dict[str, list[CandidateClaim]] = defaultdict(list)
+    for claim in fit_claims:
+        by_source[claim.source_url].append(claim)
+
+    complete_envelopes: dict[str, tuple[float, float]] = {}
+    min_key = f"{INTERFACE_DIMENSION_PREFIX}min_diameter"
+    max_key = f"{INTERFACE_DIMENSION_PREFIX}max_diameter"
+    for source_url, source_claims in by_source.items():
+        min_mm = _single_dimension_mm(source_claims, min_key)
+        max_mm = _single_dimension_mm(source_claims, max_key)
+        if min_mm is None or max_mm is None:
+            continue
+        if min_mm > max_mm:
+            raise ClaimResolutionError(
+                f"external-section diameter bounds are inverted on {subject_ref!r} from {source_url!r}"
+            )
+        complete_envelopes[source_url] = (min_mm, max_mm)
+
+    if not complete_envelopes:
         raise ClaimResolutionError(
-            "external-section attachment eligibility requires both min_diameter and "
-            f"max_diameter on {subject_ref!r}"
+            "external-section attachment eligibility requires a complete min/max "
+            f"diameter-fit envelope from one evidence source on {subject_ref!r}"
         )
 
-    if min_mm > max_mm:
+    normalized_envelopes = {
+        (round(low, 9), round(high, 9))
+        for low, high in complete_envelopes.values()
+    }
+    if len(normalized_envelopes) > 1:
         raise ClaimResolutionError(
-            f"external-section diameter bounds are inverted on {subject_ref!r}"
+            "conflicting accepted diameter-fit envelopes after unit normalization on "
+            f"{subject_ref!r}: {sorted(normalized_envelopes)!r} mm"
         )
 
+    min_mm, max_mm = next(iter(normalized_envelopes))
     return EligibilityPath(
         binding_name="external_section",
         requirements=[
