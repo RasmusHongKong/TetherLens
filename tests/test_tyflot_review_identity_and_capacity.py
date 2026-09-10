@@ -24,7 +24,10 @@ def _identity() -> ProductIdentity:
     )
 
 
-def _primary(url: str = PRODUCT_URL) -> SourceArtifact:
+def _primary(
+    url: str = PRODUCT_URL,
+    capacity: str = "10 lb",
+) -> SourceArtifact:
     return SourceArtifact(
         url=url,
         source_type=SourceType.MANUFACTURER_WEBPAGE,
@@ -32,7 +35,7 @@ def _primary(url: str = PRODUCT_URL) -> SourceArtifact:
         body=(
             "<h1>Cold Shrink Series</h1>"
             "<p>The durable shrink tubing will collapse onto the tool, fixing it in place.</p>"
-            "<div>Max Tool Weight: 10 lb</div>"
+            f"<div>Max Tool Weight: {capacity}</div>"
             "<div>Max Tether Length: 48\"</div>"
             "<div>Fits Diameter: 1.65\" to 3.50\"</div>"
         ),
@@ -65,6 +68,17 @@ def test_tyflot_rejects_same_host_primary_for_different_variant() -> None:
 def test_tyflot_matching_capacity_sources_do_not_create_conflict() -> None:
     adapter = TyFlotAdapter()
     artifacts = [_primary(), _guide(10)]
+    claims = adapter.extract(_identity(), artifacts)
+    observations = adapter.observe(_identity(), artifacts)
+
+    issues = adapter.readiness_issues(claims, observations) or []
+
+    assert not any(issue.property_key == "rated_capacity_kg" for issue in issues)
+
+
+def test_tyflot_equivalent_rounded_capacity_sources_do_not_create_conflict() -> None:
+    adapter = TyFlotAdapter()
+    artifacts = [_primary(capacity="4.53 kg"), _guide(10)]
     claims = adapter.extract(_identity(), artifacts)
     observations = adapter.observe(_identity(), artifacts)
 
