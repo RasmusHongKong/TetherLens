@@ -20,6 +20,7 @@ from tetherlens_ingest.models import (
     SourceType,
 )
 from tetherlens_ingest.normalize import length_to_mm, parse_mass
+from tetherlens_ingest.reconciliation import mass_claims_semantically_agree
 
 from .base import ManufacturerAdapter
 from .common import page_text
@@ -260,10 +261,16 @@ class TyFlotAdapter(ManufacturerAdapter):
                 ),
             ))
 
-        capacities = _capacity_values_by_source(claims)
-        unique_capacities = sorted(set(capacities.values()))
-        if len(unique_capacities) > 1:
-            rendered = ", ".join(f"{value:g} kg" for value in unique_capacities)
+        capacity_claims = [
+            claim
+            for claim in claims
+            if claim.subject_type == ClaimSubjectType.PRODUCT
+            and claim.subject_ref == "self"
+            and claim.property_key == "rated_capacity_kg"
+        ]
+        if not mass_claims_semantically_agree(capacity_claims):
+            capacity_values = sorted({float(claim.value) for claim in capacity_claims})
+            rendered = ", ".join(f"{value:g} kg" for value in capacity_values)
             issues.append(ReadinessIssue(
                 code="EVIDENCE_CONFLICT",
                 property_key="rated_capacity_kg",
@@ -414,19 +421,6 @@ def _diameter_ranges_by_source(
         except ValueError:
             continue
     return ranges
-
-
-def _capacity_values_by_source(claims: list[CandidateClaim]) -> dict[str, float]:
-    values: dict[str, float] = {}
-    for claim in claims:
-        if claim.subject_type != ClaimSubjectType.PRODUCT:
-            continue
-        if claim.subject_ref != "self" or claim.property_key != "rated_capacity_kg":
-            continue
-        if isinstance(claim.value, bool) or not isinstance(claim.value, (int, float)):
-            continue
-        values[claim.source_url] = float(claim.value)
-    return values
 
 
 def _is_identity_bound_primary(identity: ProductIdentity, artifact: SourceArtifact) -> bool:
