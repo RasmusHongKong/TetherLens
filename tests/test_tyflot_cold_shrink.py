@@ -270,5 +270,5 @@ def test_external_section_attachment_compiles_existing_diameter_dimensions_witho
 def test_external_section_attachment_fails_closed_if_conflicting_diameter_claims_are_treated_as_accepted() -> None:
     claims = TyFlotAdapter().extract(_identity(), _all_artifacts())
 
-    with pytest.raises(ClaimResolutionError, match="conflicting accepted claims"):
+    with pytest.raises(ClaimResolutionError, match="conflicting accepted diameter-fit envelopes"):
         resolve_attachment_eligibility(claims)
