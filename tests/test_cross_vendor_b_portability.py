@@ -18,10 +18,21 @@ from tetherlens_ingest.models import (
     SourceType,
 )
 from tetherlens_ingest.resolution import resolve_connection_interfaces, resolve_connector_specs
+from tetherlens_ingest.runner import IngestionRunner
 
 
 GRIPPS_URL = "https://gripps.com/products/webbing-extra-heavy-duty-dual-action-tether"
 FALLTECH_URL = "https://www.falltech.com/product/5027b/"
+
+
+class _SingleArtifactFetcher:
+    def __init__(self, artifact: SourceArtifact):
+        self.artifact = artifact
+
+    def get(self, url: str, source_type: SourceType) -> SourceArtifact:
+        assert url == self.artifact.url
+        assert source_type == self.artifact.source_type
+        return self.artifact
 
 
 def _artifact(body: str, url: str) -> SourceArtifact:
@@ -79,10 +90,8 @@ def _falltech_body() -> str:
 
 def test_gripps_keeps_conflicting_first_party_capacity_unreconciled() -> None:
     adapter = GRIPPSAdapter()
-    claims = adapter.extract(
-        _gripps_identity(),
-        [_artifact(_gripps_body(), GRIPPS_URL)],
-    )
+    artifact = _artifact(_gripps_body(), GRIPPS_URL)
+    claims = adapter.extract(_gripps_identity(), [artifact])
 
     capacities = sorted(
         float(claim.value)
@@ -98,6 +107,15 @@ def test_gripps_keeps_conflicting_first_party_capacity_unreconciled() -> None:
     assert issues[0].code == "EVIDENCE_CONFLICT"
     assert issues[0].property_key == "rated_capacity_kg"
     assert "no value is recommendation-ready" in (issues[0].detail or "")
+
+    result = IngestionRunner(_SingleArtifactFetcher(artifact)).ingest(
+        _gripps_identity(),
+        adapter,
+    )
+    assert result.readiness_assessed is True
+    assert len(result.issues) == 1
+    assert result.issues[0].code == "EVIDENCE_CONFLICT"
+    assert result.issues[0].property_key == "rated_capacity_kg"
 
 
 def test_gripps_explicit_direction_flows_into_existing_side_semantics_without_equivalence() -> None:
