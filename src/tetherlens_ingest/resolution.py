@@ -192,9 +192,9 @@ def _captive_feature_path(feature_kind: FeatureKind) -> EligibilityPath:
 def _external_section_path(claims: list[CandidateClaim]) -> EligibilityPath:
     """Build one external-section fit path from existing interface-dimension claims.
 
-    Diameter bounds remain attached to one physical-interface subject. If accepted
-    evidence contains more than one dimensional-fit subject, or conflicting values on
-    the selected subject, resolution fails closed rather than merging envelopes.
+    Diameter bounds remain attached to one physical-interface subject. Missing,
+    incomplete, multiply-scoped, or conflicting accepted fit evidence fails closed
+    rather than degrading to geometry-only eligibility or merging envelopes.
     """
 
     grouped: dict[str, list[CandidateClaim]] = defaultdict(list)
@@ -208,51 +208,56 @@ def _external_section_path(claims: list[CandidateClaim]) -> EligibilityPath:
             continue
         grouped[claim.subject_ref].append(claim)
 
+    if not grouped:
+        raise ClaimResolutionError(
+            "external-section attachment eligibility requires an accepted min/max diameter-fit envelope"
+        )
     if len(grouped) > 1:
         raise ClaimResolutionError(
             "external-section attachment eligibility requires one accepted diameter-fit subject; "
             f"got {sorted(grouped)!r}"
         )
 
-    requirements = [
-        FeaturePredicate(
-            property_key="feature_kind",
-            value=FeatureKind.EXTERNAL_SECTION.value,
+    subject_ref, fit_claims = next(iter(grouped.items()))
+    min_claim = _single_claim(
+        fit_claims,
+        f"{INTERFACE_DIMENSION_PREFIX}min_diameter",
+    )
+    max_claim = _single_claim(
+        fit_claims,
+        f"{INTERFACE_DIMENSION_PREFIX}max_diameter",
+    )
+    if min_claim is None or max_claim is None:
+        raise ClaimResolutionError(
+            "external-section attachment eligibility requires both min_diameter and "
+            f"max_diameter on {subject_ref!r}"
         )
-    ]
 
-    if grouped:
-        subject_ref, fit_claims = next(iter(grouped.items()))
-        min_claim = _single_claim(
-            fit_claims,
-            f"{INTERFACE_DIMENSION_PREFIX}min_diameter",
+    min_mm = _dimension_to_mm(min_claim)
+    max_mm = _dimension_to_mm(max_claim)
+    if min_mm > max_mm:
+        raise ClaimResolutionError(
+            f"external-section diameter bounds are inverted on {subject_ref!r}"
         )
-        max_claim = _single_claim(
-            fit_claims,
-            f"{INTERFACE_DIMENSION_PREFIX}max_diameter",
-        )
-        min_mm = _dimension_to_mm(min_claim) if min_claim is not None else None
-        max_mm = _dimension_to_mm(max_claim) if max_claim is not None else None
-        if min_mm is not None and max_mm is not None and min_mm > max_mm:
-            raise ClaimResolutionError(
-                f"external-section diameter bounds are inverted on {subject_ref!r}"
-            )
-        if min_mm is not None:
-            requirements.append(FeaturePredicate(
-                property_key="dimension:section_diameter",
-                operator=ComparisonOperator.GTE,
-                value=min_mm,
-            ))
-        if max_mm is not None:
-            requirements.append(FeaturePredicate(
-                property_key="dimension:section_diameter",
-                operator=ComparisonOperator.LTE,
-                value=max_mm,
-            ))
 
     return EligibilityPath(
         binding_name="external_section",
-        requirements=requirements,
+        requirements=[
+            FeaturePredicate(
+                property_key="feature_kind",
+                value=FeatureKind.EXTERNAL_SECTION.value,
+            ),
+            FeaturePredicate(
+                property_key="dimension:section_diameter",
+                operator=ComparisonOperator.GTE,
+                value=min_mm,
+            ),
+            FeaturePredicate(
+                property_key="dimension:section_diameter",
+                operator=ComparisonOperator.LTE,
+                value=max_mm,
+            ),
+        ],
     )
 
 
