@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 from bs4 import BeautifulSoup
 
@@ -27,6 +27,7 @@ from .common import page_text
 
 _EXTRACTOR = "tyflot.v0.1"
 _GUIDE_INDEX_URL = "https://guardianfall.com/media/catalog/dropped-object-prevention-product-guide"
+_FIRST_PARTY_HOSTS = frozenset({"guardianfall.com", "www.guardianfall.com"})
 
 _COLLAPSE_RETENTION = re.compile(
     r"\b(?:shrink\s+tubing|sleeve|attachment)\b.{0,140}\b(?:collapse|contract)\w*\b"
@@ -83,6 +84,8 @@ class TyFlotAdapter(ManufacturerAdapter):
     ) -> list[SourceRequest]:
         if identity.product_type != ProductType.TOOL_ATTACHMENT:
             return []
+        if not _is_first_party_url(source_artifact.url):
+            return []
 
         role = str(source_artifact.metadata.get("role") or "primary")
         if role == "primary":
@@ -108,8 +111,11 @@ class TyFlotAdapter(ManufacturerAdapter):
             label = " ".join(anchor.stripped_strings).strip().lower()
             if "pdf" not in label and ".pdf" not in href.lower() and "/assets/" not in href.lower():
                 continue
+            candidate_url = urljoin(source_artifact.url, href)
+            if not _is_first_party_url(candidate_url):
+                continue
             requests.append(SourceRequest(
-                url=urljoin(source_artifact.url, href),
+                url=candidate_url,
                 source_type=SourceType.MANUFACTURER_DOCUMENT,
                 metadata={
                     "role": "dop_product_guide",
@@ -128,6 +134,9 @@ class TyFlotAdapter(ManufacturerAdapter):
 
         claims: list[CandidateClaim] = []
         for artifact in artifacts:
+            if not _is_first_party_url(artifact.url):
+                continue
+
             role = str(artifact.metadata.get("role") or "primary")
             if role == "dop_product_guide":
                 claims.extend(_guide_claims(identity, artifact))
@@ -390,6 +399,12 @@ def _diameter_ranges_by_source(
         except ValueError:
             continue
     return ranges
+
+
+def _is_first_party_url(url: str) -> bool:
+    parsed = urlsplit(url)
+    hostname = (parsed.hostname or "").lower()
+    return parsed.scheme.lower() in {"http", "https"} and hostname in _FIRST_PARTY_HOSTS
 
 
 def _claim(
