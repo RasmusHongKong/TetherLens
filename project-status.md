@@ -8,7 +8,7 @@ For durable design details, use the dedicated documents including `product-visio
 
 ## Current development line
 
-The current development line through PR #55 includes:
+The current development line through PR #56 includes:
 
 - PR #17 — Batch 2 blind NLG holdout and post-blind evaluation path;
 - PR #18 — explicit tether endpoint topology;
@@ -47,8 +47,9 @@ The current development line through PR #55 includes:
 - PR #51 — decision-bound first-party NLG datasheet acquisition for a symmetric-looking dual-carabiner assignment gap plus a second bounded `derived_endpoint_equivalence` production family, with final-host and product-identity revalidation, affirmative/local construction and pair-use evidence, directional-endpoint vetoes, concrete endpoint identity, `TetherSide.UNKNOWN`, and compatibility separation preserved;
 - PR #52 — the first frozen cross-vendor portability audit after the NLG-heavy development phase, covering eight unseen GRIPPS, FallTech, Ty-Flot and Dropsafe Tether/ToolAttachment products and classifying the smallest required change as facts-only, vendor-ingestion-only, new reusable primitive or SKU-specific exception without changing production recommendation semantics;
 - PR #53 — reusable single-feature captive ToolAttachment eligibility composition, adding manufacturer-neutral handle-only and through-opening-only compiler classes over the existing `feature_kind` / `captive_state` primitives while preserving the existing combined OR class, exact feature-instance binding, fail-closed conflict handling and unchanged downstream recommendation rules;
-- PR #54 — the first implemented B-class cross-vendor portability proof, adding GRIPPS and FallTech vendor extraction for H01079 and 5027B while keeping endpoint assignment, compatibility, candidate generation, hard evaluation and ranking unchanged, preserving GRIPPS fixed directionality and capacity conflict, and reusing the existing cinch-loop family for FallTech; and
-- PR #55 — the remaining provisional C-class Ty-Flot retention slice, adding manufacturer-neutral `contraction_capture`, bounded `external_section_attachment` eligibility from complete source-local diameter-fit envelopes, exact-product/final-host manufacturer provenance hardening, and shared source-precision-aware mass reconciliation reused by Ty-Flot and GRIPPS without changing downstream compatibility, hard evaluation, ranking or selection rules.
+- PR #54 — the first implemented B-class cross-vendor portability proof, adding GRIPPS and FallTech vendor extraction for H01079 and 5027B while keeping endpoint assignment, compatibility, candidate generation, hard evaluation and ranking unchanged, preserving GRIPPS fixed directionality and capacity conflict, and reusing the existing cinch-loop family for FallTech;
+- PR #55 — the remaining provisional C-class Ty-Flot retention slice, adding manufacturer-neutral `contraction_capture`, bounded `external_section_attachment` eligibility from complete source-local diameter-fit envelopes, exact-product/final-host manufacturer provenance hardening, and shared source-precision-aware mass reconciliation reused by Ty-Flot and GRIPPS without changing downstream compatibility, hard evaluation, ranking or selection rules; and
+- PR #56 — the first fresh post-PR #55 portability audit, freezing an eight-product FallTech/GRIPPS/Ergodyne/3M cohort at merged `main` commit `29c01939c8e8774dcc553527255fc4281708480c`, finding **0 A / 6 B / 2 C / 0 D**, proving that manufacturer-required companion products already fit the existing `required_pairing` plus multi-component ToolAttachment assembly model, and isolating one recurring non-captive handle/neck capture-fit gap across GRIPPS SnapLock and 3M Quick Spin without changing production recommendation semantics.
 
 PR #16 remains closed unmerged; its useful catalogue-discovery/scoring work was carried forward through PR #19 and its older topology semantics should not be revived.
 
@@ -145,9 +146,9 @@ The benchmark does not add a new scorer, recommendation path, compatibility fami
 
 ### Cross-vendor portability benchmark
 
-PR #52 adds a separate supply-side architecture audit in `benchmarks/cross_vendor_portability_v1.json`, guarded by `tests/test_portability_benchmark.py` and documented in `portability-benchmark.md`.
+PR #52 adds the historical supply-side architecture audit in `benchmarks/cross_vendor_portability_v1.json`, guarded by `tests/test_portability_benchmark.py` and documented in `portability-benchmark.md`.
 
-The core is frozen at merged `main` after PR #51. The cohort deliberately excludes NLG and contains two products each from GRIPPS, FallTech, Ty-Flot and Dropsafe. Products are classified by the smallest change required for correct participation:
+The V1 core is frozen at merged `main` after PR #51. The cohort deliberately excludes NLG and contains two products each from GRIPPS, FallTech, Ty-Flot and Dropsafe. Products are classified by the smallest change required for correct participation:
 
 ```text
 A facts_only
@@ -156,38 +157,30 @@ C new_reusable_primitive
 D sku_specific_exception
 ```
 
-The reviewed initial result is **0 A / 5 B / 3 C / 0 D**. The lack of A-class products is expected because these manufacturers do not yet have normal production adapters. Five products appear to fit the existing normalized domain/recommendation core without a new compatibility, generation, ranking or SKU-pair rule.
+The reviewed V1 result remains **0 A / 5 B / 3 C / 0 D**. Later PRs do not rewrite those classifications; PRs #53-#55 implemented reusable gaps against the evolving current core while preserving the historical answer key.
 
-At the PR #52 freeze, two of the three C-class products revealed the same reusable cross-vendor gap. The runtime `AttachmentEligibility` shape could express arbitrary feature paths, but the production `resolve_attachment_eligibility()` compiler recognized only `captive_feature_attachment`, which always meant **captive handle OR captive through-opening**. That could not faithfully represent GRIPPS H01055's handle-only scope or FallTech 5318A10's captive-eye-only scope without widening eligibility beyond the evidence. Both were therefore correctly classified C in the frozen artifact.
+At the PR #52 freeze, two C products revealed the same single-feature captive-eligibility gap. PR #53 closes that current-core gap with separate manufacturer-neutral `captive_handle_attachment`, `captive_through_opening_attachment`, and combined `captive_feature_attachment` compiler classes. GRIPPS H01079 and FallTech 5027B then supplied B-class vendor-ingestion proofs under PR #54 without downstream semantic changes. PR #55 closes the remaining provisional Ty-Flot retention-mechanism gap through manufacturer-neutral `contraction_capture` plus source-local external-section fit envelopes; Ty-Flot `COLDSH41X35` itself remains non-ready because current first-party dimensional/variant evidence conflicts.
 
-PR #53 closes that shared core gap without rewriting the historical portability answer key. The production compiler now recognizes three manufacturer-neutral classes over the same existing primitives:
+PR #56 adds a separate fresh V2 audit in `benchmarks/cross_vendor_portability_v2.json`, guarded by `tests/test_portability_benchmark_v2.py`. It freezes the current core at merged `main` commit `29c01939c8e8774dcc553527255fc4281708480c`, after PR #55, and samples eight products unseen in V1: two each from FallTech, GRIPPS, Ergodyne and 3M.
+
+The reviewed V2 result is:
 
 ```text
-captive_handle_attachment
-  -> captive handle only
-
-captive_through_opening_attachment
-  -> captive through-opening only
-
-captive_feature_attachment
-  -> captive handle OR captive through-opening
+A facts_only               0
+B vendor_ingestion_only    6
+C new_reusable_primitive   2
+D sku_specific_exception   0
 ```
 
-All three compile through one shared feature-local path builder. The existing NLG combined class keeps its path order and semantics. Conflicting accepted selection-class values fail closed rather than being unioned into a broader rule, and unknown captive state remains unresolved. No manufacturer, product or SKU identity participates in this composition. See `single-feature-captive-eligibility.md` for the durable evidence and compilation boundary.
+Six of eight unfamiliar products fit the existing domain/recommendation core. The lack of A results is now primarily a catalogue-throughput signal: current GRIPPS/FallTech adapters are intentionally narrow development proofs, while Ergodyne and 3M do not yet have normal adapters.
 
-The frozen `cross_vendor_portability_v1` artifact remains an audit of the core after PR #51 and therefore remains **0 A / 5 B / 3 C / 0 D**. Later PRs do not rewrite those original classifications; they implement representative slices against the evolving current core.
+Two apparent companion-product cases are explicitly classified B rather than C. Ergodyne Squids 3707 requires a separately catalogued 3755 tape product, and 3M 1500007 requires Quick-Wrap Tape II, but the technical schema already supports manufacturer-backed `required_pairing` and `ToolAttachmentAssemblyOption` already accepts multiple component instances. The correct path is to retain both catalogue-product identities and compose one multi-component ToolAttachment assembly; no product-pair compatibility rule is needed.
 
-GRIPPS H01079 now has a vendor-specific extractor that emits its first-party directional topology directly into the existing neutral endpoint and connector primitives: a **large dedicated anchor-end carabiner** and a **small dedicated tool-end carabiner**, both with accepted dual-action evidence. No `TETHER_ENDPOINT_ASSIGNMENT` relation is emitted, `derived_endpoint_equivalence` is neither invoked nor widened, and reversed use is rejected by the unchanged `endpoint_side_semantics.v1` rule. The conflicting first-party **36.3 kg / 80 lb** and **36.9 kg / 81 lb** capacity statements are retained as separate candidate claims. The adapter surfaces `EVIDENCE_CONFLICT` for `rated_capacity_kg`, and ingestion remains explicitly non-ready rather than selecting one value.
+The two V2 C cases — GRIPPS H01150 SnapLock and 3M 1500028 Quick Spin Medium — expose one recurring unresolved boundary. Both intentionally install onto a **non-captive** handle/neck-style tool feature. The existing runtime feature/predicate model can describe non-captive features, and `mechanical_capture` is a plausible existing retention family, but the production eligibility compiler has no conservative manufacturer-neutral execution path for this installation family. Critically, neither branded S/M/L/XL sizing nor a nominal attachment diameter is enough to invent a tool-feature fit envelope.
 
-FallTech 5027B supplies the second B-class proof. Its vendor extractor maps the first-party mixed **choke-on cinch-loop + steel carabiner** topology into the existing neutral endpoint/connector representation. The loop retains `connector.attribute.engagement_method = cinch`, so the unchanged `cinch_loop_to_closed_interface.v1` family is selected for an eligible closed tool interface. Tool/anchor side remains `UNKNOWN` because the reviewed product wording does not directly establish endpoint direction; “choke-on” is not treated as side evidence. Related-product copy is prevented from retyping the current product topology by binding topology extraction to the current product heading.
+The next slice therefore starts with installation evidence, not code. It must determine whether the smallest reusable model is a dimension-bounded eligibility path, a bounded pre-use/runtime fit verification, or a combination. It must not infer fit from nominal size, promote a non-captive handle to captive, or introduce GRIPPS/3M-specific downstream logic.
 
-PR #55 closes the remaining provisional C-class **retention-mechanism** gap represented by Ty-Flot `COLDSH41X35` without rewriting the frozen PR #52 answer key. First-party installation evidence distinguishes contraction from `mechanical_capture`, `cinch`, `wrap` and `through_feature`, so the reusable attachment-method vocabulary now includes `contraction_capture`: an attachment begins expanded and is retained by contracting onto an external tool section. Diameter fit remains in the existing interface-dimension family, capacity remains `rated_capacity_kg`, and maximum tether length remains an existing declared constraint.
-
-The external-section compiler fails closed unless accepted evidence contains at least one **complete min/max diameter-fit envelope from one evidence source**. Bounds from different sources are never stitched into a synthetic envelope. Complete source-local envelopes are normalized to millimeters before comparison, so equivalent unit presentations can corroborate while materially different envelopes remain conflicting.
-
-Ty-Flot `COLDSH41X35` remains non-ready under the currently reviewed evidence because the Guardian storefront and exact-SKU product guide publish conflicting diameter envelopes, and the storefront also contains variant-geometry tension. That is now an **evidence reconciliation problem, not a missing architecture primitive**. The mechanism gap itself is closed.
-
-The cohort also confirms that evidence gaps must remain separate from architecture portability. Dropsafe twin carabiners fit the endpoint/connector model, but twin hardware alone still cannot establish reversibility; Ty-Flot cord-loop wording cannot be promoted to cinch without accepted mechanism evidence. First-party capacity conflicts on GRIPPS H01079 and Ty-Flot CC2956WR14LRD remain evidence-reconciliation issues rather than reasons to change their historical B architecture class.
+The V2 audit changes no production compatibility, candidate-generation, hard-evaluation, ranking or selection rule.
 
 ### Session-local condition resolution
 
@@ -402,20 +395,17 @@ It must not rewrite the original global selector result.
 
 ## Benchmark state
 
-PR #55 validation exercises the new Ty-Flot mechanism/provenance/reconciliation path together with the unchanged existing recommendation and catalogue benchmark stack. The latest completed code-bearing workflow before this handoff update is green across unit tests, the live manufacturer benchmark, Batch 1 scoring, the immutable Batch 2 blind baseline, and the fresh Batch 2 post-blind evaluation/scoring.
+PR #55 remains the latest code-bearing portability implementation before this audit. Its completed workflow is green across unit tests, the live manufacturer benchmark, Batch 1 scoring, the immutable Batch 2 blind baseline, and the fresh Batch 2 post-blind evaluation/scoring.
 
-Focused PR #55 coverage proves:
+PR #56 is an **audit-only** benchmark/documentation change. It adds `cross_vendor_portability_v2.json` and focused regression guards but deliberately changes no production recommendation semantics. V1 remains frozen at **0 A / 5 B / 3 C / 0 D**; V2 freezes the post-#55 core at `29c01939c8e8774dcc553527255fc4281708480c` and records **0 A / 6 B / 2 C / 0 D**.
 
-- `contraction_capture` requires affirmative contraction-retention evidence rather than a product name;
-- external-section eligibility fails closed without a complete fit envelope and never stitches min/max bounds from different evidence sources;
-- complete metric/imperial diameter envelopes are compared after normalization, so equivalent units corroborate while materially different envelopes remain conflicting;
-- Guardian primary extraction is both first-party and exact-product bound, and manufacturer-labelled related sources are rejected/revalidated centrally when request/final hosts leave the first-party boundary;
-- explicitly secondary external sources remain available to adapters whose evidence policy permits them;
-- Ty-Flot first-party diameter/variant conflicts remain visible and recommendation-blocking rather than being silently selected;
-- rounded mass equivalence is implemented once in shared `reconciliation.py`, with `10 lb` vs `4.53 kg` and GRIPPS-style `36.3 kg` vs `80 lb` treated as potentially corresponding declarations; and
-- materially different capacity declarations remain conflicts, including the known GRIPPS 36.3 kg vs 36.9 kg split.
+The V2 guards prove that:
 
-PR #55 deliberately leaves the existing Batch 1, Batch 2, recommendation and frozen portability golden answer keys unchanged. PR #52's portability test remains a frozen architecture-audit contract: `tests/test_portability_benchmark.py` continues to guard the eight-product manufacturer balance, freeze point, classification vocabulary and historical **0 A / 5 B / 3 C / 0 D** result. PRs #53-#55 close or implement gaps discovered by that audit in the current core without mutating its historical answer key.
+- the cohort is unseen relative to V1 and contains two products each from FallTech, GRIPPS, Ergodyne and 3M;
+- more than half of the fresh cohort is A/B reuse, concretely six B and two C;
+- no D-class SKU-specific exception pressure is present;
+- the two C products are from independent manufacturers and share the same non-captive capture/fit boundary; and
+- two independent required-companion-product systems remain B because `required_pairing` plus multi-component ToolAttachment assemblies already represent the architecture.
 
 The recommendation golden itself remains the same three semantic scenarios:
 
@@ -423,7 +413,7 @@ The recommendation golden itself remains the same three semantic scenarios:
 - a non-empty two-candidate run in which the `under_capacity` semantic alternative is blocked by `load_capacity / failed` while the separate `unresolved_tool_connection` alternative is blocked by `connection_compatibility / unresolved`, allowing bounded `no_suitable_recommendation` only after complete evaluation; and
 - a ToolAttachment-mediated two-feature run in which both surface features are explicitly eligible, the selected feature is retained through constraint evaluation, the flat/clean path remains selectable, and the separate curved/clean path is blocked specifically by the existing hard installation-surface-profile constraint.
 
-The answer key intentionally omits SKU pairs, runtime product refs and canonical candidate IDs. Semantic scenario-role labels describe expected behavior without identifying a real product or runtime candidate. The catalogue benchmark remains the supply-side ingestion/recommendation-readiness benchmark; the recommendation golden is the downstream semantic contract; and the portability benchmark tests whether the core abstractions appear reusable before new manufacturer implementation work begins.
+The answer key intentionally omits SKU pairs, runtime product refs and canonical candidate IDs. Semantic scenario-role labels describe expected behavior without identifying a real product or runtime candidate. The catalogue benchmark remains the supply-side ingestion/recommendation-readiness benchmark; the recommendation golden is the downstream semantic contract; and portability cohorts test whether the core abstractions remain reusable before new manufacturer implementation work begins.
 
 ## Recorded evidence/semantic gaps
 
@@ -450,6 +440,12 @@ PR #54 closes the first implementation-level **B-class cross-vendor portability 
 
 PR #55 closes the remaining provisional portability C-class **Ty-Flot contraction-retention architecture gap** in the current core. `COLDSH41X35` remains non-ready because current first-party Guardian evidence contains conflicting diameter/variant information; that unresolved state is evidence reconciliation, not a reason to widen `contraction_capture` or invent a SKU-specific rule. The frozen PR #52 classifications remain unchanged because they record the architecture state at their historical freeze point.
 
+PR #56 identifies one new recurring architecture question: **non-captive ToolAttachment capture/fit**. GRIPPS SnapLock and 3M Quick Spin both install onto non-captive handle/neck-style geometry, but current production eligibility composition is bounded to captive feature families or a source-local diameter-envelope external-section path. The runtime feature model is already expressive enough to carry non-captive state and geometry, so the next work must first decide whether a new compiler composition is actually needed or whether existing predicates plus a bounded fit verification are sufficient.
+
+Do not treat branded size labels or nominal attachment diameter as a complete fit envelope. Do not convert non-captive handles to captive state merely to reuse an existing class. Do not add manufacturer/SKU-specific downstream compatibility logic.
+
+V2 also records a GRIPPS H01074 malformed storefront load field (`7 g / 15 g`) alongside detailed/title evidence for `7 kg / 15 lb`. This remains an evidence/extraction-quality issue rather than a capacity-model gap.
+
 ## Catalogue asymmetry and scaling philosophy
 
 TetherLens should explicitly exploit the asymmetry between the two sides of the catalogue: there are very many tool types and individual tool models, but a much smaller set of commercially relevant tethering components and recurring attachment/connector mechanisms.
@@ -469,7 +465,7 @@ existing rules
 
 This makes careful modelling of tethering products high leverage when the resulting primitive can apply across many tools. It does not justify indefinite depth on rare branded wording. Prefer a tether-product enrichment when it unlocks many tool/configuration combinations, establishes a recurring evidence family or proves a reusable hard/verification rule. Defer narrow catalogue details whose only immediate effect is one manufacturer/SKU path.
 
-`portability-benchmark.md` is the durable statement of this principle and the first frozen cross-vendor test.
+`portability-benchmark.md` is the durable statement of this principle and the frozen cross-vendor tests.
 
 ## Portability phase objective
 
@@ -486,7 +482,9 @@ downstream recommendation semantics increasingly stable
 
 Do not force this trend by widening evidence or hiding real C gaps. A recurring C primitive that unlocks several products or manufacturers is useful architectural learning. The important signal is that such findings become less frequent and more leveraged over time.
 
-The portability-led phase should be de-emphasized once successive diverse additions are predominantly A/B, new C findings are occasional and clearly reusable, D remains absent or exceptional, and new manufacturers mostly require acquisition/extraction/evidence work rather than changes to compatibility, generation, hard evaluation or ranking.
+The V2 result — **6/8 B, 2/8 C, 0 D** — is a strong stabilization signal but not yet a reason to stop architecture work immediately because both C cases point to one recurring fit boundary across independent manufacturers.
+
+The portability-led phase should be de-emphasized once that remaining high-leverage boundary has been resolved and a subsequent materially different sample is again predominantly A/B, new C findings are occasional and clearly reusable, D remains absent or exceptional, and new manufacturers mostly require acquisition/extraction/evidence work rather than changes to compatibility, generation, hard evaluation or ranking.
 
 When that condition is reached, shift the centre of gravity toward catalogue throughput, scaling the much larger tool catalogue through reusable features/configuration facts, efficient evidence resolution, and the demand-side MVP: recognition, context capture and field recommendations. Continue portability sampling as a periodic stress/regression test rather than the default development driver.
 
@@ -494,19 +492,33 @@ See `portability-benchmark.md` and `benchmark-goals.md` for the durable metrics 
 
 ## Next highest-value workstreams
 
-### 1. Run a fresh post-PR #55 portability sample against the current core
+### 1. Establish the smallest reusable non-captive capture/fit model
 
-Keep `benchmarks/cross_vendor_portability_v1.json` frozen as the historical PR #52 architecture audit. Do not retroactively reclassify its **0 A / 5 B / 3 C / 0 D** cohort.
+Start from first-party **installation evidence** for the two independent V2 C cases: GRIPPS H01150 SnapLock and 3M 1500028 Quick Spin. The audit establishes recurrence, but it does not yet establish the exact rule.
 
-Instead, select a fresh diverse cross-vendor sample and classify it against the **current** post-#55 core. The highest-value question is whether unfamiliar products are now predominantly A/B and whether any new C finding is genuinely reusable rather than a different wording of an existing primitive. Preserve D as an explicit design-smell category rather than solving it through SKU-specific downstream logic.
+Inspect whether existing primitives are sufficient when composed correctly:
 
-Use the new sample to decide whether portability remains the primary architecture-discovery driver or can begin shifting toward catalogue throughput and demand-side MVP work.
+- `attachment_method_code = mechanical_capture` where the retaining action supports it;
+- `FeatureKind.HANDLE` and/or `FeatureKind.EXTERNAL_SECTION` with explicit `CaptiveState.NON_CAPTIVE`;
+- existing feature dimensions and attributes where source-backed;
+- existing product constraints; and
+- a bounded pre-use/runtime verification if the manufacturer requires a snug/secure fit that catalogue geometry alone cannot establish.
 
-### 2. Continue selective vendor/acquisition/data slices only when they test a concrete reuse boundary
+Only add a new reusable selection/compiler primitive if the evidence shows that the current composition cannot faithfully execute the family. Do not infer a min/max tool fit from S/M/L/XL labels or nominal attachment diameter, and do not route non-captive geometry through the captive-handle compiler.
 
-Further B-class work should be chosen for a distinct evidence or topology stressor rather than simply adding product count. Existing unresolved GRIPPS/Ty-Flot facts should remain evidence issues unless better evidence or a defensible generic reconciliation rule appears.
+### 2. Prove the boundary with one implementation slice, then re-sample
 
-External PDFs may be useful secondary evidence in future, but off-domain documents must not be represented as manufacturer-hosted evidence merely because they were linked from a manufacturer page. A future additive source-model slice may introduce an explicit secondary-document type and qualification rules when a concrete evidence need justifies it.
+If the evidence yields one bounded reusable primitive, implement the smallest manufacturer-neutral slice and prove it with both independent manufacturers where practical. Keep retention mechanism, eligibility, dimensional fit and runtime verification separate rather than collapsing them into one branded rule.
+
+After that, run one more **materially different** small portability sample. If it remains predominantly A/B with no D pressure and no comparable recurring C discovery, portability should stop being the default development driver.
+
+### 3. Begin shifting B-class work toward catalogue throughput
+
+The V2 B cohort shows that several unfamiliar products already fit existing semantics. Future vendor work should increasingly be chosen for catalogue leverage and acquisition/evidence efficiency rather than simply to discover more ontology.
+
+Required installation products should use manufacturer-backed `required_pairing` plus multi-component ToolAttachment assemblies where the evidence supports that structure; the mere existence of a separately sold tape/companion product is not a new core primitive.
+
+Existing unresolved GRIPPS/Ty-Flot facts should remain evidence issues unless better evidence or a defensible generic reconciliation rule appears. External PDFs may be useful secondary evidence in future, but off-domain documents must not be represented as manufacturer-hosted evidence merely because they were linked from a manufacturer page.
 
 The NLG line remains valuable, but additional target-form, endpoint-equivalence, geometry or supporting-document work should compete against cross-vendor leverage. Continue such work only when one primitive closes a recurring uncertainty, proves a reusable hard rule, materially reduces runtime verification burden, or is shown by portability work to recur across manufacturers.
 
@@ -528,7 +540,10 @@ PRs that materially change durable architecture, evidence semantics, compatibili
 - exploit catalogue asymmetry deliberately: invest in reusable tethering-product primitives that can unlock many tools, rather than constructing or approximating a tool-by-tether SKU matrix;
 - judge new cross-vendor products by A/B/C/D portability class, and treat class D SKU-specific recommendation logic as a design smell requiring explicit justification;
 - manufacturer-specific acquisition/extraction is acceptable when it emits vendor-neutral facts; manufacturer-specific downstream compatibility/generation/ranking logic is not the default solution;
-- keep PR #52's cross-vendor cohort frozen as a historical architecture audit; use fresh cohorts to measure the current core rather than rewriting old classifications;
+- keep PR #52's V1 and PR #56's V2 portability cohorts frozen at their stated core revisions; use fresh cohorts to measure an evolved core rather than rewriting historical classifications;
+- a separately catalogued required installation product is not automatically a C-class gap: prefer existing manufacturer-backed `required_pairing` plus a multi-component ToolAttachment assembly when those semantics fit the evidence;
+- do not infer non-captive attachment fit from branded size labels or nominal attachment diameter; fit geometry must be source-backed or remain a bounded verification question;
+- never promote a non-captive handle/neck feature to captive merely to reuse an existing attachment-eligibility compiler;
 - preserve fixed directional endpoint evidence directly; do not route explicitly different tool/anchor ends through derived endpoint-equivalence merely because both endpoints share a broad connector family;
 - keep unresolved first-party evidence conflicts visible and recommendation-blocking until a defensible reconciliation rule exists; do not choose the more convenient value to make a product ready;
 - reconcile mass declarations semantically through shared source-precision-aware canonical intervals, but only after identity/evidence policy determines which claims are comparable; do not turn the helper into a universal evidence-priority or conflict-resolution rule;
@@ -561,6 +576,6 @@ PRs that materially change durable architecture, evidence semantics, compatibili
 - preserve the immutable Batch 2 blind artifact and use fresh post-blind evaluation for regression checking; and
 - prefer small reusable evidence primitives over broad vocabularies introduced without a concrete decision need.
 
-## Suggested fresh-chat starting point after PR #55
+## Suggested fresh-chat starting point after PR #56
 
-> Continue TetherLens from merged `main` after PR #55. Keep PR #52's `cross_vendor_portability_v1` frozen as the historical **0 A / 5 B / 3 C / 0 D** architecture audit; do not retroactively reclassify it. The current core now includes reusable single-feature captive eligibility and manufacturer-neutral `contraction_capture` with complete source-local external-section fit envelopes, while GRIPPS H01079 remains non-ready on its unresolved first-party capacity conflict and endpoint equivalence must not be widened. Start by building a fresh diverse post-#55 portability sample against the current core to test whether unfamiliar products are now predominantly A/B and to identify only genuinely reusable new C gaps. Keep manufacturer-specific work on the ingestion/evidence side, preserve hard constraints and evidence conflicts, and do not introduce SKU-specific downstream compatibility, generation, evaluation or ranking rules.
+> Continue TetherLens from merged `main` after PR #56. Keep both portability cohorts frozen at their historical revisions: V1 is **0 A / 5 B / 3 C / 0 D** after PR #51, while V2 is **0 A / 6 B / 2 C / 0 D** against post-PR #55 `main`. V2 shows that required companion products already fit `required_pairing` plus multi-component ToolAttachment assemblies and that both remaining C cases — GRIPPS H01150 SnapLock and 3M 1500028 Quick Spin — expose the same non-captive handle/neck capture-fit boundary. Start by inspecting first-party installation evidence for those two products and define the smallest manufacturer-neutral fit/eligibility model before changing code. Test existing `mechanical_capture`, feature predicates/dimensions and bounded runtime verification first; do not infer fit from S/M/L/XL or nominal attachment diameter, promote non-captive features to captive, or add manufacturer/SKU-specific downstream compatibility rules.
