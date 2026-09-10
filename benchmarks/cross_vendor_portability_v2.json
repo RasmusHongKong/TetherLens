@@ -1,0 +1,271 @@
+{
+  "benchmark": "cross_vendor_portability_v2",
+  "created_at": "2026-09-10",
+  "freeze_point": {
+    "branch": "main",
+    "commit": "29c01939c8e8774dcc553527255fc4281708480c",
+    "through_pr": 55
+  },
+  "classification": {
+    "A": "facts_only",
+    "B": "vendor_ingestion_only",
+    "C": "new_reusable_primitive",
+    "D": "sku_specific_exception"
+  },
+  "audit_question": "Against the post-PR #55 core, are fresh cross-vendor tethering products now predominantly A/B, and do any remaining C cases expose a genuinely reusable concept rather than manufacturer wording or an evidence gap?",
+  "result": {
+    "A": 0,
+    "B": 6,
+    "C": 2,
+    "D": 0
+  },
+  "products": [
+    {
+      "manufacturer": "FallTech",
+      "sku": "5029B",
+      "name": "15 lb Tool Tether with choke-on cinch-loop and steel screwgate carabiner, 36\"",
+      "product_type": "Tether",
+      "source_url": "https://www.falltech.com/product/5029b/",
+      "archetypes": [
+        "carabiner_loop_tether",
+        "cinch_loop",
+        "manual_locking",
+        "elastic_tether"
+      ],
+      "observed_public_facts": [
+        "woven elasticated polyester web tether",
+        "choke-on cinch-loop with nylon cord lock",
+        "steel screwgate carabiner with self-closing gate",
+        "15 lb maximum tool weight"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "mixed tether endpoint topology",
+        "carabiner ConnectorSpec with manual-locking evidence",
+        "loop endpoint with engagement_method = cinch",
+        "cinch_loop_to_closed_interface.v1",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "The current FallTech extractor recognizes the older plain 'steel carabiner' wording used by 5027B but not the screwgate variant. Supporting 5029B is vendor-extraction broadening over existing neutral connector/cinch primitives; endpoint direction must remain unknown unless stronger evidence establishes it."
+    },
+    {
+      "manufacturer": "FallTech",
+      "sku": "5104A5",
+      "name": "5 lb Tool Attachment with choke-on cinch-loop and steel screwgate carabiner, 5/pk",
+      "product_type": "ToolAttachment",
+      "source_url": "https://www.falltech.com/product/5104a5/",
+      "archetypes": [
+        "tool_attachment",
+        "cinch",
+        "captive_eye",
+        "provided_carabiner"
+      ],
+      "observed_public_facts": [
+        "choke-on design intended for tools with existing captive eye holes",
+        "elastic cinch-loop with nylon cord lock",
+        "steel screwgate carabiner provides the tether-side connection",
+        "5 lb maximum tool weight"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "captive_through_opening_attachment eligibility",
+        "attachment_method_code = cinch",
+        "ToolAttachment-provided tether interface",
+        "carabiner ConnectorSpec",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "The post-PR #53 core already expresses captive-eye-only eligibility without widening to handles, and the attachment may provide a carabiner interface. The remaining work is FallTech ToolAttachment extraction/composition rather than a new downstream rule."
+    },
+    {
+      "manufacturer": "GRIPPS",
+      "sku": "H01074",
+      "name": "Bungee Tether Triple-Action Carabiner - 7kg / 15lb",
+      "product_type": "Tether",
+      "source_url": "https://gripps.com/products/bungee-triple-action-tether",
+      "archetypes": [
+        "carabiner_loop_tether",
+        "triple_action",
+        "elastic_tether",
+        "tail_loop"
+      ],
+      "observed_public_facts": [
+        "triple-action carabiner",
+        "elasticised heavy-duty polyester webbing",
+        "wide tail loop for fastening to tools or anchor points",
+        "90 cm minimum and 1.3 m maximum length",
+        "7 kg / 15 lb rated load in the detailed specifications"
+      ],
+      "evidence_notes": [
+        "The current storefront summary exposes a malformed '7 g / 15 g' Max Load field while the product title and detailed specifications state 7 kg / 15 lb. Treat the malformed field as an evidence/extraction issue; do not create a new capacity semantic."
+      ],
+      "classification": "B",
+      "core_fit": [
+        "mixed tether endpoint topology",
+        "carabiner ConnectorSpec with opening_action_count = 3",
+        "plain loop endpoint unless separate evidence establishes a cinch mechanism",
+        "minimum/retracted and maximum/extended length facts",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "The GRIPPS adapter currently targets the H01079 directional dual-carabiner pattern and does not yet extract this carabiner-plus-tail-loop topology. The normalized core already represents the observed facts; the malformed storefront load field is an evidence-quality issue, not a portability gap."
+    },
+    {
+      "manufacturer": "GRIPPS",
+      "sku": "H01150",
+      "name": "SnapLock",
+      "product_type": "ToolAttachment",
+      "source_url": "https://gripps.com/products/snaplock",
+      "archetypes": [
+        "tool_attachment",
+        "self_closing_capture",
+        "non_captive_handle_or_neck",
+        "size_variants"
+      ],
+      "observed_public_facts": [
+        "self-closing tool connector creates a tethering connection point",
+        "installs to a tool handle or neck",
+        "available in small, medium, large and extra-large sizes",
+        "6.8 kg / 15 lb maximum load"
+      ],
+      "classification": "C",
+      "core_fit": [
+        "ToolAttachment entity",
+        "attachment_method_code = mechanical_capture is a plausible retention family",
+        "handle / external-section feature vocabulary",
+        "ToolAttachment-provided tether interface",
+        "rated capacity"
+      ],
+      "required_core_changes": [
+        "define a reusable executable non-captive handle/neck capture eligibility and fit boundary without treating a size label as geometry or requiring captive state; determine from installation evidence whether fit is dimension-resolved or requires a bounded pre-use/runtime verification"
+      ],
+      "portability_gap": "The runtime feature/predicate model can describe non-captive features, but the production eligibility compiler has no conservative family for a self-closing attachment installed around a non-captive handle/neck. The next slice must not invent S/M/L/XL dimensions or reuse the captive-handle compiler."
+    },
+    {
+      "manufacturer": "Ergodyne",
+      "sku": "19002",
+      "model": "Squids 3100",
+      "name": "Tool Lanyard - Carabiner and Cinch Loop - 10lbs",
+      "product_type": "Tether",
+      "source_url": "https://www.ergodyne.com/squids-3100-single-carabiner-10lb.html",
+      "archetypes": [
+        "carabiner_loop_tether",
+        "cinch_loop",
+        "screwgate",
+        "elastic_tether"
+      ],
+      "observed_public_facts": [
+        "locking screwgate aluminum carabiner with captive eye",
+        "cinch loop end for tethering to captive holes on tools",
+        "10 lb / 4.5 kg maximum working capacity",
+        "35-45 in standard length and 42-54 in extended variant"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "mixed tether endpoint topology",
+        "carabiner ConnectorSpec with manual-locking evidence",
+        "loop endpoint with engagement_method = cinch",
+        "cinch_loop_to_closed_interface.v1",
+        "rated capacity",
+        "minimum/retracted and maximum/extended length facts"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "Ergodyne requires a new vendor acquisition/extraction path, but the product's connector, cinch-loop, capacity and length facts map to existing normalized semantics without downstream changes."
+    },
+    {
+      "manufacturer": "Ergodyne",
+      "sku": "19711",
+      "model": "Squids 3707",
+      "name": "Web Tool Tether Attachment - Non-Conductive D-Ring Tool Tails - 2lbs / 0.9kg",
+      "product_type": "ToolAttachment",
+      "source_url": "https://www.ergodyne.com/squids-3707-web-tool-tether-attachment-non-conductive-d-ring-tool-tails",
+      "archetypes": [
+        "tool_attachment",
+        "wrap",
+        "required_pairing",
+        "d_ring",
+        "multi_component_assembly"
+      ],
+      "observed_public_facts": [
+        "web tool tail is wrapped between catch points with Squids 3755 Self-Adhering Tape Trap",
+        "Squids 3755 tape is sold separately",
+        "non-conductive D-ring provides the tethering connection point",
+        "2 lb / 0.9 kg maximum working capacity",
+        "48 in maximum tether length"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "attachment_method_code = wrap",
+        "manufacturer-backed required_pairing relationship",
+        "multi-component ToolAttachment assembly",
+        "ToolAttachment-provided ring / D-ring interface",
+        "rated capacity",
+        "max_lanyard_length_mm constraint"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "This initially looks like a companion-product core gap, but the current schema already has required_pairing and candidate generation already accepts multi-component ToolAttachment assemblies. Ergodyne onboarding must extract the 3707 -> 3755 pairing and preserve both component identities; no new compatibility or ranking semantic is indicated."
+    },
+    {
+      "manufacturer": "3M",
+      "sku": "1500007",
+      "name": "DBI-SALA D-Ring Attachment 1 in x 3.5 in",
+      "product_type": "ToolAttachment",
+      "source_url": "https://www.3m.com/3M/en_LB/p/d/v100323823/",
+      "archetypes": [
+        "tool_attachment",
+        "wrap",
+        "required_pairing",
+        "d_ring",
+        "multi_component_assembly"
+      ],
+      "observed_public_facts": [
+        "D-ring attachment creates a tool tethering point",
+        "manufacturer instructs use of Quick-Wrap Tape II to attach the D-ring to the tool",
+        "D-ring is used with Quick Wrap Tape as an attachment system",
+        "2.3 kg / 5 lb capacity"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "attachment_method_code = wrap",
+        "manufacturer-backed required_pairing relationship",
+        "multi-component ToolAttachment assembly",
+        "ToolAttachment-provided ring / D-ring interface",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "The same apparent companion-product issue as Ergodyne 3707 is already representable with required_pairing plus a multi-component assembly. A 3M adapter/source graph is needed to retain the D-ring and Quick-Wrap products separately and compose them without turning the pairing into SKU-specific downstream compatibility."
+    },
+    {
+      "manufacturer": "3M",
+      "sku": "1500028",
+      "name": "DBI-SALA Quick Spin Medium Size",
+      "product_type": "ToolAttachment",
+      "source_url": "https://www.3m.com/3M/en_LB/p/d/v100323604/",
+      "archetypes": [
+        "tool_attachment",
+        "slide_on_capture",
+        "non_captive_handle",
+        "nominal_size"
+      ],
+      "observed_public_facts": [
+        "tangle-resistant spin top slides onto the handle of a tool",
+        "reusable non-conductive attachment point",
+        "2 cm / 0.8 in medium nominal size",
+        "0.5 kg / 1 lb capacity"
+      ],
+      "classification": "C",
+      "core_fit": [
+        "ToolAttachment entity",
+        "attachment_method_code = mechanical_capture is a plausible retention family",
+        "handle / external-section feature vocabulary",
+        "ToolAttachment-provided tether interface",
+        "rated capacity"
+      ],
+      "required_core_changes": [
+        "define the same reusable non-captive capture eligibility/fit boundary exposed by GRIPPS SnapLock; nominal attachment size must not be treated as a complete tool-feature fit envelope, and snug/secure fit must remain evidence-bound"
+      ],
+      "portability_gap": "The current compiler cannot express a slide-on attachment that is intentionally retained on a non-captive handle without either falsely requiring captive state or inventing a min/max fit envelope from a nominal product diameter. This recurs independently from GRIPPS SnapLock and therefore merits one generic follow-on investigation rather than a 3M-specific rule."
+    }
+  ]
+}
