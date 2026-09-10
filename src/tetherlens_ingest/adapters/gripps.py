@@ -100,19 +100,16 @@ class GRIPPSAdapter(ManufacturerAdapter):
         if len(capacity_claims) <= 1:
             return None
 
-        distinct_capacity_groups: list[CandidateClaim] = []
-        for claim in capacity_claims:
-            if any(
-                _capacity_claims_equivalent(claim, existing)
-                for existing in distinct_capacity_groups
-            ):
-                continue
-            distinct_capacity_groups.append(claim)
-
-        if len(distinct_capacity_groups) <= 1:
+        rounding_intervals = [
+            _capacity_rounding_interval_kg(claim)
+            for claim in capacity_claims
+        ]
+        if max(low for low, _ in rounding_intervals) <= min(
+            high for _, high in rounding_intervals
+        ):
             return None
 
-        capacity_values = sorted({float(claim.value) for claim in distinct_capacity_groups})
+        capacity_values = sorted({float(claim.value) for claim in capacity_claims})
         rendered = ", ".join(f"{value:g} kg" for value in capacity_values)
         return [ReadinessIssue(
             code="EVIDENCE_CONFLICT",
@@ -135,12 +132,6 @@ def _capacity_claims(text: str, source_url: str) -> list[CandidateClaim]:
             source_url,
         ))
     return claims
-
-
-def _capacity_claims_equivalent(left: CandidateClaim, right: CandidateClaim) -> bool:
-    left_low, left_high = _capacity_rounding_interval_kg(left)
-    right_low, right_high = _capacity_rounding_interval_kg(right)
-    return left_low <= right_high and right_low <= left_high
 
 
 def _capacity_rounding_interval_kg(claim: CandidateClaim) -> tuple[float, float]:
