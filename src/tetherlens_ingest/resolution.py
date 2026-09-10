@@ -5,6 +5,7 @@ from collections import defaultdict
 from .compatibility import (
     AttachmentEligibility,
     CaptiveState,
+    ComparisonOperator,
     EligibilityPath,
     FeatureKind,
     FeaturePredicate,
@@ -144,10 +145,10 @@ def resolve_attachment_eligibility(claims: list[CandidateClaim]) -> AttachmentEl
     """Compile accepted attachment semantics into reusable feature eligibility.
 
     Captive selection classes compose the same feature-local predicates into one or
-    more alternative paths. Manufacturer evidence may therefore authorize exactly a
-    captive handle, exactly a captive through-opening, or the existing handle OR
-    through-opening alternative without widening one scope into another. No tool or
-    attachment SKU participates in this compilation.
+    more alternative paths. ``external_section_attachment`` reuses the existing
+    external-section feature plus the existing min/max interface-diameter dimension
+    family; it does not create a product-specific fit rule. No tool or attachment SKU
+    participates in this compilation.
     """
 
     selection = _single_claim(claims, ATTACHMENT_SELECTION_CLASS_KEY)
@@ -156,13 +157,16 @@ def resolve_attachment_eligibility(claims: list[CandidateClaim]) -> AttachmentEl
 
     selection_class = str(selection.value)
     feature_kinds = _CAPTIVE_SELECTION_FEATURE_KINDS.get(selection_class)
-    if feature_kinds is None:
-        raise ClaimResolutionError(
-            f"unsupported attachment selection class: {selection.value!r}"
+    if feature_kinds is not None:
+        return AttachmentEligibility(
+            paths=[_captive_feature_path(feature_kind) for feature_kind in feature_kinds]
         )
 
-    return AttachmentEligibility(
-        paths=[_captive_feature_path(feature_kind) for feature_kind in feature_kinds]
+    if selection_class == "external_section_attachment":
+        return AttachmentEligibility(paths=[_external_section_path(claims)])
+
+    raise ClaimResolutionError(
+        f"unsupported attachment selection class: {selection.value!r}"
     )
 
 
@@ -181,6 +185,94 @@ def _captive_feature_path(feature_kind: FeatureKind) -> EligibilityPath:
         requirements=[
             FeaturePredicate(property_key="feature_kind", value=feature_kind.value),
             FeaturePredicate(property_key="captive_state", value=CaptiveState.CAPTIVE.value),
+        ],
+    )
+
+
+def _external_section_path(claims: list[CandidateClaim]) -> EligibilityPath:
+    """Build one external-section fit path from complete source-local evidence.
+
+    Diameter bounds remain attached to one physical-interface subject and one evidence
+    source. Missing, incomplete, multiply-scoped, or conflicting accepted fit evidence
+    fails closed rather than degrading to geometry-only eligibility or synthesizing a
+    wider envelope from independently accepted bounds. Equivalent complete envelopes
+    expressed in different units are compared after millimeter normalization.
+    """
+
+    grouped: dict[str, list[CandidateClaim]] = defaultdict(list)
+    for claim in claims:
+        if claim.subject_type != ClaimSubjectType.PHYSICAL_INTERFACE:
+            continue
+        if claim.property_key not in {
+            f"{INTERFACE_DIMENSION_PREFIX}min_diameter",
+            f"{INTERFACE_DIMENSION_PREFIX}max_diameter",
+        }:
+            continue
+        grouped[claim.subject_ref].append(claim)
+
+    if not grouped:
+        raise ClaimResolutionError(
+            "external-section attachment eligibility requires an accepted min/max diameter-fit envelope"
+        )
+    if len(grouped) > 1:
+        raise ClaimResolutionError(
+            "external-section attachment eligibility requires one accepted diameter-fit subject; "
+            f"got {sorted(grouped)!r}"
+        )
+
+    subject_ref, fit_claims = next(iter(grouped.items()))
+    by_source: dict[str, list[CandidateClaim]] = defaultdict(list)
+    for claim in fit_claims:
+        by_source[claim.source_url].append(claim)
+
+    complete_envelopes: dict[str, tuple[float, float]] = {}
+    min_key = f"{INTERFACE_DIMENSION_PREFIX}min_diameter"
+    max_key = f"{INTERFACE_DIMENSION_PREFIX}max_diameter"
+    for source_url, source_claims in by_source.items():
+        min_mm = _single_dimension_mm(source_claims, min_key)
+        max_mm = _single_dimension_mm(source_claims, max_key)
+        if min_mm is None or max_mm is None:
+            continue
+        if min_mm > max_mm:
+            raise ClaimResolutionError(
+                f"external-section diameter bounds are inverted on {subject_ref!r} from {source_url!r}"
+            )
+        complete_envelopes[source_url] = (min_mm, max_mm)
+
+    if not complete_envelopes:
+        raise ClaimResolutionError(
+            "external-section attachment eligibility requires a complete min/max "
+            f"diameter-fit envelope from one evidence source on {subject_ref!r}"
+        )
+
+    normalized_envelopes = {
+        (round(low, 9), round(high, 9))
+        for low, high in complete_envelopes.values()
+    }
+    if len(normalized_envelopes) > 1:
+        raise ClaimResolutionError(
+            "conflicting accepted diameter-fit envelopes after unit normalization on "
+            f"{subject_ref!r}: {sorted(normalized_envelopes)!r} mm"
+        )
+
+    min_mm, max_mm = next(iter(normalized_envelopes))
+    return EligibilityPath(
+        binding_name="external_section",
+        requirements=[
+            FeaturePredicate(
+                property_key="feature_kind",
+                value=FeatureKind.EXTERNAL_SECTION.value,
+            ),
+            FeaturePredicate(
+                property_key="dimension:section_diameter",
+                operator=ComparisonOperator.GTE,
+                value=min_mm,
+            ),
+            FeaturePredicate(
+                property_key="dimension:section_diameter",
+                operator=ComparisonOperator.LTE,
+                value=max_mm,
+            ),
         ],
     )
 
@@ -394,6 +486,31 @@ def _single_claim(
             f"{sorted(normalized_values)!r}"
         )
     return matches[0]
+
+
+def _single_dimension_mm(
+    claims: list[CandidateClaim],
+    property_key: str,
+) -> float | None:
+    """Resolve one dimension after canonical-unit normalization.
+
+    Multiple accepted sources may express the same physical dimension using different
+    units. Unit representation is not itself a conflict; only materially different
+    normalized millimeter values are.
+    """
+
+    matches = [claim for claim in claims if claim.property_key == property_key]
+    if not matches:
+        return None
+
+    normalized_values = {round(_dimension_to_mm(claim), 9) for claim in matches}
+    if len(normalized_values) > 1:
+        subjects = sorted({claim.subject_ref for claim in matches})
+        raise ClaimResolutionError(
+            f"conflicting accepted claims for {property_key!r} on {subjects} after unit normalization: "
+            f"{sorted(normalized_values)!r} mm"
+        )
+    return next(iter(normalized_values))
 
 
 def _dimension_to_mm(claim: CandidateClaim) -> float:

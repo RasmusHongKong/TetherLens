@@ -17,12 +17,13 @@ The vocabulary is an expandable, version-controlled string-code vocabulary rathe
 | `cinch` | A flexible loop or choke is constricted around a captive feature or the tool itself. | cinch around, choke around |
 | `wrap` | Flexible material is wrapped around the tool/attachment to retain it. | wrap tape/webbing around the tool |
 | `through_feature` | The attachment passes through a captive feature and is then explicitly closed or secured. | pass/thread through a captive hole or handle, then tighten/close |
+| `contraction_capture` | An attachment that begins in an expanded state is retained by contracting onto an external tool section. | sleeve/tubing collapses or contracts onto the tool and fixes, grips, secures, or retains itself in place |
 
 ## Semantic boundaries
 
 `attachment_method_code` is intentionally **not** a description of every installation detail. The following remain separate facts or future claim families:
 
-- tool/interface geometry required by the attachment, such as a captive hole, closed handle, or side handle;
+- tool/interface geometry required by the attachment, such as a captive hole, closed handle, external section, or side handle;
 - physical interface geometry provided by the attachment;
 - surface or material eligibility and restrictions;
 - preparation, application, curing, or dwell-time requirements;
@@ -37,6 +38,16 @@ Examples:
 - NLG 360 D Ring Loop / Tether Choke -> `cinch` where the source explicitly describes cinching.
 - A D Ring installed by explicitly wrapping tether tape around the tool -> `wrap`; `Tether Tape` itself is a companion/product identity, not an attachment-method code.
 - A loop passed through a captive hole and then closed with a threaded mechanism -> `through_feature`.
+- A pre-expanded sleeve installed over an external tool section and retained when the sleeve contracts onto the tool -> `contraction_capture`; the accepted diameter envelope remains a separate dimensional-fit fact.
+
+`contraction_capture` is deliberately not named `cold_shrink` or `heat_shrink`. Those terms describe branded/product/process families and may use different activation methods. The reusable retention fact is that an initially expanded attachment contracts onto the tool. Do not emit `contraction_capture` from a product name alone: the source must establish contraction/collapse as the retaining action.
+
+`contraction_capture` also does not widen `mechanical_capture`, `cinch`, or `wrap`:
+
+- a rigid bracket mechanically capturing a handle remains `mechanical_capture`;
+- a loop or choke tightened around a tool remains `cinch`;
+- material applied by wrapping it around a tool remains `wrap`; and
+- contraction may coexist with another installation action without making those mechanisms equivalent.
 
 ## Evidence rules
 
@@ -48,4 +59,4 @@ When a product description contains multiple installation actions, `attachment_m
 
 ## Extension rule
 
-Add a new code only when a real product requires a retention mechanism that cannot be represented faithfully by the existing primitives. Do not add SKU-specific or application-specific aliases such as `tether_tape`, `handle_bracket`, or `adhesive_for_metal_tools`.
+Add a new code only when a real product requires a retention mechanism that cannot be represented faithfully by the existing primitives. Do not add SKU-specific or application-specific aliases such as `tether_tape`, `handle_bracket`, `cold_shrink`, or `adhesive_for_metal_tools`.

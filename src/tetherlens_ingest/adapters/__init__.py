@@ -5,6 +5,7 @@ from .klein import KleinAdapter
 from .milwaukee import MilwaukeeAdapter
 from .nlg_datasheet_endpoint_assignment import NLGAdapter
 from .stopdrop import StopDropAdapter
+from .tyflot import TyFlotAdapter
 
 __all__ = [
     "NLGAdapter",
@@ -14,4 +15,5 @@ __all__ = [
     "MilwaukeeAdapter",
     "GRIPPSAdapter",
     "FallTechAdapter",
+    "TyFlotAdapter",
 ]
