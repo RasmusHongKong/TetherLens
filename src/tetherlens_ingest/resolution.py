@@ -5,6 +5,7 @@ from collections import defaultdict
 from .compatibility import (
     AttachmentEligibility,
     CaptiveState,
+    ComparisonOperator,
     EligibilityPath,
     FeatureKind,
     FeaturePredicate,
@@ -144,10 +145,10 @@ def resolve_attachment_eligibility(claims: list[CandidateClaim]) -> AttachmentEl
     """Compile accepted attachment semantics into reusable feature eligibility.
 
     Captive selection classes compose the same feature-local predicates into one or
-    more alternative paths. Manufacturer evidence may therefore authorize exactly a
-    captive handle, exactly a captive through-opening, or the existing handle OR
-    through-opening alternative without widening one scope into another. No tool or
-    attachment SKU participates in this compilation.
+    more alternative paths. ``external_section_attachment`` reuses the existing
+    external-section feature plus the existing min/max interface-diameter dimension
+    family; it does not create a product-specific fit rule. No tool or attachment SKU
+    participates in this compilation.
     """
 
     selection = _single_claim(claims, ATTACHMENT_SELECTION_CLASS_KEY)
@@ -156,13 +157,16 @@ def resolve_attachment_eligibility(claims: list[CandidateClaim]) -> AttachmentEl
 
     selection_class = str(selection.value)
     feature_kinds = _CAPTIVE_SELECTION_FEATURE_KINDS.get(selection_class)
-    if feature_kinds is None:
-        raise ClaimResolutionError(
-            f"unsupported attachment selection class: {selection.value!r}"
+    if feature_kinds is not None:
+        return AttachmentEligibility(
+            paths=[_captive_feature_path(feature_kind) for feature_kind in feature_kinds]
         )
 
-    return AttachmentEligibility(
-        paths=[_captive_feature_path(feature_kind) for feature_kind in feature_kinds]
+    if selection_class == "external_section_attachment":
+        return AttachmentEligibility(paths=[_external_section_path(claims)])
+
+    raise ClaimResolutionError(
+        f"unsupported attachment selection class: {selection.value!r}"
     )
 
 
@@ -182,6 +186,73 @@ def _captive_feature_path(feature_kind: FeatureKind) -> EligibilityPath:
             FeaturePredicate(property_key="feature_kind", value=feature_kind.value),
             FeaturePredicate(property_key="captive_state", value=CaptiveState.CAPTIVE.value),
         ],
+    )
+
+
+def _external_section_path(claims: list[CandidateClaim]) -> EligibilityPath:
+    """Build one external-section fit path from existing interface-dimension claims.
+
+    Diameter bounds remain attached to one physical-interface subject. If accepted
+    evidence contains more than one dimensional-fit subject, or conflicting values on
+    the selected subject, resolution fails closed rather than merging envelopes.
+    """
+
+    grouped: dict[str, list[CandidateClaim]] = defaultdict(list)
+    for claim in claims:
+        if claim.subject_type != ClaimSubjectType.PHYSICAL_INTERFACE:
+            continue
+        if claim.property_key not in {
+            f"{INTERFACE_DIMENSION_PREFIX}min_diameter",
+            f"{INTERFACE_DIMENSION_PREFIX}max_diameter",
+        }:
+            continue
+        grouped[claim.subject_ref].append(claim)
+
+    if len(grouped) > 1:
+        raise ClaimResolutionError(
+            "external-section attachment eligibility requires one accepted diameter-fit subject; "
+            f"got {sorted(grouped)!r}"
+        )
+
+    requirements = [
+        FeaturePredicate(
+            property_key="feature_kind",
+            value=FeatureKind.EXTERNAL_SECTION.value,
+        )
+    ]
+
+    if grouped:
+        subject_ref, fit_claims = next(iter(grouped.items()))
+        min_claim = _single_claim(
+            fit_claims,
+            f"{INTERFACE_DIMENSION_PREFIX}min_diameter",
+        )
+        max_claim = _single_claim(
+            fit_claims,
+            f"{INTERFACE_DIMENSION_PREFIX}max_diameter",
+        )
+        min_mm = _dimension_to_mm(min_claim) if min_claim is not None else None
+        max_mm = _dimension_to_mm(max_claim) if max_claim is not None else None
+        if min_mm is not None and max_mm is not None and min_mm > max_mm:
+            raise ClaimResolutionError(
+                f"external-section diameter bounds are inverted on {subject_ref!r}"
+            )
+        if min_mm is not None:
+            requirements.append(FeaturePredicate(
+                property_key="dimension:section_diameter",
+                operator=ComparisonOperator.GTE,
+                value=min_mm,
+            ))
+        if max_mm is not None:
+            requirements.append(FeaturePredicate(
+                property_key="dimension:section_diameter",
+                operator=ComparisonOperator.LTE,
+                value=max_mm,
+            ))
+
+    return EligibilityPath(
+        binding_name="external_section",
+        requirements=requirements,
     )
 
 
