@@ -60,7 +60,32 @@ def test_external_section_attachment_rejects_partial_diameter_fit_envelope(
         ),
     ]
 
-    with pytest.raises(ClaimResolutionError, match="requires both min_diameter and max_diameter"):
+    with pytest.raises(ClaimResolutionError, match="complete min/max diameter-fit envelope from one evidence source"):
+        resolve_attachment_eligibility(claims)
+
+
+def test_external_section_attachment_rejects_bounds_split_across_sources() -> None:
+    claims = [
+        _claim("attachment_selection_class", "external_section_attachment"),
+        _claim(
+            "interface.dimension.min_diameter",
+            1.0,
+            subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+            subject_ref="tool_side_fit",
+            unit="in",
+            source_url="https://example.test/storefront",
+        ),
+        _claim(
+            "interface.dimension.max_diameter",
+            3.5,
+            subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+            subject_ref="tool_side_fit",
+            unit="in",
+            source_url="https://example.test/guide",
+        ),
+    ]
+
+    with pytest.raises(ClaimResolutionError, match="complete min/max diameter-fit envelope from one evidence source"):
         resolve_attachment_eligibility(claims)
 
 
@@ -109,12 +134,20 @@ def test_external_section_attachment_accepts_equivalent_diameter_evidence_after_
     assert requirements[2].value == pytest.approx(88.9)
 
 
-def test_external_section_attachment_rejects_materially_conflicting_diameter_evidence_after_unit_normalization() -> None:
+def test_external_section_attachment_rejects_materially_conflicting_complete_envelopes() -> None:
     claims = [
         _claim("attachment_selection_class", "external_section_attachment"),
         _claim(
             "interface.dimension.min_diameter",
             1.0,
+            subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+            subject_ref="tool_side_fit",
+            unit="in",
+            source_url="https://example.test/imperial",
+        ),
+        _claim(
+            "interface.dimension.max_diameter",
+            3.5,
             subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
             subject_ref="tool_side_fit",
             unit="in",
@@ -130,12 +163,13 @@ def test_external_section_attachment_rejects_materially_conflicting_diameter_evi
         ),
         _claim(
             "interface.dimension.max_diameter",
-            3.5,
+            88.9,
             subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
             subject_ref="tool_side_fit",
-            unit="in",
+            unit="mm",
+            source_url="https://example.test/metric",
         ),
     ]
 
-    with pytest.raises(ClaimResolutionError, match="conflicting accepted claims"):
+    with pytest.raises(ClaimResolutionError, match="conflicting accepted diameter-fit envelopes"):
         resolve_attachment_eligibility(claims)
