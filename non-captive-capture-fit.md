@@ -2,7 +2,7 @@
 
 ## Status
 
-Reusable production boundary for ToolAttachments that install onto a non-captive tool handle when manufacturer evidence establishes the geometry family but does not provide a complete numeric tool-feature fit envelope.
+Reusable production boundary for ToolAttachments that can install onto a tool handle without requiring that handle to be an already-captive tether feature, when manufacturer evidence establishes the handle geometry but does not provide a complete numeric tool-feature fit envelope.
 
 This document complements `tool-attachment-compatibility.md`, `tool-anatomy-selection-semantics.md`, `single-feature-captive-eligibility.md`, `recommendation-session.md`, and the frozen V2 portability audit in `portability-benchmark.md`.
 
@@ -13,13 +13,15 @@ PR #56 isolated the same architecture question in two independent V2 C-class pro
 - GRIPPS H01150 SnapLock; and
 - 3M DBI-SALA 1500028 Quick Spin Medium.
 
-Both create a tether connection point by installing around/on handle-style tool geometry that does not need to be a pre-existing captive tether feature. The runtime feature model already represents `FeatureKind.HANDLE`, `FeatureKind.EXTERNAL_SECTION`, and `CaptiveState.NON_CAPTIVE`, while `mechanical_capture` can remain the attachment-method family where the accepted retaining-action evidence supports it.
+Both create a tether connection point by installing around/on handle-style tool geometry that does not need to be a pre-existing captive tether feature. The runtime feature model already represents `FeatureKind.HANDLE`, `FeatureKind.EXTERNAL_SECTION`, and all `CaptiveState` values, while `mechanical_capture` can remain the attachment-method family where the accepted retaining-action evidence supports it.
 
 The missing production boundary was therefore not a new manufacturer-specific geometry type. It was the conservative separation between:
 
 1. coarse executable installation geometry;
 2. numeric dimensional fit when a complete manufacturer-backed fit envelope exists; and
 3. an installed-fit confirmation when the manufacturer requires a secure/snug fit that catalogue dimensions alone do not establish.
+
+A key distinction is that evidence saying an attachment installs on a `handle` does **not** establish `captive_state = non_captive` as a requirement. The architecture gap is the ability to support non-captive handles without requiring captivity; it is not evidence that captive/closed handles are prohibited. Captive state is therefore left unconstrained unless the manufacturer explicitly makes it part of eligibility.
 
 ## Evidence findings
 
@@ -36,13 +38,14 @@ The S/M/L/XL labels therefore remain product variant labels. They must not be co
 The current implementation deliberately adds only the common executable subset justified by the recurring architecture question:
 
 ```text
-attachment_selection_class = non_captive_handle_attachment
+attachment_selection_class = handle_attachment
 
 -> bind handle
    where:
      feature_kind = handle
-     captive_state = non_captive
 ```
+
+No `captive_state` predicate is compiled. This means an explicitly non-captive handle can participate, which closes the V2 gap, while a captive or captive-state-unknown handle is not rejected merely because the source did not impose that condition.
 
 GRIPPS' separate `neck` wording does not automatically create an `EXTERNAL_SECTION` alternative in this slice. That additional composition should be added only when accepted evidence and a concrete vertical proof establish the correct normalized geometry and fit semantics.
 
@@ -69,18 +72,27 @@ secure fit cannot be achieved -> failed
 
 ## Production model
 
-### Non-captive handle eligibility
+### Handle eligibility without a captive-state requirement
 
-`non_captive_handle_attachment` is a manufacturer-neutral production selection class. It compiles to one feature-bound path requiring:
+`handle_attachment` is a manufacturer-neutral production selection class. It compiles to one feature-bound path requiring only:
 
 ```text
 feature_kind = handle
-captive_state = non_captive
 ```
 
-It does not contain a dimension predicate. A handle with `captive_state = unknown` remains unresolved, and a captive handle does not satisfy this particular path merely because it is also a handle.
+It deliberately does **not** require either `captive` or `non_captive`. The source evidence reviewed for SnapLock and Quick Spin establishes handle installation, not a closed-world restriction on handle topology.
 
-This class is intentionally narrower than a generic `handle_attachment`. It proves the recurring non-captive boundary without silently broadening manufacturer evidence to other handle states or to neck/external-section geometry.
+This differs from `captive_handle_attachment`, which remains the correct class when accepted manufacturer evidence explicitly requires a captive handle. The two classes therefore express different evidence scopes:
+
+```text
+handle_attachment
+  -> handle; captive state unconstrained
+
+captive_handle_attachment
+  -> handle AND captive_state = captive
+```
+
+`handle_attachment` also contains no dimension predicate and does not widen to `EXTERNAL_SECTION`. A handle with any captive-state value may satisfy the geometry path; an external section does not satisfy it merely because it is handle-like or non-captive.
 
 ### Secure installed-fit obligation
 
@@ -133,8 +145,9 @@ The deferred item must not be lost when the vendor vertical is implemented.
 PR #57 does not:
 
 - infer a fit range from product size labels or nominal attachment diameter;
+- infer that `handle` evidence means `non_captive` or that non-captive capability means captive handles are forbidden;
 - promote a non-captive feature to captive;
-- broaden `non_captive_handle_attachment` to external sections or necks without evidence-backed composition;
+- broaden `handle_attachment` to external sections or necks without evidence-backed composition;
 - reuse `pre_use_attachment_test_required` for a different physical observation;
 - add GRIPPS-, 3M-, or SKU-specific downstream compatibility logic;
 - change connection compatibility, capacity evaluation, contextual feasibility, ranking, or global exhaustion semantics; or
@@ -142,6 +155,6 @@ PR #57 does not:
 
 ## Follow-on proof
 
-The next vertical proof should ingest representative first-party evidence for the two independent manufacturers where practical and demonstrate that both can flow through the same neutral non-captive/secure-fit primitives without downstream product-pair logic.
+The next vertical proof should ingest representative first-party evidence for the two independent manufacturers where practical and demonstrate that both can flow through the same neutral handle/secure-fit primitives without downstream product-pair logic.
 
 The 3M proof must also address the deferred tapered-surface prohibition before treating Quick Spin as fully recommendation-ready. After the reusable boundary is vertically proven, run one materially different portability sample; if it remains predominantly A/B with no comparable recurring C or D pressure, portability should cease to be the default development driver.
