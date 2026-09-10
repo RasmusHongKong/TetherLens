@@ -50,6 +50,20 @@ def test_post_pr55_portability_cohort_is_frozen_and_unseen() -> None:
     }
     assert v1_products.isdisjoint(v2_products)
 
+    # V1 identity disjointness is not sufficient for a genuinely fresh audit. The
+    # pre-PR #55 architecture explicitly used an Ergodyne web ToolAttachment retained
+    # with required tape/wrap as a design input. Exclude that already-modelled family,
+    # not just one exact SKU, so it cannot inflate the post-#55 reuse result.
+    assert not [
+        product
+        for product in products
+        if product["manufacturer"] == "Ergodyne"
+        and product["product_type"] == "ToolAttachment"
+        and {"wrap", "required_pairing", "multi_component_assembly"}.issubset(
+            set(product["archetypes"])
+        )
+    ]
+
 
 def test_post_pr55_portability_is_predominantly_existing_core_reuse() -> None:
     benchmark = _load(V2_PATH)
@@ -96,7 +110,7 @@ def test_remaining_c_gap_recurs_across_independent_manufacturers() -> None:
     )
 
 
-def test_required_pairing_is_not_misclassified_as_a_new_core_gap() -> None:
+def test_required_pairing_reuses_existing_core_without_becoming_a_c_gap() -> None:
     paired_products = [
         product
         for product in _load(V2_PATH)["products"]
@@ -104,8 +118,24 @@ def test_required_pairing_is_not_misclassified_as_a_new_core_gap() -> None:
     ]
 
     assert {(product["manufacturer"], product["sku"]) for product in paired_products} == {
-        ("Ergodyne", "19711"),
         ("3M", "1500007"),
     }
     assert all(product["classification"] == "B" for product in paired_products)
     assert all("multi_component_assembly" in product["archetypes"] for product in paired_products)
+
+
+def test_replacement_ergodyne_case_is_a_genuinely_different_tether_family() -> None:
+    product = next(
+        product
+        for product in _load(V2_PATH)["products"]
+        if product["manufacturer"] == "Ergodyne" and product["sku"] == "19301"
+    )
+
+    assert product["model"] == "Squids 3001"
+    assert product["product_type"] == "Tether"
+    assert product["classification"] == "B"
+    assert {"retractable_tether", "directional_endpoints", "cinch_loop"}.issubset(
+        set(product["archetypes"])
+    )
+    assert "wrap" not in product["archetypes"]
+    assert "required_pairing" not in product["archetypes"]
