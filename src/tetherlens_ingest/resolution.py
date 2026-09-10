@@ -195,6 +195,8 @@ def _external_section_path(claims: list[CandidateClaim]) -> EligibilityPath:
     Diameter bounds remain attached to one physical-interface subject. Missing,
     incomplete, multiply-scoped, or conflicting accepted fit evidence fails closed
     rather than degrading to geometry-only eligibility or merging envelopes.
+    Equivalent dimensions expressed in different units are compared only after
+    conversion to the canonical millimeter representation.
     """
 
     grouped: dict[str, list[CandidateClaim]] = defaultdict(list)
@@ -219,22 +221,20 @@ def _external_section_path(claims: list[CandidateClaim]) -> EligibilityPath:
         )
 
     subject_ref, fit_claims = next(iter(grouped.items()))
-    min_claim = _single_claim(
+    min_mm = _single_dimension_mm(
         fit_claims,
         f"{INTERFACE_DIMENSION_PREFIX}min_diameter",
     )
-    max_claim = _single_claim(
+    max_mm = _single_dimension_mm(
         fit_claims,
         f"{INTERFACE_DIMENSION_PREFIX}max_diameter",
     )
-    if min_claim is None or max_claim is None:
+    if min_mm is None or max_mm is None:
         raise ClaimResolutionError(
             "external-section attachment eligibility requires both min_diameter and "
             f"max_diameter on {subject_ref!r}"
         )
 
-    min_mm = _dimension_to_mm(min_claim)
-    max_mm = _dimension_to_mm(max_claim)
     if min_mm > max_mm:
         raise ClaimResolutionError(
             f"external-section diameter bounds are inverted on {subject_ref!r}"
@@ -470,6 +470,31 @@ def _single_claim(
             f"{sorted(normalized_values)!r}"
         )
     return matches[0]
+
+
+def _single_dimension_mm(
+    claims: list[CandidateClaim],
+    property_key: str,
+) -> float | None:
+    """Resolve one dimension after canonical-unit normalization.
+
+    Multiple accepted sources may express the same physical dimension using different
+    units. Unit representation is not itself a conflict; only materially different
+    normalized millimeter values are.
+    """
+
+    matches = [claim for claim in claims if claim.property_key == property_key]
+    if not matches:
+        return None
+
+    normalized_values = {round(_dimension_to_mm(claim), 9) for claim in matches}
+    if len(normalized_values) > 1:
+        subjects = sorted({claim.subject_ref for claim in matches})
+        raise ClaimResolutionError(
+            f"conflicting accepted claims for {property_key!r} on {subjects} after unit normalization: "
+            f"{sorted(normalized_values)!r} mm"
+        )
+    return next(iter(normalized_values))
 
 
 def _dimension_to_mm(claim: CandidateClaim) -> float:
