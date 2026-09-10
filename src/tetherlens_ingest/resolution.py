@@ -145,10 +145,11 @@ def resolve_attachment_eligibility(claims: list[CandidateClaim]) -> AttachmentEl
     """Compile accepted attachment semantics into reusable feature eligibility.
 
     Captive selection classes compose the same feature-local predicates into one or
-    more alternative paths. ``external_section_attachment`` reuses the existing
-    external-section feature plus the existing min/max interface-diameter dimension
-    family; it does not create a product-specific fit rule. No tool or attachment SKU
-    participates in this compilation.
+    more alternative paths. ``non_captive_handle_attachment`` authorizes only an
+    explicitly non-captive handle and carries no inferred dimensional fit.
+    ``external_section_attachment`` reuses the existing external-section feature plus
+    the existing complete source-local min/max interface-diameter envelope. No tool or
+    attachment SKU participates in this compilation.
     """
 
     selection = _single_claim(claims, ATTACHMENT_SELECTION_CLASS_KEY)
@@ -161,6 +162,9 @@ def resolve_attachment_eligibility(claims: list[CandidateClaim]) -> AttachmentEl
         return AttachmentEligibility(
             paths=[_captive_feature_path(feature_kind) for feature_kind in feature_kinds]
         )
+
+    if selection_class == "non_captive_handle_attachment":
+        return AttachmentEligibility(paths=[_non_captive_handle_path()])
 
     if selection_class == "external_section_attachment":
         return AttachmentEligibility(paths=[_external_section_path(claims)])
@@ -185,6 +189,24 @@ def _captive_feature_path(feature_kind: FeatureKind) -> EligibilityPath:
         requirements=[
             FeaturePredicate(property_key="feature_kind", value=feature_kind.value),
             FeaturePredicate(property_key="captive_state", value=CaptiveState.CAPTIVE.value),
+        ],
+    )
+
+
+def _non_captive_handle_path() -> EligibilityPath:
+    """Build the bounded handle path without inventing an attachment fit envelope."""
+
+    return EligibilityPath(
+        binding_name="handle",
+        requirements=[
+            FeaturePredicate(
+                property_key="feature_kind",
+                value=FeatureKind.HANDLE.value,
+            ),
+            FeaturePredicate(
+                property_key="captive_state",
+                value=CaptiveState.NON_CAPTIVE.value,
+            ),
         ],
     )
 
