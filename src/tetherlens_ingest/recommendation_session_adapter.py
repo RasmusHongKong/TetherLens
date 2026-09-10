@@ -124,12 +124,15 @@ def derive_product_action_session_resolution(
     candidate_id: str,
     condition_id: str,
     runtime_state: ProductConstraintRuntimeState,
+    secure_attachment_fit_confirmed: bool | None = None,
 ) -> SessionConditionResolution | None:
     """Derive one terminal pre-use condition from normalized candidate-local facts.
 
     The adapter re-evaluates only the exact normalized product constraint retained by
     the original candidate configuration. It does not re-run candidate generation or
-    hard candidate evaluation and it does not accept a caller-supplied pass/fail result.
+    hard candidate evaluation. Runtime inputs are scoped physical facts such as elapsed
+    bond time, an attachment-test result, or confirmation that the selected installed
+    attachment has achieved the manufacturer-required secure fit.
     """
 
     candidate = _require_active_pending_condition(
@@ -197,6 +200,7 @@ def derive_product_action_session_resolution(
             ),
             bond_elapsed_h=runtime_state.bond_elapsed_h,
             pre_use_attachment_test_passed=runtime_state.pre_use_attachment_test_passed,
+            secure_attachment_fit_confirmed=secure_attachment_fit_confirmed,
         ),
     )[0]
     if primitive.constraint_id != evaluation.constraint_id:
