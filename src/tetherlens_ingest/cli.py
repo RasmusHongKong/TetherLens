@@ -11,6 +11,7 @@ from .adapters import (
     MilwaukeeAdapter,
     NLGAdapter,
     StopDropAdapter,
+    TyFlotAdapter,
 )
 from .http import HttpxFetcher
 from .models import ProductIdentity, ProductType
@@ -24,6 +25,7 @@ ADAPTERS = {
     "milwaukee": MilwaukeeAdapter,
     "gripps": GRIPPSAdapter,
     "falltech": FallTechAdapter,
+    "tyflot": TyFlotAdapter,
 }
 
 
