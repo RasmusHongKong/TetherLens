@@ -23,12 +23,13 @@ from tetherlens_ingest.normalize import length_to_mm, parse_mass
 from tetherlens_ingest.reconciliation import mass_claims_semantically_agree
 
 from .base import ManufacturerAdapter
-from .common import page_text
+from .common import bounded_record_for_identifier, page_text
 
 
 _EXTRACTOR = "tyflot.v0.1"
 _GUIDE_INDEX_URL = "https://guardianfall.com/media/catalog/dropped-object-prevention-product-guide"
 _FIRST_PARTY_HOSTS = frozenset({"guardianfall.com", "www.guardianfall.com"})
+_GUIDE_ROW_SKU = re.compile(r"\bCOLDSH[A-Z0-9]+\b", re.I)
 
 _COLLAPSE_RETENTION = re.compile(
     r"\b(?:shrink\s+tubing|sleeve|attachment)\b.{0,140}\b(?:collapse|contract)\w*\b"
@@ -289,15 +290,19 @@ def _guide_claims(identity: ProductIdentity, artifact: SourceArtifact) -> list[C
 
     text = re.sub(r"[\u201c\u201d]", '"', artifact.body)
     text = re.sub(r"\s+", " ", text)
+    record = bounded_record_for_identifier(text, identity.sku, _GUIDE_ROW_SKU)
+    if record is None:
+        return []
+
     sku = re.escape(identity.sku)
-    row = re.search(
+    row = re.match(
         rf"\b{sku}\b\s+Cold\s+Shrink\s+Attachment,?\s*"
         r"(?P<size_a>\d+(?:\.\d+)?)\s*\"\s*[xX]\s*"
         r"(?P<size_b>\d+(?:\.\d+)?)\s*\""
         r".{0,100}?(?P<min>\d+(?:\.\d+)?)\s*\"\s*to\s*"
         r"(?P<max>\d+(?:\.\d+)?)\s*\""
         r".{0,100}?up\s+to\s+(?P<capacity>\d+(?:\.\d+)?)\s*lb\b",
-        text,
+        record,
         re.I,
     )
     if row is None:
