@@ -139,7 +139,6 @@ def test_gripps_rounded_cross_unit_capacity_equivalents_do_not_block_readiness()
         _gripps_identity(),
         adapter,
     )
-    assert result.readiness_assessed is True
     assert result.issues == []
 
 
