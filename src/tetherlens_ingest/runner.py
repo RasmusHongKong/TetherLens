@@ -4,7 +4,7 @@ from collections import deque
 
 from .adapters.base import ManufacturerAdapter
 from .http import Fetcher
-from .models import IngestionResult, ProductIdentity, SourceType
+from .models import AcquisitionObservation, IngestionResult, ProductIdentity, SourceType
 
 
 class IngestionRunner:
@@ -18,16 +18,40 @@ class IngestionRunner:
         pending = deque([primary])
         seen_urls = {identity.url, primary.url}
         fetch_errors: list[dict[str, str]] = []
+        provenance_observations: list[AcquisitionObservation] = []
         related_fetches = 0
 
         while pending and related_fetches < self.max_related_sources:
             source_artifact = pending.popleft()
+            if not adapter.accepts_artifact_provenance(identity, source_artifact):
+                provenance_observations.append(
+                    adapter.source_provenance_rejected_observation(
+                        identity,
+                        url=source_artifact.url,
+                        role=str(source_artifact.metadata.get("role") or "primary"),
+                        stage="artifact resolution",
+                    )
+                )
+                continue
             if source_artifact is not primary and not adapter.recursive_related_sources:
                 continue
+
             for request in adapter.related_sources(identity, source_artifact):
                 if request.url in seen_urls:
                     continue
                 seen_urls.add(request.url)
+
+                if not adapter.accepts_request_provenance(identity, request):
+                    provenance_observations.append(
+                        adapter.source_provenance_rejected_observation(
+                            identity,
+                            url=request.url,
+                            role=str(request.metadata.get("role") or "related"),
+                            stage="source discovery",
+                        )
+                    )
+                    continue
+
                 related_fetches += 1
                 try:
                     artifact = self.fetcher.get(request.url, request.source_type)
@@ -49,12 +73,30 @@ class IngestionRunner:
                 artifact.metadata.update(request.metadata)
                 seen_urls.add(artifact.url)
                 artifacts.append(artifact)
-                pending.append(artifact)
+
+                if not adapter.accepts_artifact_provenance(identity, artifact):
+                    provenance_observations.append(
+                        adapter.source_provenance_rejected_observation(
+                            identity,
+                            url=artifact.url,
+                            role=str(request.metadata.get("role") or "related"),
+                            stage="artifact resolution",
+                        )
+                    )
+                else:
+                    pending.append(artifact)
+
                 if related_fetches >= self.max_related_sources:
                     break
 
-        claims = adapter.extract(identity, artifacts)
-        observations = adapter.observe(identity, artifacts)
+        eligible_artifacts = [
+            artifact
+            for artifact in artifacts
+            if adapter.accepts_artifact_provenance(identity, artifact)
+        ]
+        claims = adapter.extract(identity, eligible_artifacts)
+        observations = adapter.observe(identity, eligible_artifacts)
+        observations.extend(provenance_observations)
         for error in fetch_errors:
             observations.append(adapter.source_fetch_failed_observation(identity, error))
         if pending:
