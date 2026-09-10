@@ -175,36 +175,37 @@
     },
     {
       "manufacturer": "Ergodyne",
-      "sku": "19711",
-      "model": "Squids 3707",
-      "name": "Web Tool Tether Attachment - Non-Conductive D-Ring Tool Tails - 2lbs / 0.9kg",
-      "product_type": "ToolAttachment",
-      "source_url": "https://www.ergodyne.com/squids-3707-web-tool-tether-attachment-non-conductive-d-ring-tool-tails",
+      "sku": "19301",
+      "model": "Squids 3001",
+      "name": "Retractable Tool Lanyard - Stainless-Steel Carabiner and Loop - 2lbs",
+      "product_type": "Tether",
+      "source_url": "https://www.ergodyne.com/squids-3001-retractable-single-carabiner-loop-end-2lb.html",
       "archetypes": [
-        "tool_attachment",
-        "wrap",
-        "required_pairing",
-        "d_ring",
-        "multi_component_assembly"
+        "retractable_tether",
+        "carabiner_loop_tether",
+        "cinch_loop",
+        "manual_locking",
+        "directional_endpoints"
       ],
       "observed_public_facts": [
-        "web tool tail is wrapped between catch points with Squids 3755 Self-Adhering Tape Trap",
-        "Squids 3755 tape is sold separately",
-        "non-conductive D-ring provides the tethering connection point",
-        "2 lb / 0.9 kg maximum working capacity",
-        "48 in maximum tether length"
+        "manual-locking stainless-steel carabiner is explicitly the anchoring end",
+        "choking loop is explicitly the hand-tool connecting end",
+        "retractable working range is 10 to 48 in / 25 to 122 cm",
+        "self-setting pawls can lock the retractable at a selected working length",
+        "2 lb / 0.9 kg maximum working capacity"
       ],
       "classification": "B",
       "core_fit": [
-        "attachment_method_code = wrap",
-        "manufacturer-backed required_pairing relationship",
-        "multi-component ToolAttachment assembly",
-        "ToolAttachment-provided ring / D-ring interface",
-        "rated capacity",
-        "max_lanyard_length_mm constraint"
+        "mixed tether endpoint topology",
+        "explicit tool_side / anchor_side endpoint roles",
+        "carabiner ConnectorSpec with manual-locking evidence",
+        "loop endpoint with engagement_method = cinch",
+        "retractable tether form",
+        "minimum/retracted and maximum/extended length facts",
+        "rated capacity"
       ],
       "required_core_changes": [],
-      "portability_gap": "This initially looks like a companion-product core gap, but the current schema already has required_pairing and candidate generation already accepts multi-component ToolAttachment assemblies. Ergodyne onboarding must extract the 3707 -> 3755 pairing and preserve both component identities; no new compatibility or ranking semantic is indicated."
+      "portability_gap": "This is a genuinely unseen Ergodyne tether family rather than the tape/wrap ToolAttachment architecture sample used before PR #55. Its explicit directional carabiner/choking-loop topology, retractable form, capacity and working-range facts fit the current neutral core; Ergodyne acquisition/extraction is the remaining work. The pawl mechanism may be preserved as product detail but does not require a new recommendation rule for this audit."
     },
     {
       "manufacturer": "3M",
@@ -234,7 +235,7 @@
         "rated capacity"
       ],
       "required_core_changes": [],
-      "portability_gap": "The same apparent companion-product issue as Ergodyne 3707 is already representable with required_pairing plus a multi-component assembly. A 3M adapter/source graph is needed to retain the D-ring and Quick-Wrap products separately and compose them without turning the pairing into SKU-specific downstream compatibility."
+      "portability_gap": "Although the required tape/wrap assembly pattern was already considered during pre-PR #55 architecture design, this 3M product does not require a new companion-product semantic: required_pairing plus a multi-component assembly can represent the separately catalogued D-ring and Quick-Wrap components. Its B classification is therefore about onboarding this manufacturer into an already-established model, not evidence of a newly discovered portability primitive."
     },
     {
       "manufacturer": "3M",
