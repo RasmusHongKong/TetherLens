@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import unquote, urljoin, urlsplit
 
 from bs4 import BeautifulSoup
 
@@ -89,6 +89,8 @@ class TyFlotAdapter(ManufacturerAdapter):
 
         role = str(source_artifact.metadata.get("role") or "primary")
         if role == "primary":
+            if not _is_identity_bound_primary(identity, source_artifact):
+                return []
             text = page_text(source_artifact.body)
             if "cold shrink" not in text.lower():
                 return []
@@ -141,7 +143,7 @@ class TyFlotAdapter(ManufacturerAdapter):
             if role == "dop_product_guide":
                 claims.extend(_guide_claims(identity, artifact))
                 continue
-            if role != "primary":
+            if role != "primary" or not _is_identity_bound_primary(identity, artifact):
                 continue
 
             text = page_text(artifact.body)
@@ -205,7 +207,7 @@ class TyFlotAdapter(ManufacturerAdapter):
 
         observations: list[AcquisitionObservation] = []
         for artifact in artifacts:
-            if artifact.metadata.get("role"):
+            if artifact.metadata.get("role") or not _is_identity_bound_primary(identity, artifact):
                 continue
             text = page_text(artifact.body)
             declared = _size_pair(_DECLARED_SIZE, text)
@@ -255,6 +257,19 @@ class TyFlotAdapter(ManufacturerAdapter):
                 detail=(
                     "Conflicting first-party exact-product diameter-fit evidence remains "
                     f"unreconciled ({rendered}); no diameter envelope is recommendation-ready."
+                ),
+            ))
+
+        capacities = _capacity_values_by_source(claims)
+        unique_capacities = sorted(set(capacities.values()))
+        if len(unique_capacities) > 1:
+            rendered = ", ".join(f"{value:g} kg" for value in unique_capacities)
+            issues.append(ReadinessIssue(
+                code="EVIDENCE_CONFLICT",
+                property_key="rated_capacity_kg",
+                detail=(
+                    "Conflicting first-party exact-product rated-capacity evidence remains "
+                    f"unreconciled ({rendered}); no capacity is recommendation-ready."
                 ),
             ))
 
@@ -399,6 +414,34 @@ def _diameter_ranges_by_source(
         except ValueError:
             continue
     return ranges
+
+
+def _capacity_values_by_source(claims: list[CandidateClaim]) -> dict[str, float]:
+    values: dict[str, float] = {}
+    for claim in claims:
+        if claim.subject_type != ClaimSubjectType.PRODUCT:
+            continue
+        if claim.subject_ref != "self" or claim.property_key != "rated_capacity_kg":
+            continue
+        if isinstance(claim.value, bool) or not isinstance(claim.value, (int, float)):
+            continue
+        values[claim.source_url] = float(claim.value)
+    return values
+
+
+def _is_identity_bound_primary(identity: ProductIdentity, artifact: SourceArtifact) -> bool:
+    if not identity.sku or artifact.source_type != SourceType.MANUFACTURER_WEBPAGE:
+        return False
+    if not _is_first_party_url(artifact.url):
+        return False
+    path = unquote(urlsplit(artifact.url).path)
+    return bool(
+        re.search(
+            rf"(?<![A-Z0-9]){re.escape(identity.sku)}(?![A-Z0-9])",
+            path,
+            re.I,
+        )
+    )
 
 
 def _is_first_party_url(url: str) -> bool:
