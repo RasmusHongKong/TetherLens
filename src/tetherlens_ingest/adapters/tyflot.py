@@ -297,15 +297,6 @@ def _diameter_fit_claims(
     subject_ref = "tool_side_fit"
     return [
         _claim(
-            "interface.role",
-            "tool_attachment_tool_side",
-            None,
-            raw,
-            source_url,
-            subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
-            subject_ref=subject_ref,
-        ),
-        _claim(
             "interface.dimension.min_diameter",
             min_diameter_in,
             "in",
