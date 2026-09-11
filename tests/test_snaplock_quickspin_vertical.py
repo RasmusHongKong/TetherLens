@@ -117,9 +117,12 @@ def test_three_m_quick_spin_vertical_separates_fit_obligation_from_taper_prohibi
         url="https://www.3m.com/3M/en_LB/p/d/v100323604/",
     )
     product = _artifact(
-        "3M DBI-SALA Quick Spin Medium Size 1500028. 3M Product Number 1500028. "
-        "Tangle-resistant spin top simply slides onto the handle of a tool in seconds. "
-        "Quick spin, 0.5 kg (1 lb.) capacity, 2 cm (0.80 in) diameter.",
+        "<html><body>"
+        "<h1>3M DBI-SALA Quick Spin Medium Size 1500028</h1>"
+        "<div>3M Product Number 1500028</div>"
+        "<p>Tangle-resistant spin top simply slides onto the handle of a tool in seconds.</p>"
+        "<p>Quick spin, 0.5 kg (1 lb.) capacity, 2 cm (0.80 in) diameter.</p>"
+        "</body></html>",
         url=identity.url,
     )
     manual = _artifact(
@@ -241,7 +244,10 @@ def test_three_m_quick_spin_requests_first_party_family_manual_without_nominal_f
         url="https://www.3m.com/3M/en_LB/p/d/v100323604/",
     )
     primary = _artifact(
-        "3M DBI-SALA Quick Spin Medium Size 1500028. 3M Product Number 1500028.",
+        "<html><body>"
+        "<h1>3M DBI-SALA Quick Spin Medium Size 1500028</h1>"
+        "<div>3M Product Number 1500028</div>"
+        "</body></html>",
         url=identity.url,
     )
 
