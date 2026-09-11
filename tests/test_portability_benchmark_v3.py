@@ -46,7 +46,7 @@ def test_v3_is_frozen_at_the_post_quickspin_vertical_state_and_is_identity_fresh
     assert benchmark["benchmark"] == "cross_vendor_portability_v3"
     assert benchmark["freeze_point"] == {
         "branch": "vertical/quickspin-snaplock-portability-v3",
-        "commit": "b99897a79b65cce47a499d0110345340613dc2a2",
+        "commit": "dba4174a4d504663f6aa66269630e62da4b160f8",
         "base_main_commit": "94722224944d8d2c8afc38fc2d069c12f608a9ad",
         "through_pr": 57,
         "pending_pr": 58,
