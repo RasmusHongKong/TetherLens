@@ -98,8 +98,19 @@ class ProductConstraintEvaluation(BaseModel):
     reason: str
     subject_refs: list[str] = Field(default_factory=list)
     source_urls: list[str] = Field(default_factory=list)
+    # Retain the exact normalized primitive that produced this result so a later
+    # session may re-evaluate only an originally pending pre-use obligation without
+    # reconstructing manufacturer semantics from IDs, reason text, or product pairs.
+    # Contextual constraints use the same retained primitive so downstream context
+    # evaluation does not reconstruct manufacturer semantics either.
     resolved_constraint: ResolvedProductConstraint | None = None
+    # ``constraint_id`` remains the canonical catalogue/OEM constraint identity.
+    # Composition may additionally bind the evaluation to one physical component
+    # instance so repeated instances of the same source product remain distinguishable.
     component_ref: str | None = Field(default=None, min_length=1)
+    # Explicit composition binding for feature-local installation constraints. This is
+    # intentionally separate from generic subject refs so recommendation composition
+    # need not understand raw constraint keys to preserve same-feature semantics.
     installation_feature_id: str | None = None
 
 
@@ -280,13 +291,13 @@ def _evaluate_constraint(
             "manufacturer environmental prohibition is retained for explicit downstream work-context evaluation",
         )
 
-    if key in {"installation_surface_profile", "prohibited_surface_profile"}:
+    if key == "installation_surface_profile":
         feature = context.installation_feature
         if feature is None:
             return _result(
                 constraint,
                 ProductConstraintStatus.UNRESOLVED,
-                "installation surface profile cannot be checked without a bound tool feature",
+                "installation surface is required but no bound tool feature is available",
             )
         actual = feature.attributes.get("surface_profile")
         if actual is None:
@@ -296,23 +307,37 @@ def _evaluate_constraint(
                 "surface profile is not established for the bound installation feature",
                 feature.feature_id,
             )
-
-        if key == "installation_surface_profile":
-            if actual == constraint.value:
-                return _result(
-                    constraint,
-                    ProductConstraintStatus.PASSED,
-                    f"bound installation feature has required surface profile {constraint.value!r}",
-                    feature.feature_id,
-                )
+        if actual == constraint.value:
             return _result(
                 constraint,
-                ProductConstraintStatus.FAILED,
-                f"bound installation feature surface profile {actual!r} does not satisfy "
-                f"required profile {constraint.value!r}",
+                ProductConstraintStatus.PASSED,
+                f"bound installation feature has required surface profile {constraint.value!r}",
                 feature.feature_id,
             )
+        return _result(
+            constraint,
+            ProductConstraintStatus.FAILED,
+            f"bound installation feature surface profile {actual!r} does not satisfy "
+            f"required profile {constraint.value!r}",
+            feature.feature_id,
+        )
 
+    if key == "prohibited_surface_profile":
+        feature = context.installation_feature
+        if feature is None:
+            return _result(
+                constraint,
+                ProductConstraintStatus.UNRESOLVED,
+                "prohibited surface profile cannot be checked without a bound tool feature",
+            )
+        actual = feature.attributes.get("surface_profile")
+        if actual is None:
+            return _result(
+                constraint,
+                ProductConstraintStatus.UNRESOLVED,
+                "surface profile is not established for the bound installation feature",
+                feature.feature_id,
+            )
         if actual == constraint.value:
             return _result(
                 constraint,
@@ -467,11 +492,17 @@ def _evaluate_constraint(
         )
 
     if key == "secure_attachment_fit_required":
+        feature_id = (
+            context.installation_feature.feature_id
+            if context.installation_feature is not None
+            else None
+        )
         if constraint.value is not True:
             return _result(
                 constraint,
                 ProductConstraintStatus.UNRESOLVED,
                 "secure-attachment-fit constraint has unsupported non-true value",
+                feature_id,
             )
         confirmed = context.secure_attachment_fit_confirmed
         if confirmed is None:
@@ -479,17 +510,20 @@ def _evaluate_constraint(
                 constraint,
                 ProductConstraintStatus.REQUIRES_ACTION,
                 "confirm the installed attachment has the manufacturer-required secure fit before use",
+                feature_id,
             )
         if confirmed:
             return _result(
                 constraint,
                 ProductConstraintStatus.PASSED,
                 "manufacturer-required secure attachment fit has been confirmed",
+                feature_id,
             )
         return _result(
             constraint,
             ProductConstraintStatus.FAILED,
             "manufacturer-required secure attachment fit could not be achieved",
+            feature_id,
         )
 
     return _result(
