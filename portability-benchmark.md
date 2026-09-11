@@ -2,9 +2,9 @@
 
 ## Purpose
 
-This benchmark tests whether the TetherLens knowledge and recommendation model built through PR #51 is portable beyond the NLG-heavy development cohort.
+This benchmark tests whether the TetherLens knowledge and recommendation model built through the NLG-heavy development phase is portable beyond that original cohort.
 
-The first benchmark intentionally freezes the core at merged `main` commit `7e9785456e3f52511f017fdc0a3f19afc1c652c7` and inspects an unseen cross-vendor cohort before adding new production semantics for those products. The post-PR #55 V2 audit repeats the same classification exercise against the evolved current core without rewriting the historical V1 answer key.
+The first benchmark intentionally freezes the core at merged `main` commit `7e9785456e3f52511f017fdc0a3f19afc1c652c7` and inspects an unseen cross-vendor cohort before adding new production semantics for those products. The post-PR #55 V2 audit repeats the same classification exercise against the evolved current core without rewriting the historical V1 answer key. PR #58 adds a third fresh audit after vertically proving the handle/secure-fit boundary, again preserving both earlier historical cohorts unchanged.
 
 The question is not whether every manufacturer can be ingested without manufacturer-specific code. Different catalogues will continue to require different acquisition and extraction adapters. The more important question is:
 
@@ -171,7 +171,7 @@ C new_reusable_primitive   2
 D sku_specific_exception   0
 ```
 
-This is a stronger portability signal than V1. Six of eight fresh products fit the post-#55 domain/recommendation core without a new compatibility, candidate-generation, hard-evaluation, ranking or SKU-pair rule. The lack of A-class results is now mostly a catalogue-throughput signal: the existing GRIPPS and FallTech adapters were intentionally narrow proofs, while Ergodyne and 3M have no normal adapters yet.
+This is a stronger portability signal than V1. Six of eight fresh products fit the post-#55 domain/recommendation core without a new compatibility, candidate-generation, hard-evaluation, ranking or SKU-pair rule. The lack of A-class results is now mostly a catalogue-throughput signal: the existing GRIPPS and FallTech adapters were intentionally narrow proofs, while Ergodyne and 3M had no normal adapters at that freeze.
 
 ### Required companion products remain existing-core reuse
 
@@ -188,34 +188,87 @@ accepted manufacturer pairing
 
 3M 1500007 is therefore B, not C. Vendor acquisition/composition must establish the relationship and component identities, but downstream recommendation semantics must not gain a product-pair exception. This is confirmation that an already-designed generic assembly model ports to another manufacturer, not a claim that V2 newly discovered the companion-product primitive.
 
-### Remaining recurring C gap: non-captive capture fit
+### Frozen V2 C gap: non-captive capture fit
 
 The two V2 C cases are **GRIPPS H01150 SnapLock** and **3M 1500028 Quick Spin Medium**.
 
-They use different branded hardware and different physical constructions, but expose the same unresolved execution boundary:
+They remain C in the frozen V2 artifact because it records the post-PR #55 core. Subsequent PRs deliberately close the shared current-core gap without rewriting that historical answer key.
 
-- the ToolAttachment is intentionally installed around or onto a **non-captive** tool handle/neck feature;
-- the current feature model can already represent handles, external sections, non-captive state, dimensions and attributes;
-- `mechanical_capture` is a plausible existing retention-method family, so a new branded attachment-method code is not justified;
-- the production eligibility compiler, however, currently has no conservative reusable family for this non-captive installation; and
-- neither an S/M/L/XL label nor a nominal attachment diameter is sufficient by itself to invent a tool-feature fit envelope.
+PR #57 establishes the reusable common subset:
 
-The follow-on must therefore establish the smallest evidence-backed fit model before code changes. It may resolve to a dimension-bounded eligibility path, a bounded pre-use/runtime fit verification, or a combination, but it must not:
+- `handle_attachment` compiles only `feature_kind = handle`, with captive state unconstrained;
+- `secure_attachment_fit_required` is a distinct PRE_USE obligation rather than an invented numeric fit envelope or an alias for `pre_use_attachment_test_required`;
+- S/M/L/XL and nominal attachment diameter do not become min/max tool-feature geometry; and
+- GRIPPS `neck` is not widened to `external_section_attachment` without separate evidence-backed semantics.
 
-```text
-size label -> invented geometry
-nominal attachment diameter -> inferred min/max tool diameter
-non-captive handle -> captive handle
-brand/product identity -> downstream compatibility rule
-```
-
-The independent recurrence across GRIPPS and 3M is enough to justify investigating one reusable primitive. It is not enough to pre-decide its exact rule without installation evidence.
+PR #58 vertically proves that boundary against both manufacturers and adds Quick Spin's separate hard tapered-surface prohibition as `prohibited_surface_profile = tapered`. The prohibition remains distinct from secure fit and stays bound to the selected installation feature.
 
 ### Evidence gaps remain separate
 
 V2 also reinforces the evidence/core distinction. The current GRIPPS H01074 storefront exposes a malformed `7 g / 15 g` summary field while the product title and detailed specifications state `7 kg / 15 lb`. That is an evidence/extraction-quality issue, not a new capacity concept.
 
 Likewise, a B-class product may remain recommendation-blocked where endpoint direction, engagement method or another mandatory fact is not established. V2 classification records model fit, not a promise that every sampled SKU is already recommendation-ready.
+
+## Post-PR #57 V3 cohort
+
+`benchmarks/cross_vendor_portability_v3.json` is the third independent eight-product audit. It is disjoint from V1 and V2 and is evaluated after the SnapLock/Quick Spin production semantics are finalized on PR #58.
+
+The benchmark manifest freezes that semantic point at production commit `dba4174a4d504663f6aa66269630e62da4b160f8` on `vertical/quickspin-snaplock-portability-v3`, against base `main` commit `94722224944d8d2c8afc38fc2d069c12f608a9ad` through PR #57, with PR #58 still pending merge at the time of the audit. Later review hardening and documentation commits do not rewrite that semantic freeze.
+
+The reviewed V3 result is:
+
+```text
+A facts_only               0
+B vendor_ingestion_only    5
+C new_reusable_primitive   3
+D sku_specific_exception   0
+```
+
+The five B-class products are:
+
+- Safewaze SW431 35 lb Medium Duty Elasticated Tool Tether;
+- Safewaze SW411 5 lb Coil Tool Tether;
+- Milwaukee 48-22-8825 5 lb 50 in Retractable Tool Lanyard;
+- Guardian RET552RP-R 5 lb Retractable Tool Tether; and
+- FallTech 5031A dual aluminum twist-lock tether.
+
+Their smallest required change remains vendor/catalogue ingestion. The normalized recommendation core does not need a new compatibility, hard-evaluation, ranking or SKU-pair rule for those products based on the reviewed evidence.
+
+The three C-class products are:
+
+- Milwaukee 48-22-8855 50 lb Anchor Strap;
+- FallTech 5424A10 Waist Belt Cinch Anchor Attachment; and
+- Ergodyne Squids 3171 / SKU 19171 Anchor Strap Belt Loop Attachment.
+
+### Recurring V3 C seam: AnchorAttachment installation eligibility and selected anchor-feature binding
+
+These products expose one reusable boundary rather than three product-specific exceptions.
+
+The current core can represent an `AnchorAttachment` component and the tether-side interface that it provides. Candidate generation can also consume a pre-resolved `AnchorPathOption`. What is missing is the anchor-side analogue of the ToolAttachment eligibility/binding layer: a generic way to compile manufacturer evidence about **where/how the AnchorAttachment may install**, bind that rule to one concrete selected primary-anchor feature, and carry that exact binding into candidate generation/evaluation.
+
+The reviewed manufacturer evidence demonstrates materially different but related installation conditions:
+
+- Milwaukee's anchor strap wraps around supported primary-anchor geometry such as beams/rails;
+- FallTech's waist-belt cinch attachment is installed by choking/cinching on supported belt or small-anchor geometry; and
+- Ergodyne's enclosed belt-loop attachment must be threaded over an open-ended/refastenable primary anchor, with an explicit maximum dimension in the reviewed instructions.
+
+Those facts should not be flattened into a generic “anchor attachment exists” assertion, nor should candidate generation be handed an unevidenced pre-resolved `AnchorPathOption`. The next reusable model should establish the smallest manufacturer-neutral primary-anchor feature vocabulary and evidence-backed installation eligibility needed to select one concrete anchor feature without creating vendor/SKU branches.
+
+V3 does **not** justify changing tether-to-anchor connection compatibility rules. The gap is upstream installation eligibility/binding for the AnchorAttachment itself.
+
+### V3 interpretation
+
+V3 remains encouraging but does not satisfy the portability exit condition yet. Five of eight products are B-class and D remains zero, but three independent vendors expose a comparable recurring C seam. Calling the architecture fully saturated at this point would hide a real reusable boundary.
+
+The correct signal is therefore:
+
+```text
+catalogue-throughput pressure is now substantial
+AND
+one more recurring anchor-side installation abstraction remains
+```
+
+Catalogue onboarding can proceed in parallel, but the next semantic slice should be the conservative AnchorAttachment installation eligibility + selected-anchor-feature binding seam. After that slice is proven, one more materially different portability stress sample should decide whether portability becomes periodic rather than the default development driver.
 
 ## Portability phase objective and exit condition
 
@@ -231,7 +284,7 @@ sample unfamiliar cross-vendor products
   -> repeat with a materially different cohort
 ```
 
-Progress should be judged by trends rather than by forcing a numerical threshold from the first cohort. Useful signals include:
+Progress should be judged by trends rather than by forcing a numerical threshold from one cohort. Useful signals include:
 
 - the share of new products landing in A or B;
 - the number of new reusable C primitives required per cohort;
@@ -251,12 +304,17 @@ At that point the centre of gravity should shift deliberately toward:
 
 Portability cohorts should continue after that transition as periodic stress/regression tests. They should no longer be the default reason to deepen the ontology.
 
-## Follow-on strategy after V2
+## Follow-on strategy after V3
 
-V2 is predominantly existing-core reuse (**6/8 B**) with **0 D**, while both C cases point to one recurring non-captive capture/fit boundary. That is evidence that the architecture is stabilizing, but one more high-leverage core question remains before portability should cease being the default driver.
+V3 is a narrow A/B majority (**5/8 B**) with **0 D**, but its three C cases independently identify one recurring AnchorAttachment installation/binding seam. The condition for a full portability-to-throughput pivot is therefore not yet met.
 
-The next slice should therefore inspect first-party installation evidence for GRIPPS SnapLock and 3M Quick Spin and define the **smallest manufacturer-neutral non-captive capture eligibility/fit model**. Start from existing primitives (`mechanical_capture`, handle/external-section features, dimensions, attributes, product constraints and bounded runtime verification) and add only what the evidence proves is missing.
+The immediate sequence after PR #58 should be:
 
-Do not implement the V2 C products directly from the audit manifest. In particular, do not infer fit from branded size labels or nominal product diameter, do not promote non-captive features to captive, and do not create GRIPPS/3M-specific compatibility branches.
+1. repair the known live NLG source drift in a separate focused maintenance PR so the historical ingestion benchmark becomes a trustworthy regression signal again;
+2. inspect the three V3 AnchorAttachment C cases and implement the smallest reusable manufacturer-neutral installation-eligibility plus concrete selected-anchor-feature binding layer, without changing tether-to-anchor compatibility unless evidence independently requires it;
+3. continue high-leverage B-class catalogue onboarding in parallel where it does not force new downstream semantics; and
+4. run one more materially different portability stress sample after the anchor-side seam is proven.
 
-If that investigation yields one bounded reusable primitive and the next materially different portability sample remains predominantly A/B with no D pressure, shift the centre of gravity toward catalogue throughput and the demand-side MVP. Continue portability thereafter as a periodic stress test rather than a continuous ontology-expansion loop.
+If that next sample is predominantly A/B with no comparable recurring C/D pressure, shift the development centre of gravity toward catalogue throughput and the demand-side MVP. Continue portability thereafter as a periodic stress/regression test rather than a continuous ontology-expansion loop.
+
+Historical V1 and V2 results remain immutable throughout that sequence.
