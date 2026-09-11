@@ -17,7 +17,12 @@ def _primary() -> SourceArtifact:
         url="https://www.3m.com/3M/en_LB/p/d/v100323604/",
         source_type=SourceType.MANUFACTURER_WEBPAGE,
         content_type="text/html",
-        body="3M DBI-SALA Quick Spin Medium Size 1500028. 3M Product Number 1500028.",
+        body=(
+            "<html><body>"
+            "<h1>3M DBI-SALA Quick Spin Medium Size 1500028</h1>"
+            "<div>3M Product Number 1500028</div>"
+            "</body></html>"
+        ),
     )
 
 
