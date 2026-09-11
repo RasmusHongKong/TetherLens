@@ -53,6 +53,45 @@ def test_related_360_d_ring_title_does_not_materialize_hundreds_of_container_int
     )
 
 
+def test_related_located_360_d_ring_title_does_not_materialize_internal_interfaces():
+    html = """
+    <p>Internal Anchor Point / Daisy Chain Max Load: 5 KG / 11 LBS (each).</p>
+    <div>360 internal D Ring for attaching tools.</div>
+    """
+
+    claims = NLGAdapter().extract(identity(ProductType.CONTAINER, "MEWP Bag"), [artifact(html)])
+
+    assert not any(
+        claim.subject_type == ClaimSubjectType.PHYSICAL_INTERFACE
+        and claim.subject_ref.startswith("internal_anchor_")
+        for claim in claims
+    )
+    assert any(
+        claim.subject_type == ClaimSubjectType.PHYSICAL_INTERFACE
+        and claim.subject_ref == "internal_anchor"
+        and claim.property_key == "rated_capacity_kg"
+        and claim.value == 5.0
+        for claim in claims
+    )
+
+
+def test_conflicting_internal_anchor_ratings_are_not_restored_after_leaked_topology_removal():
+    html = """
+    <p>Internal Anchor Point / Daisy Chain Max Load: 5 KG / 11 LBS (each).</p>
+    <div>360 D Ring Loop Tool Tether for attaching tools.</div>
+    <div>Internal Anchor Point / Daisy Chain Max Load: 10 KG / 22 LBS (each).</div>
+    """
+
+    claims = NLGAdapter().extract(identity(ProductType.CONTAINER, "MEWP Bag"), [artifact(html)])
+
+    assert not any(
+        claim.subject_type == ClaimSubjectType.PHYSICAL_INTERFACE
+        and claim.subject_ref == "internal_anchor"
+        and claim.property_key == "rated_capacity_kg"
+        for claim in claims
+    )
+
+
 def test_plural_counted_d_rings_remain_valid_container_topology():
     html = """
     <p>6 integrated D Rings for tool lanyard attachment.</p>
