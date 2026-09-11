@@ -8,7 +8,7 @@ For durable design details, use the dedicated documents including `product-visio
 
 ## Current development line
 
-The current development line through open PR #58 includes:
+The current development line through open PR #59 includes:
 
 - PR #17 — Batch 2 blind NLG holdout and post-blind evaluation path;
 - PR #18 — explicit tether endpoint topology;
@@ -50,8 +50,9 @@ The current development line through open PR #58 includes:
 - PR #54 — the first implemented B-class cross-vendor portability proof, adding GRIPPS and FallTech vendor extraction for H01079 and 5027B while keeping endpoint assignment, compatibility, candidate generation, hard evaluation and ranking unchanged, preserving GRIPPS fixed directionality and capacity conflict, and reusing the existing cinch-loop family for FallTech;
 - PR #55 — the remaining provisional C-class Ty-Flot retention slice, adding manufacturer-neutral `contraction_capture`, bounded `external_section_attachment` eligibility from complete source-local diameter-fit envelopes, exact-product/final-host manufacturer provenance hardening, and shared source-precision-aware mass reconciliation reused by Ty-Flot and GRIPPS without changing downstream compatibility, hard evaluation, ranking or selection rules;
 - PR #56 — the first fresh post-PR #55 portability audit, freezing an eight-product FallTech/GRIPPS/Ergodyne/3M cohort at merged `main` commit `29c01939c8e8774dcc553527255fc4281708480c`, finding **0 A / 6 B / 2 C / 0 D**, confirming on a fresh 3M product that a manufacturer-required companion can reuse the existing `required_pairing` plus multi-component ToolAttachment assembly model, and isolating one recurring non-captive handle/neck capture-fit gap across GRIPPS SnapLock and 3M Quick Spin without changing production recommendation semantics;
-- PR #57 — the reusable current-core handle-fit slice, adding manufacturer-neutral `handle_attachment` eligibility over the existing `handle` primitive without manufacturing a captive-state requirement or exclusion, plus a separate `secure_attachment_fit_required` pre-use obligation that can be resolved against the exact selected ToolAttachment installation, while explicitly refusing to infer fit from S/M/L/XL or nominal attachment diameter; and
-- open PR #58 — the GRIPPS SnapLock / 3M Quick Spin vertical proof, adding first-party 3M ingestion with strict target-product identity checks, vertically proving `handle_attachment` and `secure_attachment_fit_required`, adding the separate HARD `prohibited_surface_profile = tapered` rule with exact selected-feature binding, preserving GRIPPS `neck` as uncompiled without evidence-backed external-section semantics, and adding the fresh V3 portability audit at **0 A / 5 B / 3 C / 0 D**.
+- PR #57 — the reusable current-core handle-fit slice, adding manufacturer-neutral `handle_attachment` eligibility over the existing `handle` primitive without manufacturing a captive-state requirement or exclusion, plus a separate `secure_attachment_fit_required` pre-use obligation that can be resolved against the exact selected ToolAttachment installation, while explicitly refusing to infer fit from S/M/L/XL or nominal attachment diameter;
+- PR #58 — the GRIPPS SnapLock / 3M Quick Spin vertical proof, adding first-party 3M ingestion with strict target-product identity checks, vertically proving `handle_attachment` and `secure_attachment_fit_required`, adding the separate HARD `prohibited_surface_profile = tapered` rule with exact selected-feature binding, preserving GRIPPS `neck` as uncompiled without evidence-backed external-section semantics, and adding the fresh V3 portability audit at **0 A / 5 B / 3 C / 0 D**; and
+- open PR #59 — focused NLG live-source maintenance that fails closed on related-product/catalogue leakage, prevents numeric-singular `360 D Ring` text from materializing hundreds of anonymous container interfaces, removes leaked legacy loop-interface claims from unrelated container/anchor-attachment products while preserving named loop products and legitimate plural D-ring counts, restores independently stated aggregate internal-anchor rating when spurious topology is removed, keeps the historical Batch 1 golden and V1/V2/V3 portability cohorts unchanged, and returns the complete live smoke/scoring workflow to green.
 
 PR #16 remains closed unmerged; its useful catalogue-discovery/scoring work was carried forward through PR #19 and its older topology semantics should not be revived.
 
@@ -414,7 +415,7 @@ The recommendation golden remains the same three semantic scenarios:
 
 The answer key intentionally omits SKU pairs, runtime product refs and canonical candidate IDs. Semantic scenario-role labels describe expected behavior without identifying a real product or runtime candidate. The catalogue benchmark remains the supply-side ingestion/recommendation-readiness benchmark; the recommendation golden is the downstream semantic contract; and portability cohorts test whether the core abstractions remain reusable before new manufacturer implementation work begins.
 
-The current PR #58 unit baseline is **517 passed** after review hardening. The live manufacturer smoke benchmark and live post-blind NLG smoke cohort also pass. The full workflow remains red only at the historical Batch 1 golden scoring step because current NLG source content has drifted; that maintenance issue is intentionally separate from PR #58 semantics.
+PR #59 restores the live ingestion regression signal without changing historical goldens. On functional maintenance head `2d9cecc`, the complete `Ingestion live smoke` workflow passes: the full unit suite, live manufacturer benchmark, Batch 1 scoring, immutable Batch 2 blind baseline, Batch 2 post-blind evaluation and post-blind scoring.
 
 ## Recorded evidence/semantic gaps
 
@@ -427,13 +428,7 @@ The existing Batch 2 evidence gaps remain explicit:
 | NLG 101756 | Heavy Duty Retractable Lanyard, Double Carabiner | `public_fact_ambiguous` | connector locking mode not established as manual vs automatic |
 | NLG 101520 | Ascent™ Pouch | `public_fact_not_established` | external daisy-chain presence is established, but an individual loop/site count is not publicly established |
 
-The current live Batch 1 scoring drift is a separate maintenance problem and should not be used to rewrite historical goldens merely to clear CI. On the current PR #58 workflow:
-
-- NLG `101359` is missing the frozen expected `connector.opening_action_count = 2`;
-- NLG `101424` is missing the same expected action-count fact; and
-- NLG `101423` now produces a large unrelated claim set, previously measured at roughly **12 TP / 187 FP / 1 FN** in this branch investigation.
-
-The live manufacturer benchmark itself remains healthy, including the existing GRIPPS live case. This drift should be diagnosed in a focused post-#58 NLG maintenance PR: determine whether source structure/content changed or whether acquisition/extraction is admitting unrelated page material, preserve historical expectations unless the underlying manufacturer facts genuinely changed, and restore the benchmark as a trustworthy regression signal before the next architecture slice.
+PR #59 resolves the post-PR #58 live-source regression as a focused ingestion-maintenance issue rather than a semantic-golden rewrite. Current NLG product HTML can co-locate related-product/catalogue copy with selected-product content; on NLG 101423 this allowed `360 D Ring` to be interpreted as a count of 360 repeated interfaces, while the legacy loop extractor could also admit unrelated catalogue copy. The maintenance guard now fails closed on that ambiguous numeric-singular D-ring count shape, preserves legitimate plural counted D-ring topology and named loop products, restores an independently stated aggregate internal-anchor rating when spurious topology is removed, and removes unrelated legacy loop-interface leakage on container/anchor-attachment products. The historical Batch 1 golden remains unchanged, and the complete live smoke/scoring workflow is green on the validated functional maintenance head.
 
 PR #47 closed the first singular anchor-side D-ring form gap. PR #50 closes the recurring ToolAttachment target-form preservation gap for already-concrete `tool_attachment_tether_side` D-ring interfaces. Neither change promotes generic rings, rewrites structural roles, supplies geometry or creates compatibility from form alone.
 
@@ -505,13 +500,9 @@ See `portability-benchmark.md` and `benchmark-goals.md` for the durable metrics 
 
 ## Next highest-value workstreams
 
-### 1. Restore the NLG live benchmark signal in a focused maintenance PR
+PR #59 closes the focused NLG live-source maintenance item. The next semantic slice is the recurring V3 anchor-side installation/binding seam.
 
-Do this immediately after PR #58 rather than mixing unrelated live-source maintenance into the SnapLock/Quick Spin semantic branch.
-
-Inspect NLG `101359`, `101424` and especially `101423` against current first-party source structure and the existing acquisition/extraction path. Preserve the historical golden unless the underlying manufacturer facts have genuinely changed. The goal is to identify source drift or unintended page-content admission and return Batch 1 scoring to a trustworthy regression signal without weakening evidence boundaries.
-
-### 2. Model AnchorAttachment installation eligibility and selected primary-anchor binding
+### 1. Model AnchorAttachment installation eligibility and selected primary-anchor binding
 
 Start from the three independent V3 C cases: Milwaukee 48-22-8855, FallTech 5424A10 and Ergodyne Squids 3171 / SKU 19171.
 
@@ -525,7 +516,7 @@ Define the smallest reusable manufacturer-neutral model that can:
 
 Do not blindly duplicate `ToolInterfaceFeature`; first inspect whether the primary-anchor feature vocabulary needs a narrower/different abstraction. Do not change tether-to-anchor connection compatibility merely because the AnchorAttachment installation layer is missing. Do not create Milwaukee/FallTech/Ergodyne SKU-pair branches.
 
-### 3. Continue high-leverage catalogue throughput in parallel
+### 2. Continue high-leverage catalogue throughput in parallel
 
 The five V3 B products show that additional vendor onboarding can increasingly be treated as supply-side throughput rather than ontology discovery. Prefer manufacturers/products with broad catalogue leverage and reusable acquisition/evidence patterns.
 
@@ -539,7 +530,7 @@ Do not repurpose overall product dimensions as gate/section geometry, do not bui
 
 Further system-level recommendation goldens should still be added only for durable regression seams rather than broader SKU coverage. Use portability sampling, rather than the downstream recommendation golden, for cross-vendor architecture discovery.
 
-### 4. Re-sample portability after the anchor-side seam
+### 3. Re-sample portability after the anchor-side seam
 
 Run one more materially different small portability sample after the AnchorAttachment installation/binding boundary has been vertically proven. Keep V1, V2 and V3 frozen at their historical semantic revisions.
 
@@ -602,6 +593,6 @@ PRs that materially change durable architecture, evidence semantics, compatibili
 - preserve the immutable Batch 2 blind artifact and use fresh post-blind evaluation for regression checking; and
 - prefer small reusable evidence primitives over broad vocabularies introduced without a concrete decision need.
 
-## Suggested fresh-chat starting point after PR #58
+## Suggested fresh-chat starting point after PR #59 is merged
 
-> Continue TetherLens from merged `main` after PR #58. Keep all three portability cohorts frozen at their historical semantic revisions: V1 is **0 A / 5 B / 3 C / 0 D** after PR #51; V2 is **0 A / 6 B / 2 C / 0 D** against post-PR #55 `main`; V3 is **0 A / 5 B / 3 C / 0 D** from the PR #58 production-semantic freeze. PR #58 vertically proves the PR #57 `handle_attachment` / `secure_attachment_fit_required` boundary against GRIPPS H01150 SnapLock and 3M 1500028 Quick Spin, keeps GRIPPS `neck` outside external-section eligibility without evidence-backed semantics, keeps S/M/L/XL and nominal attachment diameter non-geometric, and models Quick Spin's separate first-party tapered-surface prohibition as HARD `prohibited_surface_profile = tapered` bound to the exact selected installation feature. The 3M source graph also fails closed on aggregate/misrouted product pages rather than accepting an SKU mention anywhere in the body. Before the next semantic slice, fix the known NLG live-source drift in a dedicated maintenance PR without rewriting historical goldens merely to clear CI. Then inspect the recurring V3 C seam: define the smallest manufacturer-neutral AnchorAttachment installation-eligibility + concrete selected primary-anchor-feature binding layer for the Milwaukee 48-22-8855, FallTech 5424A10 and Ergodyne 3171 evidence, without changing tether-to-anchor compatibility unless independently required. After that vertical proof, run one materially different portability sample; if no comparable recurring C/D pressure remains, shift the development centre toward catalogue throughput and the demand-side MVP.
+> Continue TetherLens from merged `main` after PR #59. Keep all three portability cohorts frozen at their historical semantic revisions: V1 is **0 A / 5 B / 3 C / 0 D** after PR #51; V2 is **0 A / 6 B / 2 C / 0 D** against post-PR #55 `main`; V3 is **0 A / 5 B / 3 C / 0 D** from the PR #58 production-semantic freeze. PR #58 vertically proves the PR #57 `handle_attachment` / `secure_attachment_fit_required` boundary against GRIPPS H01150 SnapLock and 3M 1500028 Quick Spin, keeps GRIPPS `neck` outside external-section eligibility without evidence-backed semantics, keeps S/M/L/XL and nominal attachment diameter non-geometric, and models Quick Spin's separate first-party tapered-surface prohibition as HARD `prohibited_surface_profile = tapered` bound to the exact selected installation feature. PR #59 restores the NLG live regression signal without rewriting historical goldens by failing closed on current related-product/catalogue leakage, including the `360 D Ring` numeric-singular repeated-interface failure, while preserving legitimate plural topology and other product-local evidence. Next define the smallest manufacturer-neutral AnchorAttachment installation-eligibility + concrete selected primary-anchor-feature binding layer for Milwaukee 48-22-8855, FallTech 5424A10 and Ergodyne 3171, without changing tether-to-anchor compatibility unless independently required. After that vertical proof, run one materially different portability sample; if no comparable recurring C/D pressure remains, shift the development centre toward catalogue throughput and the demand-side MVP.
