@@ -75,6 +75,7 @@ class ThreeMAdapter(ManufacturerAdapter):
             identity.product_type != ProductType.TOOL_ATTACHMENT
             or identity.sku not in _QUICK_SPIN_SKUS
             or source_artifact.url == _QUICK_SPIN_MANUAL
+            or not _is_verified_quick_spin_primary(identity, source_artifact)
         ):
             return []
         return [
@@ -93,6 +94,10 @@ class ThreeMAdapter(ManufacturerAdapter):
         if (
             identity.product_type != ProductType.TOOL_ATTACHMENT
             or identity.sku not in _QUICK_SPIN_SKUS
+            or not any(
+                _is_verified_quick_spin_primary(identity, artifact)
+                for artifact in artifacts
+            )
         ):
             return []
 
@@ -165,6 +170,35 @@ class ThreeMAdapter(ManufacturerAdapter):
                 ))
 
         return _dedupe(claims)
+
+
+def _is_verified_quick_spin_primary(
+    identity: ProductIdentity,
+    artifact: SourceArtifact,
+) -> bool:
+    """Require product-local identity evidence from the resolved 3M primary page.
+
+    A manufacturer-domain fallback/category page can contain Quick Spin SKUs in aggregate
+    listings, so a bare SKU occurrence is insufficient. The product detail page exposes a
+    local ``3M Product Number <sku>`` marker; require that plus the Quick Spin family name
+    before allowing a shared family manual to contribute product claims.
+    """
+
+    if artifact.source_type != SourceType.MANUFACTURER_WEBPAGE:
+        return False
+    if str(artifact.metadata.get("role") or "primary") != "primary":
+        return False
+    if not identity.sku:
+        return False
+
+    text = page_text(artifact.body)
+    if re.search(r"\bquick\s+spin\b", text, re.I) is None:
+        return False
+    return bool(re.search(
+        rf"\b3m\s+product\s+(?:number|no\.?)\s*[:#]?\s*{re.escape(identity.sku)}\b",
+        text,
+        re.I,
+    ))
 
 
 def _claim(
