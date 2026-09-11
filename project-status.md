@@ -1,14 +1,14 @@
 # TetherLens Project Status
 
-_Last updated: 2026-09-10_
+_Last updated: 2026-09-11_
 
 This document is the operational handoff for the current TetherLens ingestion, compatibility, candidate-generation/evaluation/selection, recommendation-run, session-resolution, contextual reasoning, recommendation-benchmark, and cross-vendor portability stack. It records the semantics that should be preserved and the highest-value remaining workstreams.
 
-For durable design details, use the dedicated documents including `product-vision.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `connection-compatibility.md`, `connector-mechanism-semantics.md`, `connector-declared-compatibility.md`, `anchor-interface-form.md`, `endpoint-assignment-semantics.md`, `cinch-loop-semantics.md`, `tool-attachment-compatibility.md`, `tool-anatomy-selection-semantics.md`, `single-feature-captive-eligibility.md`, `mass-reconciliation.md`, `container-interface-topology.md`, `candidate-ranking-selection.md`, `recommendation-run.md`, `recommendation-session.md`, `environmental-context.md`, `recommendation-benchmark.md`, `portability-benchmark.md`, `benchmark-goals.md`, and `ingestion-benchmark.md`.
+For durable design details, use the dedicated documents including `product-vision.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `connection-compatibility.md`, `connector-mechanism-semantics.md`, `connector-declared-compatibility.md`, `anchor-interface-form.md`, `endpoint-assignment-semantics.md`, `cinch-loop-semantics.md`, `tool-attachment-compatibility.md`, `tool-anatomy-selection-semantics.md`, `single-feature-captive-eligibility.md`, `non-captive-capture-fit.md`, `mass-reconciliation.md`, `container-interface-topology.md`, `candidate-ranking-selection.md`, `recommendation-run.md`, `recommendation-session.md`, `environmental-context.md`, `recommendation-benchmark.md`, `portability-benchmark.md`, `benchmark-goals.md`, and `ingestion-benchmark.md`.
 
 ## Current development line
 
-The current development line through PR #56 includes:
+The current development line through PR #57 includes:
 
 - PR #17 — Batch 2 blind NLG holdout and post-blind evaluation path;
 - PR #18 — explicit tether endpoint topology;
@@ -48,8 +48,9 @@ The current development line through PR #56 includes:
 - PR #52 — the first frozen cross-vendor portability audit after the NLG-heavy development phase, covering eight unseen GRIPPS, FallTech, Ty-Flot and Dropsafe Tether/ToolAttachment products and classifying the smallest required change as facts-only, vendor-ingestion-only, new reusable primitive or SKU-specific exception without changing production recommendation semantics;
 - PR #53 — reusable single-feature captive ToolAttachment eligibility composition, adding manufacturer-neutral handle-only and through-opening-only compiler classes over the existing `feature_kind` / `captive_state` primitives while preserving the existing combined OR class, exact feature-instance binding, fail-closed conflict handling and unchanged downstream recommendation rules;
 - PR #54 — the first implemented B-class cross-vendor portability proof, adding GRIPPS and FallTech vendor extraction for H01079 and 5027B while keeping endpoint assignment, compatibility, candidate generation, hard evaluation and ranking unchanged, preserving GRIPPS fixed directionality and capacity conflict, and reusing the existing cinch-loop family for FallTech;
-- PR #55 — the remaining provisional C-class Ty-Flot retention slice, adding manufacturer-neutral `contraction_capture`, bounded `external_section_attachment` eligibility from complete source-local diameter-fit envelopes, exact-product/final-host manufacturer provenance hardening, and shared source-precision-aware mass reconciliation reused by Ty-Flot and GRIPPS without changing downstream compatibility, hard evaluation, ranking or selection rules; and
-- PR #56 — the first fresh post-PR #55 portability audit, freezing an eight-product FallTech/GRIPPS/Ergodyne/3M cohort at merged `main` commit `29c01939c8e8774dcc553527255fc4281708480c`, finding **0 A / 6 B / 2 C / 0 D**, confirming on a fresh 3M product that a manufacturer-required companion can reuse the existing `required_pairing` plus multi-component ToolAttachment assembly model, and isolating one recurring non-captive handle/neck capture-fit gap across GRIPPS SnapLock and 3M Quick Spin without changing production recommendation semantics.
+- PR #55 — the remaining provisional C-class Ty-Flot retention slice, adding manufacturer-neutral `contraction_capture`, bounded `external_section_attachment` eligibility from complete source-local diameter-fit envelopes, exact-product/final-host manufacturer provenance hardening, and shared source-precision-aware mass reconciliation reused by Ty-Flot and GRIPPS without changing downstream compatibility, hard evaluation, ranking or selection rules;
+- PR #56 — the first fresh post-PR #55 portability audit, freezing an eight-product FallTech/GRIPPS/Ergodyne/3M cohort at merged `main` commit `29c01939c8e8774dcc553527255fc4281708480c`, finding **0 A / 6 B / 2 C / 0 D**, confirming on a fresh 3M product that a manufacturer-required companion can reuse the existing `required_pairing` plus multi-component ToolAttachment assembly model, and isolating one recurring non-captive handle/neck capture-fit gap across GRIPPS SnapLock and 3M Quick Spin without changing production recommendation semantics; and
+- PR #57 — the reusable current-core handle-fit slice, adding manufacturer-neutral `handle_attachment` eligibility over the existing `handle` primitive without manufacturing a captive-state requirement or exclusion, plus a separate `secure_attachment_fit_required` pre-use obligation that can be resolved against the exact selected ToolAttachment installation, while explicitly refusing to infer fit from S/M/L/XL or nominal attachment diameter and deferring 3M Quick Spin's separate tapered-surface prohibition to a later hard-geometry slice.
 
 PR #16 remains closed unmerged; its useful catalogue-discovery/scoring work was carried forward through PR #19 and its older topology semantics should not be revived.
 
@@ -105,6 +106,8 @@ Hard capacity, installation, interface compatibility, policy applicability and v
 `compatible`, `incompatible`, `requires_verification`, and `unresolved` remain separate connection states. `unresolved` is blocking; `requires_verification` is conditional but usable only when a validated bounded verification family exists.
 
 Endpoint-assignment evidence is structural authorization only. A relation-backed orientation may still be `compatible`, `incompatible`, `requires_verification`, or `unresolved` under the ordinary connection evaluator.
+
+PR #57 keeps secure installed fit in the existing pre-use-obligation lane rather than adding a new hard-evaluation state. A structurally eligible handle ToolAttachment may therefore remain `recommended_with_constraints` while `secure_attachment_fit_required` is pending; a failed fit confirmation rejects the active candidate through the existing session semantics.
 
 ### Contextual feasibility and ranking
 
@@ -178,17 +181,19 @@ The pre-PR #55 architecture had already considered an Ergodyne web ToolAttachmen
 
 V2 still includes a fresh cross-vendor confirmation of the already-designed required-companion model: 3M 1500007 requires Quick-Wrap Tape II, while the technical schema already supports manufacturer-backed `required_pairing` and `ToolAttachmentAssemblyOption` already accepts multiple component instances. The correct path is to retain both catalogue-product identities and compose one multi-component ToolAttachment assembly; no product-pair compatibility rule is needed. Its B result is reuse of an established generic model, not evidence that V2 newly discovered the companion-product primitive.
 
-The two V2 C cases — GRIPPS H01150 SnapLock and 3M 1500028 Quick Spin Medium — expose one recurring unresolved boundary. Both intentionally install onto a **non-captive** handle/neck-style tool feature. The existing runtime feature/predicate model can describe non-captive features, and `mechanical_capture` is a plausible existing retention family, but the production eligibility compiler has no conservative manufacturer-neutral execution path for this installation family. Critically, neither branded S/M/L/XL sizing nor a nominal attachment diameter is enough to invent a tool-feature fit envelope.
+The two V2 C cases — GRIPPS H01150 SnapLock and 3M 1500028 Quick Spin Medium — remain frozen as C because the V2 artifact records the post-PR #55 architecture state. PR #57 resolves their **shared current-core handle subset** after inspecting first-party installation evidence: the reusable composition is a handle predicate with captive state unconstrained plus a separate secure-installed-fit pre-use condition, not an inferred dimensional envelope. `handle_attachment` contains only `feature_kind = handle`; `secure_attachment_fit_required` remains independent of `pre_use_attachment_test_required`.
 
-The next slice therefore starts with installation evidence, not code. It must determine whether the smallest reusable model is a dimension-bounded eligibility path, a bounded pre-use/runtime fit verification, or a combination. It must not infer fit from nominal size, promote a non-captive handle to captive, or introduce GRIPPS/3M-specific downstream logic.
+PR #57 deliberately does not widen that result to every GRIPPS `neck` case or infer a fit envelope from SnapLock S/M/L/XL variants. It likewise does not reinterpret the Quick Spin's nominal 20 mm product diameter as an allowed tool-handle range. The first-party 3M Quick Spin instructions separately prohibit installation on a tapered surface; that is a deferred hard geometry/profile requirement rather than part of the secure-fit condition and must be addressed before a 3M Quick Spin vertical is declared fully recommendation-ready.
 
-The V2 audit changes no production compatibility, candidate-generation, hard-evaluation, ranking or selection rule.
+The frozen V2 audit changes no historical classification. PR #57 changes the evolved current core without changing connection compatibility, capacity, candidate ranking or global selection rules.
 
 ### Session-local condition resolution
 
 `recommendation_session.py` and `recommendation_session_adapter.py` resolve already-pending runtime verifications/pre-use actions without regenerating, re-evaluating, or re-ranking survivors.
 
 Session outcomes remain candidate/configuration evidence. They never become persistent catalogue compatibility claims.
+
+PR #57 adds a distinct secure-fit pre-use observation. It may resolve only the already-retained `secure_attachment_fit_required` obligation for the active candidate; confirmation applies to the exact selected ToolAttachment component and installation-feature binding and does not satisfy a separate manufacturer-required attachment test.
 
 A worker is expected to have the Tool, but candidate tether products may not yet be physically present during recommendation. Runtime inspection of a candidate tether therefore must not be required to establish catalogue endpoint assignment needed for recommendation. Pre-use checks may validate installation/use conditions after selection, but they do not rescue missing catalogue assignment semantics.
 
@@ -397,11 +402,11 @@ It must not rewrite the original global selector result.
 
 ## Benchmark state
 
-PR #55 remains the latest code-bearing portability implementation before this audit. Its completed workflow is green across unit tests, the live manufacturer benchmark, Batch 1 scoring, the immutable Batch 2 blind baseline, and the fresh Batch 2 post-blind evaluation/scoring.
+PR #56 remains the latest frozen portability audit. V1 remains frozen at **0 A / 5 B / 3 C / 0 D**; V2 freezes the post-#55 core at `29c01939c8e8774dcc553527255fc4281708480c` and records **0 A / 6 B / 2 C / 0 D**. Those historical answer keys are not rewritten after PR #57.
 
-PR #56 is an **audit-only** benchmark/documentation change. It adds `cross_vendor_portability_v2.json` and focused regression guards but deliberately changes no production recommendation semantics. V1 remains frozen at **0 A / 5 B / 3 C / 0 D**; V2 freezes the post-#55 core at `29c01939c8e8774dcc553527255fc4281708480c` and records **0 A / 6 B / 2 C / 0 D**.
+PR #57 is the next code-bearing architecture slice against the evolved current core. It addresses the single recurring V2 C boundary at the reusable handle/secure-fit level and adds focused regressions without changing the frozen V2 classifications.
 
-The V2 guards prove that:
+The V2 guards still prove that:
 
 - the cohort is disjoint from V1, excludes the pre-modelled Ergodyne tape/wrap ToolAttachment family, and contains two products each from FallTech, GRIPPS, Ergodyne and 3M;
 - more than half of the fresh cohort is A/B reuse, concretely six B and two C;
@@ -428,6 +433,8 @@ The existing Batch 2 evidence gaps remain explicit:
 | NLG 101756 | Heavy Duty Retractable Lanyard, Double Carabiner | `public_fact_ambiguous` | connector locking mode not established as manual vs automatic |
 | NLG 101520 | Ascent™ Pouch | `public_fact_not_established` | external daisy-chain presence is established, but an individual loop/site count is not publicly established |
 
+During PR #57 CI, the live manufacturer benchmark itself completed successfully but Batch 1 scoring stopped on NLG 101365 because the current live output reported `hard_limit_unknown` where the frozen expectation remains `evidence_conflict`. Treat this as a separate source/acquisition/evidence-drift investigation: do not rewrite the frozen golden merely to clear CI, and do not attribute the mismatch to the handle/secure-fit semantics introduced by PR #57.
+
 PR #47 closed the first singular anchor-side D-ring form gap. PR #50 closes the recurring ToolAttachment target-form preservation gap for already-concrete `tool_attachment_tether_side` D-ring interfaces. Neither change promotes generic rings, rewrites structural roles, supplies geometry or creates compatibility from form alone.
 
 Repeated/plural target form remains evidence- and decision-bound. NLG 101492 already has concrete repeated internal `container_connection` ring identities but should gain narrower form only when that fact closes a recurring recommendation/evaluation uncertainty. NLG 101705 still lacks sufficiently explicit per-set count/identity for its functionally distinct D-ring groups. NLG 101520 generic internal anchors remain form-unknown. The review-added singular guard also prevents ambiguous plural ToolAttachment wording from receiving `ring_form = d_ring` on the legacy singular subject.
@@ -442,9 +449,9 @@ PR #54 closes the first implementation-level **B-class cross-vendor portability 
 
 PR #55 closes the remaining provisional portability C-class **Ty-Flot contraction-retention architecture gap** in the current core. `COLDSH41X35` remains non-ready because current first-party Guardian evidence contains conflicting diameter/variant information; that unresolved state is evidence reconciliation, not a reason to widen `contraction_capture` or invent a SKU-specific rule. The frozen PR #52 classifications remain unchanged because they record the architecture state at their historical freeze point.
 
-PR #56 identifies one new recurring architecture question: **non-captive ToolAttachment capture/fit**. GRIPPS SnapLock and 3M Quick Spin both install onto non-captive handle/neck-style geometry, but current production eligibility composition is bounded to captive feature families or a source-local diameter-envelope external-section path. The runtime feature model is already expressive enough to carry non-captive state and geometry, so the next work must first decide whether a new compiler composition is actually needed or whether existing predicates plus a bounded fit verification are sufficient.
+PR #56 identified the recurring **non-captive ToolAttachment capture/fit** question. PR #57 resolves the common handle subset in the evolved current core: `handle_attachment` provides a conservative handle-only compiler path without imposing any captive-state predicate, while `secure_attachment_fit_required` captures manufacturer-required snug/secure installed fit as a distinct pre-use obligation. This distinction matters: the manufacturer evidence establishes that a handle is an allowed installation feature and that captivity is not required; it does not establish that captive handles are prohibited. The runtime feature model did not need new anatomy fields and the existing candidate/session machinery remains authoritative for exact component/feature binding.
 
-Do not treat branded size labels or nominal attachment diameter as a complete fit envelope. Do not convert non-captive handles to captive state merely to reuse an existing class. Do not add manufacturer/SKU-specific downstream compatibility logic.
+Remaining boundaries are explicit. GRIPPS SnapLock's `neck` wording is not yet generalized to `EXTERNAL_SECTION` without a concrete evidence-backed composition, and S/M/L/XL remains non-geometric. 3M Quick Spin's nominal diameter remains a product dimension, not a fit envelope. Its separate first-party prohibition against installing attachment points on tapered surfaces is recorded in `non-captive-capture-fit.md` as a deferred hard geometry/profile requirement to implement before the Quick Spin vertical is fully recommendation-ready.
 
 V2 also records a GRIPPS H01074 malformed storefront load field (`7 g / 15 g`) alongside detailed/title evidence for `7 kg / 15 lb`. This remains an evidence/extraction-quality issue rather than a capacity-model gap.
 
@@ -484,9 +491,9 @@ downstream recommendation semantics increasingly stable
 
 Do not force this trend by widening evidence or hiding real C gaps. A recurring C primitive that unlocks several products or manufacturers is useful architectural learning. The important signal is that such findings become less frequent and more leveraged over time.
 
-The V2 result — **6/8 B, 2/8 C, 0 D** — is a strong stabilization signal but not yet a reason to stop architecture work immediately because both C cases point to one recurring fit boundary across independent manufacturers.
+The V2 result — **6/8 B, 2/8 C, 0 D** — is a strong stabilization signal. PR #57 has now resolved the one recurring current-core handle/secure-fit abstraction exposed by both C cases, but the portability-led phase should not be declared complete until that boundary is vertically proven against the manufacturers and one subsequent materially different sample confirms that comparable new C/D pressure is absent.
 
-The portability-led phase should be de-emphasized once that remaining high-leverage boundary has been resolved and a subsequent materially different sample is again predominantly A/B, new C findings are occasional and clearly reusable, D remains absent or exceptional, and new manufacturers mostly require acquisition/extraction/evidence work rather than changes to compatibility, generation, hard evaluation or ranking.
+The portability-led phase should be de-emphasized once that vertical proof is complete and a subsequent materially different sample is again predominantly A/B, new C findings are occasional and clearly reusable, D remains absent or exceptional, and new manufacturers mostly require acquisition/extraction/evidence work rather than changes to compatibility, generation, hard evaluation or ranking.
 
 When that condition is reached, shift the centre of gravity toward catalogue throughput, scaling the much larger tool catalogue through reusable features/configuration facts, efficient evidence resolution, and the demand-side MVP: recognition, context capture and field recommendations. Continue portability sampling as a periodic stress/regression test rather than the default development driver.
 
@@ -494,25 +501,23 @@ See `portability-benchmark.md` and `benchmark-goals.md` for the durable metrics 
 
 ## Next highest-value workstreams
 
-### 1. Establish the smallest reusable non-captive capture/fit model
+### 1. Vertically prove the handle / secure-fit boundary
 
-Start from first-party **installation evidence** for the two independent V2 C cases: GRIPPS H01150 SnapLock and 3M 1500028 Quick Spin. The audit establishes recurrence, but it does not yet establish the exact rule.
+Use first-party GRIPPS H01150 SnapLock and 3M 1500028 Quick Spin evidence to prove the new neutral composition end to end where practical:
 
-Inspect whether existing primitives are sufficient when composed correctly:
+- emit/resolve `mechanical_capture` only where the retaining action evidence supports it;
+- emit `handle_attachment` only from evidence that actually authorizes installation on a handle; do not add a captive-state predicate unless the manufacturer explicitly requires one;
+- preserve `secure_attachment_fit_required = true` as a separate pre-use obligation when the manufacturer requires snug/secure installed fit;
+- retain exact selected ToolAttachment component and installation-feature binding through generation/evaluation/session resolution; and
+- continue to refuse dimensional fit unless the manufacturer supplies a complete fit envelope.
 
-- `attachment_method_code = mechanical_capture` where the retaining action supports it;
-- `FeatureKind.HANDLE` and/or `FeatureKind.EXTERNAL_SECTION` with explicit `CaptiveState.NON_CAPTIVE`;
-- existing feature dimensions and attributes where source-backed;
-- existing product constraints; and
-- a bounded pre-use/runtime verification if the manufacturer requires a snug/secure fit that catalogue geometry alone cannot establish.
+Do not widen GRIPPS `neck` to an external-section path merely to make the product more complete. For 3M Quick Spin, implement the separately documented tapered-surface prohibition with the smallest reusable feature-profile/hard-constraint model before declaring that vertical fully recommendation-ready.
 
-Only add a new reusable selection/compiler primitive if the evidence shows that the current composition cannot faithfully execute the family. Do not infer a min/max tool fit from S/M/L/XL labels or nominal attachment diameter, and do not route non-captive geometry through the captive-handle compiler.
+### 2. Re-sample portability once the vertical proof is complete
 
-### 2. Prove the boundary with one implementation slice, then re-sample
+Run one more **materially different** small portability sample after the new boundary has been exercised through real manufacturer ingestion. Keep V1 and V2 frozen at their historical revisions.
 
-If the evidence yields one bounded reusable primitive, implement the smallest manufacturer-neutral slice and prove it with both independent manufacturers where practical. Keep retention mechanism, eligibility, dimensional fit and runtime verification separate rather than collapsing them into one branded rule.
-
-After that, run one more **materially different** small portability sample. If it remains predominantly A/B with no D pressure and no comparable recurring C discovery, portability should stop being the default development driver.
+If the new sample remains predominantly A/B with no D pressure and no comparable recurring C discovery, portability should stop being the default development driver and become a periodic architecture stress/regression check.
 
 ### 3. Begin shifting B-class work toward catalogue throughput
 
@@ -544,8 +549,12 @@ PRs that materially change durable architecture, evidence semantics, compatibili
 - manufacturer-specific acquisition/extraction is acceptable when it emits vendor-neutral facts; manufacturer-specific downstream compatibility/generation/ranking logic is not the default solution;
 - keep PR #52's V1 and PR #56's V2 portability cohorts frozen at their stated core revisions; use fresh cohorts to measure an evolved core rather than rewriting historical classifications;
 - a separately catalogued required installation product is not automatically a C-class gap: prefer existing manufacturer-backed `required_pairing` plus a multi-component ToolAttachment assembly when those semantics fit the evidence;
+- `handle_attachment` is a narrow geometry composition, not a captive-state or dimensional-fit assertion; it must not gain state or size predicates without source-backed evidence;
+- do not infer `captive_state = non_captive` merely because an attachment can work on a non-captive handle; absence of a captive requirement is not evidence that captive handles are forbidden;
+- `secure_attachment_fit_required` and `pre_use_attachment_test_required` are separate pre-use semantics; satisfying one must never satisfy the other;
 - do not infer non-captive attachment fit from branded size labels or nominal attachment diameter; fit geometry must be source-backed or remain a bounded verification question;
 - never promote a non-captive handle/neck feature to captive merely to reuse an existing attachment-eligibility compiler;
+- preserve 3M Quick Spin's tapered-surface warning as a separate deferred hard geometry/profile requirement rather than folding it into secure-fit confirmation or part-type semantics;
 - preserve fixed directional endpoint evidence directly; do not route explicitly different tool/anchor ends through derived endpoint-equivalence merely because both endpoints share a broad connector family;
 - keep unresolved first-party evidence conflicts visible and recommendation-blocking until a defensible reconciliation rule exists; do not choose the more convenient value to make a product ready;
 - reconcile mass declarations semantically through shared source-precision-aware canonical intervals, but only after identity/evidence policy determines which claims are comparable; do not turn the helper into a universal evidence-priority or conflict-resolution rule;
@@ -578,6 +587,6 @@ PRs that materially change durable architecture, evidence semantics, compatibili
 - preserve the immutable Batch 2 blind artifact and use fresh post-blind evaluation for regression checking; and
 - prefer small reusable evidence primitives over broad vocabularies introduced without a concrete decision need.
 
-## Suggested fresh-chat starting point after PR #56
+## Suggested fresh-chat starting point after PR #57
 
-> Continue TetherLens from merged `main` after PR #56. Keep both portability cohorts frozen at their historical revisions: V1 is **0 A / 5 B / 3 C / 0 D** after PR #51, while V2 is **0 A / 6 B / 2 C / 0 D** against post-PR #55 `main`. V2 explicitly excludes the previously modelled Ergodyne tape/wrap ToolAttachment family; its replacement Ergodyne Squids 3001 is a fresh retractable-tether B case. The fresh 3M required-companion case confirms that `required_pairing` plus multi-component ToolAttachment assemblies already cover that architecture, while both remaining C cases — GRIPPS H01150 SnapLock and 3M 1500028 Quick Spin — expose the same non-captive handle/neck capture-fit boundary. Start by inspecting first-party installation evidence for those two products and define the smallest manufacturer-neutral fit/eligibility model before changing code. Test existing `mechanical_capture`, feature predicates/dimensions and bounded runtime verification first; do not infer fit from S/M/L/XL or nominal attachment diameter, promote non-captive features to captive, or add manufacturer/SKU-specific downstream compatibility rules.
+> Continue TetherLens from merged `main` after PR #57. Keep both portability cohorts frozen at their historical revisions: V1 is **0 A / 5 B / 3 C / 0 D** after PR #51, while V2 is **0 A / 6 B / 2 C / 0 D** against post-PR #55 `main`. PR #57 resolves the recurring current-core non-captive handle/fit boundary with `handle_attachment` (`feature_kind = handle`, captive state unconstrained, no inferred dimensions) and a distinct `secure_attachment_fit_required` pre-use obligation that remains separate from `pre_use_attachment_test_required`. The important evidence boundary is that handle installation does not require captivity, but it also does not prove captive handles are forbidden. S/M/L/XL and nominal attachment diameter still do not establish a fit envelope. Next, vertically prove the model against GRIPPS H01150 SnapLock and 3M 1500028 Quick Spin where practical. Do not widen GRIPPS `neck` to an external-section path without evidence-backed semantics. Before treating Quick Spin as fully recommendation-ready, model its separate first-party prohibition on tapered installation surfaces as the smallest reusable hard geometry/profile constraint. Then run one materially different portability sample; if it remains predominantly A/B with no comparable recurring C or D pressure, shift the development centre of gravity toward catalogue throughput and the demand-side MVP.

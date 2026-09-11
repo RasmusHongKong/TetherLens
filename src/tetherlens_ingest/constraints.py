@@ -70,6 +70,7 @@ class ProductConstraintContext(BaseModel):
     tether_max_length_mm: float | None = None
     bond_elapsed_h: float | None = None
     pre_use_attachment_test_passed: bool | None = None
+    secure_attachment_fit_confirmed: bool | None = None
 
     @field_validator("tether_max_length_mm", mode="before")
     @classmethod
@@ -138,6 +139,10 @@ _SUPPORTED_CONSTRAINTS: dict[
         ProductConstraintDisposition.PRE_USE_OBLIGATION,
     ),
     "pre_use_attachment_test_required": (
+        ConstraintOperator.REQUIRES,
+        ProductConstraintDisposition.PRE_USE_OBLIGATION,
+    ),
+    "secure_attachment_fit_required": (
         ConstraintOperator.REQUIRES,
         ProductConstraintDisposition.PRE_USE_OBLIGATION,
     ),
@@ -451,6 +456,32 @@ def _evaluate_constraint(
             "manufacturer-required pre-use attachment test failed",
         )
 
+    if key == "secure_attachment_fit_required":
+        if constraint.value is not True:
+            return _result(
+                constraint,
+                ProductConstraintStatus.UNRESOLVED,
+                "secure-attachment-fit constraint has unsupported non-true value",
+            )
+        confirmed = context.secure_attachment_fit_confirmed
+        if confirmed is None:
+            return _result(
+                constraint,
+                ProductConstraintStatus.REQUIRES_ACTION,
+                "confirm the installed attachment has the manufacturer-required secure fit before use",
+            )
+        if confirmed:
+            return _result(
+                constraint,
+                ProductConstraintStatus.PASSED,
+                "manufacturer-required secure attachment fit has been confirmed",
+            )
+        return _result(
+            constraint,
+            ProductConstraintStatus.FAILED,
+            "manufacturer-required secure attachment fit could not be achieved",
+        )
+
     return _result(
         constraint,
         ProductConstraintStatus.UNRESOLVED,
@@ -511,10 +542,13 @@ def _validate_constraint_value(
             raise ProductConstraintResolutionError(
                 f"constraint {property_key!r} requires unit {expected_unit!r} when a unit is provided"
             )
-    elif property_key == "pre_use_attachment_test_required":
+    elif property_key in {
+        "pre_use_attachment_test_required",
+        "secure_attachment_fit_required",
+    }:
         if not isinstance(value, bool):
             raise ProductConstraintResolutionError(
-                "pre_use_attachment_test_required must be boolean"
+                f"{property_key} must be boolean"
             )
     elif property_key in {
         "installation_surface_profile",
