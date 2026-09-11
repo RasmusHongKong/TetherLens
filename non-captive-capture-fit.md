@@ -112,6 +112,8 @@ A product may require either or both. Satisfying one must never satisfy the othe
 
 The secure-fit condition remains bound through the existing candidate/session identity chain to the exact ToolAttachment component instance and selected installation feature. Candidate generation may therefore retain a structurally eligible ToolAttachment path while hard evaluation returns `recommended_with_constraints` until the pre-use fit condition is resolved. A failed fit confirmation rejects that active candidate through the existing session fallback semantics.
 
+The same component/installation binding is retained by `ProductConstraintRuntimeState`. If secure-fit evidence is carried into a later complete recommendation run, `secure_attachment_fit_confirmed = true` resolves the retained obligation as passed while `false` hard-blocks that regenerated candidate; the observation does not become a catalogue-wide compatibility fact or leak to another component or installation feature.
+
 ## Dimensional boundary
 
 The existing `external_section_attachment` compiler remains the numeric-fit precedent: it requires a complete source-local min/max diameter-fit envelope before it can compile a dimensional eligibility path.
