@@ -17,7 +17,7 @@ from tetherlens_ingest.normalize import parse_mass
 from .nlg_datasheet_endpoint_assignment import NLGAdapter as BaseNLGAdapter
 
 
-_ANONYMOUS_ANCHOR_REF_RE = re.compile(r"^anchor_\d+$")
+_ANONYMOUS_ANCHOR_REF_RE = re.compile(r"^(?:(?:internal|external)_)?anchor_\d+$")
 _NUMERIC_SINGULAR_D_RING_RE = re.compile(
     r"^\s*(?P<count>\d+)\s+(?:(?:internal|external)\s+)?"
     r"(?:(?:load[-\s]?rated|integrated)\s+){0,2}d[\s-]?ring\s*$",
@@ -103,7 +103,8 @@ class NLGAdapter(BaseNLGAdapter):
         # The repeated-container layer intentionally replaces the older aggregate
         # ``internal_anchor`` rating once concrete topology exists. If the only concrete
         # topology was the ambiguous related-product phrase removed above, restore the
-        # independently stated aggregate rating rather than losing valid evidence.
+        # independently stated aggregate rating only when every matching observation
+        # across the accepted artifacts agrees on one normalized value.
         has_concrete_container_interface = any(
             claim.subject_type == ClaimSubjectType.PHYSICAL_INTERFACE
             and claim.property_key == "interface.role"
@@ -141,7 +142,7 @@ def _aggregate_internal_anchor_rating(
         if "json" in artifact.content_type:
             continue
         text = BeautifulSoup(artifact.body, "html.parser").get_text(" ", strip=True)
-        if match := _INTERNAL_ANCHOR_RATING_RE.search(text):
+        for match in _INTERNAL_ANCHOR_RATING_RE.finditer(text):
             if quantity := parse_mass(match.group("mass")):
                 observations.append((quantity.value, match.group(0), artifact.url))
 
