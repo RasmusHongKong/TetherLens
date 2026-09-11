@@ -1,6 +1,6 @@
 # TetherLens Project Status
 
-_Last updated: 2026-09-10_
+_Last updated: 2026-09-11_
 
 This document is the operational handoff for the current TetherLens ingestion, compatibility, candidate-generation/evaluation/selection, recommendation-run, session-resolution, contextual reasoning, recommendation-benchmark, and cross-vendor portability stack. It records the semantics that should be preserved and the highest-value remaining workstreams.
 
@@ -432,6 +432,8 @@ The existing Batch 2 evidence gaps remain explicit:
 | NLG 101481 | Mini Adhesive D Ring | `evidence_scope_tension` | descriptive curved-surface capability vs prescriptive flat-surface installation requirement |
 | NLG 101756 | Heavy Duty Retractable Lanyard, Double Carabiner | `public_fact_ambiguous` | connector locking mode not established as manual vs automatic |
 | NLG 101520 | Ascent™ Pouch | `public_fact_not_established` | external daisy-chain presence is established, but an individual loop/site count is not publicly established |
+
+During PR #57 CI, the live manufacturer benchmark itself completed successfully but Batch 1 scoring stopped on NLG 101365 because the current live output reported `hard_limit_unknown` where the frozen expectation remains `evidence_conflict`. Treat this as a separate source/acquisition/evidence-drift investigation: do not rewrite the frozen golden merely to clear CI, and do not attribute the mismatch to the handle/secure-fit semantics introduced by PR #57.
 
 PR #47 closed the first singular anchor-side D-ring form gap. PR #50 closes the recurring ToolAttachment target-form preservation gap for already-concrete `tool_attachment_tether_side` D-ring interfaces. Neither change promotes generic rings, rewrites structural roles, supplies geometry or creates compatibility from form alone.
 
