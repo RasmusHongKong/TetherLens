@@ -89,8 +89,7 @@ class NLGAdapter(BaseNLGAdapter):
         suspect_refs = {
             claim.subject_ref
             for claim in claims
-            if claim.extractor == "nlg.v0.11"
-            and claim.subject_type == ClaimSubjectType.PHYSICAL_INTERFACE
+            if claim.subject_type == ClaimSubjectType.PHYSICAL_INTERFACE
             and claim.property_key == "interface.role"
             and claim.value == "container_connection"
             and _ANONYMOUS_ANCHOR_REF_RE.fullmatch(claim.subject_ref)
