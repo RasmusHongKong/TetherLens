@@ -290,16 +290,17 @@ class AnchorPathOption(BaseModel):
 class ProductConstraintRuntimeState(BaseModel):
     """Session facts scoped to one physical component installation.
 
-    ToolAttachment installation facts such as elapsed bond time and a pre-use attachment
-    test belong to the selected tool feature as well as the component instance. A
-    ``None`` feature binding is reserved for components evaluated without a selected
-    tool installation feature, such as tether or anchor-side components.
+    ToolAttachment installation facts such as elapsed bond time, a pre-use attachment
+    test, and secure-fit confirmation belong to the selected tool feature as well as the
+    component instance. A ``None`` feature binding is reserved for components evaluated
+    without a selected tool installation feature, such as tether or anchor-side components.
     """
 
     component_ref: str = Field(min_length=1)
     installation_feature_id: str | None = Field(default=None, min_length=1)
     bond_elapsed_h: float | None = None
     pre_use_attachment_test_passed: bool | None = None
+    secure_attachment_fit_confirmed: bool | None = None
 
     @field_validator("bond_elapsed_h", mode="before")
     @classmethod
@@ -901,6 +902,9 @@ def _evaluate_component_constraints(
             bond_elapsed_h=state.bond_elapsed_h if state is not None else None,
             pre_use_attachment_test_passed=(
                 state.pre_use_attachment_test_passed if state is not None else None
+            ),
+            secure_attachment_fit_confirmed=(
+                state.secure_attachment_fit_confirmed if state is not None else None
             ),
         )
         component_evaluations = evaluate_product_constraints(
