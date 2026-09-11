@@ -58,6 +58,8 @@ Runtime behavior is intentionally fail-closed:
 
 The first-party family manual is joined through the ordinary manufacturer source graph before constraint resolution. The `multimedia.3m.com` document remains inside the 3M first-party provenance boundary.
 
+That family-document join is gated by verified product-local identity on the resolved primary 3M detail page. The resolved `/p/d/v…/` record must remain the requested detail product, the primary `<h1>` must identify Quick Spin plus the exact requested SKU, and explicit `3M Product Number` labels must identify only that SKU. A bare SKU occurrence is not sufficient: aggregate/multi-variant pages and redirects to a different detail record fail closed, and manual-derived Quick Spin claims are not accepted without a verified primary product artifact.
+
 ## Portability V3
 
 After the SnapLock / Quick Spin vertical, a materially different eight-product cohort was frozen separately in `benchmarks/cross_vendor_portability_v3.json`. It deliberately shifts away from the previous handle-fit cluster toward unfamiliar tether constructions and anchor-side installation.
@@ -70,9 +72,11 @@ The three C cases are independent AnchorAttachment products from Milwaukee, Fall
 
 The recurrence matters more than the narrow 5/8 A/B majority. V3 therefore does **not** meet the stated condition for declaring semantic saturation and moving the development centre of gravity entirely to catalogue throughput and the demand-side MVP.
 
-## Next implementation boundary
+## Follow-on order
 
-The next architecture slice should be one conservative, manufacturer-neutral AnchorAttachment installation/binding seam. It should prove that a selected primary anchor feature is eligible for a particular AnchorAttachment before constructing an `AnchorPathOption`, while preserving evidence-specific distinctions such as belt, beam/rail, open-ended/refastenable structure and any explicit dimensional bound.
+Before opening the next semantic slice, repair the known NLG live-source drift in a separate focused maintenance PR. That work is unrelated to SnapLock/Quick Spin semantics and should not rewrite historical goldens merely to make CI green; its purpose is to restore the historical ingestion benchmark as a trustworthy regression signal.
+
+After that maintenance pass, the next architecture slice should be one conservative, manufacturer-neutral AnchorAttachment installation/binding seam. It should prove that a selected primary anchor feature is eligible for a particular AnchorAttachment before constructing an `AnchorPathOption`, while preserving evidence-specific distinctions such as belt, beam/rail, open-ended/refastenable structure and any explicit dimensional bound.
 
 It should not introduce vendor/SKU pair rules, infer generic anchor compatibility from marketing category names, or disturb the existing tether-to-anchor interface compatibility evaluator.
 
