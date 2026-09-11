@@ -201,9 +201,12 @@ def test_quick_spin_vendor_constraints_remain_feature_bound_through_hard_evaluat
         identity,
         [
             _artifact(
-                "3M DBI-SALA Quick Spin Medium Size 1500028. 3M Product Number 1500028. "
-                "Tangle-resistant spin top simply slides onto the handle of a tool in seconds. "
-                "Quick Spin, 0.5 kg (1 lb.) capacity, 2 cm (0.80 in) diameter.",
+                "<html><body>"
+                "<h1>3M DBI-SALA Quick Spin Medium Size 1500028</h1>"
+                "<div>3M Product Number 1500028</div>"
+                "<p>Tangle-resistant spin top simply slides onto the handle of a tool in seconds.</p>"
+                "<p>Quick Spin, 0.5 kg (1 lb.) capacity, 2 cm (0.80 in) diameter.</p>"
+                "</body></html>",
                 url=product_url,
             ),
             _artifact(
