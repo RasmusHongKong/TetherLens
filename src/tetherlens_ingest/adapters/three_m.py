@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import re
+from urllib.parse import urlsplit
+
+from bs4 import BeautifulSoup
 
 from tetherlens_ingest.models import (
     CandidateClaim,
@@ -25,6 +28,11 @@ _QUICK_SPIN_MANUAL = (
     "ifu-5903829-python-quick-spins-a3-a3-size-instructions-manual.pdf"
 )
 _QUICK_SPIN_SKUS = frozenset({"1500027", "1500028", "1500029", "1500030"})
+_PRODUCT_DETAIL_PATH = re.compile(r"/p/d/(?P<product_id>v\d+)(?:/|$)", re.I)
+_PRODUCT_NUMBER = re.compile(
+    r"\b3m\s+product\s+(?:number|no\.?)\s*[:#]?\s*(?P<sku>\d+)\b",
+    re.I,
+)
 
 _SLIDES_ON_HANDLE = re.compile(
     r"\bsimply\s+slides?\s+onto\s+the\s+handle\s+of\s+a\s+tool\b",
@@ -176,12 +184,13 @@ def _is_verified_quick_spin_primary(
     identity: ProductIdentity,
     artifact: SourceArtifact,
 ) -> bool:
-    """Require product-local identity evidence from the resolved 3M primary page.
+    """Require identity evidence from the resolved target 3M product-detail record.
 
-    A manufacturer-domain fallback/category page can contain Quick Spin SKUs in aggregate
-    listings, so a bare SKU occurrence is insufficient. The product detail page exposes a
-    local ``3M Product Number <sku>`` marker; require that plus the Quick Spin family name
-    before allowing a shared family manual to contribute product claims.
+    3M aggregate/category pages can contain several Quick Spin SKUs and product-number
+    labels, so finding the expected SKU somewhere in flattened page text is insufficient.
+    Require the resolved detail-page key to match the requested product URL, require the
+    primary page heading itself to name Quick Spin and the expected SKU, and reject pages
+    whose explicit 3M product-number labels identify any other record.
     """
 
     if artifact.source_type != SourceType.MANUFACTURER_WEBPAGE:
@@ -191,14 +200,31 @@ def _is_verified_quick_spin_primary(
     if not identity.sku:
         return False
 
-    text = page_text(artifact.body)
-    if re.search(r"\bquick\s+spin\b", text, re.I) is None:
+    requested_detail = _product_detail_key(identity.url)
+    resolved_detail = _product_detail_key(artifact.url)
+    if requested_detail is None or resolved_detail != requested_detail:
         return False
-    return bool(re.search(
-        rf"\b3m\s+product\s+(?:number|no\.?)\s*[:#]?\s*{re.escape(identity.sku)}\b",
-        text,
-        re.I,
-    ))
+
+    soup = BeautifulSoup(artifact.body, "html.parser")
+    heading = soup.find("h1")
+    if heading is None:
+        return False
+    heading_text = " ".join(heading.stripped_strings)
+    if re.search(r"\bquick\s+spin\b", heading_text, re.I) is None:
+        return False
+    if re.search(rf"(?<!\d){re.escape(identity.sku)}(?!\d)", heading_text) is None:
+        return False
+
+    product_numbers = {
+        match.group("sku")
+        for match in _PRODUCT_NUMBER.finditer(page_text(artifact.body))
+    }
+    return product_numbers == {identity.sku}
+
+
+def _product_detail_key(url: str) -> str | None:
+    match = _PRODUCT_DETAIL_PATH.search(urlsplit(url).path)
+    return match.group("product_id").lower() if match else None
 
 
 def _claim(
