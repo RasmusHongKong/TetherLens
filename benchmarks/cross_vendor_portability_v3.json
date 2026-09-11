@@ -1,0 +1,266 @@
+{
+  "benchmark": "cross_vendor_portability_v3",
+  "created_at": "2026-09-11",
+  "freeze_point": {
+    "branch": "vertical/quickspin-snaplock-portability-v3",
+    "commit": "dba4174a4d504663f6aa66269630e62da4b160f8",
+    "base_main_commit": "94722224944d8d2c8afc38fc2d069c12f608a9ad",
+    "through_pr": 57,
+    "pending_pr": 58
+  },
+  "classification": {
+    "A": "facts_only",
+    "B": "vendor_ingestion_only",
+    "C": "new_reusable_primitive",
+    "D": "sku_specific_exception"
+  },
+  "audit_question": "After resolving the recurring current-core handle/fit boundary, does a materially different cohort focused on tether constructions and anchor-side installation remain predominantly A/B without a comparable recurring C/D seam?",
+  "result": {
+    "A": 0,
+    "B": 5,
+    "C": 3,
+    "D": 0
+  },
+  "decision": "The cohort is narrowly A/B-majority by count, but the three C cases recur independently across Milwaukee, FallTech and Ergodyne and all expose the same anchor-side installation-eligibility gap. Do not declare semantic saturation yet. Treat one conservative AnchorAttachment installation/binding slice as the remaining high-value model seam; the five tether B cases are catalogue-throughput work and should not drive new core vocabulary.",
+  "products": [
+    {
+      "manufacturer": "Safewaze",
+      "sku": "SW431",
+      "name": "35 lb. Medium Duty Elasticated Tool Tether",
+      "product_type": "Tether",
+      "source_url": "https://safewaze.com/products/tool-lanyards/tool-tethers/35-lb-medium-duty-elasticated-tool-tether/",
+      "archetypes": [
+        "carabiner_loop_tether",
+        "choker_web_loop",
+        "twist_lock",
+        "swivel",
+        "elastic_tether"
+      ],
+      "observed_public_facts": [
+        "swivel aluminum twist-locking carabiner on one end",
+        "choker web loop on the other end",
+        "52 to 66 inch length",
+        "35 lb maximum tool load"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "mixed tether endpoint topology",
+        "carabiner ConnectorSpec with locking/swivel attributes",
+        "loop endpoint with evidence-bound choking/cinch engagement",
+        "minimum/retracted and maximum/extended length facts",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "Safewaze requires acquisition/extraction and careful preservation of the choker mechanism. The observed endpoint, connector, length and capacity facts fit existing manufacturer-neutral tether primitives."
+    },
+    {
+      "manufacturer": "Safewaze",
+      "sku": "SW411",
+      "name": "5 lb. Coil Tool Tether",
+      "product_type": "Tether",
+      "source_url": "https://safewaze.com/products/tool-lanyards/tool-tethers/5-lb-coil-tool-tether/",
+      "archetypes": [
+        "coil_tether",
+        "dual_carabiner",
+        "twist_lock"
+      ],
+      "observed_public_facts": [
+        "two twist-lock aluminum carabiners, one at each end",
+        "coated steel cable construction",
+        "14 to 68 inch length",
+        "5 lb maximum tool load"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "two concrete tether endpoints",
+        "carabiner ConnectorSpec",
+        "connector locking/action attributes",
+        "minimum/retracted and maximum/extended length facts",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "The coil construction is descriptive rather than a new recommendation primitive. Safewaze ingestion is missing, while the two carabiner endpoints, length range and capacity already fit the neutral core."
+    },
+    {
+      "manufacturer": "Milwaukee",
+      "sku": "48-22-8825",
+      "name": "5Lbs 50 in. Retractable Tool Lanyard",
+      "product_type": "Tether",
+      "source_url": "https://www.milwaukeetool.com/products/details/5lbs-50-retractable-tool-lanyard/48-22-8825",
+      "archetypes": [
+        "retractable_tether",
+        "dual_carabiner",
+        "locking",
+        "swivel",
+        "quick_connect"
+      ],
+      "observed_public_facts": [
+        "dual locking swiveling Quick-Connect carabiners",
+        "push-to-lock retractable cord",
+        "50 inch working range",
+        "5 lb weight rating"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "two tether endpoints",
+        "carabiner ConnectorSpec with locking/swivel attributes",
+        "retractable tether form",
+        "maximum/extended length fact",
+        "rated capacity",
+        "manufacturer-declared compatibility can remain separately evidence-bound"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "The existing Milwaukee adapter is tool-focused and does not onboard this tether family. Quick-Connect branding must not create SKU-pair logic, but the physical tether facts fit existing endpoint, connector, length and capacity semantics."
+    },
+    {
+      "manufacturer": "Guardian",
+      "sku": "RET552RP-R",
+      "name": "5 lb Retractable Tool Tether, Carabiner Style",
+      "product_type": "Tether",
+      "source_url": "https://guardianfall.com/en-CA/product/retractable-tooling-tethers/RET552RP-R",
+      "archetypes": [
+        "retractable_tether",
+        "dual_carabiner",
+        "screwgate"
+      ],
+      "observed_public_facts": [
+        "stainless-steel screw-gate connector at each end",
+        "retractor form",
+        "52 inch tether length",
+        "5 lb maximum tool weight"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "two tether endpoints",
+        "carabiner ConnectorSpec with manual-locking evidence",
+        "retractable tether form",
+        "maximum/extended length fact",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "Guardian acquisition/extraction is the missing layer. The retractable construction and dual screw-gate endpoint facts require no new downstream compatibility or recommendation primitive."
+    },
+    {
+      "manufacturer": "FallTech",
+      "sku": "5031A",
+      "name": "15 lb Tool Tether with dual aluminum twist-lock carabiners, 36 in",
+      "product_type": "Tether",
+      "source_url": "https://www.falltech.com/product/5031a/",
+      "archetypes": [
+        "elastic_tether",
+        "dual_carabiner",
+        "twist_lock",
+        "captive_eye_connector"
+      ],
+      "observed_public_facts": [
+        "two aluminum twist-lock carabiners",
+        "captive eye pins keep the carabiners attached to the tether",
+        "woven elasticated polyester webbing",
+        "15 lb maximum tool weight"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "two tether endpoints",
+        "carabiner ConnectorSpec with locking/action attributes",
+        "connector captive-eye construction as connector evidence rather than tool-feature captivity",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "The current FallTech extractor is intentionally narrow around a steel-carabiner plus cinch-loop heading. Extending it to dual aluminum twist-lock endpoints is vendor ingestion work over existing neutral tether and connector primitives."
+    },
+    {
+      "manufacturer": "Milwaukee",
+      "sku": "48-22-8855",
+      "name": "50lbs Anchor Strap",
+      "product_type": "AnchorAttachment",
+      "source_url": "https://www.milwaukeetool.com/products/details/50lbs-anchor-strap/48-22-8855",
+      "archetypes": [
+        "anchor_attachment",
+        "wrap_loop",
+        "beam_or_rail_installation",
+        "d_ring"
+      ],
+      "observed_public_facts": [
+        "strap loop securely wraps around beams and rails",
+        "oversized D-ring holds up to five carabiners",
+        "abrasion-resistant 840D sleeve",
+        "50 lb maximum working capacity"
+      ],
+      "classification": "C",
+      "core_fit": [
+        "AnchorAttachment entity",
+        "load-bearing anchor component",
+        "anchor_attachment_tether_side ring / D-ring interface",
+        "rated capacity",
+        "AnchorPathOption once a valid installed path is already resolved"
+      ],
+      "required_core_changes": [
+        "add a reusable evidence-backed AnchorAttachment installation eligibility and concrete anchor-feature binding layer so beam/rail installation is proven rather than assumed when an AnchorPathOption is supplied"
+      ],
+      "portability_gap": "The core can represent the attachment component and the D-ring it provides to the tether, but candidate generation consumes an already-resolved AnchorPathOption. It cannot currently prove from manufacturer evidence that this strap is installable on the selected beam or rail without an external pre-resolution step."
+    },
+    {
+      "manufacturer": "FallTech",
+      "sku": "5424A10",
+      "name": "Waist Belt Cinch Anchor Attachment",
+      "product_type": "AnchorAttachment",
+      "source_url": "https://www.falltech.com/product/5424a10/",
+      "archetypes": [
+        "anchor_attachment",
+        "choke_on_loop",
+        "belt_or_small_anchor_installation",
+        "d_ring"
+      ],
+      "observed_public_facts": [
+        "choke-on installation",
+        "fits most full-body harness belts and other small-diameter anchorage locations",
+        "steel D-ring provides the tool-tether connection point",
+        "5 lb maximum tool capacity"
+      ],
+      "classification": "C",
+      "core_fit": [
+        "AnchorAttachment entity",
+        "load-bearing anchor component",
+        "anchor_attachment_tether_side ring / D-ring interface",
+        "rated capacity",
+        "AnchorPathOption once a valid installed path is already resolved"
+      ],
+      "required_core_changes": [
+        "add the same generic AnchorAttachment installation eligibility and selected anchor-feature binding seam, preserving choke-on method and anchor-target evidence without assuming every belt or small structure is valid"
+      ],
+      "portability_gap": "This independently repeats Milwaukee's downstream gap with a different installation method and target wording: the installed anchor path can be represented after selection, but the catalogue/runtime core cannot yet derive and prove that installation against a concrete belt or anchorage feature."
+    },
+    {
+      "manufacturer": "Ergodyne",
+      "sku": "19171",
+      "model": "Squids 3171",
+      "name": "Anchor Strap Belt Loop Attachment for Tool Tethering",
+      "product_type": "AnchorAttachment",
+      "source_url": "https://www.ergodyne.com/squids-3171-anchor-strap-belt-loop-attachment-tool-tethering-5-lbs-2.3-kg",
+      "archetypes": [
+        "anchor_attachment",
+        "threaded_belt_loop",
+        "open_ended_primary_anchor",
+        "d_ring"
+      ],
+      "observed_public_facts": [
+        "enclosed loop threads over belts or fall-protection harnesses",
+        "manufacturer instructions require an open-ended primary anchor that can be refastened and secured against slide-off",
+        "steel D-ring provides the lanyard attachment point",
+        "fits belts and harnesses up to 3 inches and carries a 5 lb / 2.3 kg maximum load"
+      ],
+      "classification": "C",
+      "core_fit": [
+        "AnchorAttachment entity",
+        "load-bearing anchor component",
+        "anchor_attachment_tether_side ring / D-ring interface",
+        "rated capacity",
+        "AnchorPathOption once a valid installed path is already resolved"
+      ],
+      "required_core_changes": [
+        "add the recurring AnchorAttachment installation eligibility/binding seam with enough manufacturer-neutral anchor-feature vocabulary to distinguish evidence such as an open-ended refastenable belt from an arbitrary anchor target; preserve the 3 inch statement as an explicit installation bound rather than generic fit inference"
+      ],
+      "portability_gap": "The product makes the missing pre-AnchorPath layer explicit. Existing candidate generation can consume its D-ring and component only after a valid installed anchor path has somehow been chosen; there is no generic evidence-backed mechanism equivalent to ToolAttachment eligibility for proving the selected primary anchor is installable."
+    }
+  ]
+}

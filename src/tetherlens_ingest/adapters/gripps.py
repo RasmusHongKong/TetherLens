@@ -18,7 +18,7 @@ from .base import ManufacturerAdapter
 from .common import page_text
 
 
-_EXTRACTOR = "gripps.v0.1"
+_EXTRACTOR = "gripps.v0.2"
 
 _LOAD_RATING = re.compile(
     r"\b(?:max(?:imum)?\s+load|load\s+rating(?:\s+of)?(?:\s+up\s+to)?)\b\s*:?\s*"
@@ -35,15 +35,25 @@ _DUAL_ACTION_BOTH_ENDS = re.compile(
     r"\bdual[-\s]?action\s+carabiners?\s+(?:at|on)\s+both\s+ends?\b",
     re.I,
 )
+_SNAPLOCK_SELF_CLOSING = re.compile(r"\bself[-\s]?closing\s+(?:tool\s+)?connector\b", re.I)
+_SNAPLOCK_HANDLE_OR_NECK = re.compile(
+    r"\binstallation\s+to\s+a\s+tool[’']s\s+handle\s+or\s+neck\b",
+    re.I,
+)
+_SNAPLOCK_CONNECTION_POINT = re.compile(
+    r"\bprovides\s+a\s+secure,?\s+standardi[sz]ed\s+connection\s+point\s+for\s+tethering\b",
+    re.I,
+)
 
 
 class GRIPPSAdapter(ManufacturerAdapter):
-    """Extract GRIPPS evidence into existing manufacturer-neutral tether primitives.
+    """Extract GRIPPS evidence into existing manufacturer-neutral primitives.
 
-    Direction is emitted only when the manufacturer explicitly distinguishes the
-    anchor and tool ends. Similar-looking hardware never creates endpoint equivalence.
-    Conflicting first-party capacity statements remain separate candidate claims and
-    explicitly block recommendation readiness rather than being reconciled here.
+    Tether direction is emitted only when the manufacturer explicitly distinguishes the
+    anchor and tool ends. ToolAttachment installation remains equally evidence-bound:
+    SnapLock's published ``handle or neck`` wording compiles only the independently
+    established handle subset. ``neck`` is not widened to an external-section path and
+    S/M/L/XL labels never become inferred dimensions.
     """
 
     manufacturer = "GRIPPS"
@@ -53,9 +63,13 @@ class GRIPPSAdapter(ManufacturerAdapter):
         identity: ProductIdentity,
         artifacts: list[SourceArtifact],
     ) -> list[CandidateClaim]:
-        if identity.product_type != ProductType.TETHER:
-            return []
+        if identity.product_type == ProductType.TETHER:
+            return self._extract_tether(artifacts)
+        if identity.product_type == ProductType.TOOL_ATTACHMENT:
+            return self._extract_tool_attachment(artifacts)
+        return []
 
+    def _extract_tether(self, artifacts: list[SourceArtifact]) -> list[CandidateClaim]:
         claims: list[CandidateClaim] = []
         for artifact in artifacts:
             text = page_text(artifact.body)
@@ -87,6 +101,57 @@ class GRIPPSAdapter(ManufacturerAdapter):
                         ClaimSubjectType.CONNECTOR_SPEC,
                         connector_ref,
                     ))
+
+        return _dedupe(claims)
+
+    def _extract_tool_attachment(
+        self,
+        artifacts: list[SourceArtifact],
+    ) -> list[CandidateClaim]:
+        claims: list[CandidateClaim] = []
+        for artifact in artifacts:
+            text = page_text(artifact.body)
+            claims.extend(_capacity_claims(text, artifact.url))
+
+            retaining_action = _SNAPLOCK_SELF_CLOSING.search(text)
+            installation = _SNAPLOCK_HANDLE_OR_NECK.search(text)
+            if retaining_action is None or installation is None:
+                continue
+
+            # The source establishes handle installation as one explicit alternative.
+            # It does not establish that the handle must be non-captive, nor does its
+            # separate word "neck" establish executable external-section semantics.
+            claims.extend([
+                _claim(
+                    "attachment_selection_class",
+                    "handle_attachment",
+                    None,
+                    installation.group(0),
+                    artifact.url,
+                ),
+                _claim(
+                    "attachment_method_code",
+                    "mechanical_capture",
+                    None,
+                    retaining_action.group(0),
+                    artifact.url,
+                ),
+            ])
+
+            connection_point = _SNAPLOCK_CONNECTION_POINT.search(text)
+            if connection_point is not None:
+                # The page establishes a ToolAttachment-provided tether connection point
+                # but does not establish a connector/interface form. Preserve that
+                # structural role without inventing a ring, carabiner, or other type.
+                claims.append(_claim(
+                    "interface.role",
+                    "tool_attachment_tether_side",
+                    None,
+                    connection_point.group(0),
+                    artifact.url,
+                    ClaimSubjectType.PHYSICAL_INTERFACE,
+                    "snaplock_tether_connection",
+                ))
 
         return _dedupe(claims)
 

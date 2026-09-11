@@ -11,6 +11,7 @@ from .adapters import (
     MilwaukeeAdapter,
     NLGAdapter,
     StopDropAdapter,
+    ThreeMAdapter,
     TyFlotAdapter,
 )
 from .http import HttpxFetcher
@@ -25,6 +26,7 @@ ADAPTERS = {
     "milwaukee": MilwaukeeAdapter,
     "gripps": GRIPPSAdapter,
     "falltech": FallTechAdapter,
+    "3m": ThreeMAdapter,
     "tyflot": TyFlotAdapter,
 }
 

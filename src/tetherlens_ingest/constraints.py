@@ -122,6 +122,10 @@ _SUPPORTED_CONSTRAINTS: dict[
         ConstraintOperator.REQUIRES,
         ProductConstraintDisposition.HARD,
     ),
+    "prohibited_surface_profile": (
+        ConstraintOperator.PROHIBITS,
+        ProductConstraintDisposition.HARD,
+    ),
     "required_surface_condition": (
         ConstraintOperator.REQUIRES,
         ProductConstraintDisposition.HARD,
@@ -318,6 +322,37 @@ def _evaluate_constraint(
             feature.feature_id,
         )
 
+    if key == "prohibited_surface_profile":
+        feature = context.installation_feature
+        if feature is None:
+            return _result(
+                constraint,
+                ProductConstraintStatus.UNRESOLVED,
+                "prohibited surface profile cannot be checked without a bound tool feature",
+            )
+        actual = feature.attributes.get("surface_profile")
+        if actual is None:
+            return _result(
+                constraint,
+                ProductConstraintStatus.UNRESOLVED,
+                "surface profile is not established for the bound installation feature",
+                feature.feature_id,
+            )
+        if actual == constraint.value:
+            return _result(
+                constraint,
+                ProductConstraintStatus.FAILED,
+                f"bound installation feature has prohibited surface profile {constraint.value!r}",
+                feature.feature_id,
+            )
+        return _result(
+            constraint,
+            ProductConstraintStatus.PASSED,
+            f"bound installation feature surface profile {actual!r} is not the prohibited "
+            f"profile {constraint.value!r}",
+            feature.feature_id,
+        )
+
     if key == "required_surface_condition":
         feature = context.installation_feature
         if feature is None:
@@ -457,11 +492,17 @@ def _evaluate_constraint(
         )
 
     if key == "secure_attachment_fit_required":
+        feature_id = (
+            context.installation_feature.feature_id
+            if context.installation_feature is not None
+            else None
+        )
         if constraint.value is not True:
             return _result(
                 constraint,
                 ProductConstraintStatus.UNRESOLVED,
                 "secure-attachment-fit constraint has unsupported non-true value",
+                feature_id,
             )
         confirmed = context.secure_attachment_fit_confirmed
         if confirmed is None:
@@ -469,17 +510,20 @@ def _evaluate_constraint(
                 constraint,
                 ProductConstraintStatus.REQUIRES_ACTION,
                 "confirm the installed attachment has the manufacturer-required secure fit before use",
+                feature_id,
             )
         if confirmed:
             return _result(
                 constraint,
                 ProductConstraintStatus.PASSED,
                 "manufacturer-required secure attachment fit has been confirmed",
+                feature_id,
             )
         return _result(
             constraint,
             ProductConstraintStatus.FAILED,
             "manufacturer-required secure attachment fit could not be achieved",
+            feature_id,
         )
 
     return _result(
@@ -552,6 +596,7 @@ def _validate_constraint_value(
             )
     elif property_key in {
         "installation_surface_profile",
+        "prohibited_surface_profile",
         "required_surface_condition",
         "prohibited_tool_part_type",
         "prohibited_exposure",
