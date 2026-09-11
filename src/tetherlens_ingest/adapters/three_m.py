@@ -35,11 +35,6 @@ _QUICK_SPIN_CAPACITY = re.compile(
     r"(?P<unit>kg|kgs?|lb|lbs?)\s*\([^)]*\)\s*capacity\b",
     re.I,
 )
-_QUICK_SPIN_CAPACITY_REVERSED = re.compile(
-    r"\bquick\s+spin\s*,?\s*(?P<value>\d+(?:\.\d+)?)\s*"
-    r"(?P<unit>lb|lbs?)\s*\([^)]*\)\s*capacity\b",
-    re.I,
-)
 _TIGHT_HANDLE = re.compile(
     r"\bquick\s+spin\s+will\s+fit\s+tightly\s+on\s+a\s+handle\b",
     re.I,
@@ -55,7 +50,8 @@ _TAPERED_SURFACE_PROHIBITION = re.compile(
     re.I,
 )
 _ATTACHMENT_POINT = re.compile(
-    r"\b(?:non[-\s]?metallic\s+)?attachment\s+point\b",
+    r"\b(?:reusable,?\s+)?non[-\s]?(?:metallic|conductive)\s+attachment\s+point"
+    r"(?:\s+is\s+needed)?\b",
     re.I,
 )
 
@@ -123,7 +119,7 @@ class ThreeMAdapter(ManufacturerAdapter):
 
             # Only an explicit product capacity is normalized. The adjacent nominal
             # diameter remains descriptive evidence and is never emitted as min/max fit.
-            capacity = _QUICK_SPIN_CAPACITY.search(text) or _QUICK_SPIN_CAPACITY_REVERSED.search(text)
+            capacity = _QUICK_SPIN_CAPACITY.search(text)
             if capacity is not None:
                 claims.append(_claim(
                     "rated_capacity_kg",
@@ -158,7 +154,7 @@ class ThreeMAdapter(ManufacturerAdapter):
             point = _ATTACHMENT_POINT.search(text)
             if point is not None:
                 # Quick Spin clearly creates an attachment point, but the reviewed
-                # first-party text does not establish a normalized ring/caribiner form.
+                # first-party text does not establish a normalized ring/carabiner form.
                 claims.append(_claim(
                     "interface.role",
                     "tool_attachment_tether_side",
