@@ -98,19 +98,8 @@ class ProductConstraintEvaluation(BaseModel):
     reason: str
     subject_refs: list[str] = Field(default_factory=list)
     source_urls: list[str] = Field(default_factory=list)
-    # Retain the exact normalized primitive that produced this result so a later
-    # session may re-evaluate only an originally pending pre-use obligation without
-    # reconstructing manufacturer semantics from IDs, reason text, or product pairs.
-    # Contextual constraints use the same retained primitive so downstream context
-    # evaluation does not reconstruct manufacturer semantics either.
     resolved_constraint: ResolvedProductConstraint | None = None
-    # ``constraint_id`` remains the canonical catalogue/OEM constraint identity.
-    # Composition may additionally bind the evaluation to one physical component
-    # instance so repeated instances of the same source product remain distinguishable.
     component_ref: str | None = Field(default=None, min_length=1)
-    # Explicit composition binding for feature-local installation constraints. This is
-    # intentionally separate from generic subject refs so recommendation composition
-    # need not understand raw constraint keys to preserve same-feature semantics.
     installation_feature_id: str | None = None
 
 
@@ -120,6 +109,10 @@ _SUPPORTED_CONSTRAINTS: dict[
 ] = {
     "installation_surface_profile": (
         ConstraintOperator.REQUIRES,
+        ProductConstraintDisposition.HARD,
+    ),
+    "prohibited_surface_profile": (
+        ConstraintOperator.PROHIBITS,
         ProductConstraintDisposition.HARD,
     ),
     "required_surface_condition": (
@@ -287,13 +280,13 @@ def _evaluate_constraint(
             "manufacturer environmental prohibition is retained for explicit downstream work-context evaluation",
         )
 
-    if key == "installation_surface_profile":
+    if key in {"installation_surface_profile", "prohibited_surface_profile"}:
         feature = context.installation_feature
         if feature is None:
             return _result(
                 constraint,
                 ProductConstraintStatus.UNRESOLVED,
-                "installation surface is required but no bound tool feature is available",
+                "installation surface profile cannot be checked without a bound tool feature",
             )
         actual = feature.attributes.get("surface_profile")
         if actual is None:
@@ -303,18 +296,35 @@ def _evaluate_constraint(
                 "surface profile is not established for the bound installation feature",
                 feature.feature_id,
             )
+
+        if key == "installation_surface_profile":
+            if actual == constraint.value:
+                return _result(
+                    constraint,
+                    ProductConstraintStatus.PASSED,
+                    f"bound installation feature has required surface profile {constraint.value!r}",
+                    feature.feature_id,
+                )
+            return _result(
+                constraint,
+                ProductConstraintStatus.FAILED,
+                f"bound installation feature surface profile {actual!r} does not satisfy "
+                f"required profile {constraint.value!r}",
+                feature.feature_id,
+            )
+
         if actual == constraint.value:
             return _result(
                 constraint,
-                ProductConstraintStatus.PASSED,
-                f"bound installation feature has required surface profile {constraint.value!r}",
+                ProductConstraintStatus.FAILED,
+                f"bound installation feature has prohibited surface profile {constraint.value!r}",
                 feature.feature_id,
             )
         return _result(
             constraint,
-            ProductConstraintStatus.FAILED,
-            f"bound installation feature surface profile {actual!r} does not satisfy "
-            f"required profile {constraint.value!r}",
+            ProductConstraintStatus.PASSED,
+            f"bound installation feature surface profile {actual!r} is not the prohibited "
+            f"profile {constraint.value!r}",
             feature.feature_id,
         )
 
@@ -552,6 +562,7 @@ def _validate_constraint_value(
             )
     elif property_key in {
         "installation_surface_profile",
+        "prohibited_surface_profile",
         "required_surface_condition",
         "prohibited_tool_part_type",
         "prohibited_exposure",
