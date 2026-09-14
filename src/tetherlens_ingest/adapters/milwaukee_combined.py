@@ -125,10 +125,19 @@ class MilwaukeeAdapter(_ToolMilwaukeeAdapter):
         claims: list[CandidateClaim],
         observations,
     ) -> list[ReadinessIssue] | None:
-        if any(
-            claim.subject_type == ClaimSubjectType.ANCHOR_INSTALLATION_PATH
-            or claim.property_key == "anchor_installation.method"
-            for claim in claims
-        ):
+        if _has_anchor_attachment_evidence(claims):
             return None
         return super().readiness_issues(claims, observations)
+
+
+def _has_anchor_attachment_evidence(claims: list[CandidateClaim]) -> bool:
+    return any(
+        claim.subject_type == ClaimSubjectType.ANCHOR_INSTALLATION_PATH
+        or claim.property_key == "anchor_installation.method"
+        or (
+            claim.subject_type == ClaimSubjectType.PHYSICAL_INTERFACE
+            and claim.property_key == "interface.role"
+            and claim.value == "anchor_attachment_tether_side"
+        )
+        for claim in claims
+    )
