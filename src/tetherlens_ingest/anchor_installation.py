@@ -108,6 +108,14 @@ class AnchorEligibilityPath(BaseModel):
     requirements: list[AnchorFeaturePredicate] = Field(default_factory=list)
     prohibitions: list[AnchorFeaturePredicate] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def validate_non_empty_predicates(self) -> AnchorEligibilityPath:
+        if not self.requirements and not self.prohibitions:
+            raise ValueError(
+                "anchor eligibility paths require at least one requirement or prohibition"
+            )
+        return self
+
 
 class AnchorAttachmentInstallationRule(BaseModel):
     """Evidence-backed installation scope for one AnchorAttachment product.
@@ -135,11 +143,11 @@ class AnchorInstallationEligibilityEvaluation(BaseModel):
 
     status: EligibilityStatus
     matches: list[AnchorEligibilityMatch] = Field(default_factory=list)
-    rule_id: str | None = Field(default=None, min_length=1)
-    source_product_ref: str | None = Field(default=None, min_length=1)
-    primary_anchor_ref: str | None = Field(default=None, min_length=1)
-    installation_method: AnchorInstallationMethod | None = None
-    source_urls: list[str] = Field(default_factory=list)
+    rule_id: str = Field(min_length=1)
+    source_product_ref: str = Field(min_length=1)
+    primary_anchor_ref: str = Field(min_length=1)
+    installation_method: AnchorInstallationMethod
+    source_urls: list[str] = Field(min_length=1)
 
     @property
     def eligible(self) -> bool:
