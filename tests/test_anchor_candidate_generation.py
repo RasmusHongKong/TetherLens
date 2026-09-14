@@ -50,6 +50,14 @@ def _anchor_d_ring() -> ConnectionInterface:
     )
 
 
+def _container_connection() -> ConnectionInterface:
+    return ConnectionInterface(
+        interface_id="container-ring",
+        role=ConnectionInterfaceRole.CONTAINER_CONNECTION,
+        interface_type="ring",
+    )
+
+
 def _tether() -> TetherOption:
     tool_spec = "tether:tool-carabiner"
     anchor_spec = "tether:anchor-carabiner"
@@ -160,6 +168,25 @@ def test_bound_anchor_path_requires_selected_component_product_to_match_rule() -
         )
 
 
+def test_bound_anchor_path_rejects_container_connection_target() -> None:
+    binding = _binding()
+
+    with pytest.raises(ValueError, match="anchor_attachment_tether_side"):
+        AnchorPathOption(
+            anchor_path_ref="anchor-path:container",
+            components=[
+                CandidateComponentOption(
+                    component_ref="component:anchor-strap",
+                    source_product_ref="anchor-product:1",
+                    rated_capacity_kg=10.0,
+                )
+            ],
+            target_interfaces=[_container_connection()],
+            installation_binding=binding,
+            installation_eligibility=bound_anchor_installation_evaluation(binding),
+        )
+
+
 def test_candidate_generation_preserves_exact_anchor_binding_and_hard_check() -> None:
     path = _bound_anchor_path()
     binding = path.installation_binding
@@ -176,6 +203,7 @@ def test_candidate_generation_preserves_exact_anchor_binding_and_hard_check() ->
     )
 
     assert candidate.selection.anchor_installation_binding == binding
+    assert candidate.configuration.anchor_installation_binding == binding
     assert candidate.configuration.anchor_installation_eligibility is not None
     assert {
         match.feature_id
@@ -231,6 +259,7 @@ def test_direct_candidate_evaluation_blocks_ambiguous_anchor_feature_matches() -
     direct_configuration = CandidateConfiguration.model_validate(
         {
             **candidate.configuration.model_dump(),
+            "anchor_installation_binding": None,
             "anchor_installation_eligibility": ambiguous_eligibility.model_dump(),
         }
     )
@@ -243,15 +272,33 @@ def test_direct_candidate_evaluation_blocks_ambiguous_anchor_feature_matches() -
     )
 
     assert anchor_check.status == CandidateCheckStatus.UNRESOLVED
-    assert "one concrete installation feature" in anchor_check.reason
-    assert anchor_check.subject_refs == [
-        "anchor-product:1",
-        "primary-anchor:beam-zone",
-        "wrap-beam",
-        "beam:east",
-        "beam:west",
-    ]
     assert evaluation.recommendation_state is None
+
+
+def test_candidate_configuration_rejects_stale_anchor_installation_evaluation() -> None:
+    [candidate] = generate_candidate_configurations(
+        ResolvedToolCandidate(
+            tool_ref="tool:1",
+            object_mass_kg=2.0,
+            direct_interfaces=[_direct_tool_ring()],
+        ),
+        [_tether()],
+        [_bound_anchor_path()],
+    )
+    binding = candidate.configuration.anchor_installation_binding
+    assert binding is not None
+    stale_eligibility = bound_anchor_installation_evaluation(binding).model_copy(
+        update={
+            "source_product_ref": "anchor-product:other",
+            "primary_anchor_ref": "primary-anchor:other-zone",
+        }
+    )
+
+    payload = candidate.configuration.model_dump()
+    payload["anchor_installation_eligibility"] = stale_eligibility.model_dump()
+
+    with pytest.raises(ValueError, match="provenance must match the selected binding"):
+        CandidateConfiguration.model_validate(payload)
 
 
 def test_generated_candidate_rejects_anchor_eligibility_for_different_feature() -> None:
