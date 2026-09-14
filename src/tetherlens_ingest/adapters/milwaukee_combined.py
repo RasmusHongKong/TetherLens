@@ -133,7 +133,7 @@ class MilwaukeeAdapter(_ToolMilwaukeeAdapter):
 def _has_anchor_attachment_evidence(claims: list[CandidateClaim]) -> bool:
     return any(
         claim.subject_type == ClaimSubjectType.ANCHOR_INSTALLATION_PATH
-        or claim.property_key == "anchor_installation.method"
+        or claim.property_key in {"anchor_installation.method", "rated_capacity_kg"}
         or (
             claim.subject_type == ClaimSubjectType.PHYSICAL_INTERFACE
             and claim.property_key == "interface.role"
