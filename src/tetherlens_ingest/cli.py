@@ -4,6 +4,7 @@ import argparse
 import json
 
 from .adapters import (
+    ErgodyneAdapter,
     FallTechAdapter,
     GRIPPSAdapter,
     HiltiAdapter,
@@ -26,6 +27,7 @@ ADAPTERS = {
     "milwaukee": MilwaukeeAdapter,
     "gripps": GRIPPSAdapter,
     "falltech": FallTechAdapter,
+    "ergodyne": ErgodyneAdapter,
     "3m": ThreeMAdapter,
     "tyflot": TyFlotAdapter,
 }

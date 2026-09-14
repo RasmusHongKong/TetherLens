@@ -101,7 +101,7 @@ class IngestionRunner:
             observations.append(adapter.source_fetch_failed_observation(identity, error))
         if pending:
             observations.append(adapter.source_graph_limit_observation(identity, self.max_related_sources))
-        readiness = adapter.readiness_issues(claims, observations)
+        readiness = adapter.readiness_issues_for(identity, claims, observations)
         return IngestionResult(
             identity=identity,
             artifacts=artifacts,

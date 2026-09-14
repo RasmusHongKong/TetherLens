@@ -4,7 +4,7 @@
 
 This benchmark tests whether the TetherLens knowledge and recommendation model built through the NLG-heavy development phase is portable beyond that original cohort.
 
-The first benchmark intentionally freezes the core at merged `main` commit `7e9785456e3f52511f017fdc0a3f19afc1c652c7` and inspects an unseen cross-vendor cohort before adding new production semantics for those products. The post-PR #55 V2 audit repeats the same classification exercise against the evolved current core without rewriting the historical V1 answer key. PR #58 adds a third fresh audit after vertically proving the handle/secure-fit boundary, again preserving both earlier historical cohorts unchanged.
+The first benchmark intentionally freezes the core at merged `main` commit `7e9785456e3f52511f017fdc0a3f19afc1c652c7` and inspects an unseen cross-vendor cohort before adding new production semantics for those products. The post-PR #55 V2 audit repeats the same classification exercise against the evolved current core without rewriting the historical V1 answer key. PR #58 adds a third fresh audit after vertically proving the handle/secure-fit boundary, again preserving both earlier historical cohorts unchanged. PR #61 adds a fourth materially different audit after the AnchorAttachment installation/binding vertical, preserving V1-V3 unchanged.
 
 The question is not whether every manufacturer can be ingested without manufacturer-specific code. Different catalogues will continue to require different acquisition and extraction adapters. The more important question is:
 
@@ -244,31 +244,87 @@ The three C-class products are:
 
 These products expose one reusable boundary rather than three product-specific exceptions.
 
-The current core can represent an `AnchorAttachment` component and the tether-side interface that it provides. Candidate generation can also consume a pre-resolved `AnchorPathOption`. What is missing is the anchor-side analogue of the ToolAttachment eligibility/binding layer: a generic way to compile manufacturer evidence about **where/how the AnchorAttachment may install**, bind that rule to one concrete selected primary-anchor feature, and carry that exact binding into candidate generation/evaluation.
+The core at the V3 freeze could represent an `AnchorAttachment` component and the tether-side interface that it provides. Candidate generation could also consume a pre-resolved `AnchorPathOption`. What was missing was the anchor-side analogue of the ToolAttachment eligibility/binding layer: a generic way to compile manufacturer evidence about **where/how the AnchorAttachment may install**, bind that rule to one concrete selected primary-anchor feature, and carry that exact binding into candidate generation/evaluation.
 
 The reviewed manufacturer evidence demonstrates materially different but related installation conditions:
 
 - Milwaukee's anchor strap wraps around supported primary-anchor geometry such as beams/rails;
 - FallTech's waist-belt cinch attachment is installed by choking/cinching on supported belt or small-anchor geometry; and
-- Ergodyne's enclosed belt-loop attachment must be threaded over an open-ended/refastenable primary anchor, with an explicit maximum dimension in the reviewed instructions.
+- Ergodyne's enclosed belt-loop attachment must be threaded over an open-ended/refastenable primary anchor, with explicit dimensional conditions in the reviewed instructions.
 
-Those facts should not be flattened into a generic “anchor attachment exists” assertion, nor should candidate generation be handed an unevidenced pre-resolved `AnchorPathOption`. The next reusable model should establish the smallest manufacturer-neutral primary-anchor feature vocabulary and evidence-backed installation eligibility needed to select one concrete anchor feature without creating vendor/SKU branches.
+Those facts should not be flattened into a generic “anchor attachment exists” assertion, nor should candidate generation be handed an unevidenced pre-resolved `AnchorPathOption`.
 
 V3 does **not** justify changing tether-to-anchor connection compatibility rules. The gap is upstream installation eligibility/binding for the AnchorAttachment itself.
 
-### V3 interpretation
+### V3 interpretation and later closure
 
-V3 remains encouraging but does not satisfy the portability exit condition yet. Five of eight products are B-class and D remains zero, but three independent vendors expose a comparable recurring C seam. Calling the architecture fully saturated at this point would hide a real reusable boundary.
+V3 remains frozen at **0 A / 5 B / 3 C / 0 D**. Its three C classifications record the architecture at that historical semantic point and are not rewritten by later implementation.
+
+PR #60 subsequently closes the reusable core seam with manufacturer-neutral `PrimaryAnchorFeature` (`belt`, `beam`, `rail`), `wrap` / `cinch` / `thread_over` rules, same-feature predicates, exact `AnchorInstallationBinding` provenance and a separate hard installation-eligibility check. PR #61 then vertically proves those semantics through normal first-party ingestion/resolution for all three V3 C products without changing tether-to-anchor compatibility, ranking, selection or exhaustion.
+
+## PR #61 V4 cohort
+
+`benchmarks/cross_vendor_portability_v4.json` is the fourth independent eight-product audit. It is disjoint from V1-V3 and excludes the three products used for the PR #61 AnchorAttachment vertical proof.
+
+The sample was fixed before classification and deliberately moves into a materially different part of the product space: worker-worn anchors, rigid aerial-bucket anchors, fresh tool-side attachments and one conventional tether control. The manifest freezes the production-semantic audit point at `211a9bdfe9e818b7233f77183e2d4175d708aabf` on `vertical/anchor-attachment-portability-v4`, against merged post-PR #60 `main` commit `5e9e5f2923e3409957bdba146c280a9d932ea0e9`.
+
+The reviewed V4 result is:
+
+```text
+A facts_only               0
+B vendor_ingestion_only    4
+C new_reusable_primitive   4
+D sku_specific_exception   0
+```
+
+The B-class products are:
+
+- Milwaukee 48-22-8870 2 lb D-Ring Web Attachment;
+- Ergodyne Squids 3708 / item 19713 Wire Tool Attachment;
+- FallTech 5027F Speed-clip Tool Attachment; and
+- Klein TT1 Tool Tether.
+
+They fit existing reusable ToolAttachment/tether, captive-feature, wrap/required-pairing, connector/declaration, endpoint, capacity and length semantics. Their remaining work is catalogue acquisition/extraction and evidence normalization rather than a new downstream rule family.
+
+The C-class products are:
+
+- FallTech 5331A1 Wrist Attachment Anchor;
+- GRIPPS H01086 Adjustable Wrist Anchor;
+- Ergodyne Squids 3178 / item 19178 Locking Aerial Bucket Hook; and
+- Klein 5144LG3 3-Inch Gated Bucket Hook.
+
+### Recurring V4 C seam 1: worker-worn wrist anchors
+
+FallTech and GRIPPS independently publish load-rated AnchorAttachment products that install directly around the worker's wrist. The post-PR #60/61 primary-anchor vocabulary cannot represent that target truthfully as `belt`, `beam` or `rail`.
+
+The smallest next investigation should establish a reusable worker-worn/wrist primary-anchor feature and evidence-backed fastening/adjustability semantics. Prefer a concrete wrist feature over a premature body-location hierarchy. Qualitative wording such as adjustable or `all sizes` must not become an invented numeric wrist fit envelope.
+
+The existing exact `AnchorInstallationBinding` path should be reused unchanged so selected worker feature and evidence provenance reach candidate generation.
+
+### Recurring V4 C seam 2: aerial-bucket lip hooks
+
+Ergodyne and Klein independently publish rigid hook-style AnchorAttachments that install on an aerial-bucket lip. They do not wrap, cinch or thread over a belt/beam/rail. Both manufacturers publish explicit lip-target evidence, and Klein publishes a nominal 3 in requirement relevant to its product family.
+
+The smallest next investigation should establish:
+
+- a reusable primary-anchor lip/edge feature for this family; and
+- an evidence-backed hook-on/clip-on installation method that evaluates one concrete lip/edge feature and uses dimensional bounds only where the manufacturer actually establishes them.
+
+A bucket lip must not be silently widened into `rail`, and nominal product size must not become a complete fit envelope without evidence.
+
+### V4 interpretation
+
+V4 does not satisfy the portability exit condition. It is exactly split between B and C (**4 B / 4 C**), and the C pressure is comparable and recurring across two independent manufacturer pairs. D remains zero, which continues to argue against SKU-specific recommendation logic, while four B cases confirm that catalogue-throughput work is increasingly substantial.
 
 The correct signal is therefore:
 
 ```text
-catalogue-throughput pressure is now substantial
+catalogue-throughput pressure remains substantial
 AND
-one more recurring anchor-side installation abstraction remains
+two more narrow recurring cross-vendor anchor-installation seams remain
 ```
 
-Catalogue onboarding can proceed in parallel, but the next semantic slice should be the conservative AnchorAttachment installation eligibility + selected-anchor-feature binding seam. After that slice is proven, one more materially different portability stress sample should decide whether portability becomes periodic rather than the default development driver.
+Catalogue onboarding should continue in parallel, but V4 does not justify making throughput or the demand-side MVP the primary development centre yet.
 
 ## Portability phase objective and exit condition
 
@@ -304,17 +360,15 @@ At that point the centre of gravity should shift deliberately toward:
 
 Portability cohorts should continue after that transition as periodic stress/regression tests. They should no longer be the default reason to deepen the ontology.
 
-## Follow-on strategy after V3
+## Follow-on strategy after V4
 
-V3 is a narrow A/B majority (**5/8 B**) with **0 D**, but its three C cases independently identify one recurring AnchorAttachment installation/binding seam. The condition for a full portability-to-throughput pivot is therefore not yet met.
+The immediate sequence after PR #61 should be:
 
-The immediate sequence after PR #58 should be:
-
-1. repair the known live NLG source drift in a separate focused maintenance PR so the historical ingestion benchmark becomes a trustworthy regression signal again;
-2. inspect the three V3 AnchorAttachment C cases and implement the smallest reusable manufacturer-neutral installation-eligibility plus concrete selected-anchor-feature binding layer, without changing tether-to-anchor compatibility unless evidence independently requires it;
+1. resolve and vertically prove the smallest reusable worker-worn/wrist primary-anchor feature and installation semantics across FallTech 5331A1 and GRIPPS H01086;
+2. resolve and vertically prove the smallest reusable bucket-lip/edge feature plus hook-on/clip-on installation family across Ergodyne Squids 3178 / 19178 and Klein 5144LG3;
 3. continue high-leverage B-class catalogue onboarding in parallel where it does not force new downstream semantics; and
-4. run one more materially different portability stress sample after the anchor-side seam is proven.
+4. run another materially different fresh portability stress sample after both recurring seams are proven.
 
-If that next sample is predominantly A/B with no comparable recurring C/D pressure, shift the development centre of gravity toward catalogue throughput and the demand-side MVP. Continue portability thereafter as a periodic stress/regression test rather than a continuous ontology-expansion loop.
+Keep V1, V2, V3 and V4 immutable at their stated semantic revisions throughout that sequence.
 
-Historical V1 and V2 results remain immutable throughout that sequence.
+If the next sample is predominantly A/B with no comparable recurring C/D pressure, shift the development centre of gravity toward catalogue throughput and the demand-side MVP. Continue portability thereafter as a periodic stress/regression test rather than a continuous ontology-expansion loop.

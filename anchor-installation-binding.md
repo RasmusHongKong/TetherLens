@@ -2,7 +2,7 @@
 
 ## Status
 
-Core manufacturer-neutral semantic boundary introduced by PR #60 for the recurring V3 AnchorAttachment portability seam.
+Core manufacturer-neutral semantic boundary introduced by PR #60 for the recurring V3 AnchorAttachment portability seam and vertically proven through normal first-party ingestion/resolution by PR #61.
 
 This document defines how TetherLens represents and evaluates the installation of an `AnchorAttachment` onto one concrete primary-anchor feature before the resulting tether-side interface participates in ordinary tether-endpoint compatibility.
 
@@ -157,6 +157,27 @@ The system must not combine the topology from feature A with the dimensions from
 
 This mirrors the established ToolAttachment feature-binding invariant but uses a distinct anchor-side feature model.
 
+## Ingestion and rule compilation
+
+PR #61 adds the normal evidence-to-runtime path without making candidate generation interpret manufacturer text.
+
+Accepted installation evidence uses a feature-local `anchor_installation_path` claim subject. A product-level `anchor_installation.method` claim owns the installation mechanism, while every path subject contains the feature-local predicates that must apply to one concrete primary-anchor feature. Separate path subjects are OR alternatives; predicates within one path remain an AND-set.
+
+The manufacturer-neutral compiler:
+
+- requires one unambiguous installation method;
+- requires an explicit feature kind on every path;
+- fails closed on conflicting accepted feature kinds within one path;
+- normalizes dimensional predicates to millimetres;
+- maps feature attributes and location to the existing runtime predicate keys;
+- maps `REQUIRES` to a required equality predicate and `PROHIBITS` to an equality prohibition;
+- preserves exact source URLs; and
+- contains no manufacturer or SKU branches.
+
+This lets vendor adapters remain evidence-specific while the downstream installation rule stays reusable.
+
+The PR #61 vertical proves the compiler through normal first-party ingestion for Milwaukee 48-22-8855, FallTech 5424A10 and Ergodyne Squids 3171 / 19171. Ergodyne's first-party family instruction document is identity-scoped to the 3171 row/section; sibling-model facts are not inherited. FallTech's qualitative `small diameter` wording is not converted into numeric geometry, and Milwaukee does not invent beam/rail dimensions.
+
 ## Concrete binding
 
 An eligible installation is materialized as `AnchorInstallationBinding`.
@@ -254,7 +275,7 @@ The core model is intentionally vendor-neutral. The following examples describe 
 
 ### Beam/rail wrap
 
-Milwaukee-shaped evidence can compile conservatively as:
+Milwaukee-shaped evidence compiles conservatively as:
 
 ```text
 method = wrap
@@ -268,7 +289,7 @@ No width, diameter, profile or other fit geometry is inferred when the reviewed 
 
 ### Belt cinch
 
-FallTech-shaped evidence can compile the explicit belt subset as:
+FallTech-shaped evidence compiles the explicit belt subset as:
 
 ```text
 method = cinch
@@ -281,7 +302,7 @@ Qualitative wording such as `small-diameter anchorage` must not be converted int
 
 ### Thread-over belt with explicit topology/dimensions
 
-Ergodyne-shaped evidence can compile as one same-feature path such as:
+Ergodyne-shaped evidence compiles as one same-feature path:
 
 ```text
 method = thread_over
@@ -297,7 +318,7 @@ The dimensional values are evidence-backed installation bounds, not generic belt
 
 ## Guardrails
 
-PR #60 does not:
+PRs #60-#61 do not:
 
 - change tether-to-anchor interface compatibility;
 - add `AnchorAttachment` SKU-pair compatibility rules;
@@ -311,17 +332,16 @@ PR #60 does not:
 - convert a generic structural anchor into beam or rail without evidence;
 - create a general structural-engineering or load-rated anchorage assessment;
 - change tether endpoint roles, assignment semantics, capacity rules, ranking, contextual selection, session behavior or global exhaustion;
-- rewrite frozen V1/V2/V3 portability classifications; or
+- rewrite frozen V1/V2/V3/V4 portability classifications; or
 - require legacy unbound anchor/container paths to invent an AnchorAttachment installation binding.
 
-## Follow-on vertical proof
+## Portability V4 follow-on
 
-The next implementation step after the core boundary is stable is a separate vendor-ingestion vertical covering the three frozen V3 C products:
+PR #61 completed the V3 three-vendor vertical and then froze a materially different eight-product V4 portability sample at **0 A / 4 B / 4 C / 0 D**. The pivot condition toward catalogue-throughput-led development was therefore not met.
 
-- Milwaukee 48-22-8855;
-- FallTech 5424A10; and
-- Ergodyne Squids 3171 / SKU 19171.
+The four C products form two recurring cross-vendor seams:
 
-That vertical should emit accepted manufacturer-backed neutral facts into the PR #60 runtime primitives and prove that the three products flow through unchanged downstream candidate generation, hard evaluation, ranking and selection semantics.
+- worker-worn wrist anchors (FallTech 5331A1 and GRIPPS H01086), which need the smallest reusable worker-worn/wrist primary-anchor feature plus evidence-backed adjustable fastening semantics; and
+- aerial-bucket lip hooks (Ergodyne Squids 3178 / 19178 and Klein 5144LG3), which need a reusable bucket-lip/edge feature plus hook-on/clip-on installation semantics.
 
-After that vertical proof, run one materially different fresh portability sample. Keep V1, V2 and V3 frozen at their historical semantic revisions.
+Those are the next architecture investigations. They should extend the same exact-feature binding model rather than changing tether-to-anchor compatibility, ranking, selection or exhaustion. Catalogue B-class onboarding can continue in parallel. See `anchor-installation-portability-v4.md` for the frozen V4 evidence and decision rationale.

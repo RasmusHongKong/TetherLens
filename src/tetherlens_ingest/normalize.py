@@ -13,7 +13,8 @@ class Quantity:
 
 
 def mass_to_kg(value: float, unit: str) -> float:
-    u = unit.strip().lower().replace("lbs", "lb")
+    u = unit.strip().lower()
+    u = {"lbs": "lb", "kgs": "kg"}.get(u, u)
     if u in {"kg", "kilogram", "kilograms"}:
         return round(value, 6)
     if u in {"lb", "pound", "pounds"}:
