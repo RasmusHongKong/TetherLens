@@ -80,6 +80,10 @@ def resolve_anchor_attachment_installation_rule(
             raise AnchorClaimResolutionError(
                 f"anchor installation path {subject_ref!r} requires an explicit feature kind"
             )
+        _single_scalar(
+            kind_claims,
+            f"{ANCHOR_PATH_FEATURE_KIND_KEY} on path {subject_ref!r}",
+        )
 
         requirements: list[AnchorFeaturePredicate] = []
         prohibitions: list[AnchorFeaturePredicate] = []
