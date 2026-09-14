@@ -6,6 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from .anchor_installation import AnchorInstallationEligibilityEvaluation
 from .compatibility import EligibilityEvaluation, EligibilityStatus, PolicyStatus
 from .connection import (
     ConnectionEvaluation,
@@ -105,6 +106,12 @@ class CandidateConfiguration(BaseModel):
     This keeps raw claim keys and manufacturer-specific extraction details out of
     recommendation composition without turning absent work context into a hard failure.
 
+    ToolAttachment eligibility and AnchorAttachment installation eligibility remain
+    independent hard checks. The former proves how the selected tool-side attachment
+    installs on one concrete tool feature; the latter proves how the selected
+    AnchorAttachment installs on one concrete primary-anchor feature. Neither check
+    changes tether-endpoint connection compatibility.
+
     Endpoint assignment declarations are structural authorization only. They may prove
     that an otherwise-unknown pair can occupy the tool/anchor positions, but they do not
     change either endpoint's recorded ``tether_side`` and do not establish connection
@@ -121,6 +128,7 @@ class CandidateConfiguration(BaseModel):
     product_constraint_evaluations: list[ProductConstraintEvaluation] = Field(default_factory=list)
     attachment_mode: CandidateAttachmentMode
     attachment_eligibility: EligibilityEvaluation | None = None
+    anchor_installation_eligibility: AnchorInstallationEligibilityEvaluation | None = None
     endpoint_assignment_declarations: list[TetherEndpointAssignmentDeclaration] = Field(
         default_factory=list
     )
@@ -269,6 +277,9 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
     Feature-scoped product constraints must all refer to one installation feature that
     also appears in the ToolAttachment eligibility matches. This keeps the same-feature
     invariant intact across the boundary between eligibility and product constraints.
+    Anchor installation eligibility is already bound upstream to one primary-anchor
+    feature; evaluation retains that separate hard proof without treating it as tether
+    endpoint compatibility.
     """
 
     checks: list[CandidateCheck] = []
@@ -298,6 +309,43 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
         checks.append(
             CandidateCheck(
                 check_id="attachment_eligibility",
+                check_type=CandidateCheckType.ATTACHMENT_ELIGIBILITY,
+                status=status,
+                reason=reason,
+                subject_refs=refs,
+            )
+        )
+
+    anchor_eligibility = candidate.anchor_installation_eligibility
+    if anchor_eligibility is not None:
+        if anchor_eligibility.status == EligibilityStatus.ELIGIBLE and anchor_eligibility.matches:
+            status = CandidateCheckStatus.PASSED
+            reason = (
+                "anchor attachment installation eligibility is established for the "
+                "bound primary-anchor feature"
+            )
+            refs = [match.feature_id for match in anchor_eligibility.matches]
+        elif anchor_eligibility.status == EligibilityStatus.ELIGIBLE:
+            status = CandidateCheckStatus.UNRESOLVED
+            reason = (
+                "anchor attachment installation eligibility is marked eligible but has "
+                "no bound primary-anchor feature match"
+            )
+            refs = []
+        elif anchor_eligibility.status == EligibilityStatus.INELIGIBLE:
+            status = CandidateCheckStatus.FAILED
+            reason = "anchor attachment is ineligible for the resolved primary-anchor features"
+            refs = []
+        else:
+            status = CandidateCheckStatus.UNRESOLVED
+            reason = (
+                "anchor attachment installation eligibility cannot be resolved from the "
+                "available primary-anchor feature facts"
+            )
+            refs = []
+        checks.append(
+            CandidateCheck(
+                check_id="anchor_installation_eligibility",
                 check_type=CandidateCheckType.ATTACHMENT_ELIGIBILITY,
                 status=status,
                 reason=reason,
