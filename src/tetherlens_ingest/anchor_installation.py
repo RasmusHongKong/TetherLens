@@ -93,6 +93,12 @@ class AnchorFeaturePredicate(BaseModel):
             raise ValueError(
                 f"unsupported primary-anchor feature property_key: {self.property_key}"
             )
+        if self.property_key == "feature_kind":
+            valid_feature_kinds = {kind.value for kind in PrimaryAnchorFeatureKind}
+            if not isinstance(self.value, str) or self.value not in valid_feature_kinds:
+                raise ValueError(
+                    "feature_kind predicate value must be a valid primary-anchor feature kind"
+                )
         if is_dimension or self.operator in _ORDERED_OPERATORS:
             _coerce_finite_number(
                 self.value,
