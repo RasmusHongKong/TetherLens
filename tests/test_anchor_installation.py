@@ -32,6 +32,15 @@ def test_anchor_eligibility_evaluation_requires_complete_provenance() -> None:
         )
 
 
+def test_feature_kind_predicate_rejects_unknown_value_even_for_neq() -> None:
+    with pytest.raises(ValueError, match="valid primary-anchor feature kind"):
+        AnchorFeaturePredicate(
+            property_key="feature_kind",
+            operator=ComparisonOperator.NEQ,
+            value="beem",
+        )
+
+
 def test_milwaukee_shaped_wrap_rule_binds_beam_and_rail_only() -> None:
     rule = AnchorAttachmentInstallationRule(
         rule_id="wrap_beam_or_rail",
