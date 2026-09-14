@@ -1,6 +1,6 @@
 import pytest
 
-from tetherlens_ingest.adapters import FallTechAdapter, MilwaukeeAdapter
+from tetherlens_ingest.adapters import ErgodyneAdapter, FallTechAdapter, MilwaukeeAdapter
 from tetherlens_ingest.models import ProductIdentity, ProductType, SourceArtifact, SourceType
 from tetherlens_ingest.normalize import mass_to_kg
 from tetherlens_ingest.runner import IngestionRunner
@@ -96,3 +96,90 @@ def test_partial_milwaukee_anchor_does_not_run_tool_mass_readiness_checks():
     )
     assert result.readiness_assessed is False
     assert result.issues == []
+
+
+def test_evidence_free_milwaukee_anchor_does_not_run_tool_mass_readiness_checks():
+    identity = ProductIdentity(
+        manufacturer="Milwaukee",
+        product_type=ProductType.ANCHOR_ATTACHMENT,
+        name="50lbs Anchor Strap",
+        sku="48-22-8855",
+        url=(
+            "https://www.milwaukeetool.com/products/details/"
+            "50lbs-anchor-strap/48-22-8855"
+        ),
+    )
+    artifact = _artifact(
+        identity.url,
+        "<h1>50lbs Anchor Strap 48-22-8855</h1>"
+        "<p>Manufacturer copy changed and no currently recognized anchor wording remains.</p>",
+    )
+
+    result = IngestionRunner(SingleArtifactFetcher(artifact)).ingest(
+        identity,
+        MilwaukeeAdapter(),
+    )
+
+    assert result.claims == []
+    assert result.readiness_assessed is False
+    assert result.issues == []
+
+
+def test_milwaukee_anchor_capacity_accepts_kgs_unit():
+    identity = ProductIdentity(
+        manufacturer="Milwaukee",
+        product_type=ProductType.ANCHOR_ATTACHMENT,
+        name="50lbs Anchor Strap",
+        sku="48-22-8855",
+        url=(
+            "https://www.milwaukeetool.com/products/details/"
+            "50lbs-anchor-strap/48-22-8855"
+        ),
+    )
+    claims = MilwaukeeAdapter().extract(
+        identity,
+        [
+            _artifact(
+                identity.url,
+                "<h1>50lbs Anchor Strap 48-22-8855</h1>"
+                "<p>22 kgs weight rating.</p>",
+            )
+        ],
+    )
+
+    capacities = [
+        claim for claim in claims if claim.property_key == "rated_capacity_kg"
+    ]
+    assert len(capacities) == 1
+    assert capacities[0].value == pytest.approx(22.0)
+
+
+def test_ergodyne_anchor_capacity_accepts_kgs_unit():
+    identity = ProductIdentity(
+        manufacturer="Ergodyne",
+        product_type=ProductType.ANCHOR_ATTACHMENT,
+        name="Squids 3171 Anchor Strap Belt Loop Attachment",
+        model="3171",
+        sku="19171",
+        url=(
+            "https://www.ergodyne.com/"
+            "squids-3171-anchor-strap-belt-loop-attachment-tool-tethering-5-lbs-2.3-kg"
+        ),
+    )
+    claims = ErgodyneAdapter().extract(
+        identity,
+        [
+            _artifact(
+                identity.url,
+                "<h1>Squids 3171 Anchor Strap Belt Loop Attachment</h1>"
+                "<p>Item #: 19171</p>"
+                "<p>2.3 kgs maximum working capacity.</p>",
+            )
+        ],
+    )
+
+    capacities = [
+        claim for claim in claims if claim.property_key == "rated_capacity_kg"
+    ]
+    assert len(capacities) == 1
+    assert capacities[0].value == pytest.approx(2.3)
