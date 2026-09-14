@@ -18,11 +18,12 @@ from .falltech import FallTechAdapter as _TetherFallTechAdapter
 
 
 _EXTRACTOR = "falltech.v0.2"
-_CHOKE_ON = re.compile(r"\b(?:simple\s+)?choke[-\s]?on\s+installation\b", re.I)
+_CHOKE_ON = re.compile(r"\b(?:simple\s+)?choke[-\s]?on\s+(?:loop\s+)?installation\b", re.I)
 _HARNESS_BELT = re.compile(r"\bfits?\s+most\s+full[-\s]?body\s+harness\s+belts?\b", re.I)
 _D_RING = re.compile(r"\bsteel\s+D[-\s]?ring\b", re.I)
 _MAX_TOOL_CAPACITY = re.compile(
-    r"\b(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>lb|lbs?|kg|kgs?)\s+max(?:imum)?\s+tool\s+(?:capacity|weight)\b",
+    r"\b(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>lb|lbs?|kg|kgs?)\s*"
+    r"(?:max\.?|capacity)\b",
     re.I,
 )
 
