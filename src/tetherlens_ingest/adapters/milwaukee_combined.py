@@ -32,10 +32,16 @@ _WRAP_BEAMS_RAILS = re.compile(
     re.I,
 )
 _D_RING = re.compile(r"\b(?:oversized\s+)?D[-\s]?ring\b", re.I)
-_WEIGHT_RATING = re.compile(
-    r"\b(?:weight\s+rating|max(?:imum)?\s+(?:working\s+)?(?:capacity|load))\b\s*:?\s*"
-    r"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>lb|lbs?|kg|kgs?)\b",
-    re.I,
+_CAPACITY_PATTERNS = (
+    re.compile(
+        r"\bmaximum\s+working\s+capacity\s+of\s+(?P<value>\d+(?:\.\d+)?)\s*"
+        r"(?P<unit>pounds?|lbs?|kg|kgs?)\b",
+        re.I,
+    ),
+    re.compile(
+        r"\b(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>lbs?|kg|kgs?)\s+weight\s+rating\b",
+        re.I,
+    ),
 )
 
 
@@ -93,15 +99,18 @@ class MilwaukeeAdapter(_ToolMilwaukeeAdapter):
                     )
                 )
 
-            capacity = _WEIGHT_RATING.search(text)
+            capacity = next(
+                (match for pattern in _CAPACITY_PATTERNS if (match := pattern.search(text))),
+                None,
+            )
             if capacity is not None:
+                unit = capacity.group("unit")
+                if unit.casefold().startswith("pound"):
+                    unit = "lb"
                 claims.append(
                     claim(
                         "rated_capacity_kg",
-                        mass_to_kg(
-                            float(capacity.group("value")),
-                            capacity.group("unit"),
-                        ),
+                        mass_to_kg(float(capacity.group("value")), unit),
                         unit="kg",
                         raw_value=capacity.group(0),
                         source_url=artifact.url,
