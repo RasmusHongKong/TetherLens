@@ -295,6 +295,17 @@ class AnchorPathOption(BaseModel):
                     "anchor installation eligibility requires a concrete selected binding"
                 )
         else:
+            invalid_bound_targets = [
+                interface.interface_id
+                for interface in self.target_interfaces
+                if interface.role != ConnectionInterfaceRole.ANCHOR_ATTACHMENT_TETHER_SIDE
+            ]
+            if invalid_bound_targets:
+                raise ValueError(
+                    "bound AnchorAttachment paths may target only "
+                    "anchor_attachment_tether_side interfaces: "
+                    f"{invalid_bound_targets!r}"
+                )
             eligibility = self.installation_eligibility
             if eligibility is None or eligibility.status != EligibilityStatus.ELIGIBLE:
                 raise ValueError(
@@ -590,6 +601,11 @@ class GeneratedCandidate(BaseModel):
                 )
 
         anchor_binding = selection.anchor_installation_binding
+        configuration_anchor_binding = configuration.anchor_installation_binding
+        if configuration_anchor_binding != anchor_binding:
+            raise ValueError(
+                "generated anchor installation binding does not match selection binding"
+            )
         anchor_eligibility = configuration.anchor_installation_eligibility
         if anchor_binding is None:
             if anchor_eligibility is not None:
@@ -882,6 +898,7 @@ def generate_candidate_configurations(
                             product_constraint_evaluations=constraint_evaluations,
                             attachment_mode=tool_target.attachment_mode,
                             attachment_eligibility=tool_target.eligibility,
+                            anchor_installation_binding=anchor_path.installation_binding,
                             anchor_installation_eligibility=anchor_path.installation_eligibility,
                             endpoint_assignment_declarations=[
                                 declaration
