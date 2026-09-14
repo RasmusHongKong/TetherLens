@@ -1,0 +1,275 @@
+{
+  "benchmark": "cross_vendor_portability_v4",
+  "created_at": "2026-09-14",
+  "freeze_point": {
+    "branch": "vertical/anchor-attachment-portability-v4",
+    "commit": "211a9bdfe9e818b7233f77183e2d4175d708aabf",
+    "base_main_commit": "5e9e5f2923e3409957bdba146c280a9d932ea0e9",
+    "through_pr": 60,
+    "pending_pr": 61
+  },
+  "classification": {
+    "A": "facts_only",
+    "B": "vendor_ingestion_only",
+    "C": "new_reusable_primitive",
+    "D": "sku_specific_exception"
+  },
+  "sample_design": "Eight previously unaudited identities across five manufacturers, selected before classification to stress a materially different post-PR60 region: wearable/wrist anchors, rigid bucket-lip anchors, tool-side retrofit attachments, and one conventional tether control. The cohort intentionally excludes all V1-V3 identities and the three products used for the PR61 vertical proof.",
+  "audit_question": "After vertically proving PR #60's belt/beam/rail AnchorAttachment installation model through normal first-party ingestion, do materially different wearable and rigid hook-on anchor families plus fresh tool-side controls now land predominantly in A/B without a comparable recurring C/D seam?",
+  "result": {
+    "A": 0,
+    "B": 4,
+    "C": 4,
+    "D": 0
+  },
+  "decision": "Do not shift the development centre to catalogue throughput yet. The fresh cohort is not predominantly A/B, and its four C cases form two independent recurring cross-vendor seams rather than SKU exceptions: worker-worn wrist anchors require a reusable primary-anchor feature/installation representation, while aerial-bucket hooks require a reusable bucket-lip/edge feature plus hook-on or clip-on installation semantics. D remains zero and the four B cases continue to support the existing throughput signal, so the next semantic work should stay narrowly focused on these repeated anchor-installation families rather than widening downstream compatibility, ranking, selection or exhaustion rules.",
+  "products": [
+    {
+      "manufacturer": "FallTech",
+      "sku": "5331A1",
+      "name": "Wrist Attachment Anchor; adjustable UniFit size with Speed-clip and D-ring",
+      "product_type": "AnchorAttachment",
+      "source_url": "https://www.falltech.com/product/5331a1/",
+      "archetypes": [
+        "worker_worn_anchor",
+        "adjustable_wristband",
+        "speed_clip",
+        "d_ring"
+      ],
+      "observed_public_facts": [
+        "adjustable wristband anchor intended for close-proximity tool tethering",
+        "wrist attachment anchor provides both Speed-clip and D-ring connection points",
+        "cuff band and strap use neoprene/polyester and nylon components",
+        "5 lb maximum tool capacity"
+      ],
+      "classification": "C",
+      "core_fit": [
+        "AnchorAttachment entity",
+        "anchor_attachment_tether_side connection interfaces can represent the provided D-ring/clip sides once extracted",
+        "rated capacity",
+        "PR #60 installation rules can retain an exact selected feature once a supported PrimaryAnchorFeature kind exists"
+      ],
+      "required_core_changes": [
+        "extend the reusable PrimaryAnchorFeature vocabulary to represent a worker wrist or equivalent worker-worn anchor feature, with evidence-backed wearable fastening/retention semantics rather than treating the body as a belt/beam/rail",
+        "preserve the selected worker-worn feature through the existing AnchorInstallationBinding path without changing tether-to-anchor compatibility"
+      ],
+      "portability_gap": "PR #60 can prove installation only against belt, beam or rail features. This product's defining primary-anchor target is the worker's wrist, so normal ingestion cannot compile truthful installation eligibility without either a reusable worker-worn feature or an invalid belt/rail analogy. No published wrist size is inferred from UniFit wording."
+    },
+    {
+      "manufacturer": "GRIPPS",
+      "sku": "H01086",
+      "name": "Adjustable Wrist Anchor - 2.5kg / 5.5lb",
+      "product_type": "AnchorAttachment",
+      "source_url": "https://www.au.gripps.com/products/adjustable-wrist-anchor",
+      "archetypes": [
+        "worker_worn_anchor",
+        "adjustable_wristband",
+        "hook_and_loop_retention",
+        "load_rated_tether_anchor"
+      ],
+      "observed_public_facts": [
+        "adjustable wristband incorporates a built-in load-rated tether anchor",
+        "manufacturer describes it as designed to fit all wrist sizes",
+        "industrial-grade hook-and-loop closure secures the adjustable band",
+        "2.5 kg / 5.5 lb maximum load"
+      ],
+      "evidence_notes": [
+        "The qualitative all-sizes wording is not a numeric fit envelope and must not be converted into wrist dimensions."
+      ],
+      "classification": "C",
+      "core_fit": [
+        "AnchorAttachment entity",
+        "rated capacity",
+        "generic attachment-interface facts can be ingested without SKU-pair logic",
+        "existing AnchorInstallationBinding provenance can carry a resolved installation after the target feature is representable"
+      ],
+      "required_core_changes": [
+        "the same reusable worker-worn/wrist PrimaryAnchorFeature seam exposed independently by FallTech 5331A1",
+        "an evidence-backed adjustable-band fastening rule that can bind to that concrete wrist feature without inventing geometry from one-size wording"
+      ],
+      "portability_gap": "This independently repeats the FallTech wrist-anchor gap. Belt/beam/rail cannot truthfully stand in for a wrist, and the current wrap/cinch/thread_over vocabulary does not by itself establish the worker-worn target or the adjustable wristband's installation conditions."
+    },
+    {
+      "manufacturer": "Ergodyne",
+      "sku": "19178",
+      "model": "Squids 3178",
+      "name": "Locking Aerial Bucket Hook with Tethering Point - 2in",
+      "product_type": "AnchorAttachment",
+      "source_url": "https://www.ergodyne.com/squids-3178-locking-aerial-bucket-hook-tethering-point",
+      "archetypes": [
+        "bucket_lip_anchor",
+        "hook_on_installation",
+        "self_locking_gate",
+        "enclosed_tethering_point"
+      ],
+      "observed_public_facts": [
+        "2 inch variant quickly attaches to a standard aerial-bucket lip",
+        "self-locking exterior hook automatically locks when load is applied",
+        "enclosed tethering point is rated for 7 lb / 3.2 kg dynamic tool-lanyard load",
+        "hook body is rated for 40 lb / 18.14 kg static hold"
+      ],
+      "classification": "C",
+      "core_fit": [
+        "AnchorAttachment entity",
+        "load-bearing component and tether-side interface facts",
+        "numeric dimensions can remain evidence facts once a relevant feature dimension exists",
+        "existing AnchorInstallationBinding can preserve exact installation provenance after eligibility is proven"
+      ],
+      "required_core_changes": [
+        "add a reusable primary-anchor lip/edge feature kind suitable for aerial-bucket lips rather than overloading rail",
+        "add an evidence-backed hook-on or clip-on AnchorAttachment installation method that evaluates one concrete lip/edge feature, including explicit dimensional bounds only where published"
+      ],
+      "portability_gap": "The product clips onto a bucket lip; it does not wrap, cinch or thread over a belt/beam/rail. The current PR #60 vocabulary therefore cannot prove its installation without a new reusable edge/lip target and hook-on installation family."
+    },
+    {
+      "manufacturer": "Klein Tools",
+      "sku": "5144LG3",
+      "name": "3-Inch Gated Bucket Hook",
+      "product_type": "AnchorAttachment",
+      "source_url": "https://www.kleintools.com/catalog/hooks-slings/3-inch-gated-bucket-hook",
+      "archetypes": [
+        "bucket_lip_anchor",
+        "hook_on_installation",
+        "locking_gate",
+        "tether_attachment_point"
+      ],
+      "observed_public_facts": [
+        "attaches to a standard 3 inch / 7.6 cm lip aerial bucket",
+        "lockable latch helps reduce the risk of tools falling",
+        "4 foot tether-rated attachment point supports tools up to 7 lb",
+        "40 lb / 18.1 kg maximum static load"
+      ],
+      "classification": "C",
+      "core_fit": [
+        "AnchorAttachment entity",
+        "load-bearing component and tether-side interface facts",
+        "rated capacity and explicit lip dimension evidence",
+        "existing exact binding/provenance path after installation eligibility is representable"
+      ],
+      "required_core_changes": [
+        "the same reusable bucket-lip/edge PrimaryAnchorFeature seam exposed independently by Ergodyne Squids 3178",
+        "the same generic hook-on/clip-on installation family, with the published 3 inch lip requirement kept as an explicit feature bound rather than a product-size guess"
+      ],
+      "portability_gap": "Klein independently demonstrates that rigid bucket-lip hooks are a real cross-vendor anchor family. Mapping the bucket lip to rail or pretending the hook is a wrap/cinch/thread-over installation would erase the manufacturer's actual installation semantics."
+    },
+    {
+      "manufacturer": "Milwaukee",
+      "sku": "48-22-8870",
+      "name": "5pc 2lb D-Ring Web Attachment",
+      "product_type": "ToolAttachment",
+      "source_url": "https://www.milwaukeetool.com/products/details/5pc-2lb-d-ring-web-attachment/48-22-8870",
+      "archetypes": [
+        "tool_attachment",
+        "wrap",
+        "required_pairing",
+        "d_ring",
+        "multi_component_assembly"
+      ],
+      "observed_public_facts": [
+        "D-ring web attachment creates a secure tether point on tools without a lanyard hole",
+        "manufacturer requires Milwaukee Self-Adhering Tape for installation",
+        "metal D-ring provides the tethering connection point",
+        "2 lb maximum tool load"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "ToolAttachment entity",
+        "attachment_method_code = wrap",
+        "manufacturer-backed required_pairing relationship",
+        "multi-component ToolAttachment assembly",
+        "ToolAttachment-provided D-ring interface",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "This is the already-modeled tape/wrap plus required-pairing architecture in a fresh Milwaukee identity. The missing work is Milwaukee ToolAttachment acquisition/extraction and evidence-bound pairing, not a new downstream primitive."
+    },
+    {
+      "manufacturer": "Ergodyne",
+      "sku": "19713",
+      "model": "Squids 3708",
+      "name": "Wire Tool Attachment - Screw Gate Tool Tail - 3lbs / 1.4kg",
+      "product_type": "ToolAttachment",
+      "source_url": "https://www.ergodyne.com/squids-3708-wire-tool-attachment-screw-gate-tool-tail",
+      "archetypes": [
+        "tool_attachment",
+        "captive_through_opening",
+        "wire_loop",
+        "screw_gate_closure"
+      ],
+      "observed_public_facts": [
+        "wire screw-gate tail threads through a captive tool hole and screws closed to complete the loop",
+        "manufacturer states compatibility with captive holes 0.2 in / 5 mm or larger",
+        "3 lb / 1.4 kg maximum working capacity",
+        "48 in / 122 cm maximum tether length"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "captive-through-opening ToolAttachment eligibility",
+        "mechanical capture / closed-loop attachment semantics",
+        "ToolAttachment-provided tether interface",
+        "minimum opening geometry as an evidence-backed feature constraint",
+        "rated capacity and maximum tether-length constraint"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "The post-PR #53 single-feature captive-through-opening eligibility seam already represents the target feature without widening to handles. Ergodyne ingestion must preserve the screw-gate closure and 5 mm minimum-hole evidence, but no new recommendation primitive is required."
+    },
+    {
+      "manufacturer": "FallTech",
+      "sku": "5027F",
+      "name": "5 lb Speed-clip Tool Attachment with choke-on cinch-loop",
+      "product_type": "ToolAttachment",
+      "source_url": "https://www.falltech.com/product/5027f/",
+      "archetypes": [
+        "tool_attachment",
+        "captive_through_opening",
+        "cinch",
+        "speed_clip"
+      ],
+      "observed_public_facts": [
+        "choke-on design is intended for tools with existing captive eye holes",
+        "Speed-clip provides an interchangeable tether-side connection",
+        "manufacturer states compatibility with Speed-clip compatible 5 lb tool tethers and the wrist anchor",
+        "5 lb maximum tool capacity"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "captive-through-opening ToolAttachment eligibility",
+        "attachment_method_code = cinch",
+        "ToolAttachment-provided clip interface",
+        "manufacturer-declared connector/interface compatibility without SKU-pair hard-coding",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "FallTech extraction must onboard the Speed-clip vocabulary and declarations, but the existing generic clip/connector attributes plus evidence-bound manufacturer compatibility relation can carry the semantics without a FallTech-specific downstream branch."
+    },
+    {
+      "manufacturer": "Klein Tools",
+      "sku": "TT1",
+      "name": "Tool Tether, 10-Pound Maximum Load",
+      "product_type": "Tether",
+      "source_url": "https://www.kleintools.com/catalog/tool-tethers/tool-tether-10-pound-maximum-load",
+      "archetypes": [
+        "carabiner_loop_tether",
+        "cinch_loop",
+        "directional_endpoints",
+        "elastic_tether"
+      ],
+      "observed_public_facts": [
+        "manufacturer instructs attaching the carabiner end to the anchor point",
+        "warnings require the cinch to remain snug while in use",
+        "32 inch relaxed and 60 inch stretched lengths",
+        "10 lb / 4.5 kg maximum working capacity"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "mixed tether endpoint topology",
+        "explicit anchor-side carabiner assignment",
+        "tool-side loop with cinch engagement",
+        "minimum/retracted and maximum/extended length facts",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "The current Klein adapter is tool-only. This tether needs Klein catalogue extraction for endpoint topology, explicit direction, cinch evidence, length and capacity, but those facts already fit the neutral tether core."
+    }
+  ]
+}
