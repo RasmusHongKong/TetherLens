@@ -2,8 +2,11 @@ import pytest
 
 from tetherlens_ingest.anchor_installation import (
     AnchorAttachmentInstallationRule,
+    AnchorEligibilityMatch,
     AnchorEligibilityPath,
+    AnchorEligibilityProof,
     AnchorFeaturePredicate,
+    AnchorInstallationBinding,
     AnchorInstallationEligibilityEvaluation,
     AnchorInstallationMethod,
     PrimaryAnchorFeature,
@@ -39,6 +42,108 @@ def test_feature_kind_predicate_rejects_unknown_value_even_for_neq() -> None:
             operator=ComparisonOperator.NEQ,
             value="beem",
         )
+
+
+@pytest.mark.parametrize("source_urls", [[""], ["   "]])
+def test_anchor_installation_provenance_rejects_blank_source_urls(
+    source_urls: list[str],
+) -> None:
+    with pytest.raises(ValueError, match="nonblank strings"):
+        AnchorAttachmentInstallationRule(
+            rule_id="rule",
+            source_product_ref="anchor-product",
+            installation_method=AnchorInstallationMethod.WRAP,
+            paths=[
+                AnchorEligibilityPath(
+                    requirements=[_kind(PrimaryAnchorFeatureKind.BEAM)]
+                )
+            ],
+            source_urls=source_urls,
+        )
+
+    with pytest.raises(ValueError, match="nonblank strings"):
+        AnchorInstallationEligibilityEvaluation(
+            status=EligibilityStatus.ELIGIBLE,
+            matches=[
+                AnchorEligibilityMatch(
+                    path_index=0,
+                    binding_name="primary_anchor_feature",
+                    feature_id="beam",
+                )
+            ],
+            rule_id="rule",
+            source_product_ref="anchor-product",
+            primary_anchor_ref="anchor",
+            installation_method=AnchorInstallationMethod.WRAP,
+            source_urls=source_urls,
+        )
+
+    with pytest.raises(ValueError, match="nonblank strings"):
+        AnchorInstallationBinding(
+            primary_anchor_ref="anchor",
+            installation_feature_id="beam",
+            rule_id="rule",
+            source_product_ref="anchor-product",
+            installation_method=AnchorInstallationMethod.WRAP,
+            eligibility_proofs=[
+                AnchorEligibilityProof(
+                    path_index=0,
+                    binding_name="primary_anchor_feature",
+                )
+            ],
+            source_urls=source_urls,
+        )
+
+
+def test_anchor_installation_provenance_strips_source_url_whitespace() -> None:
+    rule = AnchorAttachmentInstallationRule(
+        rule_id="rule",
+        source_product_ref="anchor-product",
+        installation_method=AnchorInstallationMethod.WRAP,
+        paths=[
+            AnchorEligibilityPath(
+                requirements=[_kind(PrimaryAnchorFeatureKind.BEAM)]
+            )
+        ],
+        source_urls=["  https://manufacturer.example/anchor  "],
+    )
+
+    assert rule.source_urls == ["https://manufacturer.example/anchor"]
+
+
+def test_boolean_anchor_attribute_does_not_match_numeric_one() -> None:
+    rule = AnchorAttachmentInstallationRule(
+        rule_id="boolean-attribute",
+        source_product_ref="anchor-product",
+        installation_method=AnchorInstallationMethod.THREAD_OVER,
+        paths=[
+            AnchorEligibilityPath(
+                requirements=[
+                    _kind(PrimaryAnchorFeatureKind.BELT),
+                    AnchorFeaturePredicate(
+                        property_key="attribute:open_for_threading",
+                        value=True,
+                    ),
+                ]
+            )
+        ],
+        source_urls=["https://manufacturer.example/anchor"],
+    )
+    anchor = ResolvedPrimaryAnchor(
+        primary_anchor_ref="anchor",
+        features=[
+            PrimaryAnchorFeature(
+                feature_id="belt",
+                feature_kind=PrimaryAnchorFeatureKind.BELT,
+                attributes={"open_for_threading": 1},
+            )
+        ],
+    )
+
+    evaluation = evaluate_anchor_installation_eligibility(rule, anchor)
+
+    assert evaluation.status == EligibilityStatus.INELIGIBLE
+    assert evaluation.matches == []
 
 
 def test_milwaukee_shaped_wrap_rule_binds_beam_and_rail_only() -> None:
