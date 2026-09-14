@@ -317,6 +317,24 @@ class AnchorPathOption(BaseModel):
                 raise ValueError(
                     "anchor installation eligibility proofs must match the selected binding"
                 )
+            provenance = (
+                eligibility.rule_id,
+                eligibility.source_product_ref,
+                eligibility.primary_anchor_ref,
+                eligibility.installation_method,
+                tuple(eligibility.source_urls),
+            )
+            expected_provenance = (
+                self.installation_binding.rule_id,
+                self.installation_binding.source_product_ref,
+                self.installation_binding.primary_anchor_ref,
+                self.installation_binding.installation_method,
+                tuple(self.installation_binding.source_urls),
+            )
+            if provenance != expected_provenance:
+                raise ValueError(
+                    "anchor installation eligibility provenance must match the selected binding"
+                )
             if self.installation_binding.source_product_ref not in {
                 component.source_product_ref for component in self.components
             }:
@@ -388,6 +406,9 @@ class CandidatePolicyContext(BaseModel):
     anchor_path_ref: str = Field(min_length=1)
     attachment_assembly_ref: str | None = Field(default=None, min_length=1)
     installation_feature_id: str | None = Field(default=None, min_length=1)
+    primary_anchor_ref: str | None = Field(default=None, min_length=1)
+    anchor_installation_feature_id: str | None = Field(default=None, min_length=1)
+    anchor_installation_rule_id: str | None = Field(default=None, min_length=1)
     tool_endpoint_id: str = Field(min_length=1)
     tool_target_interface_id: str = Field(min_length=1)
     anchor_endpoint_id: str = Field(min_length=1)
@@ -397,6 +418,17 @@ class CandidatePolicyContext(BaseModel):
 
     @model_validator(mode="after")
     def validate_policy(self) -> CandidatePolicyContext:
+        anchor_binding_parts = (
+            self.primary_anchor_ref,
+            self.anchor_installation_feature_id,
+            self.anchor_installation_rule_id,
+        )
+        if any(part is not None for part in anchor_binding_parts) and not all(
+            part is not None for part in anchor_binding_parts
+        ):
+            raise ValueError(
+                "candidate policy anchor installation identity must be supplied as a complete tuple"
+            )
         if (
             self.policy_applicability == PolicyApplicability.NOT_APPLICABLE
             and self.policy_status is not None
@@ -586,6 +618,24 @@ class GeneratedCandidate(BaseModel):
             if actual_anchor_proofs != expected_anchor_proofs:
                 raise ValueError(
                     "generated anchor eligibility proofs do not match selection binding"
+                )
+            actual_anchor_provenance = (
+                anchor_eligibility.rule_id,
+                anchor_eligibility.source_product_ref,
+                anchor_eligibility.primary_anchor_ref,
+                anchor_eligibility.installation_method,
+                tuple(anchor_eligibility.source_urls),
+            )
+            expected_anchor_provenance = (
+                anchor_binding.rule_id,
+                anchor_binding.source_product_ref,
+                anchor_binding.primary_anchor_ref,
+                anchor_binding.installation_method,
+                tuple(anchor_binding.source_urls),
+            )
+            if actual_anchor_provenance != expected_anchor_provenance:
+                raise ValueError(
+                    "generated anchor eligibility provenance does not match selection binding"
                 )
         return self
 
@@ -1088,6 +1138,9 @@ def _candidate_policy_context_key(
         context.anchor_path_ref,
         context.attachment_assembly_ref,
         context.installation_feature_id,
+        context.primary_anchor_ref,
+        context.anchor_installation_feature_id,
+        context.anchor_installation_rule_id,
         context.tool_endpoint_id,
         context.tool_target_interface_id,
         context.anchor_endpoint_id,
@@ -1096,12 +1149,16 @@ def _candidate_policy_context_key(
 
 
 def _candidate_policy_key(selection: CandidatePathSelection) -> tuple[str | None, ...]:
+    anchor_binding = selection.anchor_installation_binding
     return (
         selection.tool_ref,
         selection.tether_ref,
         selection.anchor_path_ref,
         selection.attachment_assembly_ref,
         selection.installation_feature_id,
+        anchor_binding.primary_anchor_ref if anchor_binding is not None else None,
+        anchor_binding.installation_feature_id if anchor_binding is not None else None,
+        anchor_binding.rule_id if anchor_binding is not None else None,
         selection.tool_endpoint_id,
         selection.tool_target_interface_id,
         selection.anchor_endpoint_id,
@@ -1156,7 +1213,6 @@ def _load_bearing_components(
 
 
 def _candidate_id(selection: CandidatePathSelection) -> str:
-    anchor_binding = selection.anchor_installation_binding
     identity = {
         "tool_ref": selection.tool_ref,
         "attachment_assembly_ref": selection.attachment_assembly_ref,
@@ -1165,21 +1221,21 @@ def _candidate_id(selection: CandidatePathSelection) -> str:
         "tool_endpoint_id": selection.tool_endpoint_id,
         "tool_target_interface_id": selection.tool_target_interface_id,
         "anchor_path_ref": selection.anchor_path_ref,
-        "primary_anchor_ref": (
-            anchor_binding.primary_anchor_ref if anchor_binding is not None else None
-        ),
-        "anchor_installation_feature_id": (
-            anchor_binding.installation_feature_id if anchor_binding is not None else None
-        ),
-        "anchor_installation_rule_id": (
-            anchor_binding.rule_id if anchor_binding is not None else None
-        ),
         "anchor_endpoint_id": selection.anchor_endpoint_id,
         "anchor_target_interface_id": selection.anchor_target_interface_id,
         "component_refs": [
             component.component_ref for component in selection.components
         ],
     }
+    anchor_binding = selection.anchor_installation_binding
+    if anchor_binding is not None:
+        identity.update(
+            {
+                "primary_anchor_ref": anchor_binding.primary_anchor_ref,
+                "anchor_installation_feature_id": anchor_binding.installation_feature_id,
+                "anchor_installation_rule_id": anchor_binding.rule_id,
+            }
+        )
     return "candidate:" + json.dumps(
         identity,
         ensure_ascii=False,
