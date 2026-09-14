@@ -131,8 +131,15 @@ class AnchorEligibilityMatch(BaseModel):
 
 
 class AnchorInstallationEligibilityEvaluation(BaseModel):
+    """Eligibility result plus the exact rule/anchor provenance evaluated."""
+
     status: EligibilityStatus
     matches: list[AnchorEligibilityMatch] = Field(default_factory=list)
+    rule_id: str | None = Field(default=None, min_length=1)
+    source_product_ref: str | None = Field(default=None, min_length=1)
+    primary_anchor_ref: str | None = Field(default=None, min_length=1)
+    installation_method: AnchorInstallationMethod | None = None
+    source_urls: list[str] = Field(default_factory=list)
 
     @property
     def eligible(self) -> bool:
@@ -186,7 +193,15 @@ def evaluate_anchor_installation_eligibility(
     else:
         status = EligibilityStatus.INELIGIBLE
 
-    return AnchorInstallationEligibilityEvaluation(status=status, matches=matches)
+    return AnchorInstallationEligibilityEvaluation(
+        status=status,
+        matches=matches,
+        rule_id=rule.rule_id,
+        source_product_ref=rule.source_product_ref,
+        primary_anchor_ref=anchor.primary_anchor_ref,
+        installation_method=rule.installation_method,
+        source_urls=list(rule.source_urls),
+    )
 
 
 def resolve_anchor_installation_bindings(
@@ -248,6 +263,11 @@ def bound_anchor_installation_evaluation(
             )
             for proof in binding.eligibility_proofs
         ],
+        rule_id=binding.rule_id,
+        source_product_ref=binding.source_product_ref,
+        primary_anchor_ref=binding.primary_anchor_ref,
+        installation_method=binding.installation_method,
+        source_urls=list(binding.source_urls),
     )
 
 
