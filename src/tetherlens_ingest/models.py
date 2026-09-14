@@ -27,6 +27,7 @@ class ClaimSubjectType(StrEnum):
     PRODUCT = "product"
     PRODUCT_VARIANT = "product_variant"
     PHYSICAL_INTERFACE = "physical_interface"
+    ANCHOR_INSTALLATION_PATH = "anchor_installation_path"
     TETHER_CONNECTION_POINT = "tether_connection_point"
     TETHER_ENDPOINT_ASSIGNMENT = "tether_endpoint_assignment"
     CONNECTOR_SPEC = "connector_spec"
