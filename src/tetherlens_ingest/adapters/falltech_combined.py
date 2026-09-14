@@ -4,7 +4,6 @@ import re
 from urllib.parse import urlsplit
 
 from tetherlens_ingest.models import CandidateClaim, ProductIdentity, ProductType, SourceArtifact, SourceType
-from tetherlens_ingest.normalize import mass_to_kg
 
 from .anchor_attachment_common import (
     dedupe,
@@ -14,18 +13,16 @@ from .anchor_attachment_common import (
     claim,
 )
 from .common import page_text
-from .falltech import FallTechAdapter as _TetherFallTechAdapter
+from .falltech import (
+    FallTechAdapter as _TetherFallTechAdapter,
+    _tool_weight_capacity,
+)
 
 
 _EXTRACTOR = "falltech.v0.2"
 _CHOKE_ON = re.compile(r"\b(?:simple\s+)?choke[-\s]?on\s+(?:loop\s+)?installation\b", re.I)
 _HARNESS_BELT = re.compile(r"\bfits?\s+most\s+full[-\s]?body\s+harness\s+belts?\b", re.I)
 _D_RING = re.compile(r"\bsteel\s+D[-\s]?ring\b", re.I)
-_MAX_TOOL_CAPACITY = re.compile(
-    r"\b(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>lb|lbs?|kg|kgs?)\s*"
-    r"(?:max\.?|capacity)\b",
-    re.I,
-)
 
 
 class FallTechAdapter(_TetherFallTechAdapter):
@@ -79,17 +76,14 @@ class FallTechAdapter(_TetherFallTechAdapter):
                     )
                 )
 
-            capacity = _MAX_TOOL_CAPACITY.search(text)
+            capacity = _tool_weight_capacity(text)
             if capacity is not None:
                 claims.append(
                     claim(
                         "rated_capacity_kg",
-                        mass_to_kg(
-                            float(capacity.group("value")),
-                            capacity.group("unit"),
-                        ),
+                        capacity[0],
                         unit="kg",
-                        raw_value=capacity.group(0),
+                        raw_value=capacity[1],
                         source_url=artifact.url,
                         extractor=_EXTRACTOR,
                     )
