@@ -132,6 +132,16 @@ class ManufacturerAdapter(ABC):
             extractor=f"{self.manufacturer.lower()}.runner",
         )
 
+    def readiness_issues_for(
+        self,
+        identity: ProductIdentity,
+        claims: list[CandidateClaim],
+        observations: list[AcquisitionObservation],
+    ) -> list[ReadinessIssue] | None:
+        """Evaluate readiness with identity context while preserving legacy overrides."""
+
+        return self.readiness_issues(claims, observations)
+
     def readiness_issues(
         self,
         claims: list[CandidateClaim],
