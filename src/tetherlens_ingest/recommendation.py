@@ -318,31 +318,40 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
 
     anchor_eligibility = candidate.anchor_installation_eligibility
     if anchor_eligibility is not None:
+        provenance_refs = [
+            ref
+            for ref in (
+                anchor_eligibility.source_product_ref,
+                anchor_eligibility.primary_anchor_ref,
+                anchor_eligibility.rule_id,
+            )
+            if ref is not None
+        ]
         if anchor_eligibility.status == EligibilityStatus.ELIGIBLE and anchor_eligibility.matches:
             status = CandidateCheckStatus.PASSED
             reason = (
                 "anchor attachment installation eligibility is established for the "
                 "bound primary-anchor feature"
             )
-            refs = [match.feature_id for match in anchor_eligibility.matches]
+            refs = [*provenance_refs, *[match.feature_id for match in anchor_eligibility.matches]]
         elif anchor_eligibility.status == EligibilityStatus.ELIGIBLE:
             status = CandidateCheckStatus.UNRESOLVED
             reason = (
                 "anchor attachment installation eligibility is marked eligible but has "
                 "no bound primary-anchor feature match"
             )
-            refs = []
+            refs = provenance_refs
         elif anchor_eligibility.status == EligibilityStatus.INELIGIBLE:
             status = CandidateCheckStatus.FAILED
             reason = "anchor attachment is ineligible for the resolved primary-anchor features"
-            refs = []
+            refs = provenance_refs
         else:
             status = CandidateCheckStatus.UNRESOLVED
             reason = (
                 "anchor attachment installation eligibility cannot be resolved from the "
                 "available primary-anchor feature facts"
             )
-            refs = []
+            refs = provenance_refs
         checks.append(
             CandidateCheck(
                 check_id="anchor_installation_eligibility",
@@ -350,6 +359,7 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
                 status=status,
                 reason=reason,
                 subject_refs=refs,
+                source_urls=list(anchor_eligibility.source_urls),
             )
         )
 
