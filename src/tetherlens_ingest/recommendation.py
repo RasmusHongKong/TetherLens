@@ -319,21 +319,31 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
     anchor_eligibility = candidate.anchor_installation_eligibility
     if anchor_eligibility is not None:
         provenance_refs = [
-            ref
-            for ref in (
-                anchor_eligibility.source_product_ref,
-                anchor_eligibility.primary_anchor_ref,
-                anchor_eligibility.rule_id,
-            )
-            if ref is not None
+            anchor_eligibility.source_product_ref,
+            anchor_eligibility.primary_anchor_ref,
+            anchor_eligibility.rule_id,
         ]
-        if anchor_eligibility.status == EligibilityStatus.ELIGIBLE and anchor_eligibility.matches:
+        matched_feature_ids = sorted({match.feature_id for match in anchor_eligibility.matches})
+        if (
+            anchor_eligibility.status == EligibilityStatus.ELIGIBLE
+            and len(matched_feature_ids) == 1
+        ):
             status = CandidateCheckStatus.PASSED
             reason = (
                 "anchor attachment installation eligibility is established for the "
                 "bound primary-anchor feature"
             )
-            refs = [*provenance_refs, *[match.feature_id for match in anchor_eligibility.matches]]
+            refs = [*provenance_refs, *matched_feature_ids]
+        elif (
+            anchor_eligibility.status == EligibilityStatus.ELIGIBLE
+            and len(matched_feature_ids) > 1
+        ):
+            status = CandidateCheckStatus.UNRESOLVED
+            reason = (
+                "anchor attachment installation eligibility matches multiple primary-anchor "
+                "features; one concrete installation feature must be selected before evaluation"
+            )
+            refs = [*provenance_refs, *matched_feature_ids]
         elif anchor_eligibility.status == EligibilityStatus.ELIGIBLE:
             status = CandidateCheckStatus.UNRESOLVED
             reason = (
