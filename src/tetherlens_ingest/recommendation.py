@@ -6,6 +6,10 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from .anchor_installation import (
+    AnchorInstallationBinding,
+    AnchorInstallationEligibilityEvaluation,
+)
 from .compatibility import EligibilityEvaluation, EligibilityStatus, PolicyStatus
 from .connection import (
     ConnectionEvaluation,
@@ -105,6 +109,14 @@ class CandidateConfiguration(BaseModel):
     This keeps raw claim keys and manufacturer-specific extraction details out of
     recommendation composition without turning absent work context into a hard failure.
 
+    ToolAttachment eligibility and AnchorAttachment installation eligibility remain
+    independent hard checks. The former proves how the selected tool-side attachment
+    installs on one concrete tool feature; the latter proves how the selected
+    AnchorAttachment installs on one concrete primary-anchor feature. A selected
+    AnchorAttachment installation retains both the concrete binding and its exact
+    eligibility evaluation so stale evidence from another anchor/product cannot pass.
+    Neither check changes tether-endpoint connection compatibility.
+
     Endpoint assignment declarations are structural authorization only. They may prove
     that an otherwise-unknown pair can occupy the tool/anchor positions, but they do not
     change either endpoint's recorded ``tether_side`` and do not establish connection
@@ -121,6 +133,8 @@ class CandidateConfiguration(BaseModel):
     product_constraint_evaluations: list[ProductConstraintEvaluation] = Field(default_factory=list)
     attachment_mode: CandidateAttachmentMode
     attachment_eligibility: EligibilityEvaluation | None = None
+    anchor_installation_binding: AnchorInstallationBinding | None = None
+    anchor_installation_eligibility: AnchorInstallationEligibilityEvaluation | None = None
     endpoint_assignment_declarations: list[TetherEndpointAssignmentDeclaration] = Field(
         default_factory=list
     )
@@ -195,6 +209,55 @@ class CandidateConfiguration(BaseModel):
             and self.attachment_eligibility is not None
         ):
             raise ValueError("direct candidates must not supply ToolAttachment eligibility")
+
+        anchor_binding = self.anchor_installation_binding
+        anchor_eligibility = self.anchor_installation_eligibility
+        if anchor_binding is not None:
+            if self.anchor_side_connection.target_role != ConnectionInterfaceRole.ANCHOR_ATTACHMENT_TETHER_SIDE:
+                raise ValueError(
+                    "anchor installation bindings require an AnchorAttachment tether-side target"
+                )
+            if anchor_eligibility is None or anchor_eligibility.status != EligibilityStatus.ELIGIBLE:
+                raise ValueError(
+                    "anchor installation bindings require an eligible installation evaluation"
+                )
+            if not anchor_eligibility.matches or {
+                match.feature_id for match in anchor_eligibility.matches
+            } != {anchor_binding.installation_feature_id}:
+                raise ValueError(
+                    "anchor installation eligibility must match the selected installation feature"
+                )
+            expected_proofs = {
+                (proof.path_index, proof.binding_name)
+                for proof in anchor_binding.eligibility_proofs
+            }
+            actual_proofs = {
+                (match.path_index, match.binding_name)
+                for match in anchor_eligibility.matches
+            }
+            if actual_proofs != expected_proofs:
+                raise ValueError(
+                    "anchor installation eligibility proofs must match the selected binding"
+                )
+            actual_provenance = (
+                anchor_eligibility.rule_id,
+                anchor_eligibility.source_product_ref,
+                anchor_eligibility.primary_anchor_ref,
+                anchor_eligibility.installation_method,
+                tuple(anchor_eligibility.source_urls),
+            )
+            expected_provenance = (
+                anchor_binding.rule_id,
+                anchor_binding.source_product_ref,
+                anchor_binding.primary_anchor_ref,
+                anchor_binding.installation_method,
+                tuple(anchor_binding.source_urls),
+            )
+            if actual_provenance != expected_provenance:
+                raise ValueError(
+                    "anchor installation eligibility provenance must match the selected binding"
+                )
+
         if (
             self.policy_applicability == PolicyApplicability.NOT_APPLICABLE
             and self.policy_status is not None
@@ -269,6 +332,9 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
     Feature-scoped product constraints must all refer to one installation feature that
     also appears in the ToolAttachment eligibility matches. This keeps the same-feature
     invariant intact across the boundary between eligibility and product constraints.
+    Anchor installation eligibility passes only when it is accompanied by the exact
+    selected primary-anchor installation binding; evaluation retains that separate hard
+    proof without treating it as tether endpoint compatibility.
     """
 
     checks: list[CandidateCheck] = []
@@ -302,6 +368,75 @@ def evaluate_candidate_configuration(candidate: CandidateConfiguration) -> Candi
                 status=status,
                 reason=reason,
                 subject_refs=refs,
+            )
+        )
+
+    anchor_eligibility = candidate.anchor_installation_eligibility
+    if anchor_eligibility is not None:
+        anchor_binding = candidate.anchor_installation_binding
+        provenance_refs = [
+            anchor_eligibility.source_product_ref,
+            anchor_eligibility.primary_anchor_ref,
+            anchor_eligibility.rule_id,
+        ]
+        matched_feature_ids = sorted({match.feature_id for match in anchor_eligibility.matches})
+        if (
+            anchor_eligibility.status == EligibilityStatus.ELIGIBLE
+            and anchor_binding is not None
+            and matched_feature_ids == [anchor_binding.installation_feature_id]
+        ):
+            status = CandidateCheckStatus.PASSED
+            reason = (
+                "anchor attachment installation eligibility is established for the "
+                "selected primary-anchor installation binding"
+            )
+            refs = [*provenance_refs, *matched_feature_ids]
+        elif (
+            anchor_eligibility.status == EligibilityStatus.ELIGIBLE
+            and anchor_binding is None
+        ):
+            status = CandidateCheckStatus.UNRESOLVED
+            reason = (
+                "anchor attachment installation eligibility is eligible but no concrete "
+                "primary-anchor installation binding is selected"
+            )
+            refs = [*provenance_refs, *matched_feature_ids]
+        elif (
+            anchor_eligibility.status == EligibilityStatus.ELIGIBLE
+            and len(matched_feature_ids) > 1
+        ):
+            status = CandidateCheckStatus.UNRESOLVED
+            reason = (
+                "anchor attachment installation eligibility matches multiple primary-anchor "
+                "features; one concrete installation feature must be selected before evaluation"
+            )
+            refs = [*provenance_refs, *matched_feature_ids]
+        elif anchor_eligibility.status == EligibilityStatus.ELIGIBLE:
+            status = CandidateCheckStatus.UNRESOLVED
+            reason = (
+                "anchor attachment installation eligibility is marked eligible but does not "
+                "match the selected primary-anchor installation binding"
+            )
+            refs = [*provenance_refs, *matched_feature_ids]
+        elif anchor_eligibility.status == EligibilityStatus.INELIGIBLE:
+            status = CandidateCheckStatus.FAILED
+            reason = "anchor attachment is ineligible for the resolved primary-anchor features"
+            refs = provenance_refs
+        else:
+            status = CandidateCheckStatus.UNRESOLVED
+            reason = (
+                "anchor attachment installation eligibility cannot be resolved from the "
+                "available primary-anchor feature facts"
+            )
+            refs = provenance_refs
+        checks.append(
+            CandidateCheck(
+                check_id="anchor_installation_eligibility",
+                check_type=CandidateCheckType.ATTACHMENT_ELIGIBILITY,
+                status=status,
+                reason=reason,
+                subject_refs=refs,
+                source_urls=list(anchor_eligibility.source_urls),
             )
         )
 

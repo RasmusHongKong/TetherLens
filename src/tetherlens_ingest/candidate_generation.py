@@ -8,6 +8,10 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from .anchor_installation import (
+    AnchorInstallationBinding,
+    AnchorInstallationEligibilityEvaluation,
+)
 from .compatibility import (
     AttachmentEligibility,
     EligibilityEvaluation,
@@ -244,6 +248,11 @@ class TetherOption(BaseModel):
 class AnchorPathOption(BaseModel):
     """One anchor/container-side path exposed to tether endpoint generation.
 
+    A path backed by an AnchorAttachment installation may retain the already-resolved
+    primary-anchor binding and its exact eligible result. Candidate generation does not
+    interpret manufacturer installation claims; it only carries that upstream proof
+    through the selected path. Legacy direct/container paths may omit both fields.
+
     Legacy anchor-scoped policy remains supported only when it maps to exactly one
     generated candidate. Configuration-specific policy must use CandidatePolicyContext
     so one tether/attachment selection cannot inherit another selection's result.
@@ -252,6 +261,8 @@ class AnchorPathOption(BaseModel):
     anchor_path_ref: str = Field(min_length=1)
     components: list[CandidateComponentOption] = Field(default_factory=list)
     target_interfaces: list[ConnectionInterface] = Field(min_length=1)
+    installation_binding: AnchorInstallationBinding | None = None
+    installation_eligibility: AnchorInstallationEligibilityEvaluation | None = None
     policy_applicability: PolicyApplicability = PolicyApplicability.NOT_APPLICABLE
     policy_status: PolicyStatus | None = None
 
@@ -277,6 +288,71 @@ class AnchorPathOption(BaseModel):
             label="target interface ids",
         )
         _require_unique_component_refs(self.components, scope=f"anchor path {self.anchor_path_ref!r}")
+
+        if self.installation_binding is None:
+            if self.installation_eligibility is not None:
+                raise ValueError(
+                    "anchor installation eligibility requires a concrete selected binding"
+                )
+        else:
+            invalid_bound_targets = [
+                interface.interface_id
+                for interface in self.target_interfaces
+                if interface.role != ConnectionInterfaceRole.ANCHOR_ATTACHMENT_TETHER_SIDE
+            ]
+            if invalid_bound_targets:
+                raise ValueError(
+                    "bound AnchorAttachment paths may target only "
+                    "anchor_attachment_tether_side interfaces: "
+                    f"{invalid_bound_targets!r}"
+                )
+            eligibility = self.installation_eligibility
+            if eligibility is None or eligibility.status != EligibilityStatus.ELIGIBLE:
+                raise ValueError(
+                    "bound AnchorAttachment paths must retain an eligible installation result"
+                )
+            if not eligibility.matches or {
+                match.feature_id for match in eligibility.matches
+            } != {self.installation_binding.installation_feature_id}:
+                raise ValueError(
+                    "anchor installation eligibility must bind only the selected primary-anchor feature"
+                )
+            expected_proofs = {
+                (proof.path_index, proof.binding_name)
+                for proof in self.installation_binding.eligibility_proofs
+            }
+            actual_proofs = {
+                (match.path_index, match.binding_name) for match in eligibility.matches
+            }
+            if actual_proofs != expected_proofs:
+                raise ValueError(
+                    "anchor installation eligibility proofs must match the selected binding"
+                )
+            provenance = (
+                eligibility.rule_id,
+                eligibility.source_product_ref,
+                eligibility.primary_anchor_ref,
+                eligibility.installation_method,
+                tuple(eligibility.source_urls),
+            )
+            expected_provenance = (
+                self.installation_binding.rule_id,
+                self.installation_binding.source_product_ref,
+                self.installation_binding.primary_anchor_ref,
+                self.installation_binding.installation_method,
+                tuple(self.installation_binding.source_urls),
+            )
+            if provenance != expected_provenance:
+                raise ValueError(
+                    "anchor installation eligibility provenance must match the selected binding"
+                )
+            if self.installation_binding.source_product_ref not in {
+                component.source_product_ref for component in self.components
+            }:
+                raise ValueError(
+                    "anchor installation binding must belong to a selected anchor component product"
+                )
+
         if (
             self.policy_applicability == PolicyApplicability.NOT_APPLICABLE
             and self.policy_status is not None
@@ -341,6 +417,9 @@ class CandidatePolicyContext(BaseModel):
     anchor_path_ref: str = Field(min_length=1)
     attachment_assembly_ref: str | None = Field(default=None, min_length=1)
     installation_feature_id: str | None = Field(default=None, min_length=1)
+    primary_anchor_ref: str | None = Field(default=None, min_length=1)
+    anchor_installation_feature_id: str | None = Field(default=None, min_length=1)
+    anchor_installation_rule_id: str | None = Field(default=None, min_length=1)
     tool_endpoint_id: str = Field(min_length=1)
     tool_target_interface_id: str = Field(min_length=1)
     anchor_endpoint_id: str = Field(min_length=1)
@@ -350,6 +429,17 @@ class CandidatePolicyContext(BaseModel):
 
     @model_validator(mode="after")
     def validate_policy(self) -> CandidatePolicyContext:
+        anchor_binding_parts = (
+            self.primary_anchor_ref,
+            self.anchor_installation_feature_id,
+            self.anchor_installation_rule_id,
+        )
+        if any(part is not None for part in anchor_binding_parts) and not all(
+            part is not None for part in anchor_binding_parts
+        ):
+            raise ValueError(
+                "candidate policy anchor installation identity must be supplied as a complete tuple"
+            )
         if (
             self.policy_applicability == PolicyApplicability.NOT_APPLICABLE
             and self.policy_status is not None
@@ -393,6 +483,7 @@ class CandidatePathSelection(BaseModel):
     attachment_assembly_ref: str | None = None
     installation_feature_id: str | None = None
     eligibility_proofs: list[EligibilityProof] = Field(default_factory=list)
+    anchor_installation_binding: AnchorInstallationBinding | None = None
     endpoint_assignment_proofs: list[EndpointAssignmentProof] = Field(default_factory=list)
     tool_endpoint_id: str = Field(min_length=1)
     tool_target_interface_id: str = Field(min_length=1)
@@ -508,6 +599,60 @@ class GeneratedCandidate(BaseModel):
                 raise ValueError(
                     "generated ToolAttachment candidate eligibility proofs do not match selection"
                 )
+
+        anchor_binding = selection.anchor_installation_binding
+        configuration_anchor_binding = configuration.anchor_installation_binding
+        if configuration_anchor_binding != anchor_binding:
+            raise ValueError(
+                "generated anchor installation binding does not match selection binding"
+            )
+        anchor_eligibility = configuration.anchor_installation_eligibility
+        if anchor_binding is None:
+            if anchor_eligibility is not None:
+                raise ValueError(
+                    "generated candidate without anchor installation binding must not retain anchor eligibility"
+                )
+        else:
+            if anchor_eligibility is None or anchor_eligibility.status != EligibilityStatus.ELIGIBLE:
+                raise ValueError(
+                    "generated AnchorAttachment candidate must retain eligible anchor binding"
+                )
+            if not anchor_eligibility.matches or {
+                match.feature_id for match in anchor_eligibility.matches
+            } != {anchor_binding.installation_feature_id}:
+                raise ValueError(
+                    "generated anchor eligibility must bind only the selected primary-anchor feature"
+                )
+            expected_anchor_proofs = {
+                (proof.path_index, proof.binding_name)
+                for proof in anchor_binding.eligibility_proofs
+            }
+            actual_anchor_proofs = {
+                (match.path_index, match.binding_name)
+                for match in anchor_eligibility.matches
+            }
+            if actual_anchor_proofs != expected_anchor_proofs:
+                raise ValueError(
+                    "generated anchor eligibility proofs do not match selection binding"
+                )
+            actual_anchor_provenance = (
+                anchor_eligibility.rule_id,
+                anchor_eligibility.source_product_ref,
+                anchor_eligibility.primary_anchor_ref,
+                anchor_eligibility.installation_method,
+                tuple(anchor_eligibility.source_urls),
+            )
+            expected_anchor_provenance = (
+                anchor_binding.rule_id,
+                anchor_binding.source_product_ref,
+                anchor_binding.primary_anchor_ref,
+                anchor_binding.installation_method,
+                tuple(anchor_binding.source_urls),
+            )
+            if actual_anchor_provenance != expected_anchor_provenance:
+                raise ValueError(
+                    "generated anchor eligibility provenance does not match selection binding"
+                )
         return self
 
 
@@ -531,7 +676,10 @@ def generate_candidate_configurations(
     evaluation is later ``incompatible`` or ``unresolved``; the existing candidate
     evaluator remains responsible for hard-constraint viability. ToolAttachment paths
     are generated only for explicit eligible feature matches because a generated path
-    must bind installation constraints to one concrete tool feature.
+    must bind installation constraints to one concrete tool feature. AnchorAttachment
+    installation claims are likewise outside this generator: when an AnchorPathOption
+    carries a resolved primary-anchor binding, the generator preserves that exact proof
+    and hard-evaluation input without reinterpreting manufacturer evidence.
 
     Multiple eligibility paths proving the same concrete feature are retained as audit
     proofs on one physical candidate rather than multiplying candidate identities.
@@ -702,6 +850,7 @@ def generate_candidate_configurations(
                                 )
                                 for match in tool_target.eligibility_matches
                             ],
+                            anchor_installation_binding=anchor_path.installation_binding,
                             endpoint_assignment_proofs=endpoint_assignment.proofs,
                             tool_endpoint_id=tool_endpoint.interface_id,
                             tool_target_interface_id=tool_target.target_interface.interface_id,
@@ -749,6 +898,8 @@ def generate_candidate_configurations(
                             product_constraint_evaluations=constraint_evaluations,
                             attachment_mode=tool_target.attachment_mode,
                             attachment_eligibility=tool_target.eligibility,
+                            anchor_installation_binding=anchor_path.installation_binding,
+                            anchor_installation_eligibility=anchor_path.installation_eligibility,
                             endpoint_assignment_declarations=[
                                 declaration
                                 for declaration in tether.endpoint_assignment_declarations
@@ -1004,6 +1155,9 @@ def _candidate_policy_context_key(
         context.anchor_path_ref,
         context.attachment_assembly_ref,
         context.installation_feature_id,
+        context.primary_anchor_ref,
+        context.anchor_installation_feature_id,
+        context.anchor_installation_rule_id,
         context.tool_endpoint_id,
         context.tool_target_interface_id,
         context.anchor_endpoint_id,
@@ -1012,12 +1166,16 @@ def _candidate_policy_context_key(
 
 
 def _candidate_policy_key(selection: CandidatePathSelection) -> tuple[str | None, ...]:
+    anchor_binding = selection.anchor_installation_binding
     return (
         selection.tool_ref,
         selection.tether_ref,
         selection.anchor_path_ref,
         selection.attachment_assembly_ref,
         selection.installation_feature_id,
+        anchor_binding.primary_anchor_ref if anchor_binding is not None else None,
+        anchor_binding.installation_feature_id if anchor_binding is not None else None,
+        anchor_binding.rule_id if anchor_binding is not None else None,
         selection.tool_endpoint_id,
         selection.tool_target_interface_id,
         selection.anchor_endpoint_id,
@@ -1086,6 +1244,15 @@ def _candidate_id(selection: CandidatePathSelection) -> str:
             component.component_ref for component in selection.components
         ],
     }
+    anchor_binding = selection.anchor_installation_binding
+    if anchor_binding is not None:
+        identity.update(
+            {
+                "primary_anchor_ref": anchor_binding.primary_anchor_ref,
+                "anchor_installation_feature_id": anchor_binding.installation_feature_id,
+                "anchor_installation_rule_id": anchor_binding.rule_id,
+            }
+        )
     return "candidate:" + json.dumps(
         identity,
         ensure_ascii=False,
