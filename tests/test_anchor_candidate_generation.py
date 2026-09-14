@@ -9,6 +9,7 @@ from tetherlens_ingest.anchor_installation import (
     PrimaryAnchorFeatureKind,
     ResolvedPrimaryAnchor,
     bound_anchor_installation_evaluation,
+    evaluate_anchor_installation_eligibility,
     resolve_anchor_installation_bindings,
 )
 from tetherlens_ingest.candidate_generation import (
@@ -26,6 +27,7 @@ from tetherlens_ingest.connection import (
 )
 from tetherlens_ingest.recommendation import (
     CandidateCheckStatus,
+    CandidateConfiguration,
     RecommendationState,
     evaluate_candidate_configuration,
 )
@@ -122,6 +124,23 @@ def _binding():
     return binding
 
 
+def _bound_anchor_path() -> AnchorPathOption:
+    binding = _binding()
+    return AnchorPathOption(
+        anchor_path_ref="anchor-path:beam-west",
+        components=[
+            CandidateComponentOption(
+                component_ref="component:anchor-strap",
+                source_product_ref="anchor-product:1",
+                rated_capacity_kg=10.0,
+            )
+        ],
+        target_interfaces=[_anchor_d_ring()],
+        installation_binding=binding,
+        installation_eligibility=bound_anchor_installation_evaluation(binding),
+    )
+
+
 def test_bound_anchor_path_requires_selected_component_product_to_match_rule() -> None:
     binding = _binding()
 
@@ -142,20 +161,9 @@ def test_bound_anchor_path_requires_selected_component_product_to_match_rule() -
 
 
 def test_candidate_generation_preserves_exact_anchor_binding_and_hard_check() -> None:
-    binding = _binding()
-    path = AnchorPathOption(
-        anchor_path_ref="anchor-path:beam-west",
-        components=[
-            CandidateComponentOption(
-                component_ref="component:anchor-strap",
-                source_product_ref="anchor-product:1",
-                rated_capacity_kg=10.0,
-            )
-        ],
-        target_interfaces=[_anchor_d_ring()],
-        installation_binding=binding,
-        installation_eligibility=bound_anchor_installation_evaluation(binding),
-    )
+    path = _bound_anchor_path()
+    binding = path.installation_binding
+    assert binding is not None
 
     [candidate] = generate_candidate_configurations(
         ResolvedToolCandidate(
@@ -192,6 +200,58 @@ def test_candidate_generation_preserves_exact_anchor_binding_and_hard_check() ->
     ]
     assert anchor_check.source_urls == ["https://manufacturer.example/anchor-product"]
     assert evaluation.recommendation_state == RecommendationState.RECOMMENDED_WITH_CONSTRAINTS
+
+
+def test_direct_candidate_evaluation_blocks_ambiguous_anchor_feature_matches() -> None:
+    [candidate] = generate_candidate_configurations(
+        ResolvedToolCandidate(
+            tool_ref="tool:1",
+            object_mass_kg=2.0,
+            direct_interfaces=[_direct_tool_ring()],
+        ),
+        [_tether()],
+        [_bound_anchor_path()],
+    )
+    ambiguous_eligibility = evaluate_anchor_installation_eligibility(
+        _wrap_rule(),
+        ResolvedPrimaryAnchor(
+            primary_anchor_ref="primary-anchor:beam-zone",
+            features=[
+                PrimaryAnchorFeature(
+                    feature_id="beam:east",
+                    feature_kind=PrimaryAnchorFeatureKind.BEAM,
+                ),
+                PrimaryAnchorFeature(
+                    feature_id="beam:west",
+                    feature_kind=PrimaryAnchorFeatureKind.BEAM,
+                ),
+            ],
+        ),
+    )
+    direct_configuration = CandidateConfiguration.model_validate(
+        {
+            **candidate.configuration.model_dump(),
+            "anchor_installation_eligibility": ambiguous_eligibility.model_dump(),
+        }
+    )
+
+    evaluation = evaluate_candidate_configuration(direct_configuration)
+    anchor_check = next(
+        check
+        for check in evaluation.checks
+        if check.check_id == "anchor_installation_eligibility"
+    )
+
+    assert anchor_check.status == CandidateCheckStatus.UNRESOLVED
+    assert "one concrete installation feature" in anchor_check.reason
+    assert anchor_check.subject_refs == [
+        "anchor-product:1",
+        "primary-anchor:beam-zone",
+        "wrap-beam",
+        "beam:east",
+        "beam:west",
+    ]
+    assert evaluation.recommendation_state is None
 
 
 def test_generated_candidate_rejects_anchor_eligibility_for_different_feature() -> None:
