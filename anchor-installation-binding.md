@@ -110,7 +110,7 @@ Both facts remain explicit.
 - one or more eligibility paths; and
 - source URLs.
 
-Each `AnchorEligibilityPath` is an AND-set of requirements and prohibitions evaluated against exactly one `PrimaryAnchorFeature` instance. Multiple paths form bounded OR alternatives.
+Each `AnchorEligibilityPath` is an AND-set of requirements and prohibitions evaluated against exactly one `PrimaryAnchorFeature` instance. Multiple paths form bounded OR alternatives. Empty paths are invalid rather than vacuously matching every feature.
 
 Supported predicate scopes are deliberately feature-local:
 
@@ -120,6 +120,12 @@ location_description
 dimension:<code>
 attribute:<code>
 ```
+
+`feature_kind` values must belong to the bounded `PrimaryAnchorFeatureKind` vocabulary. A misspelled kind must not become a universal match under a negative predicate.
+
+Scalar equality also preserves semantic type. In particular, boolean topology facts are distinct from numeric values: `true` does not equal `1`, and `false` does not equal `0`. Ordinary integer/float numeric equality remains valid.
+
+Source provenance is normalized at the rule, evaluation and binding boundaries. Source URL entries are trimmed and blank/whitespace-only entries are rejected; a list containing an empty string does not count as evidence provenance.
 
 The evaluation has the same conservative three-state boundary used elsewhere:
 
@@ -188,8 +194,9 @@ The option validates that:
 - a selected binding must carry an `ELIGIBLE` result;
 - every retained match refers only to the selected feature;
 - proof path/binding-name pairs exactly match the binding;
-- evaluation provenance exactly matches the binding; and
-- the binding's `source_product_ref` belongs to a selected anchor component.
+- evaluation provenance exactly matches the binding;
+- the binding's `source_product_ref` belongs to a selected anchor component; and
+- every target on a bound path is an `anchor_attachment_tether_side` interface, never a container connection.
 
 Legacy direct/container anchor paths may continue to omit these fields. PR #60 does not retroactively assert that every historical anchor path is an installed AnchorAttachment path.
 
@@ -209,7 +216,7 @@ This prevents two otherwise-identical candidates installed on different primary-
 
 Unbound legacy paths retain their pre-PR #60 candidate ID byte-for-byte; anchor-binding keys are added only when a binding exists.
 
-`CandidatePathSelection` retains the full `AnchorInstallationBinding`, and `GeneratedCandidate` validates that the configuration's anchor installation eligibility matches the selected feature, proofs and provenance exactly.
+`CandidatePathSelection` retains the full `AnchorInstallationBinding`. `CandidateConfiguration` now retains that same binding alongside the exact `AnchorInstallationEligibilityEvaluation`, and `GeneratedCandidate` requires the configuration binding to equal the selection binding. The configuration validator also requires selected-feature, proof and provenance equality whenever a binding is present. This prevents an otherwise valid eligibility result from a different primary anchor or source product from being reused on another candidate.
 
 Configuration-scoped policy identity also includes the selected primary anchor, feature and installation rule when a binding exists. A policy result for one concrete anchor installation must not leak to another installation that happens to use the same tether/product interfaces.
 
@@ -229,7 +236,7 @@ but uses the distinct check identity:
 check_id = anchor_installation_eligibility
 ```
 
-A valid bound eligible result produces `PASSED`. Ineligible or unresolved installation evidence blocks the candidate through the existing hard-evaluation semantics.
+A valid bound eligible result produces `PASSED`. An eligible evaluation without a concrete selected binding remains `UNRESOLVED`; it cannot establish a recommendation merely because one or more anchor features match. Ineligible or unresolved installation evidence blocks the candidate through the existing hard-evaluation semantics.
 
 The hard check retains:
 
@@ -298,6 +305,9 @@ PR #60 does not:
 - infer numeric fit from qualitative `small`, `small-diameter`, size labels or nominal product dimensions;
 - combine predicates from different primary-anchor features;
 - treat missing topology, attributes or dimensions as a pass;
+- treat numeric `1`/`0` as boolean topology facts;
+- accept blank source strings as evidence provenance;
+- attach a primary-anchor installation proof to a container connection;
 - convert a generic structural anchor into beam or rail without evidence;
 - create a general structural-engineering or load-rated anchorage assessment;
 - change tether endpoint roles, assignment semantics, capacity rules, ranking, contextual selection, session behavior or global exhaustion;
