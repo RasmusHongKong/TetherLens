@@ -137,6 +137,11 @@ class AnchorAttachmentInstallationRule(BaseModel):
     paths: list[AnchorEligibilityPath] = Field(min_length=1)
     source_urls: list[str] = Field(min_length=1)
 
+    @field_validator("source_urls", mode="before")
+    @classmethod
+    def validate_source_urls(cls, source_urls: Any) -> Any:
+        return _normalize_source_urls(source_urls)
+
 
 class AnchorEligibilityMatch(BaseModel):
     path_index: int = Field(ge=0)
@@ -154,6 +159,11 @@ class AnchorInstallationEligibilityEvaluation(BaseModel):
     primary_anchor_ref: str = Field(min_length=1)
     installation_method: AnchorInstallationMethod
     source_urls: list[str] = Field(min_length=1)
+
+    @field_validator("source_urls", mode="before")
+    @classmethod
+    def validate_source_urls(cls, source_urls: Any) -> Any:
+        return _normalize_source_urls(source_urls)
 
     @property
     def eligible(self) -> bool:
@@ -175,6 +185,11 @@ class AnchorInstallationBinding(BaseModel):
     installation_method: AnchorInstallationMethod
     eligibility_proofs: list[AnchorEligibilityProof] = Field(min_length=1)
     source_urls: list[str] = Field(min_length=1)
+
+    @field_validator("source_urls", mode="before")
+    @classmethod
+    def validate_source_urls(cls, source_urls: Any) -> Any:
+        return _normalize_source_urls(source_urls)
 
 
 def evaluate_anchor_installation_eligibility(
@@ -349,9 +364,11 @@ def _compare(
     if _is_nonfinite_number(actual) or _is_nonfinite_number(expected):
         return _PredicateResult.UNRESOLVED
     if operator == ComparisonOperator.EQ:
-        return _PredicateResult.MATCH if actual == expected else _PredicateResult.MISMATCH
+        matched = _scalar_values_equal(actual, expected)
+        return _PredicateResult.MATCH if matched else _PredicateResult.MISMATCH
     if operator == ComparisonOperator.NEQ:
-        return _PredicateResult.MATCH if actual != expected else _PredicateResult.MISMATCH
+        matched = not _scalar_values_equal(actual, expected)
+        return _PredicateResult.MATCH if matched else _PredicateResult.MISMATCH
     if not _is_orderable_number(actual) or not _is_orderable_number(expected):
         return _PredicateResult.UNRESOLVED
 
@@ -366,6 +383,26 @@ def _compare(
     else:
         return _PredicateResult.UNRESOLVED
     return _PredicateResult.MATCH if matched else _PredicateResult.MISMATCH
+
+
+def _scalar_values_equal(actual: Any, expected: ScalarValue) -> bool:
+    if isinstance(actual, bool) != isinstance(expected, bool):
+        return False
+    return actual == expected
+
+
+def _normalize_source_urls(source_urls: Any) -> Any:
+    if not isinstance(source_urls, list):
+        return source_urls
+    normalized: list[str] = []
+    for source_url in source_urls:
+        if not isinstance(source_url, str):
+            raise ValueError("anchor installation source URLs must be nonblank strings")
+        stripped = source_url.strip()
+        if not stripped:
+            raise ValueError("anchor installation source URLs must be nonblank strings")
+        normalized.append(stripped)
+    return normalized
 
 
 def _coerce_finite_number(value: Any, *, error_message: str) -> float:
