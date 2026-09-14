@@ -161,7 +161,7 @@ def _predicate_from_claim(
 
     operator = claim.constraint_operator or ConstraintOperator.EQ
     prohibited = operator == ConstraintOperator.PROHIBITS
-    if prohibited:
+    if operator in {ConstraintOperator.PROHIBITS, ConstraintOperator.REQUIRES}:
         comparison = ComparisonOperator.EQ
     else:
         try:
