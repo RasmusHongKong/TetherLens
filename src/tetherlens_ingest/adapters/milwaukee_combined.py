@@ -4,7 +4,6 @@ import re
 
 from tetherlens_ingest.models import (
     CandidateClaim,
-    ClaimSubjectType,
     ProductIdentity,
     ProductType,
     ReadinessIssue,
@@ -120,24 +119,12 @@ class MilwaukeeAdapter(_ToolMilwaukeeAdapter):
 
         return dedupe(claims)
 
-    def readiness_issues(
+    def readiness_issues_for(
         self,
+        identity: ProductIdentity,
         claims: list[CandidateClaim],
         observations,
     ) -> list[ReadinessIssue] | None:
-        if _has_anchor_attachment_evidence(claims):
+        if identity.product_type == ProductType.ANCHOR_ATTACHMENT:
             return None
-        return super().readiness_issues(claims, observations)
-
-
-def _has_anchor_attachment_evidence(claims: list[CandidateClaim]) -> bool:
-    return any(
-        claim.subject_type == ClaimSubjectType.ANCHOR_INSTALLATION_PATH
-        or claim.property_key in {"anchor_installation.method", "rated_capacity_kg"}
-        or (
-            claim.subject_type == ClaimSubjectType.PHYSICAL_INTERFACE
-            and claim.property_key == "interface.role"
-            and claim.value == "anchor_attachment_tether_side"
-        )
-        for claim in claims
-    )
+        return super().readiness_issues_for(identity, claims, observations)
