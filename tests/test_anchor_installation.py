@@ -1,7 +1,10 @@
+import pytest
+
 from tetherlens_ingest.anchor_installation import (
     AnchorAttachmentInstallationRule,
     AnchorEligibilityPath,
     AnchorFeaturePredicate,
+    AnchorInstallationEligibilityEvaluation,
     AnchorInstallationMethod,
     PrimaryAnchorFeature,
     PrimaryAnchorFeatureKind,
@@ -14,6 +17,19 @@ from tetherlens_ingest.compatibility import ComparisonOperator, EligibilityStatu
 
 def _kind(kind: PrimaryAnchorFeatureKind) -> AnchorFeaturePredicate:
     return AnchorFeaturePredicate(property_key="feature_kind", value=kind.value)
+
+
+def test_anchor_eligibility_path_requires_at_least_one_predicate() -> None:
+    with pytest.raises(ValueError, match="at least one requirement or prohibition"):
+        AnchorEligibilityPath(binding_name="empty")
+
+
+def test_anchor_eligibility_evaluation_requires_complete_provenance() -> None:
+    with pytest.raises(ValueError):
+        AnchorInstallationEligibilityEvaluation(
+            status=EligibilityStatus.ELIGIBLE,
+            matches=[],
+        )
 
 
 def test_milwaukee_shaped_wrap_rule_binds_beam_and_rail_only() -> None:
