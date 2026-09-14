@@ -184,7 +184,13 @@ def test_candidate_generation_preserves_exact_anchor_binding_and_hard_check() ->
         if check.check_id == "anchor_installation_eligibility"
     )
     assert anchor_check.status == CandidateCheckStatus.PASSED
-    assert anchor_check.subject_refs == ["beam:west"]
+    assert anchor_check.subject_refs == [
+        "anchor-product:1",
+        "primary-anchor:beam-zone",
+        "wrap-beam",
+        "beam:west",
+    ]
+    assert anchor_check.source_urls == ["https://manufacturer.example/anchor-product"]
     assert evaluation.recommendation_state == RecommendationState.RECOMMENDED_WITH_CONSTRAINTS
 
 
@@ -206,3 +212,40 @@ def test_generated_candidate_rejects_anchor_eligibility_for_different_feature() 
             installation_binding=wrong_binding,
             installation_eligibility=bound_anchor_installation_evaluation(binding),
         )
+
+
+def test_unbound_legacy_anchor_path_preserves_canonical_candidate_id() -> None:
+    path = AnchorPathOption(
+        anchor_path_ref="anchor-path:legacy",
+        components=[
+            CandidateComponentOption(
+                component_ref="component:anchor-legacy",
+                source_product_ref="anchor-product:legacy",
+                rated_capacity_kg=10.0,
+            )
+        ],
+        target_interfaces=[_anchor_d_ring()],
+    )
+
+    [candidate] = generate_candidate_configurations(
+        ResolvedToolCandidate(
+            tool_ref="tool:1",
+            object_mass_kg=2.0,
+            direct_interfaces=[_direct_tool_ring()],
+        ),
+        [_tether()],
+        [path],
+    )
+
+    assert candidate.configuration.candidate_id == (
+        'candidate:{"anchor_endpoint_id":"anchor-end",'
+        '"anchor_path_ref":"anchor-path:legacy",'
+        '"anchor_target_interface_id":"anchor-d-ring",'
+        '"attachment_assembly_ref":null,'
+        '"component_refs":["component:tether","component:anchor-legacy"],'
+        '"installation_feature_id":null,'
+        '"tether_ref":"tether:1",'
+        '"tool_endpoint_id":"tool-end",'
+        '"tool_ref":"tool:1",'
+        '"tool_target_interface_id":"tool-ring"}'
+    )
