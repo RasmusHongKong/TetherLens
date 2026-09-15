@@ -1,0 +1,83 @@
+{
+  "benchmark": "cross_vendor_portability_v6",
+  "created_at": "2026-09-15",
+  "freeze_point": {
+    "branch": "feature/toolattachment-dimensional-eligibility-v6",
+    "commit": "d5f1d67c4a1e36cd7b80edfb5423bf1f7cfca43a",
+    "base_main_commit": "a6b76be2639bf309554a1a331da90620ce86d2fc",
+    "pending_pr": 64
+  },
+  "classification": {
+    "A": "facts_only",
+    "B": "vendor_ingestion_only",
+    "C": "new_reusable_primitive",
+    "D": "sku_specific_exception"
+  },
+  "audit_question": "After closing the V5 feature-bound dimensional-eligibility seam, does a materially different fresh cross-vendor sample remain predominantly A/B with no comparable recurring C/D pressure, such that portability can become a periodic stress test while catalogue throughput and the demand-side MVP become the primary development focus?",
+  "sample_design": [
+    "identities fixed before classification",
+    "disjoint from V1-V5 and their vertical-proof identities",
+    "seven manufacturers across eight products",
+    "three conventional tethers, two conventional ToolAttachments, one conventional AnchorAttachment, and two composite/system-like tethering products",
+    "deliberately avoids another feature-dimension-heavy ToolAttachment slice while retaining enough mechanism/composition diversity to expose a real remaining core seam"
+  ],
+  "products": [
+    {
+      "manufacturer": "Hilti",
+      "sku": "2261970",
+      "name": "Tool tether 15lbs double carabiner",
+      "product_type": "Tether",
+      "source_url": "https://www.hilti.com/c/CLS_HEALTH_SAFETY/CLS_SAFETY_GEAR/2261970"
+    },
+    {
+      "manufacturer": "Dropsafe",
+      "sku": "S017001101201",
+      "name": "Wire Tool Lanyard - Loop - 4.5 kg / 10 lbs",
+      "product_type": "Tether",
+      "source_url": "https://dropsafe.com/products/dropsafe-tether-trisafe-loop-sus316-wire-lanyard"
+    },
+    {
+      "manufacturer": "Guardian / Ty-Flot",
+      "sku": "CC2072",
+      "name": "Coil Tool Tether with Swivels and Screw-Gate Carabiners",
+      "product_type": "Tether",
+      "source_url": "https://guardianfall.com/product/coil-tool-tethers/CC2072"
+    },
+    {
+      "manufacturer": "3M",
+      "sku": "1500009",
+      "name": "DBI-SALA D-Ring Attachment with Cord",
+      "product_type": "ToolAttachment",
+      "source_url": "https://www.3m.com/3M/en_US/p/d/v100323824/"
+    },
+    {
+      "manufacturer": "FallTech",
+      "sku": "5106A5",
+      "name": "5 lb Tool Attachment with choke-on cinch-loop and aluminum twist-lock carabiner",
+      "product_type": "ToolAttachment",
+      "source_url": "https://www.falltech.com/product/5106a5/"
+    },
+    {
+      "manufacturer": "Ergodyne",
+      "sku": "19172",
+      "model": "Squids 3172",
+      "name": "Anchor Strap Hook & Loop Closure for Tool Tethering",
+      "product_type": "AnchorAttachment",
+      "source_url": "https://www.ergodyne.com/squids-3172-anchor-strap-hook-loop-closure-tool-tethering-5-lbs-2.3-kg"
+    },
+    {
+      "manufacturer": "GRIPPS",
+      "sku": "H01088",
+      "name": "Adjustable Wrist Anchor With Tool Tether - 2.5kg / 5.5lb",
+      "product_type": "Composite",
+      "source_url": "https://gripps.com/products/adjustable-wrist-anchor-with-webbing-wrist-tether-single-action"
+    },
+    {
+      "manufacturer": "Guardian / Ty-Flot",
+      "sku": "QSS-R",
+      "name": "Quick-Switch Link and Dock Pack",
+      "product_type": "Composite",
+      "source_url": "https://guardianfall.com/product/quick-switch-link-and-dock-pack/QSS-R"
+    }
+  ]
+}
