@@ -143,6 +143,35 @@ def test_generic_fit_profiles_reject_bounds_split_across_sources() -> None:
         resolve_attachment_eligibility(claims)
 
 
+def test_generic_fit_profiles_reject_kind_only_conflict_on_same_subject() -> None:
+    claims = [
+        _claim("attachment_selection_class", "captive_feature_attachment"),
+        _claim(
+            "attachment_eligibility.feature_kind",
+            "handle",
+            source_url="https://example.test/dimensions",
+        ),
+        _claim(
+            "attachment_eligibility.dimension.section_diameter",
+            1.28,
+            unit="in",
+            operator=ConstraintOperator.LTE,
+            source_url="https://example.test/dimensions",
+        ),
+        _claim(
+            "attachment_eligibility.feature_kind",
+            "through_opening",
+            source_url="https://example.test/kind-only",
+        ),
+    ]
+
+    with pytest.raises(
+        ClaimResolutionError,
+        match="conflicting accepted claims for 'attachment_eligibility.feature_kind'",
+    ):
+        resolve_attachment_eligibility(claims)
+
+
 def test_generic_fit_profiles_require_explicit_comparison_direction() -> None:
     claims = [
         _claim("attachment_selection_class", "handle_attachment"),
