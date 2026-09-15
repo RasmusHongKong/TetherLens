@@ -110,6 +110,7 @@ def test_run_recommendation_retains_complete_set_and_selects_real_viable_candida
         [anchor_path()],
     )
 
+    assert result.tool == tool()
     assert len(result.generated_candidates) == 2
     assert len(result.evaluations) == 2
     assert {
@@ -136,8 +137,26 @@ def test_recommendation_run_result_rejects_incomplete_evaluation_coverage():
 
     with pytest.raises(ValueError, match="exact evaluation coverage"):
         RecommendationRunResult(
+            tool=result.tool,
             generated_candidates=result.generated_candidates,
             evaluations=[],
+            selection=result.selection,
+        )
+
+
+def test_recommendation_run_result_rejects_retained_tool_mass_mismatch():
+    result = run_recommendation(
+        tool(),
+        [tether_option("viable", capacity_kg=5.0)],
+        [anchor_path()],
+    )
+    mismatched_tool = result.tool.model_copy(update={"object_mass_kg": 4.0})
+
+    with pytest.raises(ValueError, match="operational mass"):
+        RecommendationRunResult(
+            tool=mismatched_tool,
+            generated_candidates=result.generated_candidates,
+            evaluations=result.evaluations,
             selection=result.selection,
         )
 
@@ -151,6 +170,7 @@ def test_recommendation_run_result_rejects_selection_inconsistent_with_required_
 
     with pytest.raises(ValueError, match="must match deterministic selection"):
         RecommendationRunResult(
+            tool=result.tool,
             generated_candidates=result.generated_candidates,
             evaluations=result.evaluations,
             ranking_context=CandidateRankingContext(required_reach_mm=1300.0),
@@ -168,6 +188,7 @@ def test_recommendation_run_result_rejects_contextual_exclusion_without_reach_re
 
     with pytest.raises(ValueError, match="must match deterministic selection"):
         RecommendationRunResult(
+            tool=contextual.tool,
             generated_candidates=contextual.generated_candidates,
             evaluations=contextual.evaluations,
             selection=contextual.selection,
@@ -195,6 +216,7 @@ def test_run_recommendation_can_conclude_global_exhaustion_only_after_complete_e
 def test_run_recommendation_preserves_empty_generation_as_distinct_outcome():
     result = run_recommendation(tool(), [], [anchor_path()])
 
+    assert result.tool == tool()
     assert result.generated_candidates == []
     assert result.evaluations == []
     assert result.selection.state == CandidateSelectionState.NO_GENERATED_CANDIDATES
