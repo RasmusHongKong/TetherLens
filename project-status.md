@@ -14,7 +14,7 @@ Merged `main` is post-PR #63 at commit:
 a6b76be2639bf309554a1a331da90620ce86d2fc
 ```
 
-PR #64, `Compile feature-bound ToolAttachment dimensional eligibility`, is currently open as a draft from branch:
+PR #64, `Compile feature-bound ToolAttachment dimensional eligibility`, is currently open and ready for review from branch:
 
 ```text
 feature/toolattachment-dimensional-eligibility-v6
@@ -31,6 +31,8 @@ The V6 identities were then frozen before classification at:
 ```text
 f3901d9636d198090e243ed9f9e74d558a2937f9
 ```
+
+Subsequent PR review hardening tightened fail-closed provenance/type checks without rewriting the frozen V6 answer key: generic fit profiles retain their physical-interface subject, dimensional restrictions require `declared_constraint` claims, legacy/generic external-section evidence cannot be composed across subjects, and all accepted feature-kind claims on a fit subject must agree even when some sources contribute no dimensions.
 
 Historical portability cohorts remain immutable at their original semantic revisions:
 
@@ -65,12 +67,15 @@ with explicit `eq` / `lt` / `lte` / `gt` / `gte` comparison direction.
 The compiler:
 
 - normalizes dimensional values to millimetres;
-- requires the feature kind and dimensions to remain source-local on one physical-interface subject;
+- requires every dimensional fit claim to be a `declared_constraint` with an explicit ordered operator;
+- reconciles all accepted feature-kind claims on one physical-interface fit subject, including kind-only evidence from sources that contribute no dimensions;
+- requires every dimension-bearing source to state the same feature kind locally and to independently establish the same complete normalized predicate set as other accepted dimension-bearing sources;
 - permits equivalent complete profiles expressed in different units;
-- rejects split-source envelope synthesis, conflicting profiles and multiple fit subjects for the same feature kind; and
+- rejects split-source envelope synthesis, conflicting profiles and multiple fit subjects for the same feature kind;
+- retains fit-subject provenance through compilation so generic dimensions cannot be merged onto a distinct legacy external-section diameter subject; and
 - emits ordinary runtime `FeaturePredicate("dimension:<code>")` conditions on the exact selected feature path.
 
-The existing `external_section_attachment` min/max-diameter evidence contract remains intact. If any legacy diameter-envelope claim is present, the old complete source-local envelope compiler remains authoritative; a partial legacy envelope cannot be bypassed by a generic dimension claim.
+The existing `external_section_attachment` min/max-diameter evidence contract remains intact. If any legacy diameter-envelope claim is present, the old complete source-local envelope compiler remains authoritative; a partial legacy envelope cannot be bypassed by a generic dimension claim. A generic external-section profile may coexist with a complete legacy envelope only when both target the same physical-interface subject.
 
 See `feature-bound-dimensional-eligibility.md`.
 
@@ -150,9 +155,12 @@ Focused tests also prove:
 
 - equivalent source-local profiles across unit representations;
 - rejection of bounds split across sources;
+- rejection of conflicting kind-only evidence on the same fit subject;
 - rejection of missing comparison direction;
-- rejection of multiple same-kind fit subjects; and
-- preservation of the legacy external-section incomplete-envelope failure.
+- rejection of dimensional restrictions that are not `declared_constraint` claims;
+- rejection of multiple same-kind fit subjects;
+- preservation of the legacy external-section incomplete-envelope failure; and
+- rejection of legacy/generic external-section composition across distinct physical-interface subjects.
 
 The existing external-section diameter-fit suite remains the regression authority for that older evidence shape.
 
@@ -237,9 +245,11 @@ High-value throughput work now includes:
 - Do not introduce manufacturer/SKU branches downstream of ingestion/resolution unless no reusable semantic representation exists and the exception is explicitly justified.
 - Missing evidence fails closed; do not infer geometry, direction, compatibility, capacity or installation suitability from absence of contrary evidence.
 - Do not convert qualitative words such as `small`, `adjustable`, `all sizes`, `UniFit` or nominal product labels into numeric fit envelopes.
-- Compile numeric feature predicates only from accepted source evidence that explicitly establishes the dimension and comparison/bound.
+- Compile numeric feature predicates only from accepted source evidence that explicitly establishes the dimension, declared-constraint semantics and comparison/bound.
+- Reconcile all accepted feature-kind evidence on a fit subject before compiling its dimensions; kind-only evidence may not be ignored simply because it contributes no numeric constraints.
 - Keep every feature-bound predicate on one concrete feature instance.
 - Do not synthesize fit envelopes by joining bounds from unrelated subjects or incomplete evidence sources.
+- Do not compose legacy and generic external-section fit evidence across distinct physical-interface subjects.
 - Keep manufacturer provenance separate from exact product/variant identity.
 - Bound flattened multi-product evidence to the requested identity before parsing sibling-specific fields.
 - Preserve candidate identity and exact provenance through generation/evaluation; do not reconstruct safety-relevant facts from human-readable reason text.
@@ -249,4 +259,4 @@ High-value throughput work now includes:
 
 ## Suggested next-chat starting point
 
-> Continue TetherLens from PR #64 after the generic feature-bound ToolAttachment dimensional-eligibility compiler and V6 portability audit. Keep V1 **0 A / 5 B / 3 C / 0 D**, V2 **0 A / 6 B / 2 C / 0 D**, V3 **0 A / 5 B / 3 C / 0 D**, V4 **0 A / 4 B / 4 C / 0 D**, V5 **0 A / 6 B / 2 C / 0 D** and V6 **1 A / 7 B / 0 C / 0 D** frozen at their historical semantic revisions. V6 is the pivot signal: portability is now a periodic stress test, not the primary implementation loop. Start the demand-side MVP from the worker's field workflow while increasing catalogue throughput in support of concrete end-to-end recommendation scenarios. First inspect the existing recommendation-session/run orchestration, tool-resolution model, current catalogue/ingestion entry points and MVP docs, then define the smallest vertical from field tool input -> resolved tool/configuration -> targeted missing-fact/context capture -> existing candidate generation/evaluation/selection -> field-usable recommendation, with explicit graceful fallback when evidence is insufficient.
+> Continue TetherLens from merged PR #64 after the generic feature-bound ToolAttachment dimensional-eligibility compiler and V6 portability audit. Keep V1 **0 A / 5 B / 3 C / 0 D**, V2 **0 A / 6 B / 2 C / 0 D**, V3 **0 A / 5 B / 3 C / 0 D**, V4 **0 A / 4 B / 4 C / 0 D**, V5 **0 A / 6 B / 2 C / 0 D** and V6 **1 A / 7 B / 0 C / 0 D** frozen at their historical semantic revisions. V6 is the pivot signal: portability is now a periodic stress test, not the primary implementation loop. Start the demand-side MVP from the worker's field workflow while increasing catalogue throughput in support of concrete end-to-end recommendation scenarios. First inspect the existing recommendation-session/run orchestration, tool-resolution model, current catalogue/ingestion entry points and MVP docs, then define the smallest vertical from field tool input -> resolved tool/configuration -> targeted missing-fact/context capture -> existing candidate generation/evaluation/selection -> field-usable recommendation, with explicit graceful fallback when evidence is insufficient.
