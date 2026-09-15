@@ -1,3 +1,5 @@
+import pytest
+
 from tetherlens_ingest.candidate_generation import (
     AnchorPathOption,
     CandidateComponentOption,
@@ -202,6 +204,7 @@ def test_selected_operational_profile_drives_load_reasoning_without_bare_tool_fa
 
     assert result.state == FieldRecommendationState.NO_SUITABLE_RECOMMENDATION
     assert result.recommendation_run is not None
+    assert result.recommendation_run.tool.object_mass_kg == 3.0
     assert {
         generated.configuration.object_mass_kg
         for generated in result.recommendation_run.generated_candidates
@@ -230,6 +233,11 @@ def test_single_ready_profile_runs_complete_pipeline_and_builds_structured_field
 
     assert result.state == FieldRecommendationState.SELECTED
     assert result.recommendation_run is not None
+    assert result.tool_resolution.resolved is not None
+    assert (
+        result.recommendation_run.tool
+        == result.tool_resolution.resolved.operational_profile.tool
+    )
     assert len(result.recommendation_run.generated_candidates) == 2
     assert len(result.recommendation_run.evaluations) == 2
 
@@ -247,6 +255,21 @@ def test_single_ready_profile_runs_complete_pipeline_and_builds_structured_field
         summary.evaluation.pending_verification_connection_ids
     )
     assert summary.pending_action_checks == []
+
+
+def test_deserialized_selected_result_rejects_profile_mass_that_differs_from_run_tool():
+    result = run_field_recommendation(
+        FieldToolObservation(confirmed_tool_ref="tool:drill"),
+        catalogue(profile("profile:base")),
+    )
+    payload = result.model_dump(mode="python")
+    payload["tool_resolution"]["resolved"]["operational_profile"]["tool"][
+        "object_mass_kg"
+    ] = 4.0
+    payload["recommendation"]["operational_mass_kg"] = 4.0
+
+    with pytest.raises(ValueError, match="run Tool must match"):
+        type(result).model_validate(payload)
 
 
 def test_missing_operational_mass_fails_before_candidate_generation():
@@ -298,3 +321,17 @@ def test_empty_tether_set_remains_no_generated_candidates_not_no_suitable():
     assert result.recommendation_run is not None
     assert result.recommendation_run.generated_candidates == []
     assert result.recommendation is None
+
+
+def test_deserialized_empty_run_rejects_profile_tool_that_differs_from_retained_run_tool():
+    result = run_field_recommendation(
+        FieldToolObservation(confirmed_tool_ref="tool:drill"),
+        catalogue(profile("profile:base"), tethers=[]),
+    )
+    payload = result.model_dump(mode="python")
+    payload["tool_resolution"]["resolved"]["operational_profile"]["tool"][
+        "object_mass_kg"
+    ] = 4.0
+
+    with pytest.raises(ValueError, match="run Tool must match"):
+        type(result).model_validate(payload)
