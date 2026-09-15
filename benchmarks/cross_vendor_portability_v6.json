@@ -4,6 +4,7 @@
   "freeze_point": {
     "branch": "feature/toolattachment-dimensional-eligibility-v6",
     "commit": "d5f1d67c4a1e36cd7b80edfb5423bf1f7cfca43a",
+    "identity_freeze_commit": "f3901d9636d198090e243ed9f9e74d558a2937f9",
     "base_main_commit": "a6b76be2639bf309554a1a331da90620ce86d2fc",
     "pending_pr": 64
   },
@@ -21,41 +22,137 @@
     "three conventional tethers, two conventional ToolAttachments, one conventional AnchorAttachment, and two composite/system-like tethering products",
     "deliberately avoids another feature-dimension-heavy ToolAttachment slice while retaining enough mechanism/composition diversity to expose a real remaining core seam"
   ],
+  "result": {
+    "A": 1,
+    "B": 7,
+    "C": 0,
+    "D": 0
+  },
+  "decision": "pivot_catalogue_throughput_and_demand_side_mvp",
+  "decision_basis": [
+    "The only A case is already representable and ingestible through the unchanged production adapter path.",
+    "All seven B cases fit existing product, interface, attachment, anchor-installation, evidence-conflict, assembly/relationship, or manufacturer-declared connection semantics; their remaining work is acquisition/extraction/composition rather than recommendation-core invention.",
+    "The two deliberately composite/system-like cases do not justify new runtime primitives before a demand-side use case requires them: one is explicitly a kit of separately catalogued components, while the other can preserve its proprietary transfer behavior as product/connection evidence without changing baseline candidate viability.",
+    "No C or D pressure appeared in a materially different post-V5 sample. Portability should remain a periodic regression/stress audit rather than the primary implementation loop."
+  ],
   "products": [
     {
       "manufacturer": "Hilti",
       "sku": "2261970",
       "name": "Tool tether 15lbs double carabiner",
       "product_type": "Tether",
-      "source_url": "https://www.hilti.com/c/CLS_HEALTH_SAFETY/CLS_SAFETY_GEAR/2261970"
+      "source_url": "https://www.hilti.com/c/CLS_HEALTH_SAFETY/CLS_SAFETY_GEAR/2261970",
+      "observed_public_facts": [
+        "14.99 lb published maximum load / 15 lb product variant",
+        "double-carabiner tether",
+        "self-locking carabiner wording",
+        "shock-absorbing elasticated/bungee tether"
+      ],
+      "classification": "A",
+      "core_fit": [
+        "rated capacity",
+        "two carabiner connection points",
+        "shared ConnectorSpec",
+        "auto-locking evidence",
+        "unknown endpoint roles remain unknown unless stronger evidence establishes direction"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "None. The registered Hilti production adapter already extracts tether capacity, double-carabiner endpoint topology and self-locking connector evidence generically; this fresh identity exercises existing facts and rules without an adapter or core change."
     },
     {
       "manufacturer": "Dropsafe",
       "sku": "S017001101201",
       "name": "Wire Tool Lanyard - Loop - 4.5 kg / 10 lbs",
       "product_type": "Tether",
-      "source_url": "https://dropsafe.com/products/dropsafe-tether-trisafe-loop-sus316-wire-lanyard"
+      "source_url": "https://dropsafe.com/products/dropsafe-tether-trisafe-loop-sus316-wire-lanyard",
+      "observed_public_facts": [
+        "1000 mm TPU-coated stainless-steel wire lanyard",
+        "65 mm wire loop",
+        "Trisafe carabiner with 12 mm hook opening",
+        "product title states 4.5 kg / 10 lb while the same page application copy states 6.8 kg / 15 lb maximum dynamic load"
+      ],
+      "evidence_notes": [
+        "The first-party page contains an exact-product capacity conflict. It must fail closed or be reconciled through ordinary evidence policy; it is not a new capacity semantic."
+      ],
+      "classification": "B",
+      "core_fit": [
+        "mixed carabiner/loop tether topology",
+        "connector geometry",
+        "tether length and materials",
+        "rated-capacity evidence conflict/readiness handling"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "The neutral tether/interface and evidence-conflict model is sufficient. The remaining work is a Dropsafe acquisition/extraction path plus ordinary reconciliation of the contradictory first-party load statements."
     },
     {
       "manufacturer": "Guardian / Ty-Flot",
       "sku": "CC2072",
       "name": "Coil Tool Tether with Swivels and Screw-Gate Carabiners",
       "product_type": "Tether",
-      "source_url": "https://guardianfall.com/product/coil-tool-tethers/CC2072"
+      "source_url": "https://guardianfall.com/product/coil-tool-tethers/CC2072",
+      "observed_public_facts": [
+        "dual stainless-steel screw-gate carabiners",
+        "20 in relaxed / 72 in extended coil tether",
+        "360 degree heavy-duty swivels",
+        "description states 5 lb rating while the same page feature block states 10 lb maximum tool weight"
+      ],
+      "evidence_notes": [
+        "The first-party page contains an exact-product capacity conflict. Preserve and reconcile it rather than selecting a convenient value."
+      ],
+      "classification": "B",
+      "core_fit": [
+        "dual-carabiner tether topology",
+        "manual-locking ConnectorSpec",
+        "swivel connector attribute",
+        "minimum/retracted and maximum/extended length facts",
+        "rated-capacity evidence conflict/readiness handling"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "The current Ty-Flot adapter is intentionally scoped to Cold Shrink ToolAttachments rather than this tether family. CC2072 needs Guardian tether ingestion and evidence reconciliation only; its coil, screw-gate, swivel, length and endpoint facts fit existing neutral semantics."
     },
     {
       "manufacturer": "3M",
       "sku": "1500009",
       "name": "DBI-SALA D-Ring Attachment with Cord",
       "product_type": "ToolAttachment",
-      "source_url": "https://www.3m.com/3M/en_US/p/d/v100323824/"
+      "source_url": "https://www.3m.com/3M/en_US/p/d/v100323824/",
+      "observed_public_facts": [
+        "corded D-ring creates a tether attachment point",
+        "loop passes through a pre-drilled hole or closed handle and chokes off",
+        "2.3 kg / 5 lb maximum capacity"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "captive through-opening OR captive handle eligibility",
+        "cinch/choke attachment method",
+        "ToolAttachment-provided D-ring interface",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "The product maps directly to the existing captive-feature eligibility, cinch/choke and provided-interface semantics. The current 3M adapter is deliberately Quick-Spin-specific, so this is catalogue acquisition/extraction broadening rather than a new primitive."
     },
     {
       "manufacturer": "FallTech",
       "sku": "5106A5",
       "name": "5 lb Tool Attachment with choke-on cinch-loop and aluminum twist-lock carabiner",
       "product_type": "ToolAttachment",
-      "source_url": "https://www.falltech.com/product/5106a5/"
+      "source_url": "https://www.falltech.com/product/5106a5/",
+      "observed_public_facts": [
+        "choke-on design for tools with existing captive-eye holes",
+        "elastic cinch-loop with nylon cord lock",
+        "aluminum twist-lock carabiner provides the tether-side connection",
+        "5 lb maximum tool weight"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "captive_through_opening_attachment eligibility",
+        "attachment_method_code = cinch",
+        "ToolAttachment-provided carabiner interface",
+        "ConnectorSpec locking/mechanism evidence",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "This independently reuses the same captive-eye/cinch/connector composition already established by earlier cohorts. The current FallTech ToolAttachment path is Battery-Boot-specific, so 5106A5 needs vendor extraction broadening only."
     },
     {
       "manufacturer": "Ergodyne",
@@ -63,21 +160,68 @@
       "model": "Squids 3172",
       "name": "Anchor Strap Hook & Loop Closure for Tool Tethering",
       "product_type": "AnchorAttachment",
-      "source_url": "https://www.ergodyne.com/squids-3172-anchor-strap-hook-loop-closure-tool-tethering-5-lbs-2.3-kg"
+      "source_url": "https://www.ergodyne.com/squids-3172-anchor-strap-hook-loop-closure-tool-tethering-5-lbs-2.3-kg",
+      "observed_public_facts": [
+        "hook-and-loop strap installs around belts, harnesses, railings or other structures",
+        "manufacturer instructions bound close-ended installation to a maximum 3 in height and 0.5 in thickness",
+        "steel D-ring provides the tether-side interface",
+        "2.3 kg / 5 lb maximum capacity"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "AnchorAttachment entity",
+        "wrap/fasten-around installation method",
+        "existing belt and rail PrimaryAnchorFeature paths",
+        "feature-local anchor-installation dimensions",
+        "AnchorAttachment-provided D-ring interface",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "The post-PR #62 anchor model can conservatively compile the already-supported belt/rail subsets and their source-bound dimensional constraints without inventing a generic 'structure' or treating every harness segment as a belt. Ergodyne currently has explicit verticals for 3171 and 3178, so 3172 is an ingestion/composition extension, not a new anchor primitive."
     },
     {
       "manufacturer": "GRIPPS",
       "sku": "H01088",
       "name": "Adjustable Wrist Anchor With Tool Tether - 2.5kg / 5.5lb",
       "product_type": "Composite",
-      "source_url": "https://gripps.com/products/adjustable-wrist-anchor-with-webbing-wrist-tether-single-action"
+      "source_url": "https://gripps.com/products/adjustable-wrist-anchor-with-webbing-wrist-tether-single-action",
+      "observed_public_facts": [
+        "commercial kit explicitly contains one H01067 Webbing Wrist Tether and one H01085 Slip-On Wrist Anchor",
+        "2.5 kg / 5.5 lb published maximum load",
+        "wrist-anchor copy permits wrist or hand-rail use"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "separately catalogued tether plus AnchorAttachment components",
+        "existing multi-component assembly / related-product representation",
+        "wrist/rail anchor semantics",
+        "ordinary candidate composition from component identities"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "The sellable SKU is a kit wrapper, not a new load-path component. Its manufacturer page names the two contained product identities explicitly, so supply-side ingestion should decompose/preserve that assembly relationship and let the existing tether plus AnchorAttachment model reason over the components. A new runtime Composite product primitive is not justified."
     },
     {
       "manufacturer": "Guardian / Ty-Flot",
       "sku": "QSS-R",
       "name": "Quick-Switch Link and Dock Pack",
       "product_type": "Composite",
-      "source_url": "https://guardianfall.com/product/quick-switch-link-and-dock-pack/QSS-R"
+      "source_url": "https://guardianfall.com/product/quick-switch-link-and-dock-pack/QSS-R",
+      "observed_public_facts": [
+        "kit includes one Quick-Switch dock and one tool-tether link",
+        "Quick-Switch link plus stainless-steel screw-gate end",
+        "6 lb maximum tool weight",
+        "manufacturer states tools can be transferred without disconnecting from an anchor while maintaining 100 percent tie-off"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "multi-component assembly / related-product representation",
+        "manufacturer-specific interface type retained as evidence without equating it to a carabiner",
+        "standard screw-gate ConnectorSpec on the other end",
+        "manufacturer-declared connector/interface compatibility where an exact link/dock relationship is established",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "The proprietary transfer workflow is real product behavior, but it does not need a new baseline recommendation primitive to represent the component identities, load-path interfaces or declared link/dock relationship. Preserve the 100%-tie-off transfer claim as evidence/product behavior and defer dynamic handoff-state reasoning until a demand-side requirement actually needs it. The remaining work is Guardian acquisition/extraction and assembly/compatibility composition."
     }
   ]
 }
