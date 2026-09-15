@@ -1,0 +1,95 @@
+{
+  "benchmark": "cross_vendor_portability_v5",
+  "created_at": "2026-09-15",
+  "freeze_point": {
+    "branch": "main",
+    "commit": "87f3c277f108e38dc3ec7d070e38c94868d355a6",
+    "through_pr": 62
+  },
+  "sample_status": "frozen_before_classification",
+  "classification": {
+    "A": "facts_only",
+    "B": "vendor_ingestion_only",
+    "C": "new_reusable_primitive",
+    "D": "sku_specific_exception"
+  },
+  "sample_design": "Eight previously unaudited identities across seven manufacturers, fixed before classification against merged post-PR #62 main. The cohort intentionally moves away from the AnchorAttachment region stressed by V3/V4: it contains four ToolAttachments and four tethers, no AnchorAttachment products, no wrist/bucket-lip cases, and no V1-V4 or PR #58/#60/#61/#62 proof identity. It mixes existing-adapter manufacturers with manufacturers that still require catalogue onboarding so the audit can distinguish core semantic portability from ingestion throughput.",
+  "audit_question": "Against merged post-PR #62 main, does a materially different fresh ToolAttachment/tether cohort now land predominantly in A/B without a comparable recurring C/D seam, such that portability can become a periodic stress test while development shifts toward catalogue throughput and the demand-side MVP?",
+  "result": null,
+  "decision": null,
+  "products": [
+    {
+      "manufacturer": "FallTech",
+      "sku": "5401A1",
+      "name": "Battery Boot Tool Attachment",
+      "product_type": "ToolAttachment",
+      "source_url": "https://www.falltech.com/product/5401a1/",
+      "selection_archetypes": ["battery_boot", "adjustable_capture", "d_ring"],
+      "classification": null
+    },
+    {
+      "manufacturer": "Ergodyne",
+      "sku": "19747",
+      "model": "Squids 3745",
+      "name": "Tool Grip and Tether Attachment Point - 2-Pack",
+      "product_type": "ToolAttachment",
+      "source_url": "https://www.ergodyne.com/squids-3745-tool-grip-and-tether-attachment-point-2-pack",
+      "selection_archetypes": ["tool_grip", "handle_capture", "explicit_handle_fit"],
+      "classification": null
+    },
+    {
+      "manufacturer": "Safewaze",
+      "sku": "SW404",
+      "name": "35 lb Medium Duty Cinch Tool Attachment (No Tabs)",
+      "product_type": "ToolAttachment",
+      "source_url": "https://safewaze.com/products/tool-lanyards/tool-attachments-accessories/35-lb-medium-duty-cinch-tool-attachment/",
+      "selection_archetypes": ["cinch_attachment", "pass_through_loop", "high_capacity"],
+      "classification": null
+    },
+    {
+      "manufacturer": "GRIPPS",
+      "sku": "H01006-5",
+      "name": "Tool Catch 25mm x 90mm - 5 Pack",
+      "product_type": "ToolAttachment",
+      "source_url": "https://gripps.com/products/tool-catch",
+      "selection_archetypes": ["wrap_attachment", "required_pairing", "tape_retention"],
+      "classification": null
+    },
+    {
+      "manufacturer": "Milwaukee",
+      "sku": "48-22-8815",
+      "name": "15lb Locking Tool Lanyard",
+      "product_type": "Tether",
+      "source_url": "https://www.milwaukeetool.com/products/details/15lb-locking-tool-lanyard/48-22-8815",
+      "selection_archetypes": ["locking_tether", "swivel", "shock_absorbing"],
+      "classification": null
+    },
+    {
+      "manufacturer": "GRIPPS",
+      "sku": "H01072",
+      "name": "Bungee Tether Single-Action - 2.5kg / 5.5lb",
+      "product_type": "Tether",
+      "source_url": "https://gripps.com/products/bungee-single-action-tether",
+      "selection_archetypes": ["bungee_tether", "carabiner_loop_tether", "tail_loop"],
+      "classification": null
+    },
+    {
+      "manufacturer": "3M",
+      "sku": "1500047",
+      "name": "DBI-SALA Hook2Loop Bungee Tool Tether",
+      "product_type": "Tether",
+      "source_url": "https://www.3m.com/3M/en_US/p/d/v000431662/",
+      "selection_archetypes": ["bungee_tether", "carabiner_loop_tether", "manual_locking"],
+      "classification": null
+    },
+    {
+      "manufacturer": "Guardian",
+      "sku": "7100001",
+      "name": "Arc Flash Tool Tether",
+      "product_type": "Tether",
+      "source_url": "https://guardianfall.com/product/7100001",
+      "selection_archetypes": ["arc_flash", "carabiner_loop_tether", "manual_locking"],
+      "classification": null
+    }
+  ]
+}
