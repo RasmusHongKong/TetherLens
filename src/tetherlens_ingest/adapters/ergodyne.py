@@ -25,7 +25,7 @@ from .anchor_attachment_common import (
     claim,
 )
 from .base import ManufacturerAdapter
-from .common import page_text
+from .common import bounded_record_for_identifier, page_text
 
 
 _EXTRACTOR = "ergodyne.v0.2"
@@ -69,13 +69,10 @@ _BUCKET_HOOK_INSTALL = re.compile(
     r"\bPry\s+the\s+hook\s+over\s+the\s+lip\b(?P<tail>.{0,260}?)\buntil\s+it\s+snaps\s+into\s+place\b",
     re.I | re.S,
 )
-_19178_LIP_SIZE = re.compile(
-    r"\b19178\b(?P<row>.*?)(?=\b19179\b|\Z)",
-    re.I | re.S,
-)
-_TWO_INCH_BUCKET_LIP = re.compile(
+_BUCKET_HOOK_ITEM_MARKER = re.compile(r"\b1917[89]\b", re.I)
+_BUCKET_LIP_NOMINAL_SIZE = re.compile(
     r"\bLIP\s+CAVITY\s+OF\s+HOOK\s*\(BUCKET\s+LIP\s+SIZE\)\s*(?P<gap>.{0,160}?)"
-    r"\b2\s*IN\s*(?://|/)\s*5\s*CM\b",
+    r"\b(?P<size>\d+(?:\.\d+)?)\s*IN\b",
     re.I | re.S,
 )
 
@@ -248,14 +245,19 @@ class ErgodyneAdapter(ManufacturerAdapter):
             if has_3178_primary and _is_3178_instruction_artifact(artifact):
                 anchor_target = _BUCKET_PRIMARY_ANCHOR.search(text)
                 install = _BUCKET_HOOK_INSTALL.search(text)
-                row_match = _19178_LIP_SIZE.search(text)
-                if anchor_target is None or install is None or row_match is None:
+                row = bounded_record_for_identifier(
+                    text,
+                    identity.sku,
+                    _BUCKET_HOOK_ITEM_MARKER,
+                )
+                if anchor_target is None or install is None or row is None:
                     continue
-                nominal_size = _TWO_INCH_BUCKET_LIP.search(row_match.group("row"))
+                nominal_size = _BUCKET_LIP_NOMINAL_SIZE.search(row)
                 if nominal_size is None:
                     continue
 
                 raw_install = " ".join(install.group(0).split())
+                nominal_size_class = f"{float(nominal_size.group('size')):g}_in"
                 claims.extend(
                     [
                         installation_method_claim(
@@ -275,7 +277,7 @@ class ErgodyneAdapter(ManufacturerAdapter):
                         installation_path_claim(
                             "bucket_lip",
                             "anchor_installation.attribute.nominal_lip_size",
-                            "2_in",
+                            nominal_size_class,
                             raw_value=nominal_size.group(0),
                             source_url=artifact.url,
                             extractor=_EXTRACTOR,
