@@ -175,6 +175,11 @@ def test_run_recommendation_retains_complete_set_and_selects_real_viable_candida
 
     assert result.tool == tool()
     assert result.tool_fingerprint == recommendation_run_module.resolved_tool_fingerprint(tool())
+    assert len(result.generation_tool_bindings) == 2
+    assert all(
+        binding.direct_interface == direct_ring()
+        for binding in result.generation_tool_bindings
+    )
     assert len(result.generated_candidates) == 2
     assert len(result.evaluations) == 2
     assert {
@@ -203,8 +208,27 @@ def test_recommendation_run_result_rejects_incomplete_evaluation_coverage():
         RecommendationRunResult(
             tool=result.tool,
             tool_fingerprint=result.tool_fingerprint,
+            generation_tool_bindings=result.generation_tool_bindings,
             generated_candidates=result.generated_candidates,
             evaluations=[],
+            selection=result.selection,
+        )
+
+
+def test_recommendation_run_result_requires_exact_generation_tool_binding_coverage():
+    result = run_recommendation(
+        tool(),
+        [tether_option("viable", capacity_kg=5.0)],
+        [anchor_path()],
+    )
+
+    with pytest.raises(ValueError, match="exact generation Tool binding coverage"):
+        RecommendationRunResult(
+            tool=result.tool,
+            tool_fingerprint=result.tool_fingerprint,
+            generation_tool_bindings=[],
+            generated_candidates=result.generated_candidates,
+            evaluations=result.evaluations,
             selection=result.selection,
         )
 
@@ -223,6 +247,7 @@ def test_recommendation_run_result_rejects_retained_tool_mass_mismatch():
             tool_fingerprint=recommendation_run_module.resolved_tool_fingerprint(
                 mismatched_tool
             ),
+            generation_tool_bindings=result.generation_tool_bindings,
             generated_candidates=result.generated_candidates,
             evaluations=result.evaluations,
             selection=result.selection,
@@ -242,10 +267,13 @@ def test_recommendation_run_result_rejects_changed_direct_interface_facts_with_s
         update={"direct_interfaces": [altered_interface]}
     )
 
-    with pytest.raises(ValueError, match="generation fingerprint"):
+    with pytest.raises(ValueError, match="generation-time direct interface binding"):
         RecommendationRunResult(
             tool=altered_tool,
-            tool_fingerprint=result.tool_fingerprint,
+            tool_fingerprint=recommendation_run_module.resolved_tool_fingerprint(
+                altered_tool
+            ),
+            generation_tool_bindings=result.generation_tool_bindings,
             generated_candidates=result.generated_candidates,
             evaluations=result.evaluations,
             selection=result.selection,
@@ -272,6 +300,7 @@ def test_recommendation_run_result_rejects_direct_target_absent_from_retained_to
             tool_fingerprint=recommendation_run_module.resolved_tool_fingerprint(
                 altered_tool
             ),
+            generation_tool_bindings=result.generation_tool_bindings,
             generated_candidates=result.generated_candidates,
             evaluations=result.evaluations,
             selection=result.selection,
@@ -287,16 +316,20 @@ def test_recommendation_run_result_rejects_changed_bound_feature_facts_with_same
     )
     assert result.generated_candidates
     assert result.generated_candidates[0].selection.installation_feature_id == "tool:handle"
+    assert result.generation_tool_bindings[0].installation_feature == attachment_tool().features[0]
 
     altered_feature = attachment_tool().features[0].model_copy(
         update={"dimensions_mm": {"diameter": 20.0}}
     )
     altered_tool = result.tool.model_copy(update={"features": [altered_feature]})
 
-    with pytest.raises(ValueError, match="generation fingerprint"):
+    with pytest.raises(ValueError, match="generation-time ToolAttachment feature binding"):
         RecommendationRunResult(
             tool=altered_tool,
-            tool_fingerprint=result.tool_fingerprint,
+            tool_fingerprint=recommendation_run_module.resolved_tool_fingerprint(
+                altered_tool
+            ),
+            generation_tool_bindings=result.generation_tool_bindings,
             generated_candidates=result.generated_candidates,
             evaluations=result.evaluations,
             selection=result.selection,
@@ -321,6 +354,7 @@ def test_recommendation_run_result_rejects_attachment_feature_absent_from_retain
             tool_fingerprint=recommendation_run_module.resolved_tool_fingerprint(
                 altered_tool
             ),
+            generation_tool_bindings=result.generation_tool_bindings,
             generated_candidates=result.generated_candidates,
             evaluations=result.evaluations,
             selection=result.selection,
@@ -338,6 +372,7 @@ def test_recommendation_run_result_rejects_selection_inconsistent_with_required_
         RecommendationRunResult(
             tool=result.tool,
             tool_fingerprint=result.tool_fingerprint,
+            generation_tool_bindings=result.generation_tool_bindings,
             generated_candidates=result.generated_candidates,
             evaluations=result.evaluations,
             ranking_context=CandidateRankingContext(required_reach_mm=1300.0),
@@ -357,6 +392,7 @@ def test_recommendation_run_result_rejects_contextual_exclusion_without_reach_re
         RecommendationRunResult(
             tool=contextual.tool,
             tool_fingerprint=contextual.tool_fingerprint,
+            generation_tool_bindings=contextual.generation_tool_bindings,
             generated_candidates=contextual.generated_candidates,
             evaluations=contextual.evaluations,
             selection=contextual.selection,
@@ -386,6 +422,7 @@ def test_run_recommendation_preserves_empty_generation_as_distinct_outcome():
 
     assert result.tool == tool()
     assert result.tool_fingerprint == recommendation_run_module.resolved_tool_fingerprint(tool())
+    assert result.generation_tool_bindings == []
     assert result.generated_candidates == []
     assert result.evaluations == []
     assert result.selection.state == CandidateSelectionState.NO_GENERATED_CANDIDATES
