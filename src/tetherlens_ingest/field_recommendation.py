@@ -286,6 +286,13 @@ class FieldRecommendationResult(BaseModel):
         run = self.recommendation_run
         if run is None:
             raise ValueError("recommendation-run field states require a retained recommendation run")
+        resolved = self.tool_resolution.resolved
+        if resolved is None:  # pragma: no cover - protected by state validation above.
+            raise ValueError("recommendation-run field states require a resolved tool")
+        if run.tool != resolved.operational_profile.tool:
+            raise ValueError(
+                "retained recommendation run Tool must match the resolved operational profile Tool"
+            )
 
         expected_state = {
             CandidateSelectionState.SELECTED: FieldRecommendationState.SELECTED,
@@ -310,9 +317,6 @@ class FieldRecommendationResult(BaseModel):
         summary = self.recommendation
         if selected is None or summary is None:
             raise ValueError("selected field recommendation requires a selected summary")
-        resolved = self.tool_resolution.resolved
-        if resolved is None:  # pragma: no cover - protected by state validation above.
-            raise ValueError("selected field recommendation requires a resolved tool")
         expected_summary = _build_field_recommendation_summary(
             resolved.operational_profile,
             run,
