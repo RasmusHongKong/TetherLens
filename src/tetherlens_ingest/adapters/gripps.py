@@ -14,11 +14,16 @@ from tetherlens_ingest.models import (
 from tetherlens_ingest.normalize import mass_to_kg
 from tetherlens_ingest.reconciliation import mass_claims_semantically_agree
 
+from .anchor_attachment_common import (
+    claim as anchor_claim,
+    installation_method_claim,
+    installation_path_claim,
+)
 from .base import ManufacturerAdapter
 from .common import page_text
 
 
-_EXTRACTOR = "gripps.v0.2"
+_EXTRACTOR = "gripps.v0.3"
 
 _LOAD_RATING = re.compile(
     r"\b(?:max(?:imum)?\s+load|load\s+rating(?:\s+of)?(?:\s+up\s+to)?)\b\s*:?\s*"
@@ -44,6 +49,12 @@ _SNAPLOCK_CONNECTION_POINT = re.compile(
     r"\bprovides\s+a\s+secure,?\s+standardi[sz]ed\s+connection\s+point\s+for\s+tethering\b",
     re.I,
 )
+_WRIST_TARGET = re.compile(r"\bcan\s+be\s+attached\s+to\s+hand\s+rails\s+or\s+your\s+wrist\b", re.I)
+_WRIST_FASTENING = re.compile(
+    r"\bindustrial[-\s]?grade\s+velcro\s+adjusts\s+diameter\s+to\s+suit\s+any\s+wrist\s+or\s+rail\s+size\b",
+    re.I,
+)
+_LOAD_RATED_TETHER_ANCHOR = re.compile(r"\bbuilt[-\s]?in,?\s+load[-\s]?rated\s+tether\s+anchor\b", re.I)
 
 
 class GRIPPSAdapter(ManufacturerAdapter):
@@ -54,6 +65,10 @@ class GRIPPSAdapter(ManufacturerAdapter):
     SnapLock's published ``handle or neck`` wording compiles only the independently
     established handle subset. ``neck`` is not widened to an external-section path and
     S/M/L/XL labels never become inferred dimensions.
+
+    Worker-worn AnchorAttachments follow the same rule. Adjustable/all-sizes wrist
+    wording can establish an evidence-backed fastening mechanism and wrist target, but
+    it never becomes a numeric wrist-fit envelope.
     """
 
     manufacturer = "GRIPPS"
@@ -67,6 +82,8 @@ class GRIPPSAdapter(ManufacturerAdapter):
             return self._extract_tether(artifacts)
         if identity.product_type == ProductType.TOOL_ATTACHMENT:
             return self._extract_tool_attachment(artifacts)
+        if identity.product_type == ProductType.ANCHOR_ATTACHMENT:
+            return self._extract_anchor_attachment(artifacts)
         return []
 
     def _extract_tether(self, artifacts: list[SourceArtifact]) -> list[CandidateClaim]:
@@ -152,6 +169,55 @@ class GRIPPSAdapter(ManufacturerAdapter):
                     ClaimSubjectType.PHYSICAL_INTERFACE,
                     "snaplock_tether_connection",
                 ))
+
+        return _dedupe(claims)
+
+    def _extract_anchor_attachment(
+        self,
+        artifacts: list[SourceArtifact],
+    ) -> list[CandidateClaim]:
+        claims: list[CandidateClaim] = []
+        for artifact in artifacts:
+            text = page_text(artifact.body)
+            claims.extend(_capacity_claims(text, artifact.url))
+
+            target = _WRIST_TARGET.search(text)
+            fastening = _WRIST_FASTENING.search(text)
+            if target is not None and fastening is not None:
+                claims.extend(
+                    [
+                        installation_method_claim(
+                            "fasten_around",
+                            raw_value=fastening.group(0),
+                            source_url=artifact.url,
+                            extractor=_EXTRACTOR,
+                        ),
+                        installation_path_claim(
+                            "wrist",
+                            "anchor_installation.feature_kind",
+                            "wrist",
+                            raw_value=target.group(0),
+                            source_url=artifact.url,
+                            extractor=_EXTRACTOR,
+                        ),
+                    ]
+                )
+
+            tether_anchor = _LOAD_RATED_TETHER_ANCHOR.search(text)
+            if tether_anchor is not None:
+                # The page establishes a provided tether anchor, but not its physical
+                # interface form. Retain the role and let resolution keep type unknown.
+                claims.append(
+                    anchor_claim(
+                        "interface.role",
+                        "anchor_attachment_tether_side",
+                        raw_value=tether_anchor.group(0),
+                        source_url=artifact.url,
+                        extractor=_EXTRACTOR,
+                        subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+                        subject_ref="wrist_anchor_tether_connection",
+                    )
+                )
 
         return _dedupe(claims)
 
