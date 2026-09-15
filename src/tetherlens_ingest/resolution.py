@@ -18,7 +18,7 @@ from .connection import (
     ConnectorSpec,
     TetherSide,
 )
-from .models import CandidateClaim, ClaimSubjectType
+from .models import CandidateClaim, ClaimSubjectType, ConstraintOperator
 from .normalize import length_to_mm
 
 
@@ -29,6 +29,8 @@ FEATURE_LOCATION_KEY = "feature.location_description"
 FEATURE_DIMENSION_PREFIX = "feature.dimension."
 FEATURE_ATTRIBUTE_PREFIX = "feature.attribute."
 ATTACHMENT_SELECTION_CLASS_KEY = "attachment_selection_class"
+ATTACHMENT_ELIGIBILITY_FEATURE_KIND_KEY = "attachment_eligibility.feature_kind"
+ATTACHMENT_ELIGIBILITY_DIMENSION_PREFIX = "attachment_eligibility.dimension."
 
 INTERFACE_TYPE_KEY = "interface.type"
 INTERFACE_ROLE_KEY = "interface.role"
@@ -53,6 +55,13 @@ _CAPTIVE_SELECTION_FEATURE_KINDS: dict[str, tuple[FeatureKind, ...]] = {
     ),
     "captive_handle_attachment": (FeatureKind.HANDLE,),
     "captive_through_opening_attachment": (FeatureKind.THROUGH_OPENING,),
+}
+_ORDERED_DIMENSION_OPERATORS = {
+    ConstraintOperator.EQ,
+    ConstraintOperator.LT,
+    ConstraintOperator.LTE,
+    ConstraintOperator.GT,
+    ConstraintOperator.GTE,
 }
 
 
@@ -144,30 +153,48 @@ def resolve_tool_interface_features(claims: list[CandidateClaim]) -> list[ToolIn
 def resolve_attachment_eligibility(claims: list[CandidateClaim]) -> AttachmentEligibility | None:
     """Compile accepted attachment semantics into reusable feature eligibility.
 
-    Captive selection classes compose the same feature-local predicates into one or
-    more alternative paths. ``handle_attachment`` authorizes an explicitly identified
-    handle without requiring or excluding any captive state and carries no inferred
-    dimensional fit. ``external_section_attachment`` reuses the existing external-
-    section feature plus the existing complete source-local min/max interface-diameter
-    envelope. No tool or attachment SKU participates in this compilation.
+    Selection classes establish the bounded feature paths. Explicit accepted
+    ``attachment_eligibility.dimension.*`` constraints are then compiled onto the path
+    for the exact feature kind stated by the same source-local fit subject. This keeps
+    numeric fit on one bound ``ToolInterfaceFeature`` without adding product-family
+    geometry classes.
+
+    ``handle_attachment`` remains geometry-only when no explicit dimensional condition
+    exists. The historical ``external_section_attachment`` min/max-diameter contract is
+    retained unchanged whenever any legacy diameter-fit claim is present; generic
+    external-section dimensions are an additional evidence shape, not a bypass around
+    incomplete legacy envelopes. No tool or attachment SKU participates in compilation.
     """
 
     selection = _single_claim(claims, ATTACHMENT_SELECTION_CLASS_KEY)
     if selection is None:
         return None
 
+    fit_profiles = _resolve_attachment_fit_profiles(claims)
     selection_class = str(selection.value)
     feature_kinds = _CAPTIVE_SELECTION_FEATURE_KINDS.get(selection_class)
     if feature_kinds is not None:
-        return AttachmentEligibility(
-            paths=[_captive_feature_path(feature_kind) for feature_kind in feature_kinds]
-        )
+        paths = [_captive_feature_path(feature_kind) for feature_kind in feature_kinds]
+        return AttachmentEligibility(paths=_compose_attachment_fit_profiles(paths, fit_profiles))
 
     if selection_class == "handle_attachment":
-        return AttachmentEligibility(paths=[_handle_path()])
+        return AttachmentEligibility(
+            paths=_compose_attachment_fit_profiles([_handle_path()], fit_profiles)
+        )
 
     if selection_class == "external_section_attachment":
-        return AttachmentEligibility(paths=[_external_section_path(claims)])
+        if _has_legacy_external_section_diameter_claims(claims):
+            path = _external_section_path(claims)
+        elif FeatureKind.EXTERNAL_SECTION in fit_profiles:
+            path = _external_section_geometry_path()
+        else:
+            # Preserve the historical fail-closed error and wording for an external
+            # section rule with neither a complete legacy envelope nor a new explicit
+            # dimensional profile.
+            path = _external_section_path(claims)
+        return AttachmentEligibility(
+            paths=_compose_attachment_fit_profiles([path], fit_profiles)
+        )
 
     raise ClaimResolutionError(
         f"unsupported attachment selection class: {selection.value!r}"
@@ -204,6 +231,267 @@ def _handle_path() -> EligibilityPath:
                 value=FeatureKind.HANDLE.value,
             ),
         ],
+    )
+
+
+def _external_section_geometry_path() -> EligibilityPath:
+    """Build the geometry portion of an explicitly dimensioned external-section path."""
+
+    return EligibilityPath(
+        binding_name="external_section",
+        requirements=[
+            FeaturePredicate(
+                property_key="feature_kind",
+                value=FeatureKind.EXTERNAL_SECTION.value,
+            ),
+        ],
+    )
+
+
+def _resolve_attachment_fit_profiles(
+    claims: list[CandidateClaim],
+) -> dict[FeatureKind, list[FeaturePredicate]]:
+    """Resolve explicit source-local ToolAttachment fit profiles by feature kind.
+
+    A dimensional profile is one physical-interface subject. Every source that asserts
+    dimensions on that subject must also state the feature kind and must independently
+    establish the same complete normalized predicate set. This permits equivalent unit
+    representations while preventing a minimum from one source, a maximum from another,
+    or facts from two separate feature subjects from being stitched into a wider rule.
+    """
+
+    grouped: dict[str, list[CandidateClaim]] = defaultdict(list)
+    for claim in claims:
+        if claim.subject_type != ClaimSubjectType.PHYSICAL_INTERFACE:
+            continue
+        if claim.property_key == ATTACHMENT_ELIGIBILITY_FEATURE_KIND_KEY or claim.property_key.startswith(
+            ATTACHMENT_ELIGIBILITY_DIMENSION_PREFIX
+        ):
+            grouped[claim.subject_ref].append(claim)
+
+    profiles: dict[FeatureKind, list[FeaturePredicate]] = {}
+    profile_subjects: dict[FeatureKind, str] = {}
+    for subject_ref, fit_claims in grouped.items():
+        by_source: dict[str, list[CandidateClaim]] = defaultdict(list)
+        for claim in fit_claims:
+            by_source[claim.source_url].append(claim)
+
+        canonical: tuple[FeatureKind, tuple[tuple[str, str, float], ...]] | None = None
+        for source_url, source_claims in by_source.items():
+            dimension_claims = [
+                claim
+                for claim in source_claims
+                if claim.property_key.startswith(ATTACHMENT_ELIGIBILITY_DIMENSION_PREFIX)
+            ]
+            if not dimension_claims:
+                continue
+
+            kind_claim = _single_claim(source_claims, ATTACHMENT_ELIGIBILITY_FEATURE_KIND_KEY)
+            if kind_claim is None:
+                raise ClaimResolutionError(
+                    "feature-bound dimensional eligibility requires a source-local feature kind "
+                    f"on {subject_ref!r} from {source_url!r}"
+                )
+            try:
+                feature_kind = FeatureKind(str(kind_claim.value))
+            except ValueError as exc:
+                raise ClaimResolutionError(
+                    f"unsupported attachment eligibility feature kind on {subject_ref!r}: "
+                    f"{kind_claim.value!r}"
+                ) from exc
+
+            normalized_predicates = _normalized_fit_predicates(
+                dimension_claims,
+                subject_ref=subject_ref,
+                source_url=source_url,
+            )
+            source_profile = (feature_kind, normalized_predicates)
+            if canonical is None:
+                canonical = source_profile
+            elif canonical != source_profile:
+                raise ClaimResolutionError(
+                    "conflicting accepted feature-bound dimensional eligibility profiles on "
+                    f"{subject_ref!r} across evidence sources"
+                )
+
+        if canonical is None:
+            continue
+
+        feature_kind, normalized_predicates = canonical
+        if feature_kind in profiles:
+            raise ClaimResolutionError(
+                "feature-bound dimensional eligibility requires one accepted fit subject per "
+                f"feature kind; {feature_kind.value!r} appears on "
+                f"{profile_subjects[feature_kind]!r} and {subject_ref!r}"
+            )
+
+        profiles[feature_kind] = [
+            FeaturePredicate(
+                property_key=property_key,
+                operator=ComparisonOperator(operator),
+                value=value,
+            )
+            for property_key, operator, value in normalized_predicates
+        ]
+        profile_subjects[feature_kind] = subject_ref
+
+    return profiles
+
+
+def _normalized_fit_predicates(
+    claims: list[CandidateClaim],
+    *,
+    subject_ref: str,
+    source_url: str,
+) -> tuple[tuple[str, str, float], ...]:
+    normalized: set[tuple[str, str, float]] = set()
+    by_dimension: dict[str, list[tuple[ComparisonOperator, float]]] = defaultdict(list)
+
+    for claim in claims:
+        code = claim.property_key.removeprefix(ATTACHMENT_ELIGIBILITY_DIMENSION_PREFIX)
+        if not code:
+            raise ClaimResolutionError(
+                f"feature-bound dimensional eligibility has an empty dimension code on {subject_ref!r}"
+            )
+        operator = claim.constraint_operator
+        if operator is None or operator not in _ORDERED_DIMENSION_OPERATORS:
+            rendered = operator.value if operator is not None else None
+            raise ClaimResolutionError(
+                "feature-bound dimensional eligibility requires an explicit eq/lt/lte/gt/gte "
+                f"operator for {claim.property_key!r}; got {rendered!r}"
+            )
+        value_mm = round(_dimension_to_mm(claim), 9)
+        comparison = ComparisonOperator(operator.value)
+        property_key = f"dimension:{code}"
+        normalized.add((property_key, comparison.value, value_mm))
+        by_dimension[code].append((comparison, value_mm))
+
+    for code, conditions in by_dimension.items():
+        _validate_dimension_conditions(
+            code,
+            conditions,
+            subject_ref=subject_ref,
+            source_url=source_url,
+        )
+
+    return tuple(sorted(normalized))
+
+
+def _validate_dimension_conditions(
+    code: str,
+    conditions: list[tuple[ComparisonOperator, float]],
+    *,
+    subject_ref: str,
+    source_url: str,
+) -> None:
+    equals = {value for operator, value in conditions if operator == ComparisonOperator.EQ}
+    if len(equals) > 1:
+        raise ClaimResolutionError(
+            f"conflicting exact {code!r} fit values on {subject_ref!r} from {source_url!r}"
+        )
+
+    lower = [
+        (value, operator == ComparisonOperator.GT)
+        for operator, value in conditions
+        if operator in {ComparisonOperator.GT, ComparisonOperator.GTE}
+    ]
+    upper = [
+        (value, operator == ComparisonOperator.LT)
+        for operator, value in conditions
+        if operator in {ComparisonOperator.LT, ComparisonOperator.LTE}
+    ]
+    strongest_lower = max(lower, default=None, key=lambda item: item[0])
+    strongest_upper = min(upper, default=None, key=lambda item: item[0])
+
+    if strongest_lower is not None and strongest_upper is not None:
+        lower_value, lower_strict = strongest_lower
+        upper_value, upper_strict = strongest_upper
+        if lower_value > upper_value or (
+            lower_value == upper_value and (lower_strict or upper_strict)
+        ):
+            raise ClaimResolutionError(
+                f"inverted {code!r} fit bounds on {subject_ref!r} from {source_url!r}"
+            )
+
+    if equals:
+        exact = next(iter(equals))
+        if strongest_lower is not None:
+            lower_value, lower_strict = strongest_lower
+            if exact < lower_value or (exact == lower_value and lower_strict):
+                raise ClaimResolutionError(
+                    f"exact {code!r} fit conflicts with its lower bound on {subject_ref!r}"
+                )
+        if strongest_upper is not None:
+            upper_value, upper_strict = strongest_upper
+            if exact > upper_value or (exact == upper_value and upper_strict):
+                raise ClaimResolutionError(
+                    f"exact {code!r} fit conflicts with its upper bound on {subject_ref!r}"
+                )
+
+
+def _compose_attachment_fit_profiles(
+    paths: list[EligibilityPath],
+    profiles: dict[FeatureKind, list[FeaturePredicate]],
+) -> list[EligibilityPath]:
+    if not profiles:
+        return paths
+
+    matched_kinds: set[FeatureKind] = set()
+    composed: list[EligibilityPath] = []
+    for path in paths:
+        feature_kind = _eligibility_path_feature_kind(path)
+        predicates = profiles.get(feature_kind) if feature_kind is not None else None
+        if predicates:
+            matched_kinds.add(feature_kind)
+            composed.append(
+                EligibilityPath(
+                    binding_name=path.binding_name,
+                    requirements=[*path.requirements, *predicates],
+                    prohibitions=list(path.prohibitions),
+                )
+            )
+        else:
+            composed.append(path)
+
+    unmatched = sorted(kind.value for kind in set(profiles) - matched_kinds)
+    if unmatched:
+        raise ClaimResolutionError(
+            "feature-bound dimensional eligibility does not match an attachment selection path: "
+            f"{unmatched!r}"
+        )
+    return composed
+
+
+def _eligibility_path_feature_kind(path: EligibilityPath) -> FeatureKind | None:
+    values = {
+        str(predicate.value)
+        for predicate in path.requirements
+        if predicate.property_key == "feature_kind"
+        and predicate.operator == ComparisonOperator.EQ
+    }
+    if not values:
+        return None
+    if len(values) > 1:
+        raise ClaimResolutionError(
+            f"eligibility path {path.binding_name!r} contains conflicting feature-kind predicates"
+        )
+    try:
+        return FeatureKind(next(iter(values)))
+    except ValueError as exc:
+        raise ClaimResolutionError(
+            f"eligibility path {path.binding_name!r} has an unsupported feature kind"
+        ) from exc
+
+
+def _has_legacy_external_section_diameter_claims(claims: list[CandidateClaim]) -> bool:
+    keys = {
+        f"{INTERFACE_DIMENSION_PREFIX}min_diameter",
+        f"{INTERFACE_DIMENSION_PREFIX}max_diameter",
+    }
+    return any(
+        claim.subject_type == ClaimSubjectType.PHYSICAL_INTERFACE
+        and claim.property_key in keys
+        for claim in claims
     )
 
 
