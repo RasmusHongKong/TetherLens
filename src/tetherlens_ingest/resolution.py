@@ -277,13 +277,15 @@ def _resolve_attachment_fit_profiles(
 ) -> dict[FeatureKind, AttachmentFitProfile]:
     """Resolve explicit source-local ToolAttachment fit profiles by feature kind.
 
-    A dimensional profile is one physical-interface subject. Every source that asserts
-    dimensions on that subject must also state the feature kind and must independently
-    establish the same complete normalized predicate set. This permits equivalent unit
-    representations while preventing a minimum from one source, a maximum from another,
-    or facts from two separate feature subjects from being stitched into a wider rule.
-    The originating subject is retained through composition so legacy and generic fit
-    evidence cannot be merged across distinct installation interfaces.
+    A dimensional profile is one physical-interface subject. All accepted feature-kind
+    claims on that subject must agree, including claims from sources that contribute no
+    dimensions. Every source that does assert dimensions must also state the reconciled
+    feature kind and must independently establish the same complete normalized predicate
+    set. This permits equivalent unit representations while preventing a minimum from one
+    source, a maximum from another, or facts from two separate feature subjects from being
+    stitched into a wider rule. The originating subject is retained through composition
+    so legacy and generic fit evidence cannot be merged across distinct installation
+    interfaces.
     """
 
     grouped: dict[str, list[CandidateClaim]] = defaultdict(list)
@@ -297,6 +299,19 @@ def _resolve_attachment_fit_profiles(
 
     profiles: dict[FeatureKind, AttachmentFitProfile] = {}
     for subject_ref, fit_claims in grouped.items():
+        has_dimensions = any(
+            claim.property_key.startswith(ATTACHMENT_ELIGIBILITY_DIMENSION_PREFIX)
+            for claim in fit_claims
+        )
+        if not has_dimensions:
+            continue
+
+        # Reconcile every accepted feature-kind assertion on the physical-interface
+        # subject before considering source-local dimensional profiles. Otherwise a
+        # kind-only source could contradict the dimension-bearing source and silently
+        # leave a different selection path unconstrained.
+        _single_claim(fit_claims, ATTACHMENT_ELIGIBILITY_FEATURE_KIND_KEY)
+
         by_source: dict[str, list[CandidateClaim]] = defaultdict(list)
         for claim in fit_claims:
             by_source[claim.source_url].append(claim)
