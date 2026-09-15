@@ -2,32 +2,15 @@
 
 ## Status
 
-Core manufacturer-neutral semantic boundary introduced by PR #60 for the recurring V3 AnchorAttachment portability seam and vertically proven through normal first-party ingestion/resolution by PR #61.
+The manufacturer-neutral AnchorAttachment installation/binding boundary was introduced by PR #60, vertically proven through normal first-party ingestion/resolution by PR #61, and extended by PR #62 to close the two recurring V4 portability seams.
 
-This document defines how TetherLens represents and evaluates the installation of an `AnchorAttachment` onto one concrete primary-anchor feature before the resulting tether-side interface participates in ordinary tether-endpoint compatibility.
+This document defines how TetherLens represents and evaluates installation of an `AnchorAttachment` onto one concrete primary-anchor feature before the resulting tether-side interface participates in ordinary tether-endpoint compatibility.
 
-The boundary is intentionally narrow. It does not attempt to model arbitrary structural-anchor engineering suitability, does not introduce a general CAD model, and does not widen tether-to-anchor connection compatibility.
+The boundary is intentionally narrow. It does not model arbitrary structural-anchor engineering suitability, does not introduce a general CAD model, and does not widen tether-to-anchor connection compatibility.
 
-## Problem
+## Architectural boundary
 
-The V3 portability cohort identified the same missing upstream layer in three independent AnchorAttachment products:
-
-- Milwaukee 48-22-8855 Anchor Strap: wraps around supported beam/rail geometry;
-- FallTech 5424A10 Waist Belt Cinch Anchor Attachment: choke/cinch installation on supported belt-style anchorage and broader qualitative small-anchor wording; and
-- Ergodyne Squids 3171 / SKU 19171: an enclosed loop threaded over an open-ended/refastenable primary anchor subject to explicit dimensional conditions.
-
-Before PR #60, the runtime core could already represent:
-
-```text
-AnchorAttachment component
-  -> provided anchor_attachment_tether_side interface
-  -> AnchorPathOption
-  -> tether endpoint engagement
-```
-
-But `AnchorPathOption` assumed the AnchorAttachment had already been validly installed. There was no generic evidence-backed mechanism to prove that the selected AnchorAttachment could install on one concrete primary-anchor feature and preserve that feature identity downstream.
-
-The missing relation is therefore:
+The physical relationships remain separate:
 
 ```text
 primary-anchor feature
@@ -41,78 +24,67 @@ provided tether-side interface
 ordinary tether-endpoint compatibility
 ```
 
-The first and second connection in that chain are different physical relationships. Installation eligibility must not be collapsed into tether-endpoint compatibility.
+Installation eligibility must not be collapsed into tether-endpoint compatibility. Candidate generation also does not interpret manufacturer installation text; it consumes an already-resolved installation proof.
 
 ## PrimaryAnchorFeature
 
-`PrimaryAnchorFeature` represents one concrete physical feature that may receive an AnchorAttachment.
+`PrimaryAnchorFeature` represents one concrete physical feature that may receive an AnchorAttachment. It is separate from `ToolInterfaceFeature`, because the accepted anchor-side evidence requires a different vocabulary.
 
-It is deliberately separate from `ToolInterfaceFeature`. Tool features use a tool-anatomy vocabulary such as handle, through-opening, external section and surface. The reviewed anchor evidence instead requires a smaller anchorage-side vocabulary.
-
-The initial `PrimaryAnchorFeatureKind` values are limited to:
+The current `PrimaryAnchorFeatureKind` values are:
 
 ```text
 belt
 beam
 rail
+wrist
+bucket_lip
 ```
 
-A feature also retains:
+The first three were introduced by PR #60. PR #62 adds `wrist` and `bucket_lip` only after the fresh V4 cohort exposed each as a recurring cross-vendor seam.
+
+A feature retains:
 
 - `feature_id`;
+- feature kind;
 - optional location description;
 - feature-local canonical dimensions in millimetres; and
 - feature-local normalized attributes.
 
-This vocabulary should expand only when real manufacturer evidence and a recommendation decision require another reusable feature family. Do not add generic aliases such as `structure`, `small_anchor`, `anchorage`, or product-specific terms merely because they appear in source wording.
+`ResolvedPrimaryAnchor` owns one or more concrete features under one `primary_anchor_ref`. Feature IDs must be unique within that resolved anchor.
 
-`ResolvedPrimaryAnchor` owns one or more concrete `PrimaryAnchorFeature` values under one `primary_anchor_ref`. Feature IDs must be unique within that resolved anchor.
+The vocabulary should expand only when accepted evidence and a recommendation decision require another reusable feature family. Do not add broad aliases such as `structure`, `anchorage`, `small_anchor`, `body_location` or generic `edge` merely because such words occur in source text.
 
 ## Installation method
 
-`AnchorInstallationMethod` records the primary physical mechanism retaining the AnchorAttachment on its selected primary-anchor feature.
+`AnchorInstallationMethod` records the primary physical mechanism retaining the AnchorAttachment on the selected feature.
 
-The initial values are:
+The current values are:
 
 ```text
 wrap
 cinch
 thread_over
+fasten_around
+hook_on
 ```
 
-These are mechanism-led rather than manufacturer-led.
+These are mechanism-led rather than manufacturer-led. `fasten_around` covers evidence-backed adjustable fastening around a concrete receiving feature such as a wrist or rail. `hook_on` covers a rigid hook-style installation onto a supported concrete feature such as an aerial-bucket lip.
 
-Although `wrap` and `cinch` have analogous meanings in the existing ToolAttachment attachment-method vocabulary, PR #60 does not silently reuse the ToolAttachment-scoped persisted field. The anchor-side semantic is explicit and may later be unified with a broader installation-method vocabulary only if that refactor preserves existing evidence boundaries.
-
-The method is not a substitute for geometry. For example:
-
-```text
-method = wrap
-```
-
-does not establish which structural features may be wrapped, while:
-
-```text
-feature_kind = beam
-```
-
-does not establish that a particular AnchorAttachment uses wrapping rather than cinching or threading.
-
-Both facts remain explicit.
+The method is not a substitute for the receiving feature or for geometry. For example, `hook_on` does not mean that any edge is suitable, and `bucket_lip` does not prove that every hook product fits it. Both the method and the feature-local eligibility predicates remain explicit.
 
 ## Eligibility model
 
 `AnchorAttachmentInstallationRule` contains:
 
 - stable `rule_id`;
-- the owning AnchorAttachment `source_product_ref`;
+- owning AnchorAttachment `source_product_ref`;
 - installation method;
 - one or more eligibility paths; and
 - source URLs.
 
-Each `AnchorEligibilityPath` is an AND-set of requirements and prohibitions evaluated against exactly one `PrimaryAnchorFeature` instance. Multiple paths form bounded OR alternatives. Empty paths are invalid rather than vacuously matching every feature.
+Each `AnchorEligibilityPath` is an AND-set of requirements and prohibitions evaluated against exactly one `PrimaryAnchorFeature`. Multiple paths form bounded OR alternatives. Empty paths are invalid.
 
-Supported predicate scopes are deliberately feature-local:
+Supported predicate scopes remain feature-local:
 
 ```text
 feature_kind
@@ -121,13 +93,7 @@ dimension:<code>
 attribute:<code>
 ```
 
-`feature_kind` values must belong to the bounded `PrimaryAnchorFeatureKind` vocabulary. A misspelled kind must not become a universal match under a negative predicate.
-
-Scalar equality also preserves semantic type. In particular, boolean topology facts are distinct from numeric values: `true` does not equal `1`, and `false` does not equal `0`. Ordinary integer/float numeric equality remains valid.
-
-Source provenance is normalized at the rule, evaluation and binding boundaries. Source URL entries are trimmed and blank/whitespace-only entries are rejected; a list containing an empty string does not count as evidence provenance.
-
-The evaluation has the same conservative three-state boundary used elsewhere:
+The evaluator preserves the conservative three-state boundary:
 
 ```text
 at least one complete matching feature
@@ -144,45 +110,29 @@ Missing evidence never becomes suitability.
 
 ### Same-feature invariant
 
-Every predicate in one eligibility path must be satisfied by the same concrete primary-anchor feature.
+Every predicate in one path must be satisfied by the same concrete primary-anchor feature. Facts from separate features are never stitched together.
 
-For example, this must fail:
-
-```text
-feature A: open for threading, but oversized
-feature B: within dimensions, but cannot be opened
-```
-
-The system must not combine the topology from feature A with the dimensions from feature B.
-
-This mirrors the established ToolAttachment feature-binding invariant but uses a distinct anchor-side feature model.
+This invariant applies equally to topology, dimensions and normalized attributes. A feature that has the right kind but lacks a required attribute remains unresolved; a different feature carrying that attribute cannot satisfy the path on its behalf.
 
 ## Ingestion and rule compilation
 
-PR #61 adds the normal evidence-to-runtime path without making candidate generation interpret manufacturer text.
-
-Accepted installation evidence uses a feature-local `anchor_installation_path` claim subject. A product-level `anchor_installation.method` claim owns the installation mechanism, while every path subject contains the feature-local predicates that must apply to one concrete primary-anchor feature. Separate path subjects are OR alternatives; predicates within one path remain an AND-set.
+Accepted installation evidence uses a feature-local `anchor_installation_path` claim subject. A product-level `anchor_installation.method` claim owns the installation mechanism, while every path subject contains the predicates that must apply to one concrete receiving feature.
 
 The manufacturer-neutral compiler:
 
 - requires one unambiguous installation method;
 - requires an explicit feature kind on every path;
-- fails closed on conflicting accepted feature kinds within one path;
-- normalizes dimensional predicates to millimetres;
-- maps feature attributes and location to the existing runtime predicate keys;
-- maps `REQUIRES` to a required equality predicate and `PROHIBITS` to an equality prohibition;
-- preserves exact source URLs; and
+- fails closed on conflicting accepted feature kinds inside one path;
+- normalizes evidence-backed dimensional predicates to millimetres;
+- maps feature attributes and location to the runtime predicate vocabulary;
+- preserves exact source provenance; and
 - contains no manufacturer or SKU branches.
 
-This lets vendor adapters remain evidence-specific while the downstream installation rule stays reusable.
+Vendor adapters may remain source-format specific, but downstream installation semantics must remain manufacturer-neutral.
 
-The PR #61 vertical proves the compiler through normal first-party ingestion for Milwaukee 48-22-8855, FallTech 5424A10 and Ergodyne Squids 3171 / 19171. Ergodyne's first-party family instruction document is identity-scoped to the 3171 row/section; sibling-model facts are not inherited. FallTech's qualitative `small diameter` wording is not converted into numeric geometry, and Milwaukee does not invent beam/rail dimensions.
+## Concrete binding and candidate boundary
 
-## Concrete binding
-
-An eligible installation is materialized as `AnchorInstallationBinding`.
-
-The binding retains:
+An eligible installation is materialized as `AnchorInstallationBinding` and retains:
 
 ```text
 primary_anchor_ref
@@ -194,98 +144,28 @@ eligibility_proofs[]
 source_urls[]
 ```
 
-When several eligibility paths prove the same concrete feature, they remain multiple audit proofs on one physical binding rather than multiplying otherwise identical candidate installations.
+When multiple paths prove the same concrete feature, they remain multiple audit proofs on one physical binding rather than multiplying candidate installations.
 
-`bound_anchor_installation_evaluation()` projects the binding into the exact eligible evaluation retained by the downstream candidate. Rule identity, source product, selected primary anchor, installation method and source URLs remain attached; they are not reconstructed later from candidate IDs or human-readable reason text.
+A bound `AnchorPathOption` may carry the exact binding plus its exact eligible evaluation. Candidate generation only preserves that already-resolved proof; it does not reinterpret manufacturer evidence.
 
-## AnchorPathOption boundary
+For bound paths, the selected primary anchor, concrete feature and installation rule participate in canonical candidate identity. Legacy unbound/direct-container paths retain their historical identity behavior.
 
-Candidate generation does not interpret manufacturer installation claims.
+Anchor installation remains a hard viability check with distinct identity `anchor_installation_eligibility`. It does not create a ranking preference, compatibility basis, selection rule or exhaustion state.
 
-A bound `AnchorPathOption` may carry:
+## Proven vertical families
 
-```text
-installation_binding
-installation_eligibility
-```
+### Beam / rail wrap
 
-The option validates that:
-
-- an eligibility result cannot exist without a selected binding;
-- a selected binding must carry an `ELIGIBLE` result;
-- every retained match refers only to the selected feature;
-- proof path/binding-name pairs exactly match the binding;
-- evaluation provenance exactly matches the binding;
-- the binding's `source_product_ref` belongs to a selected anchor component; and
-- every target on a bound path is an `anchor_attachment_tether_side` interface, never a container connection.
-
-Legacy direct/container anchor paths may continue to omit these fields. PR #60 does not retroactively assert that every historical anchor path is an installed AnchorAttachment path.
-
-## Candidate identity and provenance
-
-A bound anchor installation is part of physical candidate identity.
-
-For bound paths, the canonical candidate ID additionally contains:
-
-```text
-primary_anchor_ref
-anchor_installation_feature_id
-anchor_installation_rule_id
-```
-
-This prevents two otherwise-identical candidates installed on different primary-anchor features from collapsing into one identity.
-
-Unbound legacy paths retain their pre-PR #60 candidate ID byte-for-byte; anchor-binding keys are added only when a binding exists.
-
-`CandidatePathSelection` retains the full `AnchorInstallationBinding`. `CandidateConfiguration` now retains that same binding alongside the exact `AnchorInstallationEligibilityEvaluation`, and `GeneratedCandidate` requires the configuration binding to equal the selection binding. The configuration validator also requires selected-feature, proof and provenance equality whenever a binding is present. This prevents an otherwise valid eligibility result from a different primary anchor or source product from being reused on another candidate.
-
-Configuration-scoped policy identity also includes the selected primary anchor, feature and installation rule when a binding exists. A policy result for one concrete anchor installation must not leak to another installation that happens to use the same tether/product interfaces.
-
-## Hard evaluation
-
-Anchor installation eligibility is a hard candidate viability check.
-
-The evaluator reuses the existing generic check category:
-
-```text
-check_type = attachment_eligibility
-```
-
-but uses the distinct check identity:
-
-```text
-check_id = anchor_installation_eligibility
-```
-
-A valid bound eligible result produces `PASSED`. An eligible evaluation without a concrete selected binding remains `UNRESOLVED`; it cannot establish a recommendation merely because one or more anchor features match. Ineligible or unresolved installation evidence blocks the candidate through the existing hard-evaluation semantics.
-
-The hard check retains:
-
-- source AnchorAttachment product;
-- selected primary anchor;
-- installation rule;
-- selected feature; and
-- source URLs.
-
-No new ranking preference, compatibility basis, selection rule or exhaustion state is introduced.
-
-## V3 evidence-shaped compositions
-
-The core model is intentionally vendor-neutral. The following examples describe the semantic shapes that motivated it; they are not SKU branches.
-
-### Beam/rail wrap
-
-Milwaukee-shaped evidence compiles conservatively as:
+Milwaukee-shaped evidence compiles as:
 
 ```text
 method = wrap
-
 paths:
   - feature_kind = beam
   - feature_kind = rail
 ```
 
-No width, diameter, profile or other fit geometry is inferred when the reviewed evidence does not establish it.
+No beam or rail dimensions are invented when the accepted evidence does not establish them.
 
 ### Belt cinch
 
@@ -293,20 +173,18 @@ FallTech-shaped evidence compiles the explicit belt subset as:
 
 ```text
 method = cinch
-
 path:
   feature_kind = belt
 ```
 
-Qualitative wording such as `small-diameter anchorage` must not be converted into a synthetic diameter threshold. A broader route remains uncompiled until evidence establishes reusable feature semantics or a complete dimensional condition.
+Qualitative wording such as `small diameter` is not converted into synthetic geometry.
 
-### Thread-over belt with explicit topology/dimensions
+### Thread-over belt
 
-Ergodyne-shaped evidence compiles as one same-feature path:
+Ergodyne Squids 3171-shaped evidence compiles as one same-feature path with explicit open/refastenable topology and published dimensional bounds:
 
 ```text
 method = thread_over
-
 feature_kind = belt
 AND attribute:open_for_threading = true
 AND attribute:can_be_resecured = true
@@ -314,34 +192,60 @@ AND dimension:section_height <= 76.2 mm
 AND dimension:section_thickness <= 12.7 mm
 ```
 
-The dimensional values are evidence-backed installation bounds, not generic belt dimensions or inferred product fit.
+### Worker-worn / rail adjustable fastening
+
+PR #62 closes the recurring V4 wrist-anchor seam with the concrete `wrist` feature and `fasten_around` mechanism.
+
+FallTech 5331A1 proves a wrist path without turning `UniFit` wording into numeric wrist geometry. GRIPPS H01086 independently proves the same wrist family and, because its first-party wording explicitly permits hand rails as well as the wrist, also emits a separate `rail` path under the same `fasten_around` mechanism.
+
+The two paths remain alternatives over concrete features; no wrist fact is stitched onto a rail or vice versa. GRIPPS `all sizes` / adjustable wording remains qualitative and does not become a numeric envelope.
+
+### Aerial-bucket lip hook
+
+PR #62 closes the recurring V4 aerial-bucket seam with `bucket_lip` plus `hook_on`.
+
+Ergodyne Squids 3178 and Klein 5144LG3 retain the manufacturers' published 2 in / 3 in bucket-lip labels as normalized nominal feature attributes. Those labels are not promoted into generic numeric fit envelopes.
+
+For the Ergodyne family document, row-local identity is mandatory: the instruction selection-grid record matching the requested SKU is selected before its nominal lip class is parsed. The 19178 and 19179 rows therefore remain distinct, and sibling/package variants cannot silently inherit another row's fit class.
+
+## Provenance and identity guardrails
+
+Manufacturer provenance and product identity are separate checks.
+
+A manufacturer-controlled host or document namespace answers whether a source is first party; it does not by itself prove that the source belongs to the requested product. Product-page extraction therefore remains identity-scoped.
+
+PR #62 reinforces this boundary in three places:
+
+- FallTech manuals served through BigCommerce are trusted only inside FallTech's store-specific `s-1wxw1202sk/content/product_documents/` namespace, not the shared `cdn11.bigcommerce.com` host generally;
+- GRIPPS and Klein AnchorAttachment extraction verifies the resolved artifact against the requested product identity so same-host redirects cannot leak another product's claims; and
+- Ergodyne multi-product instruction evidence is bounded to the requested identity-local row before sibling-specific facts are parsed.
+
+These are ingestion/evidence boundaries, not downstream SKU exceptions.
 
 ## Guardrails
 
-PRs #60-#61 do not:
+The current AnchorAttachment installation model does not:
 
 - change tether-to-anchor interface compatibility;
-- add `AnchorAttachment` SKU-pair compatibility rules;
-- infer a primary-anchor feature from an AnchorAttachment product name;
-- infer numeric fit from qualitative `small`, `small-diameter`, size labels or nominal product dimensions;
+- add SKU-pair recommendation logic;
+- infer a primary-anchor feature from a product name alone;
+- infer numeric fit from qualitative size wording or nominal product labels;
 - combine predicates from different primary-anchor features;
 - treat missing topology, attributes or dimensions as a pass;
-- treat numeric `1`/`0` as boolean topology facts;
-- accept blank source strings as evidence provenance;
-- attach a primary-anchor installation proof to a container connection;
-- convert a generic structural anchor into beam or rail without evidence;
-- create a general structural-engineering or load-rated anchorage assessment;
-- change tether endpoint roles, assignment semantics, capacity rules, ranking, contextual selection, session behavior or global exhaustion;
-- rewrite frozen V1/V2/V3/V4 portability classifications; or
-- require legacy unbound anchor/container paths to invent an AnchorAttachment installation binding.
+- widen `bucket_lip` into generic `rail` or `edge` semantics;
+- widen `wrist` into a generic body-location hierarchy;
+- attach anchor-installation proof to a container connection;
+- create a structural-engineering/load-rated anchorage assessment;
+- change endpoint assignment, capacity, ranking, contextual selection, session behavior or global exhaustion; or
+- rewrite historical V1/V2/V3/V4 portability classifications.
 
-## Portability V4 follow-on
+## Portability follow-on
 
-PR #61 completed the V3 three-vendor vertical and then froze a materially different eight-product V4 portability sample at **0 A / 4 B / 4 C / 0 D**. The pivot condition toward catalogue-throughput-led development was therefore not met.
+Historical portability cohorts remain frozen at their original semantic revisions:
 
-The four C products form two recurring cross-vendor seams:
+- V1: **0 A / 5 B / 3 C / 0 D**;
+- V2: **0 A / 6 B / 2 C / 0 D**;
+- V3: **0 A / 5 B / 3 C / 0 D**; and
+- V4: **0 A / 4 B / 4 C / 0 D**.
 
-- worker-worn wrist anchors (FallTech 5331A1 and GRIPPS H01086), which need the smallest reusable worker-worn/wrist primary-anchor feature plus evidence-backed adjustable fastening semantics; and
-- aerial-bucket lip hooks (Ergodyne Squids 3178 / 19178 and Klein 5144LG3), which need a reusable bucket-lip/edge feature plus hook-on/clip-on installation semantics.
-
-Those are the next architecture investigations. They should extend the same exact-feature binding model rather than changing tether-to-anchor compatibility, ranking, selection or exhaustion. Catalogue B-class onboarding can continue in parallel. See `anchor-installation-portability-v4.md` for the frozen V4 evidence and decision rationale.
+PR #62 closes the two recurring V4 C seams; it does not rewrite V4. The next portability step should be a materially different fresh cohort frozen against merged post-PR #62 semantics. If that sample is predominantly A/B and shows no comparable recurring C/D pressure, development should shift its centre of gravity toward catalogue throughput and the demand-side MVP, while portability continues as a periodic regression/stress test.

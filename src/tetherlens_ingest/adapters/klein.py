@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from urllib.parse import urlsplit
 
 from tetherlens_ingest.models import (
     CandidateClaim,
@@ -9,29 +10,38 @@ from tetherlens_ingest.models import (
     ProductIdentity,
     ProductType,
     SourceArtifact,
+    SourceType,
 )
 
+from .anchor_attachment_common import (
+    claim as anchor_claim,
+    installation_method_claim,
+    installation_path_claim,
+)
 from .base import ManufacturerAdapter
 from .common import page_text
 
 
 class KleinAdapter(ManufacturerAdapter):
-    """Klein tool adapter for normalized physical-interface facts.
+    """Klein adapter for normalized interface and AnchorAttachment facts.
 
-    Extraction is wording/geometry based rather than SKU based. A manufacturer-
-    described tether hole is normalized as one captive through-opening. Its role is
-    only promoted to ``tether_interface`` when the source explicitly calls it a
-    tether hole / tethering hole.
+    Tool extraction remains wording/geometry based rather than SKU based. A manufacturer-
+    described tether hole is normalized as one captive through-opening. AnchorAttachment
+    bucket-hook evidence is likewise normalized only to the explicit hook-on bucket-lip
+    family; a published nominal lip size remains a feature class rather than becoming an
+    inferred numeric fit envelope.
     """
 
     manufacturer = "Klein Tools"
-    extractor = "klein.v0.2"
+    extractor = "klein.v0.3"
 
     def extract(
         self,
         identity: ProductIdentity,
         artifacts: list[SourceArtifact],
     ) -> list[CandidateClaim]:
+        if identity.product_type == ProductType.ANCHOR_ATTACHMENT:
+            return self._extract_anchor_attachment(identity, artifacts)
         if identity.product_type != ProductType.TOOL:
             return []
 
@@ -81,6 +91,63 @@ class KleinAdapter(ManufacturerAdapter):
 
         return _dedupe(claims)
 
+    def _extract_anchor_attachment(
+        self,
+        identity: ProductIdentity,
+        artifacts: list[SourceArtifact],
+    ) -> list[CandidateClaim]:
+        claims: list[CandidateClaim] = []
+        for artifact in artifacts:
+            if not _is_verified_anchor_product_detail(artifact, identity):
+                continue
+
+            text = page_text(artifact.body)
+            target = _bucket_lip_evidence(text)
+            install = _bucket_hook_installation(text)
+            if target is not None and install is not None:
+                claims.extend(
+                    [
+                        installation_method_claim(
+                            "hook_on",
+                            raw_value=install,
+                            source_url=artifact.url,
+                            extractor=self.extractor,
+                        ),
+                        installation_path_claim(
+                            "bucket_lip",
+                            "anchor_installation.feature_kind",
+                            "bucket_lip",
+                            raw_value=target,
+                            source_url=artifact.url,
+                            extractor=self.extractor,
+                        ),
+                        installation_path_claim(
+                            "bucket_lip",
+                            "anchor_installation.attribute.nominal_lip_size",
+                            "3_in",
+                            raw_value=target,
+                            source_url=artifact.url,
+                            extractor=self.extractor,
+                        ),
+                    ]
+                )
+
+            tether_point = _BUCKET_TETHER_POINT.search(text)
+            if tether_point is not None:
+                claims.append(
+                    anchor_claim(
+                        "interface.role",
+                        "anchor_attachment_tether_side",
+                        raw_value=tether_point.group(0),
+                        source_url=artifact.url,
+                        extractor=self.extractor,
+                        subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+                        subject_ref="bucket_hook_tether_connection",
+                    )
+                )
+
+        return _dedupe(claims)
+
     def _feature_claim(
         self,
         subject_ref: str,
@@ -100,6 +167,72 @@ class KleinAdapter(ManufacturerAdapter):
             extractor=self.extractor,
             claim_type=ClaimType.DIRECT,
         )
+
+
+_BUCKET_LIP_SIZE = re.compile(
+    r"\b3[-\s]?Inch\s*\(\s*7\.6\s*cm\s*\)\s+lip\s+aerial\s+buckets?\b",
+    re.I,
+)
+_BUCKET_HOOK_ATTACH = re.compile(
+    r"\b(?:easily\s+)?attaching\s+the\s+hook\s+to\s+(?:a\s+)?3[-\s]?Inch\s*"
+    r"\(\s*7\.6\s*cm\s*\)\s+lip\s+aerial\s+bucket\b",
+    re.I,
+)
+_BUCKET_HOOK_ATTACHES = re.compile(
+    r"\b(?:quickly\s+)?attaches\s+to\s+(?:standard\s+)?3[-\s]?Inch\s*"
+    r"\(\s*7\.6\s*cm\s*\)\s+lip\s+aerial\s+buckets?\b",
+    re.I,
+)
+_BUCKET_TETHER_POINT = re.compile(r"\btether(?:\s+rated)?\s+attachment\s+point\b", re.I)
+
+
+def _is_verified_anchor_product_detail(
+    artifact: SourceArtifact,
+    identity: ProductIdentity,
+) -> bool:
+    if artifact.source_type != SourceType.MANUFACTURER_WEBPAGE:
+        return False
+    if _normalized_product_url(artifact.url) != _normalized_product_url(identity.url):
+        return False
+
+    text = page_text(artifact.body)
+    if identity.sku and re.search(
+        rf"(?<![A-Z0-9]){re.escape(identity.sku)}(?![A-Z0-9])",
+        text,
+        re.I,
+    ) is not None:
+        return True
+
+    heading = re.search(r"<h1\b[^>]*>(?P<body>.*?)</h1>", artifact.body, re.I | re.S)
+    if heading is None or not identity.name:
+        return False
+    heading_text = page_text(heading.group(0)).casefold()
+    name_tokens = [token for token in re.findall(r"[a-z0-9]+", identity.name.casefold()) if len(token) > 2]
+    return bool(name_tokens) and all(token in heading_text for token in name_tokens)
+
+
+def _normalized_product_url(url: str) -> tuple[str, str] | None:
+    parts = urlsplit(url)
+    if parts.scheme.casefold() not in {"http", "https"} or not parts.hostname:
+        return None
+    host = parts.hostname.casefold()
+    if host.startswith("www."):
+        host = host[4:]
+    path = parts.path.rstrip("/").casefold() or "/"
+    return host, path
+
+
+def _bucket_lip_evidence(text: str) -> str | None:
+    match = _BUCKET_LIP_SIZE.search(text)
+    return match.group(0) if match is not None else None
+
+
+def _bucket_hook_installation(text: str) -> str | None:
+    for pattern in (_BUCKET_HOOK_ATTACH, _BUCKET_HOOK_ATTACHES):
+        match = pattern.search(text)
+        if match is not None:
+            return match.group(0)
+    return None
 
 
 def _tether_hole_evidence(text: str) -> str | None:
