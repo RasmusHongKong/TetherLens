@@ -18,7 +18,7 @@ from .connection import (
     ConnectorSpec,
     TetherSide,
 )
-from .models import CandidateClaim, ClaimSubjectType, ConstraintOperator
+from .models import CandidateClaim, ClaimSubjectType, ClaimType, ConstraintOperator
 from .normalize import length_to_mm
 
 
@@ -63,6 +63,8 @@ _ORDERED_DIMENSION_OPERATORS = {
     ConstraintOperator.GT,
     ConstraintOperator.GTE,
 }
+
+AttachmentFitProfile = tuple[str, list[FeaturePredicate]]
 
 
 class ClaimResolutionError(ValueError):
@@ -185,6 +187,28 @@ def resolve_attachment_eligibility(claims: list[CandidateClaim]) -> AttachmentEl
     if selection_class == "external_section_attachment":
         if _has_legacy_external_section_diameter_claims(claims):
             path = _external_section_path(claims)
+            generic_profile = fit_profiles.get(FeatureKind.EXTERNAL_SECTION)
+            if generic_profile is not None:
+                generic_subject, _ = generic_profile
+                legacy_subjects = {
+                    claim.subject_ref
+                    for claim in claims
+                    if claim.subject_type == ClaimSubjectType.PHYSICAL_INTERFACE
+                    and claim.property_key
+                    in {
+                        f"{INTERFACE_DIMENSION_PREFIX}min_diameter",
+                        f"{INTERFACE_DIMENSION_PREFIX}max_diameter",
+                    }
+                }
+                # _external_section_path() has already proved this is exactly one
+                # complete legacy fit subject.
+                legacy_subject = next(iter(legacy_subjects))
+                if generic_subject != legacy_subject:
+                    raise ClaimResolutionError(
+                        "legacy and generic external-section fit evidence must share one "
+                        "physical-interface subject; got "
+                        f"{legacy_subject!r} and {generic_subject!r}"
+                    )
         elif FeatureKind.EXTERNAL_SECTION in fit_profiles:
             path = _external_section_geometry_path()
         else:
@@ -250,7 +274,7 @@ def _external_section_geometry_path() -> EligibilityPath:
 
 def _resolve_attachment_fit_profiles(
     claims: list[CandidateClaim],
-) -> dict[FeatureKind, list[FeaturePredicate]]:
+) -> dict[FeatureKind, AttachmentFitProfile]:
     """Resolve explicit source-local ToolAttachment fit profiles by feature kind.
 
     A dimensional profile is one physical-interface subject. Every source that asserts
@@ -258,6 +282,8 @@ def _resolve_attachment_fit_profiles(
     establish the same complete normalized predicate set. This permits equivalent unit
     representations while preventing a minimum from one source, a maximum from another,
     or facts from two separate feature subjects from being stitched into a wider rule.
+    The originating subject is retained through composition so legacy and generic fit
+    evidence cannot be merged across distinct installation interfaces.
     """
 
     grouped: dict[str, list[CandidateClaim]] = defaultdict(list)
@@ -269,8 +295,7 @@ def _resolve_attachment_fit_profiles(
         ):
             grouped[claim.subject_ref].append(claim)
 
-    profiles: dict[FeatureKind, list[FeaturePredicate]] = {}
-    profile_subjects: dict[FeatureKind, str] = {}
+    profiles: dict[FeatureKind, AttachmentFitProfile] = {}
     for subject_ref, fit_claims in grouped.items():
         by_source: dict[str, list[CandidateClaim]] = defaultdict(list)
         for claim in fit_claims:
@@ -319,21 +344,24 @@ def _resolve_attachment_fit_profiles(
 
         feature_kind, normalized_predicates = canonical
         if feature_kind in profiles:
+            existing_subject, _ = profiles[feature_kind]
             raise ClaimResolutionError(
                 "feature-bound dimensional eligibility requires one accepted fit subject per "
                 f"feature kind; {feature_kind.value!r} appears on "
-                f"{profile_subjects[feature_kind]!r} and {subject_ref!r}"
+                f"{existing_subject!r} and {subject_ref!r}"
             )
 
-        profiles[feature_kind] = [
-            FeaturePredicate(
-                property_key=property_key,
-                operator=ComparisonOperator(operator),
-                value=value,
-            )
-            for property_key, operator, value in normalized_predicates
-        ]
-        profile_subjects[feature_kind] = subject_ref
+        profiles[feature_kind] = (
+            subject_ref,
+            [
+                FeaturePredicate(
+                    property_key=property_key,
+                    operator=ComparisonOperator(operator),
+                    value=value,
+                )
+                for property_key, operator, value in normalized_predicates
+            ],
+        )
 
     return profiles
 
@@ -359,6 +387,12 @@ def _normalized_fit_predicates(
             raise ClaimResolutionError(
                 "feature-bound dimensional eligibility requires an explicit eq/lt/lte/gt/gte "
                 f"operator for {claim.property_key!r}; got {rendered!r}"
+            )
+        if claim.claim_type != ClaimType.DECLARED_CONSTRAINT:
+            rendered_type = claim.claim_type.value if claim.claim_type is not None else None
+            raise ClaimResolutionError(
+                "feature-bound dimensional eligibility requires declared-constraint claims; "
+                f"got {rendered_type!r} for {claim.property_key!r}"
             )
         value_mm = round(_dimension_to_mm(claim), 9)
         comparison = ComparisonOperator(operator.value)
@@ -431,7 +465,7 @@ def _validate_dimension_conditions(
 
 def _compose_attachment_fit_profiles(
     paths: list[EligibilityPath],
-    profiles: dict[FeatureKind, list[FeaturePredicate]],
+    profiles: dict[FeatureKind, AttachmentFitProfile],
 ) -> list[EligibilityPath]:
     if not profiles:
         return paths
@@ -440,8 +474,9 @@ def _compose_attachment_fit_profiles(
     composed: list[EligibilityPath] = []
     for path in paths:
         feature_kind = _eligibility_path_feature_kind(path)
-        predicates = profiles.get(feature_kind) if feature_kind is not None else None
-        if predicates:
+        profile = profiles.get(feature_kind) if feature_kind is not None else None
+        if profile:
+            _, predicates = profile
             matched_kinds.add(feature_kind)
             composed.append(
                 EligibilityPath(
