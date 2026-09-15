@@ -162,9 +162,15 @@ def test_gripps_h01086_runner_proves_same_wrist_family_without_all_sizes_geometr
 
     assert fetcher.calls == [(identity.url, SourceType.MANUFACTURER_WEBPAGE)]
     assert rule.installation_method == AnchorInstallationMethod.FASTEN_AROUND
-    assert [path.binding_name for path in rule.paths] == ["wrist"]
-    predicates = {predicate.property_key: predicate.value for predicate in rule.paths[0].requirements}
-    assert predicates == {"feature_kind": "wrist"}
+    assert {path.binding_name for path in rule.paths} == {"wrist", "rail"}
+    predicates_by_path = {
+        path.binding_name: {predicate.property_key: predicate.value for predicate in path.requirements}
+        for path in rule.paths
+    }
+    assert predicates_by_path == {
+        "wrist": {"feature_kind": "wrist"},
+        "rail": {"feature_kind": "rail"},
+    }
     _assert_no_numeric_installation_fit(result.claims)
 
 
@@ -281,6 +287,7 @@ def test_bucket_lip_predicates_never_stitch_across_concrete_features() -> None:
         [
             _artifact(
                 identity.url,
+                "<h1>3-Inch Gated Bucket Hook</h1>"
                 "<p>Setup is simple by easily attaching the hook to a 3-Inch (7.6 cm) lip aerial bucket.</p>",
             )
         ],
@@ -325,6 +332,7 @@ def test_bucket_lip_wrong_known_nominal_class_is_ineligible() -> None:
         [
             _artifact(
                 identity.url,
+                "<h1>3-Inch Gated Bucket Hook</h1>"
                 "<p>Setup is simple by easily attaching the hook to a 3-Inch (7.6 cm) lip aerial bucket.</p>",
             )
         ],
