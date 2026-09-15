@@ -6,10 +6,20 @@ from tetherlens_ingest.candidate_generation import (
     CandidateComponentOption,
     ResolvedToolCandidate,
     TetherOption,
+    ToolAttachmentAssemblyOption,
 )
 from tetherlens_ingest.candidate_selection import (
     CandidateRankingContext,
     CandidateSelectionState,
+)
+from tetherlens_ingest.compatibility import (
+    AttachmentEligibility,
+    ComparisonOperator,
+    EligibilityPath,
+    FeatureKind,
+    FeaturePredicate,
+    FeatureRole,
+    ToolInterfaceFeature,
 )
 from tetherlens_ingest.connection import (
     ConnectionInterface,
@@ -100,6 +110,59 @@ def tool() -> ResolvedToolCandidate:
     )
 
 
+def attachment_tool() -> ResolvedToolCandidate:
+    return ResolvedToolCandidate(
+        tool_ref="tool:1",
+        object_mass_kg=2.0,
+        features=[
+            ToolInterfaceFeature(
+                feature_id="tool:handle",
+                feature_kind=FeatureKind.HANDLE,
+                feature_role=FeatureRole.GRIP,
+                dimensions_mm={"diameter": 10.0},
+            )
+        ],
+    )
+
+
+def attachment_assembly() -> ToolAttachmentAssemblyOption:
+    return ToolAttachmentAssemblyOption(
+        assembly_ref="attachment:1",
+        components=[
+            CandidateComponentOption(
+                component_ref="component:attachment-1",
+                source_product_ref="product:attachment-1",
+                rated_capacity_kg=5.0,
+            )
+        ],
+        eligibility=AttachmentEligibility(
+            paths=[
+                EligibilityPath(
+                    binding_name="handle",
+                    requirements=[
+                        FeaturePredicate(
+                            property_key="feature_kind",
+                            value="handle",
+                        ),
+                        FeaturePredicate(
+                            property_key="dimension:diameter",
+                            operator=ComparisonOperator.LTE,
+                            value=12.0,
+                        ),
+                    ],
+                )
+            ]
+        ),
+        provided_interfaces=[
+            ConnectionInterface(
+                interface_id="attachment:ring",
+                role=ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE,
+                interface_type="ring",
+            )
+        ],
+    )
+
+
 def test_run_recommendation_retains_complete_set_and_selects_real_viable_candidate():
     result = run_recommendation(
         tool(),
@@ -111,6 +174,7 @@ def test_run_recommendation_retains_complete_set_and_selects_real_viable_candida
     )
 
     assert result.tool == tool()
+    assert result.tool_fingerprint == recommendation_run_module.resolved_tool_fingerprint(tool())
     assert len(result.generated_candidates) == 2
     assert len(result.evaluations) == 2
     assert {
@@ -138,6 +202,7 @@ def test_recommendation_run_result_rejects_incomplete_evaluation_coverage():
     with pytest.raises(ValueError, match="exact evaluation coverage"):
         RecommendationRunResult(
             tool=result.tool,
+            tool_fingerprint=result.tool_fingerprint,
             generated_candidates=result.generated_candidates,
             evaluations=[],
             selection=result.selection,
@@ -155,6 +220,107 @@ def test_recommendation_run_result_rejects_retained_tool_mass_mismatch():
     with pytest.raises(ValueError, match="operational mass"):
         RecommendationRunResult(
             tool=mismatched_tool,
+            tool_fingerprint=recommendation_run_module.resolved_tool_fingerprint(
+                mismatched_tool
+            ),
+            generated_candidates=result.generated_candidates,
+            evaluations=result.evaluations,
+            selection=result.selection,
+        )
+
+
+def test_recommendation_run_result_rejects_changed_direct_interface_facts_with_same_id():
+    result = run_recommendation(
+        tool(),
+        [tether_option("viable", capacity_kg=5.0)],
+        [anchor_path()],
+    )
+    altered_interface = direct_ring().model_copy(
+        update={"dimensions_mm": {"inside_diameter": 4.0}}
+    )
+    altered_tool = result.tool.model_copy(
+        update={"direct_interfaces": [altered_interface]}
+    )
+
+    with pytest.raises(ValueError, match="generation fingerprint"):
+        RecommendationRunResult(
+            tool=altered_tool,
+            tool_fingerprint=result.tool_fingerprint,
+            generated_candidates=result.generated_candidates,
+            evaluations=result.evaluations,
+            selection=result.selection,
+        )
+
+
+def test_recommendation_run_result_rejects_direct_target_absent_from_retained_tool():
+    result = run_recommendation(
+        tool(),
+        [tether_option("viable", capacity_kg=5.0)],
+        [anchor_path()],
+    )
+    altered_tool = result.tool.model_copy(
+        update={
+            "direct_interfaces": [
+                direct_ring().model_copy(update={"interface_id": "tool:other-ring"})
+            ]
+        }
+    )
+
+    with pytest.raises(ValueError, match="direct candidate target"):
+        RecommendationRunResult(
+            tool=altered_tool,
+            tool_fingerprint=recommendation_run_module.resolved_tool_fingerprint(
+                altered_tool
+            ),
+            generated_candidates=result.generated_candidates,
+            evaluations=result.evaluations,
+            selection=result.selection,
+        )
+
+
+def test_recommendation_run_result_rejects_changed_bound_feature_facts_with_same_id():
+    result = run_recommendation(
+        attachment_tool(),
+        [tether_option("viable", capacity_kg=5.0)],
+        [anchor_path()],
+        tool_attachment_assemblies=[attachment_assembly()],
+    )
+    assert result.generated_candidates
+    assert result.generated_candidates[0].selection.installation_feature_id == "tool:handle"
+
+    altered_feature = attachment_tool().features[0].model_copy(
+        update={"dimensions_mm": {"diameter": 20.0}}
+    )
+    altered_tool = result.tool.model_copy(update={"features": [altered_feature]})
+
+    with pytest.raises(ValueError, match="generation fingerprint"):
+        RecommendationRunResult(
+            tool=altered_tool,
+            tool_fingerprint=result.tool_fingerprint,
+            generated_candidates=result.generated_candidates,
+            evaluations=result.evaluations,
+            selection=result.selection,
+        )
+
+
+def test_recommendation_run_result_rejects_attachment_feature_absent_from_retained_tool():
+    result = run_recommendation(
+        attachment_tool(),
+        [tether_option("viable", capacity_kg=5.0)],
+        [anchor_path()],
+        tool_attachment_assemblies=[attachment_assembly()],
+    )
+    altered_feature = attachment_tool().features[0].model_copy(
+        update={"feature_id": "tool:other-handle"}
+    )
+    altered_tool = result.tool.model_copy(update={"features": [altered_feature]})
+
+    with pytest.raises(ValueError, match="installation feature"):
+        RecommendationRunResult(
+            tool=altered_tool,
+            tool_fingerprint=recommendation_run_module.resolved_tool_fingerprint(
+                altered_tool
+            ),
             generated_candidates=result.generated_candidates,
             evaluations=result.evaluations,
             selection=result.selection,
@@ -171,6 +337,7 @@ def test_recommendation_run_result_rejects_selection_inconsistent_with_required_
     with pytest.raises(ValueError, match="must match deterministic selection"):
         RecommendationRunResult(
             tool=result.tool,
+            tool_fingerprint=result.tool_fingerprint,
             generated_candidates=result.generated_candidates,
             evaluations=result.evaluations,
             ranking_context=CandidateRankingContext(required_reach_mm=1300.0),
@@ -189,6 +356,7 @@ def test_recommendation_run_result_rejects_contextual_exclusion_without_reach_re
     with pytest.raises(ValueError, match="must match deterministic selection"):
         RecommendationRunResult(
             tool=contextual.tool,
+            tool_fingerprint=contextual.tool_fingerprint,
             generated_candidates=contextual.generated_candidates,
             evaluations=contextual.evaluations,
             selection=contextual.selection,
@@ -217,6 +385,7 @@ def test_run_recommendation_preserves_empty_generation_as_distinct_outcome():
     result = run_recommendation(tool(), [], [anchor_path()])
 
     assert result.tool == tool()
+    assert result.tool_fingerprint == recommendation_run_module.resolved_tool_fingerprint(tool())
     assert result.generated_candidates == []
     assert result.evaluations == []
     assert result.selection.state == CandidateSelectionState.NO_GENERATED_CANDIDATES
