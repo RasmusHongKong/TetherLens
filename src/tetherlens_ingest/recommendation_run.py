@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+import json
+
 from pydantic import BaseModel, model_validator
 
 from .candidate_generation import (
@@ -24,14 +27,16 @@ from .recommendation import CandidateEvaluation, evaluate_candidate_configuratio
 class RecommendationRunResult(BaseModel):
     """Complete auditable result of one recommendation run.
 
-    Runs produced by ``run_recommendation`` retain the exact normalized Tool input in
-    addition to every generated candidate, every corresponding hard evaluation, the
-    explicit ranking context, and the deterministic selection result. ``tool`` remains
-    optional only for older/manual focused fixtures that construct a run directly rather
-    than through the orchestration boundary.
+    Runs produced by ``run_recommendation`` retain the exact normalized Tool input and a
+    canonical fingerprint of that generation input, in addition to every generated
+    candidate, every corresponding hard evaluation, the explicit ranking context, and the
+    deterministic selection result. ``tool`` remains optional only for older/manual
+    focused fixtures that construct a run directly rather than through the orchestration
+    boundary.
     """
 
     tool: ResolvedToolCandidate | None = None
+    tool_fingerprint: str | None = None
     generated_candidates: list[GeneratedCandidate]
     evaluations: list[CandidateEvaluation]
     ranking_context: CandidateRankingContext | None = None
@@ -56,13 +61,34 @@ class RecommendationRunResult(BaseModel):
                 f"missing evaluations={missing!r}, unexpected evaluations={unexpected!r}"
             )
 
-        if self.tool is not None:
+        if self.tool is None:
+            if self.tool_fingerprint is not None:
+                raise ValueError(
+                    "recommendation run Tool fingerprint requires a retained normalized Tool"
+                )
+        else:
+            if self.tool_fingerprint is None:
+                raise ValueError(
+                    "recommendation run retaining a Tool must retain its generation fingerprint"
+                )
+            expected_fingerprint = resolved_tool_fingerprint(self.tool)
+            if self.tool_fingerprint != expected_fingerprint:
+                raise ValueError(
+                    "recommendation run retained Tool must match the exact normalized Tool "
+                    "generation fingerprint"
+                )
+
+            direct_interface_ids = {
+                interface.interface_id for interface in self.tool.direct_interfaces
+            }
+            feature_ids = {feature.feature_id for feature in self.tool.features}
             for candidate in self.generated_candidates:
                 candidate_id = candidate.configuration.candidate_id
-                if candidate.selection.tool_ref != self.tool.tool_ref:
+                selection = candidate.selection
+                if selection.tool_ref != self.tool.tool_ref:
                     raise ValueError(
                         "recommendation run generated candidates must retain the run Tool identity; "
-                        f"candidate {candidate_id!r} has {candidate.selection.tool_ref!r}, "
+                        f"candidate {candidate_id!r} has {selection.tool_ref!r}, "
                         f"run Tool is {self.tool.tool_ref!r}"
                     )
                 if candidate.configuration.object_mass_kg != self.tool.object_mass_kg:
@@ -72,6 +98,22 @@ class RecommendationRunResult(BaseModel):
                         f"{candidate.configuration.object_mass_kg!r}, run Tool has "
                         f"{self.tool.object_mass_kg!r}"
                     )
+
+                if selection.attachment_assembly_ref is None:
+                    if selection.tool_target_interface_id not in direct_interface_ids:
+                        raise ValueError(
+                            "recommendation run direct candidate target must belong to the exact "
+                            f"retained run Tool; candidate {candidate_id!r} targets "
+                            f"{selection.tool_target_interface_id!r}"
+                        )
+                else:
+                    feature_id = selection.installation_feature_id
+                    if feature_id not in feature_ids:
+                        raise ValueError(
+                            "recommendation run ToolAttachment candidate installation feature must "
+                            "belong to the exact retained run Tool; "
+                            f"candidate {candidate_id!r} binds {feature_id!r}"
+                        )
 
         selected_candidates = [
             *self.selection.ranked_viable_candidates,
@@ -121,6 +163,33 @@ class RecommendationRunResult(BaseModel):
         return self
 
 
+def resolved_tool_fingerprint(tool: ResolvedToolCandidate) -> str:
+    """Return a canonical digest of every normalized Tool fact used by generation.
+
+    Feature and direct-interface lists are canonicalized by their local identifiers so
+    semantically irrelevant list ordering does not change the digest. All facts inside
+    those objects, and any future top-level ``ResolvedToolCandidate`` fields, remain part
+    of the fingerprint through the complete model dump.
+    """
+
+    payload = tool.model_dump(mode="json")
+    payload["features"] = sorted(
+        payload.get("features", []),
+        key=lambda item: item["feature_id"],
+    )
+    payload["direct_interfaces"] = sorted(
+        payload.get("direct_interfaces", []),
+        key=lambda item: item["interface_id"],
+    )
+    canonical = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def run_recommendation(
     tool: ResolvedToolCandidate,
     tethers: list[TetherOption],
@@ -166,6 +235,7 @@ def run_recommendation(
 
     return RecommendationRunResult(
         tool=tool,
+        tool_fingerprint=resolved_tool_fingerprint(tool),
         generated_candidates=generated_candidates,
         evaluations=evaluations,
         ranking_context=ranking_context,
