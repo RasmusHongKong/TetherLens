@@ -47,6 +47,7 @@ def _claim(
     subject_ref: str = "tool_side_fit",
     unit: str | None = None,
     operator: ConstraintOperator | None = None,
+    claim_type: ClaimType | None = None,
 ) -> CandidateClaim:
     return CandidateClaim(
         subject_type=(
@@ -60,7 +61,11 @@ def _claim(
         unit=unit,
         source_url=source_url,
         extractor="test.v0",
-        claim_type=(ClaimType.DECLARED_CONSTRAINT if operator else ClaimType.DIRECT),
+        claim_type=(
+            claim_type
+            if claim_type is not None
+            else (ClaimType.DECLARED_CONSTRAINT if operator else ClaimType.DIRECT)
+        ),
         constraint_operator=operator,
     )
 
@@ -153,6 +158,23 @@ def test_generic_fit_profiles_require_explicit_comparison_direction() -> None:
         resolve_attachment_eligibility(claims)
 
 
+def test_generic_fit_profiles_require_declared_constraint_claim_type() -> None:
+    claims = [
+        _claim("attachment_selection_class", "handle_attachment"),
+        _claim("attachment_eligibility.feature_kind", "handle"),
+        _claim(
+            "attachment_eligibility.dimension.section_diameter",
+            1.28,
+            unit="in",
+            operator=ConstraintOperator.LTE,
+            claim_type=ClaimType.MEASURED,
+        ),
+    ]
+
+    with pytest.raises(ClaimResolutionError, match="requires declared-constraint claims"):
+        resolve_attachment_eligibility(claims)
+
+
 def test_generic_fit_profiles_reject_multiple_subjects_for_same_feature_kind() -> None:
     claims = [
         _claim("attachment_selection_class", "handle_attachment"),
@@ -200,6 +222,48 @@ def test_generic_external_dimensions_cannot_bypass_partial_legacy_diameter_envel
     ]
 
     with pytest.raises(ClaimResolutionError, match="complete min/max diameter-fit envelope"):
+        resolve_attachment_eligibility(claims)
+
+
+def test_generic_external_dimensions_reject_cross_subject_legacy_profile_merge() -> None:
+    claims = [
+        _claim("attachment_selection_class", "external_section_attachment"),
+        CandidateClaim(
+            subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+            subject_ref="legacy_fit",
+            property_key="interface.dimension.min_diameter",
+            value=1.0,
+            unit="in",
+            source_url=SOURCE,
+            extractor="test.v0",
+        ),
+        CandidateClaim(
+            subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+            subject_ref="legacy_fit",
+            property_key="interface.dimension.max_diameter",
+            value=1.65,
+            unit="in",
+            source_url=SOURCE,
+            extractor="test.v0",
+        ),
+        _claim(
+            "attachment_eligibility.feature_kind",
+            "external_section",
+            subject_ref="generic_fit",
+        ),
+        _claim(
+            "attachment_eligibility.dimension.section_length",
+            3.5,
+            unit="in",
+            operator=ConstraintOperator.LTE,
+            subject_ref="generic_fit",
+        ),
+    ]
+
+    with pytest.raises(
+        ClaimResolutionError,
+        match="must share one physical-interface subject",
+    ):
         resolve_attachment_eligibility(claims)
 
 
