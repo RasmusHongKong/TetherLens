@@ -74,7 +74,7 @@ _19178_LIP_SIZE = re.compile(
     re.I | re.S,
 )
 _TWO_INCH_BUCKET_LIP = re.compile(
-    r"\bLIP\s+CAVITY\s+OF\s+HOOK\s*\(BUCKET\s+LIP\s+SIZE\)\b(?P<gap>.{0,160}?)"
+    r"\bLIP\s+CAVITY\s+OF\s+HOOK\s*\(BUCKET\s+LIP\s+SIZE\)\s*(?P<gap>.{0,160}?)"
     r"\b2\s*IN\s*(?://|/)\s*5\s*CM\b",
     re.I | re.S,
 )
