@@ -29,6 +29,7 @@ from .common import bounded_record_for_identifier, page_text
 
 
 _EXTRACTOR = "ergodyne.v0.2"
+_TOOL_ATTACHMENT_EXTRACTOR = "ergodyne.v0.3"
 _ANCHOR_INSTRUCTIONS_URL = (
     "https://www.ergodyne.com/sites/default/files/2022-11/"
     "squids-3171-3172-3174-3176-3177-anchor-straps-instructions.pdf"
@@ -44,6 +45,14 @@ _PRODUCT_CAPACITY = re.compile(
 )
 _D_RING = re.compile(r"\b(?:durable\s+steel\s+|captive\s+)?D[-\s]?ring\b", re.I)
 _ENCLOSED_TETHERING_POINT = re.compile(r"\benclosed\s+tethering\s+point\b", re.I)
+_TOOL_GRIP_HEADING = re.compile(r"\bSquids\s+3745\b.*\bTool\s+Grip\b", re.I)
+_TOOL_GRIP_COMPATIBILITY = re.compile(
+    r"\bhandles?\s+ranging\s+from\s+(?P<min>\d+(?:\.\d+)?)\s*in\b"
+    r".{0,80}?\bto\s+(?P<max>\d+(?:\.\d+)?)\s*in\b"
+    r".{0,100}?\bdiameter\b.{0,100}?\bhandle\s+height\s+of\s+"
+    r"(?P<height>\d+(?:\.\d+)?)\s*in\b",
+    re.I | re.S,
+)
 _3171_SECTION = re.compile(
     r"\b3171\s+BELT\s+LOOP\s+ANCHOR\s+INSTRUCTIONS\b(?P<section>.*?)"
     r"\b3172\s+HOOK\s*&\s*LOOP\s+ANCHOR\s+INSTRUCTIONS\b",
@@ -78,12 +87,12 @@ _BUCKET_LIP_NOMINAL_SIZE = re.compile(
 
 
 class ErgodyneAdapter(ManufacturerAdapter):
-    """First-party Ergodyne AnchorAttachment ingestion.
+    """First-party Ergodyne ToolAttachment and AnchorAttachment ingestion.
 
-    Family instruction documents are identity-scoped. The 3171 belt-loop rules and
-    the 3178 bucket-hook rules stay separate, and sibling-model facts are never inherited.
-    Bucket-hook size labels are retained only as nominal feature classes; they do not
-    become inferred numeric fit envelopes.
+    Family instruction documents remain identity-scoped on the anchor side. Tool-grip
+    fit is compiled only from an exact product page that states the numeric handle
+    envelope; current document variants are not silently joined into that source-local
+    profile.
     """
 
     manufacturer = "Ergodyne"
@@ -118,6 +127,8 @@ class ErgodyneAdapter(ManufacturerAdapter):
         identity: ProductIdentity,
         artifacts: list[SourceArtifact],
     ) -> list[CandidateClaim]:
+        if identity.product_type == ProductType.TOOL_ATTACHMENT:
+            return _tool_grip_claims(identity, artifacts)
         if identity.product_type != ProductType.ANCHOR_ATTACHMENT:
             return []
 
@@ -286,6 +297,111 @@ class ErgodyneAdapter(ManufacturerAdapter):
                 )
 
         return dedupe(claims)
+
+
+def _tool_grip_claims(
+    identity: ProductIdentity,
+    artifacts: list[SourceArtifact],
+) -> list[CandidateClaim]:
+    claims: list[CandidateClaim] = []
+    for artifact in artifacts:
+        if not _is_verified_tool_grip_primary(identity, artifact):
+            continue
+        text = page_text(artifact.body)
+        compatibility = _TOOL_GRIP_COMPATIBILITY.search(text)
+        if compatibility is None:
+            continue
+
+        raw = " ".join(compatibility.group(0).split())
+        claims.extend(
+            [
+                claim(
+                    "attachment_selection_class",
+                    "handle_attachment",
+                    raw_value=raw,
+                    source_url=artifact.url,
+                    extractor=_TOOL_ATTACHMENT_EXTRACTOR,
+                ),
+                claim(
+                    "attachment_eligibility.feature_kind",
+                    "handle",
+                    raw_value=raw,
+                    source_url=artifact.url,
+                    extractor=_TOOL_ATTACHMENT_EXTRACTOR,
+                    subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+                    subject_ref="tool_side_fit",
+                ),
+                claim(
+                    "attachment_eligibility.dimension.section_diameter",
+                    float(compatibility.group("min")),
+                    unit="in",
+                    raw_value=raw,
+                    source_url=artifact.url,
+                    extractor=_TOOL_ATTACHMENT_EXTRACTOR,
+                    subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+                    subject_ref="tool_side_fit",
+                    operator=ConstraintOperator.GTE,
+                ),
+                claim(
+                    "attachment_eligibility.dimension.section_diameter",
+                    float(compatibility.group("max")),
+                    unit="in",
+                    raw_value=raw,
+                    source_url=artifact.url,
+                    extractor=_TOOL_ATTACHMENT_EXTRACTOR,
+                    subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+                    subject_ref="tool_side_fit",
+                    operator=ConstraintOperator.LTE,
+                ),
+                claim(
+                    "attachment_eligibility.dimension.section_height",
+                    float(compatibility.group("height")),
+                    unit="in",
+                    raw_value=raw,
+                    source_url=artifact.url,
+                    extractor=_TOOL_ATTACHMENT_EXTRACTOR,
+                    subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+                    subject_ref="tool_side_fit",
+                    operator=ConstraintOperator.LTE,
+                ),
+            ]
+        )
+
+        capacity = _PRODUCT_CAPACITY.search(text)
+        if capacity is not None:
+            claims.append(
+                claim(
+                    "rated_capacity_kg",
+                    mass_to_kg(
+                        float(capacity.group("value")),
+                        capacity.group("unit"),
+                    ),
+                    unit="kg",
+                    raw_value=capacity.group(0),
+                    source_url=artifact.url,
+                    extractor=_TOOL_ATTACHMENT_EXTRACTOR,
+                )
+            )
+
+    return dedupe(claims)
+
+
+def _is_verified_tool_grip_primary(identity: ProductIdentity, artifact: SourceArtifact) -> bool:
+    if (
+        artifact.source_type != SourceType.MANUFACTURER_WEBPAGE
+        or str(artifact.metadata.get("role") or "primary") != "primary"
+        or not identity.sku
+        or _normalize_url(artifact.url) != _normalize_url(identity.url)
+    ):
+        return False
+
+    soup = BeautifulSoup(artifact.body, "html.parser")
+    heading = soup.find("h1")
+    if heading is None or _TOOL_GRIP_HEADING.search(" ".join(heading.stripped_strings)) is None:
+        return False
+
+    item_numbers = {match.group("sku") for match in _ITEM_NUMBER.finditer(page_text(artifact.body))}
+    return item_numbers == {identity.sku}
 
 
 def _is_verified_3171_primary(identity: ProductIdentity, artifact: SourceArtifact) -> bool:
