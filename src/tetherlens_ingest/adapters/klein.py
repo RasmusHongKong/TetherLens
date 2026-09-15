@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from urllib.parse import urlsplit
 
 from tetherlens_ingest.models import (
     CandidateClaim,
@@ -9,6 +10,7 @@ from tetherlens_ingest.models import (
     ProductIdentity,
     ProductType,
     SourceArtifact,
+    SourceType,
 )
 
 from .anchor_attachment_common import (
@@ -39,7 +41,7 @@ class KleinAdapter(ManufacturerAdapter):
         artifacts: list[SourceArtifact],
     ) -> list[CandidateClaim]:
         if identity.product_type == ProductType.ANCHOR_ATTACHMENT:
-            return self._extract_anchor_attachment(artifacts)
+            return self._extract_anchor_attachment(identity, artifacts)
         if identity.product_type != ProductType.TOOL:
             return []
 
@@ -91,10 +93,14 @@ class KleinAdapter(ManufacturerAdapter):
 
     def _extract_anchor_attachment(
         self,
+        identity: ProductIdentity,
         artifacts: list[SourceArtifact],
     ) -> list[CandidateClaim]:
         claims: list[CandidateClaim] = []
         for artifact in artifacts:
+            if not _is_verified_anchor_product_detail(artifact, identity):
+                continue
+
             text = page_text(artifact.body)
             target = _bucket_lip_evidence(text)
             install = _bucket_hook_installation(text)
@@ -178,6 +184,42 @@ _BUCKET_HOOK_ATTACHES = re.compile(
     re.I,
 )
 _BUCKET_TETHER_POINT = re.compile(r"\btether(?:\s+rated)?\s+attachment\s+point\b", re.I)
+
+
+def _is_verified_anchor_product_detail(
+    artifact: SourceArtifact,
+    identity: ProductIdentity,
+) -> bool:
+    if artifact.source_type != SourceType.MANUFACTURER_WEBPAGE:
+        return False
+    if _normalized_product_url(artifact.url) != _normalized_product_url(identity.url):
+        return False
+
+    text = page_text(artifact.body)
+    if identity.sku and re.search(
+        rf"(?<![A-Z0-9]){re.escape(identity.sku)}(?![A-Z0-9])",
+        text,
+        re.I,
+    ) is not None:
+        return True
+
+    heading = re.search(r"<h1\b[^>]*>(?P<body>.*?)</h1>", artifact.body, re.I | re.S)
+    if heading is None or not identity.name:
+        return False
+    heading_text = page_text(heading.group(0)).casefold()
+    name_tokens = [token for token in re.findall(r"[a-z0-9]+", identity.name.casefold()) if len(token) > 2]
+    return bool(name_tokens) and all(token in heading_text for token in name_tokens)
+
+
+def _normalized_product_url(url: str) -> tuple[str, str] | None:
+    parts = urlsplit(url)
+    if parts.scheme.casefold() not in {"http", "https"} or not parts.hostname:
+        return None
+    host = parts.hostname.casefold()
+    if host.startswith("www."):
+        host = host[4:]
+    path = parts.path.rstrip("/").casefold() or "/"
+    return host, path
 
 
 def _bucket_lip_evidence(text: str) -> str | None:
