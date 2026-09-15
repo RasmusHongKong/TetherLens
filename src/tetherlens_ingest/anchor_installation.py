@@ -15,6 +15,8 @@ class PrimaryAnchorFeatureKind(StrEnum):
     BELT = "belt"
     BEAM = "beam"
     RAIL = "rail"
+    WRIST = "wrist"
+    BUCKET_LIP = "bucket_lip"
 
 
 class AnchorInstallationMethod(StrEnum):
@@ -23,6 +25,8 @@ class AnchorInstallationMethod(StrEnum):
     WRAP = "wrap"
     CINCH = "cinch"
     THREAD_OVER = "thread_over"
+    FASTEN_AROUND = "fasten_around"
+    HOOK_ON = "hook_on"
 
 
 class PrimaryAnchorFeature(BaseModel):
