@@ -21,7 +21,7 @@ from .base import ManufacturerAdapter
 from .common import page_text
 
 
-_EXTRACTOR = "falltech.v0.2"
+_EXTRACTOR = "falltech.v0.1"
 _TOOL_WEIGHT_CAPACITY = re.compile(
     r"\b(?:tool\s+weight\s+capacity|max(?:imum)?\s+tool\s+weight)\b\s*:?\s*"
     r"(?P<raw>\d+(?:\.\d+)?\s*(?:kg|kgs?|lb|lbs?|g)\b(?:\s+max\.?)?)",
