@@ -1,0 +1,265 @@
+{
+  "benchmark": "cross_vendor_portability_v5",
+  "created_at": "2026-09-15",
+  "freeze_point": {
+    "branch": "main",
+    "commit": "87f3c277f108e38dc3ec7d070e38c94868d355a6",
+    "through_pr": 62
+  },
+  "sample_status": "classified_after_freeze_commit",
+  "sample_freeze_commit": "e7c03c942b3fb2456033f7d5d3e15ee3cfee09d7",
+  "classification": {
+    "A": "facts_only",
+    "B": "vendor_ingestion_only",
+    "C": "new_reusable_primitive",
+    "D": "sku_specific_exception"
+  },
+  "sample_design": "Eight previously unaudited identities across seven manufacturers, fixed before classification against merged post-PR #62 main. The cohort intentionally moves away from the AnchorAttachment region stressed by V3/V4: it contains four ToolAttachments and four tethers, no AnchorAttachment products, no wrist/bucket-lip cases, and no V1-V4 or PR #58/#60/#61/#62 proof identity. It mixes existing-adapter manufacturers with manufacturers that still require catalogue onboarding so the audit can distinguish core semantic portability from ingestion throughput.",
+  "audit_question": "Against merged post-PR #62 main, does a materially different fresh ToolAttachment/tether cohort now land predominantly in A/B without a comparable recurring C/D seam, such that portability can become a periodic stress test while development shifts toward catalogue throughput and the demand-side MVP?",
+  "result": {
+    "A": 0,
+    "B": 6,
+    "C": 2,
+    "D": 0
+  },
+  "decision": "Do not shift the development centre fully to catalogue throughput yet. V5 is strongly A/B-majority by count and D remains zero, but the two independent C cases expose the same narrow reusable compiler seam: source-backed dimensional fit constraints cannot yet be composed onto an arbitrary concrete ToolInterfaceFeature eligibility path. Runtime FeaturePredicate already supports feature-local dimensions, while claim resolution currently compiles numeric fit only for external_section_attachment with a complete min/max diameter envelope and deliberately leaves handle_attachment dimension-free. Close only that generic feature-bound dimensional eligibility seam, preserving same-feature binding and fail-closed evidence scope; do not add battery-, screwdriver-, FallTech- or Ergodyne-specific compatibility rules. Treat the six B cases as catalogue-throughput evidence. After the dimensional seam is vertically proven, run another materially different fresh portability sample; if it has no comparable recurring C/D pressure, portability should become a periodic stress test and development should pivot to catalogue throughput plus the demand-side MVP.",
+  "products": [
+    {
+      "manufacturer": "FallTech",
+      "sku": "5401A1",
+      "name": "Battery Boot Tool Attachment",
+      "product_type": "ToolAttachment",
+      "source_url": "https://www.falltech.com/product/5401a1/",
+      "archetypes": [
+        "battery_boot",
+        "adjustable_capture",
+        "explicit_three_axis_fit",
+        "d_ring"
+      ],
+      "observed_public_facts": [
+        "adjustable hook-and-loop straps retain the attachment around cordless power-tool batteries",
+        "published fit scope is batteries up to 3.5 in long x 2.75 in wide x 2.5 in high",
+        "steel D-ring provides the tether connection point",
+        "6 lb maximum battery/tool load"
+      ],
+      "classification": "C",
+      "core_fit": [
+        "ToolAttachment entity and rated capacity",
+        "ToolAttachment-provided D-ring interface",
+        "one concrete tool/configuration feature can already carry arbitrary feature-local dimensions",
+        "runtime EligibilityPath and FeaturePredicate can already evaluate multiple dimensions against the same bound feature"
+      ],
+      "required_core_changes": [
+        "generalize attachment-eligibility claim composition so accepted source-backed dimensional upper/lower bounds can be compiled onto one selected ToolInterfaceFeature path instead of only the existing external-section min/max-diameter special case",
+        "represent the installed battery body as one resolved external geometry feature only when demand-side tool/configuration evidence establishes that feature; do not add a battery-SKU compatibility branch"
+      ],
+      "portability_gap": "The model can store the boot, D-ring and load rating, and its runtime predicate layer is already dimension-generic. The production resolver cannot faithfully enforce the manufacturer's three-axis fit envelope: external_section_attachment is hard-wired to a complete min/max diameter pair, while ignoring the published L/W/H limits would over-authorize installation. This is therefore a reusable feature-bound dimensional-eligibility gap rather than a FallTech exception."
+    },
+    {
+      "manufacturer": "Ergodyne",
+      "sku": "19747",
+      "model": "Squids 3745",
+      "name": "Tool Grip and Tether Attachment Point - 2-Pack",
+      "product_type": "ToolAttachment",
+      "source_url": "https://www.ergodyne.com/squids-3745-tool-grip-and-tether-attachment-point-2-pack",
+      "archetypes": [
+        "tool_grip",
+        "handle_capture",
+        "explicit_handle_fit",
+        "swiveling_tether_point"
+      ],
+      "observed_public_facts": [
+        "two-piece rubber sleeve and end cap encapsulate screwdriver or nut-driver handles",
+        "published compatibility is handle diameter 1.0 to 1.28 in with handle height 4.5 in",
+        "swiveling end cap provides the tether connection point",
+        "1 lb maximum working capacity and 48 in maximum tether length"
+      ],
+      "classification": "C",
+      "core_fit": [
+        "ToolAttachment entity and rated capacity",
+        "handle ToolInterfaceFeature",
+        "mechanical-capture style retention and ToolAttachment-provided tether interface",
+        "runtime same-feature dimension predicates",
+        "maximum tether-length product constraint"
+      ],
+      "required_core_changes": [
+        "extend the same generic feature-bound dimensional eligibility composition so handle_attachment can retain and enforce explicit accepted handle-diameter and handle-height fit evidence on the exact selected handle rather than remaining geometry-only"
+      ],
+      "portability_gap": "The current handle_attachment compiler intentionally emits only feature_kind = handle and carries no inferred dimensional fit. That was correct for SnapLock/Quick Spin evidence, but it cannot faithfully ingest an attachment whose manufacturer publishes an explicit numeric handle envelope. Dropping the 1.0-1.28 in diameter and 4.5 in height conditions would broaden eligibility beyond the source. This independently repeats FallTech 5401A1's compiler-level dimensional-binding gap."
+    },
+    {
+      "manufacturer": "Safewaze",
+      "sku": "SW404",
+      "name": "35 lb Medium Duty Cinch Tool Attachment (No Tabs)",
+      "product_type": "ToolAttachment",
+      "source_url": "https://safewaze.com/products/tool-lanyards/tool-attachments-accessories/35-lb-medium-duty-cinch-tool-attachment/",
+      "archetypes": [
+        "cinch_attachment",
+        "pass_through_loop",
+        "high_capacity"
+      ],
+      "observed_public_facts": [
+        "pass-through loop provides cinch installation on tools",
+        "web loop provides the tether-side connection",
+        "35 lb maximum load",
+        "manufacturer instructions separately identify difficult-to-tether examples including closed-handle tools and prohibit use on tapered handles"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "ToolAttachment entity",
+        "attachment_method_code = cinch",
+        "existing captive-handle eligibility can represent the explicit closed-handle subset without treating illustrative tool categories as a closed whitelist",
+        "existing prohibited_surface_profile constraint can preserve the tapered-handle prohibition",
+        "ToolAttachment-provided loop interface and rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "Safewaze ToolAttachment acquisition/extraction is missing. The public evidence should be compiled conservatively: the broad 'wide variety of tools' wording and illustrative clamps/wrenches are not themselves a new generic eligibility rule, while the existing cinch, closed-handle subset, surface-profile prohibition, loop interface and capacity primitives already carry the executable facts that are established."
+    },
+    {
+      "manufacturer": "GRIPPS",
+      "sku": "H01006-5",
+      "name": "Tool Catch 25mm x 90mm - 5 Pack",
+      "product_type": "ToolAttachment",
+      "source_url": "https://gripps.com/products/tool-catch",
+      "archetypes": [
+        "wrap_attachment",
+        "required_pairing",
+        "tape_retention",
+        "ring_interface"
+      ],
+      "observed_public_facts": [
+        "Tool Catch is secured to the tool using GRIPPS V-Gripp Tape",
+        "installation instructs repeated tight tape wraps while leaving the ring uncovered",
+        "ring provides the load-rated tether connection point",
+        "2.5 kg / 5.5 lb maximum load"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "ToolAttachment entity",
+        "attachment_method_code = wrap",
+        "manufacturer-backed required_pairing / multi-component ToolAttachment assembly",
+        "ToolAttachment-provided ring interface",
+        "rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "The existing GRIPPS ToolAttachment extractor is SnapLock-focused, so Tool Catch plus V-Gripp Tape needs catalogue extraction and evidence-bound required pairing. The neutral wrap/required-pairing/assembly/interface/capacity model already exists; no Tool Catch-specific recommendation primitive is required."
+    },
+    {
+      "manufacturer": "Milwaukee",
+      "sku": "48-22-8815",
+      "name": "15lb Locking Tool Lanyard",
+      "product_type": "Tether",
+      "source_url": "https://www.milwaukeetool.com/products/details/15lb-locking-tool-lanyard/48-22-8815",
+      "archetypes": [
+        "locking_tether",
+        "swivel",
+        "shock_absorbing"
+      ],
+      "observed_public_facts": [
+        "3 ft lanyard with 15 lb weight rating",
+        "locking carabiners require double actions to open",
+        "an integrated swiveling carabiner reduces twisting",
+        "shock-absorbing lanyard body is described as slowing a dropped tool gradually"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "Tether entity and rated capacity",
+        "carabiner ConnectorSpec with opening-action and swivel attributes",
+        "working-length facts where source-local endpoint evidence supports them",
+        "shock-absorbing construction may remain descriptive evidence unless a later rule consumes it"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "The current Milwaukee adapter is not a general tether catalogue extractor. Onboarding this lanyard requires product-local endpoint/topology extraction and source scoping, but the published locking, swivel, length and load facts fit existing neutral tether and connector primitives."
+    },
+    {
+      "manufacturer": "GRIPPS",
+      "sku": "H01072",
+      "name": "Bungee Tether Single-Action - 2.5kg / 5.5lb",
+      "product_type": "Tether",
+      "source_url": "https://gripps.com/products/bungee-single-action-tether",
+      "archetypes": [
+        "bungee_tether",
+        "carabiner_loop_tether",
+        "tail_loop"
+      ],
+      "observed_public_facts": [
+        "elasticised polyester bungee construction",
+        "wide tail loop with grip weave can fasten to tools or anchor points",
+        "product description calls the carabiner dual-action while the product title says Single-Action",
+        "2.5 kg / 5.5 lb maximum load"
+      ],
+      "evidence_notes": [
+        "The title/description action-count inconsistency is an evidence-reconciliation issue. Do not normalize an opening-action count until product-local evidence resolves it; it is not a reason to invent a new connector primitive."
+      ],
+      "classification": "B",
+      "core_fit": [
+        "mixed tether endpoint topology",
+        "loop endpoint and carabiner endpoint",
+        "loop engagement and endpoint role can remain evidence-bound/reversible where the manufacturer permits either tool or anchor use",
+        "elastic tether construction and rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "GRIPPS tether extraction is currently optimized for explicit dedicated anchor/tool dual-carabiner wording. H01072 needs broader vendor extraction plus conservative reconciliation of the action-count conflict, not a new downstream topology or compatibility rule."
+    },
+    {
+      "manufacturer": "3M",
+      "sku": "1500047",
+      "name": "DBI-SALA Hook2Loop Bungee Tool Tether",
+      "product_type": "Tether",
+      "source_url": "https://www.3m.com/3M/en_US/p/d/v000431662/",
+      "archetypes": [
+        "bungee_tether",
+        "carabiner_loop_tether",
+        "self_locking",
+        "reversible_endpoints"
+      ],
+      "observed_public_facts": [
+        "one self-locking carabiner end and one loop end",
+        "manufacturer instructions allow either end to attach to the tool and the other to an off-body/fixed anchor point",
+        "loop end is cinched by feeding the carabiner end through the loop",
+        "15 lb load rating with published relaxed/stretched working lengths"
+      ],
+      "classification": "B",
+      "core_fit": [
+        "mixed tether endpoint topology",
+        "self-locking carabiner ConnectorSpec",
+        "loop endpoint with cinch engagement",
+        "existing reversible/unknown endpoint-assignment semantics",
+        "minimum/retracted and maximum/extended length facts and rated capacity"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "The 3M adapter is intentionally Quick Spin ToolAttachment-specific. Hook2Loop needs tether acquisition/extraction and identity-scoped document joining, but its reversible carabiner/loop topology, cinch mechanism, length and capacity are already represented by existing neutral primitives."
+    },
+    {
+      "manufacturer": "Guardian",
+      "sku": "7100001",
+      "name": "Arc Flash Tool Tether",
+      "product_type": "Tether",
+      "source_url": "https://guardianfall.com/product/7100001",
+      "archetypes": [
+        "arc_flash",
+        "carabiner_loop_tether",
+        "screw_gate",
+        "bungee_tether"
+      ],
+      "observed_public_facts": [
+        "steel screw-gate carabiner endpoint",
+        "Kevlar cord loop endpoint",
+        "27 in tether length",
+        "manufacturer states ASTM F887 arc-flash compliance and Kevlar/Nomex heat- and burn-resistant webbing"
+      ],
+      "evidence_notes": [
+        "Arc-flash compliance is a positive capability claim, not an explicit prohibition on ordinary tether use. V5 therefore does not create a hard environmental rule from the marketing/certification label alone. If future demand-side scenarios repeatedly require positive arc-flash suitability to decide among otherwise viable candidates, that should be audited as a separate evidence-backed environmental expansion."
+      ],
+      "classification": "B",
+      "core_fit": [
+        "mixed carabiner/loop tether endpoint topology",
+        "manual/screw-gate locking connector evidence",
+        "working-length and material facts",
+        "standards/compliance evidence retained without converting positive certification into an unsupported hard compatibility rule"
+      ],
+      "required_core_changes": [],
+      "portability_gap": "Guardian catalogue acquisition remains missing. The tether can participate through existing endpoint, connector, length and evidence primitives. Its arc-flash certification should be preserved as evidence, but absence of a current positive environmental preference primitive does not prevent baseline recommendation participation and is not promoted to C from one sampled product."
+    }
+  ]
+}
