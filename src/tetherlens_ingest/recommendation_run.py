@@ -24,11 +24,13 @@ from .recommendation import CandidateEvaluation, evaluate_candidate_configuratio
 class RecommendationRunResult(BaseModel):
     """Complete auditable result of one recommendation run.
 
-    The result retains every generated candidate, every corresponding hard evaluation,
-    the explicit ranking context, and the deterministic selection result. It intentionally
-    does not flatten candidate provenance or add user-facing explanation/session state.
+    The result retains the exact normalized Tool input, every generated candidate, every
+    corresponding hard evaluation, the explicit ranking context, and the deterministic
+    selection result. It intentionally does not flatten candidate provenance or add
+    user-facing explanation/session state.
     """
 
+    tool: ResolvedToolCandidate
     generated_candidates: list[GeneratedCandidate]
     evaluations: list[CandidateEvaluation]
     ranking_context: CandidateRankingContext | None = None
@@ -52,6 +54,22 @@ class RecommendationRunResult(BaseModel):
                 "recommendation run requires exact evaluation coverage for its generated set; "
                 f"missing evaluations={missing!r}, unexpected evaluations={unexpected!r}"
             )
+
+        for candidate in self.generated_candidates:
+            candidate_id = candidate.configuration.candidate_id
+            if candidate.selection.tool_ref != self.tool.tool_ref:
+                raise ValueError(
+                    "recommendation run generated candidates must retain the run Tool identity; "
+                    f"candidate {candidate_id!r} has {candidate.selection.tool_ref!r}, "
+                    f"run Tool is {self.tool.tool_ref!r}"
+                )
+            if candidate.configuration.object_mass_kg != self.tool.object_mass_kg:
+                raise ValueError(
+                    "recommendation run generated candidates must retain the run Tool operational "
+                    f"mass; candidate {candidate_id!r} has "
+                    f"{candidate.configuration.object_mass_kg!r}, run Tool has "
+                    f"{self.tool.object_mass_kg!r}"
+                )
 
         selected_candidates = [
             *self.selection.ranked_viable_candidates,
@@ -145,6 +163,7 @@ def run_recommendation(
     )
 
     return RecommendationRunResult(
+        tool=tool,
         generated_candidates=generated_candidates,
         evaluations=evaluations,
         ranking_context=ranking_context,
