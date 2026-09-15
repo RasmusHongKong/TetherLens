@@ -27,6 +27,8 @@ from .falltech import (
 
 
 _EXTRACTOR = "falltech.v0.3"
+_FALLTECH_BIGCOMMERCE_HOST = "cdn11.bigcommerce.com"
+_FALLTECH_BIGCOMMERCE_DOCUMENT_PREFIX = "/s-1wxw1202sk/content/product_documents/"
 _WRIST_ANCHOR_INSTRUCTIONS_URL = (
     "https://cdn11.bigcommerce.com/s-1wxw1202sk/content/product_documents/"
     "instruction_manuals/MTOL05_Rev_B_013125_EN.pdf"
@@ -47,10 +49,16 @@ class FallTechAdapter(_TetherFallTechAdapter):
     """Preserve tether extraction while adding AnchorAttachment installation evidence."""
 
     def is_first_party_url(self, identity: ProductIdentity, url: str) -> bool:
-        # FallTech serves this specific manufacturer manual from a shared BigCommerce
-        # CDN. Keep the trust exception document-exact rather than widening the entire
-        # shared CDN host into the first-party boundary.
-        if url.rstrip("/") == _WRIST_ANCHOR_INSTRUCTIONS_URL.rstrip("/"):
+        # BigCommerce's CDN host is shared across merchants, but the store hash is
+        # merchant-specific. Trust only FallTech's product-document namespace rather
+        # than either the whole CDN host or one document-exact exception.
+        parts = urlsplit(url)
+        if (
+            identity.manufacturer.strip().casefold() == "falltech"
+            and parts.scheme.casefold() == "https"
+            and (parts.hostname or "").casefold() == _FALLTECH_BIGCOMMERCE_HOST
+            and parts.path.startswith(_FALLTECH_BIGCOMMERCE_DOCUMENT_PREFIX)
+        ):
             return True
         return super().is_first_party_url(identity, url)
 
