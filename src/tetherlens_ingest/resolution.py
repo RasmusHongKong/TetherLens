@@ -400,8 +400,8 @@ def _validate_dimension_conditions(
         for operator, value in conditions
         if operator in {ComparisonOperator.LT, ComparisonOperator.LTE}
     ]
-    strongest_lower = max(lower, default=None, key=lambda item: item[0])
-    strongest_upper = min(upper, default=None, key=lambda item: item[0])
+    strongest_lower = max(lower, default=None, key=lambda item: (item[0], item[1]))
+    strongest_upper = min(upper, default=None, key=lambda item: (item[0], not item[1]))
 
     if strongest_lower is not None and strongest_upper is not None:
         lower_value, lower_strict = strongest_lower
