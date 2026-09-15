@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 
 from tetherlens_ingest.models import (
     CandidateClaim,
+    ClaimSubjectType,
     ConstraintOperator,
     ProductIdentity,
     ProductType,
@@ -27,10 +28,14 @@ from .base import ManufacturerAdapter
 from .common import page_text
 
 
-_EXTRACTOR = "ergodyne.v0.1"
+_EXTRACTOR = "ergodyne.v0.2"
 _ANCHOR_INSTRUCTIONS_URL = (
     "https://www.ergodyne.com/sites/default/files/2022-11/"
     "squids-3171-3172-3174-3176-3177-anchor-straps-instructions.pdf"
+)
+_BUCKET_HOOK_INSTRUCTIONS_URL = (
+    "https://www.ergodyne.com/sites/default/files/2022-11/"
+    "squids-3178-locking-bucket-hook-instructions.pdf"
 )
 _ITEM_NUMBER = re.compile(r"\bItem\s*#\s*:?\s*(?P<sku>\d+)\b", re.I)
 _PRODUCT_CAPACITY = re.compile(
@@ -38,6 +43,7 @@ _PRODUCT_CAPACITY = re.compile(
     re.I,
 )
 _D_RING = re.compile(r"\b(?:durable\s+steel\s+|captive\s+)?D[-\s]?ring\b", re.I)
+_ENCLOSED_TETHERING_POINT = re.compile(r"\benclosed\s+tethering\s+point\b", re.I)
 _3171_SECTION = re.compile(
     r"\b3171\s+BELT\s+LOOP\s+ANCHOR\s+INSTRUCTIONS\b(?P<section>.*?)"
     r"\b3172\s+HOOK\s*&\s*LOOP\s+ANCHOR\s+INSTRUCTIONS\b",
@@ -58,13 +64,29 @@ _3171_SIZE = re.compile(
     r"(?P<thickness>0\.5)\s*in\s*/\s*1\.3\s*cm",
     re.I,
 )
+_BUCKET_PRIMARY_ANCHOR = re.compile(r"\b(?:lip\s+of\s+the\s+aerial\s+bucket|aerial\s+bucket\s+lip)\b", re.I)
+_BUCKET_HOOK_INSTALL = re.compile(
+    r"\bPry\s+the\s+hook\s+over\s+the\s+lip\b(?P<tail>.{0,260}?)\buntil\s+it\s+snaps\s+into\s+place\b",
+    re.I | re.S,
+)
+_19178_LIP_SIZE = re.compile(
+    r"\b19178\b(?P<row>.*?)(?=\b19179\b|\Z)",
+    re.I | re.S,
+)
+_TWO_INCH_BUCKET_LIP = re.compile(
+    r"\bLIP\s+CAVITY\s+OF\s+HOOK\s*\(BUCKET\s+LIP\s+SIZE\)\b(?P<gap>.{0,160}?)"
+    r"\b2\s*IN\s*(?://|/)\s*5\s*CM\b",
+    re.I | re.S,
+)
 
 
 class ErgodyneAdapter(ManufacturerAdapter):
-    """First-party Squids 3171 AnchorAttachment ingestion.
+    """First-party Ergodyne AnchorAttachment ingestion.
 
-    The family instruction document is identity-scoped to the 3171 section and row.
-    Sibling 3172/3174/3176/3177 installation semantics are never inherited.
+    Family instruction documents are identity-scoped. The 3171 belt-loop rules and
+    the 3178 bucket-hook rules stay separate, and sibling-model facts are never inherited.
+    Bucket-hook size labels are retained only as nominal feature classes; they do not
+    become inferred numeric fit envelopes.
     """
 
     manufacturer = "Ergodyne"
@@ -74,18 +96,25 @@ class ErgodyneAdapter(ManufacturerAdapter):
         identity: ProductIdentity,
         source_artifact: SourceArtifact,
     ) -> list[SourceRequest]:
-        if (
-            identity.product_type != ProductType.ANCHOR_ATTACHMENT
-            or not _is_verified_3171_primary(identity, source_artifact)
-        ):
+        if identity.product_type != ProductType.ANCHOR_ATTACHMENT:
             return []
-        return [
-            SourceRequest(
-                url=_ANCHOR_INSTRUCTIONS_URL,
-                source_type=SourceType.MANUFACTURER_DOCUMENT,
-                metadata={"role": "anchor_attachment_instructions"},
-            )
-        ]
+        if _is_verified_3171_primary(identity, source_artifact):
+            return [
+                SourceRequest(
+                    url=_ANCHOR_INSTRUCTIONS_URL,
+                    source_type=SourceType.MANUFACTURER_DOCUMENT,
+                    metadata={"role": "anchor_attachment_instructions"},
+                )
+            ]
+        if _is_verified_3178_primary(identity, source_artifact):
+            return [
+                SourceRequest(
+                    url=_BUCKET_HOOK_INSTRUCTIONS_URL,
+                    source_type=SourceType.MANUFACTURER_DOCUMENT,
+                    metadata={"role": "bucket_hook_instructions"},
+                )
+            ]
+        return []
 
     def extract(
         self,
@@ -94,7 +123,10 @@ class ErgodyneAdapter(ManufacturerAdapter):
     ) -> list[CandidateClaim]:
         if identity.product_type != ProductType.ANCHOR_ATTACHMENT:
             return []
-        if not any(_is_verified_3171_primary(identity, artifact) for artifact in artifacts):
+
+        has_3171_primary = any(_is_verified_3171_primary(identity, artifact) for artifact in artifacts)
+        has_3178_primary = any(_is_verified_3178_primary(identity, artifact) for artifact in artifacts)
+        if not has_3171_primary and not has_3178_primary:
             return []
 
         claims: list[CandidateClaim] = []
@@ -127,75 +159,129 @@ class ErgodyneAdapter(ManufacturerAdapter):
                     )
                 continue
 
-            if not _is_3171_instruction_artifact(artifact):
-                continue
-            section_match = _3171_SECTION.search(text)
-            row_match = _3171_TABLE_ROW.search(text)
-            if section_match is None or row_match is None:
+            if _is_verified_3178_primary(identity, artifact):
+                tethering_point = _ENCLOSED_TETHERING_POINT.search(text)
+                if tethering_point is not None:
+                    claims.append(
+                        claim(
+                            "interface.role",
+                            "anchor_attachment_tether_side",
+                            raw_value=tethering_point.group(0),
+                            source_url=artifact.url,
+                            extractor=_EXTRACTOR,
+                            subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+                            subject_ref="bucket_hook_tether_connection",
+                        )
+                    )
                 continue
 
-            section = section_match.group("section")
-            thread = _THREAD_OVER.search(section)
-            belt = _BELT_PRIMARY_ANCHOR.search(section)
-            refasten = _REFASTEN.search(section)
-            size = _3171_SIZE.search(row_match.group("row"))
-            if thread is None or belt is None or refasten is None or size is None:
+            if has_3171_primary and _is_3171_instruction_artifact(artifact):
+                section_match = _3171_SECTION.search(text)
+                row_match = _3171_TABLE_ROW.search(text)
+                if section_match is None or row_match is None:
+                    continue
+
+                section = section_match.group("section")
+                thread = _THREAD_OVER.search(section)
+                belt = _BELT_PRIMARY_ANCHOR.search(section)
+                refasten = _REFASTEN.search(section)
+                size = _3171_SIZE.search(row_match.group("row"))
+                if thread is None or belt is None or refasten is None or size is None:
+                    continue
+
+                claims.extend(
+                    [
+                        installation_method_claim(
+                            "thread_over",
+                            raw_value=thread.group(0),
+                            source_url=artifact.url,
+                            extractor=_EXTRACTOR,
+                        ),
+                        installation_path_claim(
+                            "belt",
+                            "anchor_installation.feature_kind",
+                            "belt",
+                            raw_value=belt.group(0),
+                            source_url=artifact.url,
+                            extractor=_EXTRACTOR,
+                        ),
+                        installation_path_claim(
+                            "belt",
+                            "anchor_installation.attribute.open_for_threading",
+                            True,
+                            raw_value=thread.group(0),
+                            source_url=artifact.url,
+                            extractor=_EXTRACTOR,
+                        ),
+                        installation_path_claim(
+                            "belt",
+                            "anchor_installation.attribute.can_be_resecured",
+                            True,
+                            raw_value=refasten.group(0),
+                            source_url=artifact.url,
+                            extractor=_EXTRACTOR,
+                        ),
+                        installation_path_claim(
+                            "belt",
+                            "anchor_installation.dimension.section_height",
+                            float(size.group("height")),
+                            unit="in",
+                            raw_value=size.group(0),
+                            source_url=artifact.url,
+                            extractor=_EXTRACTOR,
+                            operator=ConstraintOperator.LTE,
+                        ),
+                        installation_path_claim(
+                            "belt",
+                            "anchor_installation.dimension.section_thickness",
+                            float(size.group("thickness")),
+                            unit="in",
+                            raw_value=size.group(0),
+                            source_url=artifact.url,
+                            extractor=_EXTRACTOR,
+                            operator=ConstraintOperator.LTE,
+                        ),
+                    ]
+                )
                 continue
 
-            claims.extend(
-                [
-                    installation_method_claim(
-                        "thread_over",
-                        raw_value=thread.group(0),
-                        source_url=artifact.url,
-                        extractor=_EXTRACTOR,
-                    ),
-                    installation_path_claim(
-                        "belt",
-                        "anchor_installation.feature_kind",
-                        "belt",
-                        raw_value=belt.group(0),
-                        source_url=artifact.url,
-                        extractor=_EXTRACTOR,
-                    ),
-                    installation_path_claim(
-                        "belt",
-                        "anchor_installation.attribute.open_for_threading",
-                        True,
-                        raw_value=thread.group(0),
-                        source_url=artifact.url,
-                        extractor=_EXTRACTOR,
-                    ),
-                    installation_path_claim(
-                        "belt",
-                        "anchor_installation.attribute.can_be_resecured",
-                        True,
-                        raw_value=refasten.group(0),
-                        source_url=artifact.url,
-                        extractor=_EXTRACTOR,
-                    ),
-                    installation_path_claim(
-                        "belt",
-                        "anchor_installation.dimension.section_height",
-                        float(size.group("height")),
-                        unit="in",
-                        raw_value=size.group(0),
-                        source_url=artifact.url,
-                        extractor=_EXTRACTOR,
-                        operator=ConstraintOperator.LTE,
-                    ),
-                    installation_path_claim(
-                        "belt",
-                        "anchor_installation.dimension.section_thickness",
-                        float(size.group("thickness")),
-                        unit="in",
-                        raw_value=size.group(0),
-                        source_url=artifact.url,
-                        extractor=_EXTRACTOR,
-                        operator=ConstraintOperator.LTE,
-                    ),
-                ]
-            )
+            if has_3178_primary and _is_3178_instruction_artifact(artifact):
+                anchor_target = _BUCKET_PRIMARY_ANCHOR.search(text)
+                install = _BUCKET_HOOK_INSTALL.search(text)
+                row_match = _19178_LIP_SIZE.search(text)
+                if anchor_target is None or install is None or row_match is None:
+                    continue
+                nominal_size = _TWO_INCH_BUCKET_LIP.search(row_match.group("row"))
+                if nominal_size is None:
+                    continue
+
+                raw_install = " ".join(install.group(0).split())
+                claims.extend(
+                    [
+                        installation_method_claim(
+                            "hook_on",
+                            raw_value=raw_install,
+                            source_url=artifact.url,
+                            extractor=_EXTRACTOR,
+                        ),
+                        installation_path_claim(
+                            "bucket_lip",
+                            "anchor_installation.feature_kind",
+                            "bucket_lip",
+                            raw_value=anchor_target.group(0),
+                            source_url=artifact.url,
+                            extractor=_EXTRACTOR,
+                        ),
+                        installation_path_claim(
+                            "bucket_lip",
+                            "anchor_installation.attribute.nominal_lip_size",
+                            "2_in",
+                            raw_value=nominal_size.group(0),
+                            source_url=artifact.url,
+                            extractor=_EXTRACTOR,
+                        ),
+                    ]
+                )
 
         return dedupe(claims)
 
@@ -223,11 +309,41 @@ def _is_verified_3171_primary(identity: ProductIdentity, artifact: SourceArtifac
     return item_numbers == {identity.sku}
 
 
+def _is_verified_3178_primary(identity: ProductIdentity, artifact: SourceArtifact) -> bool:
+    if (
+        artifact.source_type != SourceType.MANUFACTURER_WEBPAGE
+        or str(artifact.metadata.get("role") or "primary") != "primary"
+        or not identity.sku
+    ):
+        return False
+    if _normalize_url(artifact.url) != _normalize_url(identity.url):
+        return False
+
+    soup = BeautifulSoup(artifact.body, "html.parser")
+    heading = soup.find("h1")
+    if heading is None:
+        return False
+    heading_text = " ".join(heading.stripped_strings)
+    if re.search(r"\bSquids\s+3178\b", heading_text, re.I) is None:
+        return False
+
+    item_numbers = {match.group("sku") for match in _ITEM_NUMBER.finditer(page_text(artifact.body))}
+    return identity.sku in item_numbers
+
+
 def _is_3171_instruction_artifact(artifact: SourceArtifact) -> bool:
     return bool(
         artifact.source_type == SourceType.MANUFACTURER_DOCUMENT
         and str(artifact.metadata.get("role") or "") == "anchor_attachment_instructions"
         and _normalize_url(artifact.url) == _normalize_url(_ANCHOR_INSTRUCTIONS_URL)
+    )
+
+
+def _is_3178_instruction_artifact(artifact: SourceArtifact) -> bool:
+    return bool(
+        artifact.source_type == SourceType.MANUFACTURER_DOCUMENT
+        and str(artifact.metadata.get("role") or "") == "bucket_hook_instructions"
+        and _normalize_url(artifact.url) == _normalize_url(_BUCKET_HOOK_INSTRUCTIONS_URL)
     )
 
 
