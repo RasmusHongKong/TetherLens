@@ -8,7 +8,7 @@ The runtime model did not need a new geometry system. `ToolInterfaceFeature` alr
 
 The governing rule is:
 
-> **An explicit accepted ToolAttachment fit dimension may become a runtime predicate only when its target feature kind, comparison direction, value/unit, evidence source and feature subject are explicit. Every predicate in the resulting path remains bound to one concrete `ToolInterfaceFeature`.**
+> **An explicit accepted ToolAttachment fit dimension may become a runtime predicate only when its target feature kind, comparison direction, value/unit, declared-constraint semantics, evidence source and feature subject are explicit and mutually consistent. Every predicate in the resulting path remains bound to one concrete `ToolInterfaceFeature`.**
 
 ## Claim shape
 
@@ -20,7 +20,7 @@ attachment_eligibility.feature_kind
 attachment_eligibility.dimension.<dimension_code>
 ```
 
-Dimensional claims are `declared_constraint` claims and must carry one of the ordered operators already understood by runtime predicates:
+Dimensional claims must be `declared_constraint` claims and must carry one of the ordered operators already understood by runtime predicates:
 
 ```text
 eq
@@ -29,6 +29,8 @@ lte
 gt
 gte
 ```
+
+A `direct` or `measured` dimensional fact does not become a manufacturer-declared fit restriction merely because it carries an ordered operator.
 
 Examples:
 
@@ -67,12 +69,15 @@ This preserves the separation between:
 
 A dimensional fit profile is one `physical_interface` subject.
 
+Before any dimensional profile is compiled, **all accepted `attachment_eligibility.feature_kind` claims on that subject must agree**, including kind-only claims from sources that contribute no dimensions. This prevents accepted evidence from simultaneously describing the same fit subject as, for example, both `handle` and `through_opening` while only one of those sources contributes numeric conditions.
+
 For every evidence source that contributes dimensions to that subject:
 
 1. the same source must state the normalized `attachment_eligibility.feature_kind`;
-2. every dimensional condition must carry an explicit ordered comparison operator;
-3. values are normalized to millimetres before equivalent profiles are compared; and
-4. that source must independently establish the same complete normalized predicate set as any other accepted source on the subject.
+2. every dimensional claim must be typed `declared_constraint`;
+3. every dimensional condition must carry an explicit ordered comparison operator;
+4. values are normalized to millimetres before equivalent profiles are compared; and
+5. that source must independently establish the same complete normalized predicate set as any other accepted dimension-bearing source on the subject.
 
 This permits equivalent source representations such as inches versus millimetres. It does **not** permit TetherLens to manufacture an envelope by taking a lower bound from one source and an upper bound from another.
 
@@ -112,7 +117,9 @@ PR #64 does not weaken that contract.
 
 If **any** legacy external-section min/max-diameter claim is present, the existing diameter-envelope compiler runs first. A partial legacy envelope therefore still fails rather than being bypassed by a new generic dimensional claim.
 
-A generic external-section fit profile is available only as an additional evidence shape when no legacy min/max-diameter claims are present. This is what permits the FallTech 5401A1 three-axis maximum geometry without turning its length/width/height statement into a fake diameter envelope.
+When a complete legacy envelope and a generic `external_section` dimensional profile are both accepted, they may be composed only when they refer to the **same physical-interface subject**. A legacy diameter envelope on one subject and generic length/width/height conditions on another must fail closed rather than inventing an intersection of two distinct installation interfaces.
+
+When no legacy min/max-diameter claims are present, an explicit generic `external_section` fit profile may establish the geometry-only external-section path and add its feature-local dimensions. This is what permits the FallTech 5401A1 three-axis maximum geometry without turning its length/width/height statement into a fake diameter envelope.
 
 ## V5 vertical proofs
 
@@ -153,10 +160,13 @@ Focused tests cover:
 
 - equivalent source-local profiles expressed in different units;
 - rejection of split-source bounds;
+- rejection of conflicting kind-only evidence on a fit subject;
 - rejection of dimensions without an explicit comparison direction;
+- rejection of dimensional restrictions that are not `declared_constraint` claims;
 - rejection of multiple fit subjects for one feature kind;
 - rejection of contradictory/inverted dimensional conditions;
 - preservation of the legacy external-section partial-envelope failure;
+- rejection of cross-subject legacy/generic external-section profile composition;
 - full FallTech 5401A1 adapter -> claim -> resolution -> same-feature runtime evaluation; and
 - full Ergodyne 19747 adapter -> claim -> resolution -> same-feature runtime evaluation.
 
@@ -171,6 +181,7 @@ This slice does not:
 - create battery-, screwdriver-, FallTech- or Ergodyne-specific runtime rules;
 - merge dimensions across different physical feature subjects;
 - synthesize a fit envelope across incomplete evidence sources;
+- ignore contradictory accepted feature-kind evidence merely because the contradictory source has no dimensions;
 - redefine attachment selection classes;
 - change tether-to-interface connection compatibility;
 - change ranking or selection; or
