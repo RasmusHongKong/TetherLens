@@ -46,6 +46,14 @@ _WRIST_INSTALL = re.compile(
 class FallTechAdapter(_TetherFallTechAdapter):
     """Preserve tether extraction while adding AnchorAttachment installation evidence."""
 
+    def is_first_party_url(self, identity: ProductIdentity, url: str) -> bool:
+        # FallTech serves this specific manufacturer manual from a shared BigCommerce
+        # CDN. Keep the trust exception document-exact rather than widening the entire
+        # shared CDN host into the first-party boundary.
+        if url.rstrip("/") == _WRIST_ANCHOR_INSTRUCTIONS_URL.rstrip("/"):
+            return True
+        return super().is_first_party_url(identity, url)
+
     def related_sources(
         self,
         identity: ProductIdentity,
