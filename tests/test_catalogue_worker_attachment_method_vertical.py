@@ -259,7 +259,7 @@ def test_real_catalogue_worker_path_retains_cinch_method_after_explicit_tool_con
     assert method is not None
     assert method.source_product_ref == "NLG:101363"
     assert method.attachment_method_code == "cinch"
-    assert method.source_urls == [NLG_ATTACHMENT_URL, NLG_GUIDE_URL]
+    assert method.source_urls == sorted([NLG_ATTACHMENT_URL, NLG_GUIDE_URL])
 
     assert summary.evaluation.recommendation_state == RecommendationState.RECOMMENDED_WITH_CONSTRAINTS
     assert len(summary.pending_verification_checks) == 2
