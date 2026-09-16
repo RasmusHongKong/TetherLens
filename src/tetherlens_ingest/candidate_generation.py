@@ -12,6 +12,7 @@ from .anchor_installation import (
     AnchorInstallationBinding,
     AnchorInstallationEligibilityEvaluation,
 )
+from .attachment_method import ToolAttachmentInstallationMethod
 from .compatibility import (
     AttachmentEligibility,
     EligibilityEvaluation,
@@ -142,12 +143,15 @@ class ToolAttachmentAssemblyOption(BaseModel):
     An assembly may contain one or many component instances. Candidate construction is
     therefore based on an assembly relationship plus component facts, not on an
     assumption that one ToolAttachment SKU always equals one complete physical path.
+    ``installation_method`` is accepted descriptive provenance only; it does not add an
+    eligibility predicate or change connection compatibility.
     """
 
     assembly_ref: str = Field(min_length=1)
     components: list[CandidateComponentOption] = Field(min_length=1)
     eligibility: AttachmentEligibility
     provided_interfaces: list[ConnectionInterface] = Field(min_length=1)
+    installation_method: ToolAttachmentInstallationMethod | None = None
 
     @model_validator(mode="after")
     def validate_provided_interfaces(self) -> ToolAttachmentAssemblyOption:
@@ -170,6 +174,15 @@ class ToolAttachmentAssemblyOption(BaseModel):
         if not any(component.load_bearing for component in self.components):
             raise ValueError(
                 "ToolAttachment assemblies must contain at least one load-bearing component"
+            )
+        if (
+            self.installation_method is not None
+            and self.installation_method.source_product_ref
+            not in {component.source_product_ref for component in self.components}
+        ):
+            raise ValueError(
+                "ToolAttachment installation method provenance must belong to a selected "
+                "assembly component product"
             )
         return self
 
@@ -483,6 +496,7 @@ class CandidatePathSelection(BaseModel):
     attachment_assembly_ref: str | None = None
     installation_feature_id: str | None = None
     eligibility_proofs: list[EligibilityProof] = Field(default_factory=list)
+    attachment_installation_method: ToolAttachmentInstallationMethod | None = None
     anchor_installation_binding: AnchorInstallationBinding | None = None
     endpoint_assignment_proofs: list[EndpointAssignmentProof] = Field(default_factory=list)
     tool_endpoint_id: str = Field(min_length=1)
@@ -494,9 +508,13 @@ class CandidatePathSelection(BaseModel):
     @model_validator(mode="after")
     def validate_attachment_binding(self) -> CandidatePathSelection:
         if self.attachment_assembly_ref is None:
-            if self.installation_feature_id is not None or self.eligibility_proofs:
+            if (
+                self.installation_feature_id is not None
+                or self.eligibility_proofs
+                or self.attachment_installation_method is not None
+            ):
                 raise ValueError(
-                    "direct candidate selections must not supply ToolAttachment feature binding"
+                    "direct candidate selections must not supply ToolAttachment feature/method binding"
                 )
             return self
 
@@ -504,6 +522,19 @@ class CandidatePathSelection(BaseModel):
             raise ValueError(
                 "ToolAttachment candidate selection requires an installation feature and "
                 "at least one eligibility proof"
+            )
+        if (
+            self.attachment_installation_method is not None
+            and self.attachment_installation_method.source_product_ref
+            not in {
+                component.source_product_ref
+                for component in self.components
+                if component.role == CandidateComponentRole.TOOL_ATTACHMENT
+            }
+        ):
+            raise ValueError(
+                "selected ToolAttachment installation method provenance must belong to a selected "
+                "ToolAttachment component product"
             )
         return self
 
@@ -628,8 +659,7 @@ class GeneratedCandidate(BaseModel):
                 for proof in anchor_binding.eligibility_proofs
             }
             actual_anchor_proofs = {
-                (match.path_index, match.binding_name)
-                for match in anchor_eligibility.matches
+                (match.path_index, match.binding_name) for match in anchor_eligibility.matches
             }
             if actual_anchor_proofs != expected_anchor_proofs:
                 raise ValueError(
@@ -676,10 +706,12 @@ def generate_candidate_configurations(
     evaluation is later ``incompatible`` or ``unresolved``; the existing candidate
     evaluator remains responsible for hard-constraint viability. ToolAttachment paths
     are generated only for explicit eligible feature matches because a generated path
-    must bind installation constraints to one concrete tool feature. AnchorAttachment
-    installation claims are likewise outside this generator: when an AnchorPathOption
-    carries a resolved primary-anchor binding, the generator preserves that exact proof
-    and hard-evaluation input without reinterpreting manufacturer evidence.
+    must bind installation constraints to one concrete tool feature. Accepted canonical
+    ToolAttachment installation methods are carried with that selected path as descriptive
+    provenance only; they are not interpreted as new eligibility or compatibility rules.
+    AnchorAttachment installation claims are likewise outside this generator: when an
+    AnchorPathOption carries a resolved primary-anchor binding, the generator preserves
+    that exact proof and hard-evaluation input without reinterpreting manufacturer evidence.
 
     Multiple eligibility paths proving the same concrete feature are retained as audit
     proofs on one physical candidate rather than multiplying candidate identities.
@@ -850,6 +882,12 @@ def generate_candidate_configurations(
                                 )
                                 for match in tool_target.eligibility_matches
                             ],
+                            attachment_installation_method=(
+                                tool_target.assembly.installation_method.model_copy(deep=True)
+                                if tool_target.assembly is not None
+                                and tool_target.assembly.installation_method is not None
+                                else None
+                            ),
                             anchor_installation_binding=anchor_path.installation_binding,
                             endpoint_assignment_proofs=endpoint_assignment.proofs,
                             tool_endpoint_id=tool_endpoint.interface_id,
