@@ -96,6 +96,39 @@ def test_nlg_cinch_takes_precedence_over_incidental_pass_through_secure_wording(
     assert method_value(body) == "cinch"
 
 
+def test_nlg_does_not_invent_cinch_from_local_prohibition():
+    for warning in (
+        "Do not create a cinch.",
+        "Never cinch around the handle.",
+        "Avoid forming a choke on the tool.",
+        "The attachment must not make a cinch near the trigger.",
+    ):
+        assert method_value(warning) is None
+
+
+def test_negated_cinch_does_not_outrank_positive_through_feature_evidence():
+    body = (
+        "Pass the loop through the captive hole, then tighten the threaded closure to secure the attachment. "
+        "Do not create a cinch."
+    )
+
+    assert method_value(body) == "through_feature"
+
+
+def test_positive_cinch_remains_and_retained_evidence_excludes_prohibition():
+    body = (
+        "Create a cinch around the captive handle and pull it tight. "
+        "Do not create a second cinch near the trigger."
+    )
+
+    claim = method_claim(body)
+
+    assert claim is not None
+    assert claim.value == "cinch"
+    assert "Create a cinch around the captive handle" in claim.raw_value
+    assert "Do not create" not in claim.raw_value
+
+
 def test_nlg_normalizes_through_feature_with_explicit_closure():
     body = "Pass the loop through the captive hole, then tighten the threaded closure to secure the attachment."
     assert method_value(body) == "through_feature"
