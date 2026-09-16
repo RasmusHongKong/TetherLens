@@ -4,6 +4,16 @@ import re
 
 
 _ADHESIVE_TERM = r"(?:3m(?:®|™)?\s*)?(?:self[-\s]?|pressure[-\s]?sensitive\s+)?adhesive"
+_NEGATIVE_CINCH_LEAD = (
+    r"(?:do\s+not|does\s+not|do(?:es)?n['’]t|never|must\s+not|mustn['’]t|"
+    r"should\s+not|shouldn['’]t|not\s+to|avoid|without)"
+)
+_CINCH_ACTION = (
+    r"(?:"
+    r"(?:creat|form|mak)\w*\b[^.!?;\n]{0,40}\b(?:a\s+)?(?:cinch|choke)\w*"
+    r"|(?:cinch|choke)\w*"
+    r")"
+)
 
 
 def attachment_method_code(text: str) -> str | None:
@@ -36,6 +46,30 @@ def attachment_method_code(text: str) -> str | None:
     ):
         return "mechanical_capture"
 
+    # Cinching is a constricting loop/choke mechanism. Explicit positive cinch/choke
+    # wording takes precedence over incidental pass-through + later "secure" wording
+    # in the same instructions, as well as secondary tape/wrap wording. Locally
+    # negated instructions are removed only from this evidence view so a prohibition
+    # cannot invent or outrank a method while other mechanisms still see the original
+    # manufacturer text.
+    cinch_text = _without_negative_cinch_phrases(text)
+    if re.search(
+        r"\b(?:cinch|cinches|cinched|cinching|choke|chokes|choked|choking)\b.{0,100}"
+        r"\b(?:around|onto|to)\b",
+        cinch_text,
+        re.I | re.S,
+    ) or re.search(
+        r"\b(?:around|onto)\b.{0,80}\b(?:captive\s+)?(?:handle|hole|feature)\b.{0,100}"
+        r"\b(?:cinch|cinched|cinching|choke)\b",
+        cinch_text,
+        re.I | re.S,
+    ) or re.search(
+        r"\b(?:create|form|make)\w*\b.{0,40}\b(?:a\s+)?(?:cinch|choke)\b",
+        cinch_text,
+        re.I | re.S,
+    ):
+        return "cinch"
+
     # Through-feature is reserved for a loop/attachment passed through a captive
     # feature and then closed by an explicit closure, rather than simply cinched.
     if re.search(
@@ -46,21 +80,6 @@ def attachment_method_code(text: str) -> str | None:
         re.I | re.S,
     ):
         return "through_feature"
-
-    # Cinching is a constricting loop/choke mechanism. It takes precedence over
-    # secondary tape/wrap wording on products whose primary retention is a cinch.
-    if re.search(
-        r"\b(?:cinch|cinches|cinched|cinching|choke|chokes|choked|choking)\b.{0,100}"
-        r"\b(?:around|onto|to)\b",
-        text,
-        re.I | re.S,
-    ) or re.search(
-        r"\b(?:around|onto)\b.{0,80}\b(?:captive\s+)?(?:handle|hole|feature)\b.{0,100}"
-        r"\b(?:cinch|cinched|cinching|choke)\b",
-        text,
-        re.I | re.S,
-    ):
-        return "cinch"
 
     if re.search(
         r"\bwrap(?:s|ped|ping)?\b.{0,120}\b(?:around|round)\b",
@@ -76,13 +95,14 @@ def attachment_method_evidence(text: str, method: str) -> str:
     if method == "adhesive":
         return _adhesive_evidence(_without_negative_adhesive_phrases(text)) or "adhesive"
 
+    evidence_text = _without_negative_cinch_phrases(text) if method == "cinch" else text
     patterns = {
         "mechanical_capture": r".{0,50}\b(?:bracket|attachment)\b.{0,150}\bhandle\b.{0,50}",
         "through_feature": r".{0,50}\b(?:pass|feed|thread)\w*\b.{0,180}\b(?:hole|handle|eye)\b.{0,80}",
         "cinch": r".{0,50}\b(?:cinch|cinched|cinching|choke)\b.{0,120}",
         "wrap": r".{0,50}\bwrap(?:s|ped|ping)?\b.{0,120}\b(?:around|round)\b.{0,50}",
     }
-    match = re.search(patterns[method], text, re.I | re.S)
+    match = re.search(patterns[method], evidence_text, re.I | re.S)
     if not match:
         return method
     return re.sub(r"\s+", " ", match.group(0)).strip()
@@ -95,6 +115,29 @@ def _without_negative_adhesive_phrases(text: str) -> str:
         r"|\badhesive[-\s]?(?:free|less)\b"
         r"|\bnot\s+(?:an?\s+)?adhesive\b"
         r"|\bdoes(?:\s+not|n['’]t)\s+(?:use|require)\s+adhesive\b",
+        " ",
+        text,
+        flags=re.I,
+    )
+
+
+def _without_negative_cinch_phrases(text: str) -> str:
+    """Remove sentence-local prohibitions that govern a later cinch/choke action.
+
+    The bounded bridge allows ordinary intervening words (for example "do not use
+    the loop to create a cinch") but does not cross sentence/semicolon boundaries or
+    an explicit contrast such as "but"/"instead". Other text remains available so a
+    separate positive cinch instruction can still be recognized and non-cinch
+    mechanisms continue to evaluate the original manufacturer copy.
+    """
+
+    non_contrast_bridge = (
+        r"(?:(?!\b(?:but|however|instead)\b)[^.!?;\n]){0,120}?"
+    )
+    return re.sub(
+        rf"\b{_NEGATIVE_CINCH_LEAD}\b"
+        rf"{non_contrast_bridge}"
+        rf"\b{_CINCH_ACTION}\b",
         " ",
         text,
         flags=re.I,

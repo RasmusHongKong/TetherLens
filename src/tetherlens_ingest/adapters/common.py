@@ -29,10 +29,13 @@ def bounded_record_for_identifier(
     """Return one identity-local record from flattened multi-record text.
 
     The caller defines the source-format-specific record marker pattern. The returned
-    slice starts at the requested identifier marker and stops before the next record
-    marker, so a field parser cannot silently consume facts from a neighboring product
-    row. If the requested identifier is not itself a recognized record marker, fail
-    closed rather than searching unbounded text.
+    slice starts at the first requested-identifier marker, keeps repeated occurrences
+    of that same identifier inside the selected record, and stops before the first
+    different record marker. This prevents a field parser from silently consuming
+    facts from a neighboring product while tolerating pages that repeat the selected
+    identifier in metadata, titles, and headings. If the requested identifier is not
+    itself a recognized record marker, fail closed rather than searching unbounded
+    text.
     """
 
     marker = (
@@ -45,6 +48,11 @@ def bounded_record_for_identifier(
     for index, match in enumerate(matches):
         if match.group(0).casefold() != target:
             continue
-        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+
+        end = len(text)
+        for following in matches[index + 1:]:
+            if following.group(0).casefold() != target:
+                end = following.start()
+                break
         return text[match.start():end]
     return None

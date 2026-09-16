@@ -4,23 +4,23 @@ _Last updated: 2026-09-16_
 
 This is the operational handoff for the current TetherLens knowledge/recommendation stack and the immediate MVP work sequence. Durable design detail lives in the dedicated documents; this file stays focused on the current semantic baseline, invariants that must not regress, and the next highest-value work.
 
-For detailed design, see `product-vision.md`, `mvp.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `connection-compatibility.md`, `anchor-interface-form.md`, `anchor-installation-binding.md`, `tool-attachment-compatibility.md`, `feature-bound-dimensional-eligibility.md`, `candidate-ranking-selection.md`, `recommendation-run.md`, `recommendation-session.md`, `demand-side-field-orchestration.md`, `recommendation-benchmark.md`, `portability-benchmark.md`, `portability-v5-post-pr62.md`, `portability-v6-post-feature-dimensional.md`, `benchmark-goals.md`, and `adapter-review-guidance.md`.
+For detailed design, see `product-vision.md`, `mvp.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `connection-compatibility.md`, `anchor-interface-form.md`, `anchor-installation-binding.md`, `tool-attachment-compatibility.md`, `feature-bound-dimensional-eligibility.md`, `attachment-method-vocabulary.md`, `candidate-ranking-selection.md`, `recommendation-run.md`, `recommendation-session.md`, `demand-side-field-orchestration.md`, `recommendation-benchmark.md`, `portability-benchmark.md`, `portability-v5-post-pr62.md`, `portability-v6-post-feature-dimensional.md`, `benchmark-goals.md`, and `adapter-review-guidance.md`.
 
 ## Current baseline
 
-PR #64, `Compile feature-bound ToolAttachment dimensional eligibility`, is merged. Post-PR64 `main` is:
+PR #65, `Add first demand-side field recommendation orchestration`, is merged. Current `main` is:
 
 ```text
-355a56229d2738c320f26627d06bb1dbbdd5f4e2
+52255b721f326db5313032fdca6bc479e10cbe72
 ```
 
-PR #65, `Add first demand-side field recommendation orchestration`, is the current semantic baseline on branch:
+PR #66, `Retain ToolAttachment installation method through field selection`, is the current proposed semantic baseline on branch:
 
 ```text
-feature/demand-side-field-orchestration
+feature/tool-attachment-method-retention
 ```
 
-This handoff describes the state intended to become the new `main` baseline when PR #65 is merged. Use PR #65 itself as the unit of provenance rather than relying on a transient pre-merge head SHA.
+PR #66 is intentionally an additive provenance/catalogue-throughput slice. It does not rewrite historical portability semantics, candidate identity, attachment eligibility, connection compatibility, hard evaluation, or ranking.
 
 Historical portability cohorts remain immutable at their original semantic revisions:
 
@@ -37,7 +37,7 @@ Do not rewrite any historical answer key after later PRs close the gaps it expos
 
 ## Strategic direction
 
-V6 remains the pivot signal. A materially different portability cohort produced one A case, seven B cases and no C/D pressure after the reusable feature-bound dimensional compiler landed.
+V6 remains the pivot signal: a materially different portability cohort produced one A case, seven B cases and no C/D pressure after the reusable feature-bound dimensional compiler landed.
 
 Therefore:
 
@@ -76,7 +76,7 @@ with explicit ordered comparison direction. Split-source envelope synthesis, con
 
 ### Anchor-side installation
 
-The current reusable path remains:
+The reusable path remains:
 
 ```text
 PrimaryAnchorFeature
@@ -108,29 +108,22 @@ hook_on
 
 Anchor installation eligibility remains distinct from tether-to-anchor connection compatibility.
 
-## PR #65: first demand-side orchestration slice
+## PR #65: demand-side field coordinator
 
-PR #65 adds the first typed field-workflow boundary above the existing recommendation engine without weakening or duplicating downstream recommendation logic.
+The field coordinator provides the typed worker-facing boundary above the existing recommendation engine.
 
-### Tool and operational-profile resolution
-
-`field_recommendation.py` now supports:
+It supports:
 
 - advisory recognition/search candidate Tool refs;
-- mandatory explicit worker confirmation before catalogue identity is accepted;
-- exact operational-profile selection when more than one profile remains;
-- automatic use of the only profile when exactly one exists;
-- explicit installed-configuration identity such as Battery refs;
-- fail-closed handling when operational mass is not established; and
-- an explicit session-local generic profile fallback when catalogue identity is unavailable.
+- mandatory explicit worker Tool confirmation;
+- exact operational-profile selection where several profiles exist;
+- automatic selection when exactly one profile exists;
+- installed configuration identity such as Battery refs;
+- fail-closed missing operational mass;
+- explicit session-local generic profile fallback; and
+- exact handoff of the normalized Tool plus all supplied tether, ToolAttachment and anchor alternatives to `run_recommendation()`.
 
-No bare-tool mass fallback is allowed when a selected operational profile is required for load reasoning.
-
-### Existing recommendation pipeline remains authoritative
-
-Once Tool/profile resolution succeeds, the field coordinator passes the exact normalized Tool plus the complete supplied tether, ToolAttachment and anchor alternative sets into `run_recommendation()`.
-
-It does not add new compatibility, installation, hard-evaluation, ranking or selection rules.
+The coordinator adds no compatibility, installation, hard-evaluation, ranking or selection rules.
 
 The field result preserves the existing distinction between:
 
@@ -140,122 +133,138 @@ no_generated_candidates
 no_suitable_recommendation
 ```
 
-An empty generated set is not rewritten as global exhaustion.
+and retains exact run/profile/configuration provenance, generation-time Tool-side bindings, exact hard/contextual evaluation, pending verification checks and pending pre-use actions.
 
-### Structured field result
+## PR #66: ToolAttachment installation-method retention
 
-For a selected candidate, the field projection retains:
+PR #66 closes the next field-output provenance gap without turning method metadata into a new compatibility rule.
 
-- operational profile ref and label;
-- operational mass;
-- supporting configuration-product refs such as installed Battery identity;
-- exact `CandidatePathSelection`;
-- exact hard `CandidateEvaluation`;
-- selected contextual evaluation where present;
-- complete pending verification checks; and
-- complete pending pre-use-action checks.
+Accepted ToolAttachment `attachment_method_code` claims now resolve into:
 
-Safety-relevant facts are retained as structured objects. They are not reconstructed by parsing human-readable reason strings.
+```text
+ToolAttachmentInstallationMethod
+  source_product_ref
+  attachment_method_code
+  source_urls
+```
 
-## PR #65 provenance hardening
+Resolution is fail-closed:
 
-Review of PR #65 exposed several reconstruction/deserialization invariants that are now explicit.
+- only accepted/reconciled method claims participate;
+- values must be native non-empty strings;
+- conflicting accepted method codes do not receive an invented precedence; and
+- exact accepted source URLs are retained.
 
-### Run Tool provenance
+A `ToolAttachmentAssemblyOption` may carry this method only when its provenance belongs to a selected assembly component. Candidate generation deep-copies the exact method onto the corresponding `CandidatePathSelection`.
 
-`run_recommendation()` retains the exact normalized `ResolvedToolCandidate` used for generation together with a canonical whole-Tool fingerprint.
+The method remains **descriptive retained installation provenance**. It does not change:
 
-Recommendation-run validation binds generated candidates to that retained Tool, including tool identity and operational mass.
+- ToolAttachment eligibility;
+- direct or ToolAttachment-mediated connection compatibility;
+- load/capacity evaluation;
+- hard viability;
+- contextual ranking;
+- candidate identity; or
+- legacy/runtime assembly validity when method provenance is absent.
 
-### Generation-time Tool-side bindings
+The field-facing result can therefore expose a canonical physical installation action such as `cinch` or `wrap` from retained runtime provenance instead of reconstructing it from product names, selected feature IDs or human-readable reason strings.
 
-The run also retains independent generation-time Tool-side binding snapshots for every generated candidate:
+## PR #66 catalogue-backed worker vertical
 
-- direct candidates retain the exact normalized Tool `ConnectionInterface` targeted during generation;
-- ToolAttachment candidates retain the exact `ToolInterfaceFeature` that satisfied eligibility.
+PR #66 also proves the field path with a real catalogue-backed scenario rather than a synthetic SKU-pair rule.
 
-These snapshots are deep-copied generation artifacts, not aliases to the retained Tool object. Replacing a retained Tool with a same-ref/same-mass Tool whose interface geometry or feature dimensions changed therefore cannot preserve an old candidate merely by recomputing the run-level fingerprint.
+The vertical uses:
 
-### Operational-profile/configuration provenance
+- Milwaukee `48-22-7215` as the Tool;
+- NLG `101363` as the ToolAttachment;
+- GRIPPS `H01079` as the Tether; and
+- NLG `101366` as the anchor path.
 
-The field result separately retains the generation-time operational-profile binding because the recommendation core intentionally consumes only the normalized Tool.
+The worker must still explicitly confirm the Tool. The selected path retains the NLG ToolAttachment's canonical `cinch` method provenance while unresolved connection compatibility remains visible as verification work rather than being guessed.
 
-That field binding includes:
+This scenario demonstrates that the field coordinator can now preserve both **where/how the ToolAttachment binds** and **the accepted physical installation mechanism** through the selected recommendation path.
 
-- resolution source (`catalogue` or `session_local_generic`);
-- field Tool display identity;
-- operational profile ref;
-- operational profile display label; and
-- supporting configuration-product refs such as Battery identity.
+## PR #66 targeted Milwaukee throughput
 
-This closes the case where two operational profiles normalize to identical `ResolvedToolCandidate` values: a reconstructed result cannot relabel a run from one Battery/profile identity to another simply by changing the resolved profile and field summary.
+Milwaukee ingestion now recognizes explicit first-party:
 
-These provenance checks apply to selected, no-suitable and no-generated run states.
+```text
+tether-ready lanyard hole
+tether-ready handle loop
+```
 
-## Deliberate non-goals of PR #65
+as one manufacturer-neutral captive `through_opening` Tool tether interface.
 
-PR #65 does **not** add:
+Important boundaries:
+
+- this extraction is Tool-only;
+- generic handle language does not create tether-interface evidence;
+- the exact-SKU Milwaukee product page must be verified;
+- the tether-ready phrase is scoped to the selected product record rather than searched page-wide; and
+- repeated occurrences of the selected SKU remain inside the same selected record while the first different recognized SKU terminates it.
+
+The last rule is implemented in the shared `bounded_record_for_identifier()` invariant because repeated title/heading identifiers and cross-record evidence leakage are source-independent parsing concerns. Milwaukee's SKU grammar remains adapter-specific.
+
+## PR #66 NLG method canonicalization hardening
+
+NLG attachment-method extraction now treats explicit positive cinch/choke instructions as stronger evidence than incidental pass-through plus later `secure` wording. This is required for real instructions that pass a loop through a captive feature before creating the constricting cinch.
+
+Negative wording remains non-evidence. Prohibitions such as:
+
+```text
+Do not create a cinch.
+Do not use the loop to create a cinch.
+Never use it to cinch around the handle.
+```
+
+must not emit or outrank `cinch`.
+
+Negation handling is clause-local and bounded by punctuation/explicit contrast so a prohibition does not suppress a separate positive instruction. Retained cinch evidence uses the same positive-only view.
+
+## Review-derived reusable ingestion invariants
+
+PR #66 review reinforced two reusable rules:
+
+1. **Page identity is not fact attribution.** Verifying that a page belongs to SKU A does not allow every phrase on the page to be assigned to SKU A; related-product content must remain out of the selected record.
+2. **Repeated selected identifiers are not neighboring records.** A flattened page may repeat its selected SKU in title/heading content; the selected record ends at the first different recognized identifier, not the next occurrence of the same identifier.
+
+These rules belong in shared ingestion behavior where safe; source-specific SKU grammars and wording stay in adapters.
+
+## Current deliberate boundaries
+
+PR #66 does **not** add:
 
 - image recognition or computer-vision inference;
 - fuzzy Tool identity acceptance;
-- database/repository querying;
-- raw-claim evidence acceptance at the field boundary;
+- persistent database/repository querying;
 - automatic Battery recognition;
 - free-form worker safety-fact inference;
 - anchorage recognition;
 - inventory optimization;
 - user-facing natural-language recommendation generation;
-- new compatibility/context/ranking rules;
-- SKU-pair logic; or
+- new attachment eligibility predicates;
+- new connection compatibility rules;
+- new contextual/ranking rules;
+- SKU-pair recommendation logic; or
 - a replacement for the existing recommendation-session condition resolver.
 
 Those boundaries remain deliberate.
 
 ## Next highest-value demand-side seam
 
-The next small reusable gap exposed by the field workflow is **ToolAttachment installation method retention**.
+With explicit Tool confirmation, operational-profile provenance, exact selected-path retention and ToolAttachment installation-method provenance now demonstrated in a real catalogue-backed worker vertical, the next demand-side value is to make the **candidate Tool identification input real** without weakening confirmation semantics.
 
-Accepted ToolAttachment evidence already carries canonical `attachment_method_code` values such as:
+The next small slice should therefore connect one practical recognition/search producer to `candidate_tool_refs` while preserving:
 
-```text
-adhesive
-mechanical_capture
-cinch
-wrap
-through_feature
-contraction_capture
-```
+- advisory-only candidate generation;
+- explicit worker confirmation before catalogue identity becomes authoritative;
+- exact catalogue Tool/variant identity after confirmation;
+- existing operational-profile selection and mass requirements; and
+- the unchanged complete recommendation pipeline after resolution.
 
-but that accepted method does not yet flow into `ToolAttachmentAssemblyOption` / `CandidatePathSelection`.
+This does not require the recognition model itself to become recommendation authority. A search/text lookup or a constrained recognition adapter is sufficient to exercise the boundary before broader computer-vision work.
 
-As a result, the field result can currently identify the selected ToolAttachment and exact bound Tool feature but cannot reliably state the canonical physical installation action (for example `cinch` or `wrap`) from retained runtime provenance. Do not infer that action from binding names or reason strings.
-
-The next implementation slice should therefore bridge already-accepted/resolved ToolAttachment installation method evidence into the selected runtime path without changing compatibility or eligibility semantics.
-
-Desired constraints for that slice:
-
-- manufacturer-neutral representation;
-- exact retained provenance where available;
-- no SKU-pair branches;
-- no reason-text parsing;
-- no widening of current attachment eligibility;
-- preserve existing candidate identity unless the method is genuinely part of physical-path identity; and
-- prove the result with a direct selected ToolAttachment scenario.
-
-## Next concrete MVP vertical after the method bridge
-
-After installation method is retained end to end, exercise the field coordinator with a real catalogue-backed worker scenario rather than another synthetic portability cohort.
-
-That vertical should bind:
-
-1. one real catalogue Tool;
-2. its real operational configuration/Battery profile where relevant;
-3. the minimum missing physical/interface facts actually required by current rules;
-4. only the task/anchorage context needed for the candidate set;
-5. the existing generation -> hard evaluation -> ranking/selection pipeline; and
-6. a field-usable structured result with installation action, verification/cautions and evidence limitations.
-
-Recognition/search adaptation should follow once the catalogue-backed profile/context path is real enough to exercise. The field coordinator already treats recognition candidates as advisory and requires confirmation, so recognition can be added without becoming recommendation authority.
+In parallel, continue targeted catalogue throughput where real field scenarios expose missing normalized facts.
 
 ## Catalogue throughput in parallel
 
@@ -282,15 +291,17 @@ V6 B cases are useful throughput candidates, but they should not drive new recom
 - Keep every feature-bound predicate on one concrete feature instance.
 - Do not synthesize fit envelopes by joining bounds from unrelated subjects or incomplete evidence sources.
 - Keep manufacturer provenance separate from exact product/variant identity.
-- Bound flattened multi-product evidence to the requested identity before parsing sibling-specific fields.
+- Bound flattened multi-product evidence to the requested identity before parsing sibling-specific fields; repeated selected identifiers remain part of the same record until a different recognized identifier appears.
+- Respect negative installation wording; prohibitions are not positive method evidence.
 - Preserve candidate identity and exact provenance through generation/evaluation.
 - Preserve generation-time Tool-side bindings independently of reconstructed Tool state.
 - Preserve operational profile/configuration identity independently of the normalized Tool used by the recommendation core.
-- Do not reconstruct safety-relevant facts from human-readable reason text.
+- Preserve ToolAttachment installation-method provenance independently of eligibility and candidate identity.
+- Do not reconstruct safety-relevant facts or installation actions from human-readable reason text.
 - Keep hard viability separate from ranking/context.
 - Preserve V1-V6 historical portability cohorts and the immutable Batch 2 blind baseline.
 - Prefer a small reusable primitive only when a concrete recurring decision need exists; do not pre-build ontology for optional product behavior.
 
 ## Suggested next-chat starting point
 
-> Continue TetherLens from merged PR #65. Keep V1 **0 A / 5 B / 3 C / 0 D**, V2 **0 A / 6 B / 2 C / 0 D**, V3 **0 A / 5 B / 3 C / 0 D**, V4 **0 A / 4 B / 4 C / 0 D**, V5 **0 A / 6 B / 2 C / 0 D** and V6 **1 A / 7 B / 0 C / 0 D** frozen at their historical semantic revisions. Portability is now a periodic stress test rather than the primary implementation loop. PR #65 adds the first demand-side field coordinator with explicit Tool confirmation, operational-profile/Battery identity, fail-closed operational mass, exact recommendation-run retention, generation-time Tool-side provenance and independent field profile/configuration provenance. Inspect the accepted ToolAttachment `attachment_method_code` flow and bridge that canonical installation method into the runtime ToolAttachment assembly/selected path without changing eligibility or compatibility semantics; then use the resulting path in a real catalogue-backed worker scenario while continuing targeted catalogue throughput.
+> Continue TetherLens from merged PR #66. Keep V1 **0 A / 5 B / 3 C / 0 D**, V2 **0 A / 6 B / 2 C / 0 D**, V3 **0 A / 5 B / 3 C / 0 D**, V4 **0 A / 4 B / 4 C / 0 D**, V5 **0 A / 6 B / 2 C / 0 D** and V6 **1 A / 7 B / 0 C / 0 D** frozen at their historical semantic revisions. Portability is a periodic stress test rather than the primary implementation loop. PR #65 established explicit Tool confirmation, operational-profile/configuration provenance and the field recommendation coordinator. PR #66 retains accepted ToolAttachment installation-method provenance through `ToolAttachmentAssemblyOption` and the exact selected `CandidatePathSelection`, proves it in a catalogue-backed worker vertical, adds scoped Milwaukee tether-ready Tool-feature ingestion, and hardens shared record scoping plus positive-only NLG cinch evidence. Inspect the demand-side recognition/search boundary and implement the smallest real producer of `candidate_tool_refs` that remains advisory until explicit worker confirmation, while continuing targeted catalogue throughput in parallel.

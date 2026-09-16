@@ -2,7 +2,7 @@
 
 ## Status
 
-Initial reusable vocabulary for `tool_attachment.attachment_method_code` and the corresponding product-level Claim `attachment_method_code`.
+Reusable vocabulary for `tool_attachment.attachment_method_code`, the corresponding product-level Claim `attachment_method_code`, and the retained runtime installation-method provenance carried by selected ToolAttachment paths.
 
 This vocabulary describes the **primary physical mechanism that retains a ToolAttachment on the tool**. It is deliberately mechanism-led rather than product-led so that recommendation logic can reuse the same values across manufacturers and SKUs.
 
@@ -53,9 +53,32 @@ Examples:
 
 A code should be emitted only when source evidence establishes the mechanism. Product names alone should not be treated as sufficient evidence when contextual installation language is available.
 
-Negative wording must be respected. For example, an adhesive-free or no-adhesive product must not emit `adhesive` merely because the word "adhesive" appears in the source.
+Negative wording must be respected. An adhesive-free or no-adhesive product must not emit `adhesive` merely because the word "adhesive" appears in the source. Likewise, prohibited cinch/choke instructions such as `do not create a cinch` or `do not use the loop to create a cinch` are not positive method evidence. Negation handling is clause-local: a prohibition must not suppress a separate later positive installation instruction.
 
 When a product description contains multiple installation actions, `attachment_method_code` records the primary retention mechanism. Secondary actions should be represented separately rather than collapsed into a compound method value.
+
+## Runtime retention
+
+Accepted method claims are resolved into `ToolAttachmentInstallationMethod` runtime provenance containing:
+
+```text
+source_product_ref
+attachment_method_code
+source_urls
+```
+
+Resolution is fail-closed:
+
+- only accepted/reconciled `attachment_method_code` claims participate;
+- the original claim value must be a non-empty string;
+- conflicting accepted method codes are not silently prioritized; and
+- exact accepted source URLs are retained.
+
+A `ToolAttachmentAssemblyOption` may carry this resolved method when the method's `source_product_ref` belongs to one of the selected assembly components. Candidate generation copies the method onto the exact `CandidatePathSelection` for that ToolAttachment-mediated path.
+
+This provenance is **descriptive installation retention**, not a new eligibility predicate. It does not change ToolAttachment compatibility, connection compatibility, hard evaluation, contextual ranking, or candidate identity. Legacy/runtime assemblies without retained method provenance remain valid where their existing semantics permit them.
+
+The field-facing recommendation therefore does not need to reconstruct an installation action from product names, binding IDs, or human-readable reason strings: when accepted method provenance exists, the selected path carries it directly.
 
 ## Extension rule
 

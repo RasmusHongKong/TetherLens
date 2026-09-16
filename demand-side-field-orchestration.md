@@ -4,7 +4,7 @@
 
 This document defines the first executable worker-facing vertical above the existing recommendation engine.
 
-The new layer does **not** add another compatibility, generation, hard-evaluation, ranking or fallback model. Its responsibility is narrower:
+The layer does **not** add another compatibility, generation, hard-evaluation, ranking or fallback model. Its responsibility is narrower:
 
 ```text
 recognition/search candidate refs
@@ -63,8 +63,6 @@ generic_profile
 Recognition/search candidates are advisory only.
 
 A candidate ref never becomes the resolved Tool merely because it is the only recognition result. If no `confirmed_tool_ref` is supplied, the coordinator returns a `tool_confirmation` input requirement containing the recognized catalogue candidates.
-
-This preserves the MVP requirement that the worker confirms the identified Tool before a recommendation is shown.
 
 If there are no recognition/search candidates, the result instead requests `tool_identification`. The demand layer does not invent an identity from incomplete observation data.
 
@@ -173,8 +171,8 @@ The first two occur before the recommendation run.
 The final three map exactly from `CandidateSelectionState` after a complete run:
 
 ```text
-selected                  -> selected
-no_generated_candidates   -> no_generated_candidates
+selected                   -> selected
+no_generated_candidates    -> no_generated_candidates
 no_suitable_recommendation -> no_suitable_recommendation
 ```
 
@@ -195,22 +193,41 @@ For a selected run, `FieldRecommendationSummary` exposes:
 - complete pending verification `CandidateCheck` objects; and
 - complete pending pre-use-action `CandidateCheck` objects.
 
-The path selection already carries the selected:
+The path selection carries the selected:
 
 - Tool ref;
 - Tether ref;
 - ToolAttachment assembly and installation feature where applicable;
+- retained ToolAttachment installation method provenance where available;
 - anchor path;
 - primary-anchor installation binding where applicable;
 - endpoint/target assignments;
 - component/source-product identities; and
 - retained eligibility/assignment proofs.
 
-The field projection does not parse human-readable `reason` strings to infer new safety facts or terminal outcomes.
+The field projection does not parse human-readable `reason` strings to infer new safety facts, installation actions or terminal outcomes.
 
 Pending verification/action checks are selected only by the structured pending identifiers already emitted by the hard evaluator.
 
 A result validator recomputes the field summary from the retained operational profile and retained selected run. A directly constructed/deserialized result therefore cannot silently swap the displayed path, evaluation or pending-condition projection.
+
+## ToolAttachment installation-method provenance
+
+Where accepted ToolAttachment evidence resolves an `attachment_method_code`, the normalized assembly may carry a `ToolAttachmentInstallationMethod` containing:
+
+```text
+source_product_ref
+attachment_method_code
+source_urls
+```
+
+Candidate generation copies that exact provenance onto the selected `CandidatePathSelection` for a ToolAttachment-mediated path.
+
+This is a descriptive retained installation fact, not a new compatibility or eligibility rule. It therefore does not change whether a candidate is generated, hard-viable, ranked, or selected. Candidate identity also remains stable with or without method metadata.
+
+The field layer consumes the retained path as-is. It must not infer `cinch`, `wrap`, `adhesive`, `mechanical_capture`, `through_feature`, or another method from product names, selected feature IDs or evaluator reason strings.
+
+Missing method provenance remains explicit: legacy/runtime assemblies may still be usable under existing eligibility semantics even when no accepted installation-method claim is available.
 
 ## Relationship to recommendation sessions
 
@@ -229,7 +246,7 @@ The field coordinator must not mark a pending check satisfied or failed directly
 
 ## Current deliberate boundaries
 
-This first slice does not add:
+The field layer does not add:
 
 - image recognition or model inference;
 - fuzzy Tool/SKU matching;
@@ -259,17 +276,20 @@ Focused tests cover at least:
 - session-local generic profile use remaining explicit;
 - the complete supplied candidate set reaching `run_recommendation()`;
 - exact selected path/evaluation retention in the field summary;
+- retained ToolAttachment installation method on the exact selected path where accepted provenance exists;
 - pending structured verification retention;
 - `no_generated_candidates` remaining distinct from global `no_suitable_recommendation`; and
 - pre-run not-ready states never masquerading as recommendation outcomes.
 
+PR #66 also proves this with a catalogue-backed worker vertical using a real Milwaukee Tool, NLG ToolAttachment, GRIPPS Tether and NLG anchor path. The scenario requires explicit Tool confirmation and retains the exact `cinch` provenance of the selected NLG ToolAttachment while leaving unresolved connection checks visible rather than inventing compatibility evidence.
+
 ## Next demand-side steps
 
-After this boundary is stable, the next useful demand-side work should be driven by a small real worker scenario rather than by another broad modelling pass. Likely extensions are:
+After this boundary is stable, the next useful demand-side work should continue from real field scenarios rather than another broad modelling pass. Likely extensions are:
 
 1. bind a real recognition/search adapter to `candidate_tool_refs` while preserving explicit confirmation;
-2. resolve a real Tool/Battery operational profile from catalogue evidence into `OperationalToolProfile`;
-3. add the smallest task/anchorage question flow needed by that scenario;
+2. resolve more real Tool/configuration profiles from catalogue evidence into `OperationalToolProfile`;
+3. add the smallest task/anchorage question flow needed by those scenarios;
 4. pass pending checks into the existing recommendation-session evidence adapters; and
 5. build a thin mobile result presentation over the structured field summary.
 
