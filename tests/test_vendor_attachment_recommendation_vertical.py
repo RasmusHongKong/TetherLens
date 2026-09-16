@@ -1,4 +1,5 @@
 from tetherlens_ingest.adapters import GRIPPSAdapter, ThreeMAdapter
+from tetherlens_ingest.attachment_method import resolve_tool_attachment_installation_method
 from tetherlens_ingest.candidate_generation import (
     AnchorPathOption,
     CandidateComponentOption,
@@ -46,6 +47,10 @@ def _assembly(product_ref: str, claims) -> ToolAttachmentAssemblyOption:
         if claim.property_key == "rated_capacity_kg"
     )
     constraints = resolve_product_constraints(claims, source_product_ref=product_ref)
+    installation_method = resolve_tool_attachment_installation_method(
+        claims,
+        source_product_ref=product_ref,
+    )
     return ToolAttachmentAssemblyOption(
         assembly_ref=f"{product_ref}:assembly",
         components=[
@@ -58,6 +63,7 @@ def _assembly(product_ref: str, claims) -> ToolAttachmentAssemblyOption:
         ],
         eligibility=eligibility,
         provided_interfaces=provided_interfaces,
+        installation_method=installation_method,
     )
 
 
@@ -182,6 +188,14 @@ def test_snaplock_vendor_claims_generate_only_handle_bound_attachment_candidates
         candidate.selection.installation_feature_id != "section:neck"
         for candidate in result.generated_candidates
     )
+    assert all(
+        candidate.selection.attachment_installation_method is not None
+        and candidate.selection.attachment_installation_method.attachment_method_code
+        == "mechanical_capture"
+        and candidate.selection.attachment_installation_method.source_product_ref
+        == "GRIPPS:H01150"
+        for candidate in result.generated_candidates
+    )
 
 
 def test_quick_spin_vendor_constraints_remain_feature_bound_through_hard_evaluation() -> None:
@@ -247,6 +261,11 @@ def test_quick_spin_vendor_constraints_remain_feature_bound_through_hard_evaluat
     }
     cylindrical = by_feature["handle:cylindrical"]
     tapered = by_feature["handle:tapered"]
+
+    assert cylindrical.selection.attachment_installation_method is not None
+    assert cylindrical.selection.attachment_installation_method.attachment_method_code == "mechanical_capture"
+    assert cylindrical.selection.attachment_installation_method.source_product_ref == "3M:1500028"
+    assert cylindrical.selection.attachment_installation_method.source_urls == [product_url]
 
     cylindrical_constraints = {
         evaluation.constraint_key: evaluation
