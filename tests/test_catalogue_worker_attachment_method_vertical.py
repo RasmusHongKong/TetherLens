@@ -277,11 +277,8 @@ def test_real_catalogue_worker_path_retains_cinch_method_after_explicit_tool_con
 
     # The field summary is a projection of the exact retained generation-time path, not
     # a reconstruction that could relabel how the attachment was installed.
-    selected_id = result.recommendation_run.selection.selected_candidate_id
-    generated = next(
-        candidate
-        for candidate in result.recommendation_run.generated_candidates
-        if candidate.configuration.candidate_id == selected_id
-    )
+    selected = result.recommendation_run.selection.selected
+    assert selected is not None
+    generated = selected.generated_candidate
     assert generated.selection == summary.path_selection
     assert generated.selection.attachment_installation_method == method
