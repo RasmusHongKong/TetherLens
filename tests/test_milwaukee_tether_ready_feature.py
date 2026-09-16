@@ -10,11 +10,11 @@ PRODUCT_URL = (
 )
 
 
-def _identity() -> ProductIdentity:
+def _identity(product_type: ProductType = ProductType.TOOL) -> ProductIdentity:
     return ProductIdentity(
         manufacturer="Milwaukee",
-        product_type=ProductType.TOOL,
-        name='14L Aluminum Pipe Wrench with POWERLENGTH Handle',
+        product_type=product_type,
+        name="14L Aluminum Pipe Wrench with POWERLENGTH Handle",
         sku="48-22-7215",
         url=PRODUCT_URL,
     )
@@ -94,6 +94,48 @@ def test_tether_ready_feature_requires_verified_exact_sku_primary_page() -> None
         [
             _artifact(
                 "<h1>Other product 48-22-7214</h1><p>Tether-ready lanyard hole</p>"
+            )
+        ],
+    )
+
+    assert resolve_tool_interface_features(claims) == []
+
+
+def test_tether_ready_feature_is_scoped_to_selected_product_record() -> None:
+    claims = MilwaukeeAdapter().extract(
+        _identity(),
+        [
+            _artifact(
+                """
+                <aside>
+                    <h2>48-22-7214 Related wrench</h2>
+                    <p>Tether-ready handle loop</p>
+                </aside>
+                <main>
+                    <h1>48-22-7215 14L Aluminum Pipe Wrench with POWERLENGTH Handle</h1>
+                    <p>Ergonomic handle design that helps prevent fatigue and slip.</p>
+                </main>
+                <aside>
+                    <h2>48-22-7216 Related wrench</h2>
+                    <p>Tether-ready lanyard hole</p>
+                </aside>
+                """
+            )
+        ],
+    )
+
+    assert resolve_tool_interface_features(claims) == []
+
+
+def test_tether_ready_feature_claims_require_tool_identity() -> None:
+    claims = MilwaukeeAdapter().extract(
+        _identity(ProductType.TETHER),
+        [
+            _artifact(
+                """
+                <h1>48-22-7215 Catalogue record</h1>
+                <p>Tether-ready lanyard hole</p>
+                """
             )
         ],
     )
