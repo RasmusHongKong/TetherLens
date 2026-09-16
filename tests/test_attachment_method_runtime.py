@@ -23,7 +23,12 @@ from tetherlens_ingest.models import CandidateClaim
 from tetherlens_ingest.resolution import resolve_attachment_eligibility
 
 
-def _method_claim(value: str, url: str, *, supporting: list[str] | None = None) -> CandidateClaim:
+def _method_claim(
+    value: str | int | float | bool,
+    url: str,
+    *,
+    supporting: list[str] | None = None,
+) -> CandidateClaim:
     return CandidateClaim(
         property_key="attachment_method_code",
         value=value,
@@ -154,6 +159,34 @@ def test_conflicting_accepted_method_codes_fail_closed() -> None:
                 _method_claim("cinch", "https://manufacturer.test/product"),
                 _method_claim("wrap", "https://manufacturer.test/instructions"),
             ],
+            source_product_ref="NLG:101363",
+        )
+
+
+@pytest.mark.parametrize("value", [1, 1.0, True])
+def test_non_string_accepted_method_codes_fail_closed(value: int | float | bool) -> None:
+    with pytest.raises(AttachmentMethodResolutionError, match="must be a string"):
+        resolve_tool_attachment_installation_method(
+            [_method_claim(value, "https://manufacturer.test/product")],
+            source_product_ref="NLG:101363",
+        )
+
+
+def test_non_string_method_does_not_collapse_with_same_textual_string() -> None:
+    with pytest.raises(AttachmentMethodResolutionError, match="must be a string"):
+        resolve_tool_attachment_installation_method(
+            [
+                _method_claim(1, "https://manufacturer.test/product"),
+                _method_claim("1", "https://manufacturer.test/instructions"),
+            ],
+            source_product_ref="NLG:101363",
+        )
+
+
+def test_empty_string_method_code_fails_closed() -> None:
+    with pytest.raises(AttachmentMethodResolutionError, match="must be non-empty"):
+        resolve_tool_attachment_installation_method(
+            [_method_claim("   ", "https://manufacturer.test/product")],
             source_product_ref="NLG:101363",
         )
 
