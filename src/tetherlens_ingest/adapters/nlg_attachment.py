@@ -8,6 +8,12 @@ _NEGATIVE_CINCH_LEAD = (
     r"(?:do\s+not|does\s+not|do(?:es)?n['’]t|never|must\s+not|mustn['’]t|"
     r"should\s+not|shouldn['’]t|not\s+to|avoid|without)"
 )
+_CINCH_ACTION = (
+    r"(?:"
+    r"(?:creat|form|mak)\w*\b[^.!?;\n]{0,40}\b(?:a\s+)?(?:cinch|choke)\w*"
+    r"|(?:cinch|choke)\w*"
+    r")"
+)
 
 
 def attachment_method_code(text: str) -> str | None:
@@ -116,18 +122,22 @@ def _without_negative_adhesive_phrases(text: str) -> str:
 
 
 def _without_negative_cinch_phrases(text: str) -> str:
-    """Remove only sentence-local prohibitions on cinching/choking.
+    """Remove sentence-local prohibitions that govern a later cinch/choke action.
 
-    Other text is intentionally preserved so a later positive cinch instruction can
-    still be recognized and non-cinch mechanisms continue to evaluate the original
-    manufacturer copy.
+    The bounded bridge allows ordinary intervening words (for example "do not use
+    the loop to create a cinch") but does not cross sentence/semicolon boundaries or
+    an explicit contrast such as "but"/"instead". Other text remains available so a
+    separate positive cinch instruction can still be recognized and non-cinch
+    mechanisms continue to evaluate the original manufacturer copy.
     """
 
+    non_contrast_bridge = (
+        r"(?:(?!\b(?:but|however|instead)\b)[^.!?;\n]){0,120}?"
+    )
     return re.sub(
-        rf"\b{_NEGATIVE_CINCH_LEAD}\s+(?:"
-        rf"(?:creat|form|mak)\w*\b[^.!?\n]{{0,40}}\b(?:a\s+)?(?:cinch|choke)\w*"
-        rf"|(?:a\s+)?(?:cinch|choke)\w*"
-        rf")\b",
+        rf"\b{_NEGATIVE_CINCH_LEAD}\b"
+        rf"{non_contrast_bridge}"
+        rf"\b{_CINCH_ACTION}\b",
         " ",
         text,
         flags=re.I,
