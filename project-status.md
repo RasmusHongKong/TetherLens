@@ -8,19 +8,19 @@ For detailed design, see `product-vision.md`, `mvp.md`, `domain-model.md`, `evid
 
 ## Current baseline
 
-PR #67, `Add advisory field Tool catalogue search`, advances the merged PR #66 baseline. The pre-PR #67 `main` SHA is:
+PR #67, `Add advisory field Tool catalogue search`, is merged. Current pre-PR #68 `main` is:
 
 ```text
-a0e062df317e2de8e89d80c8b11f2db9846ee088
+ec681aef5e9d76513fe921060b6415bed14054bf
 ```
 
-The PR #67 review branch is:
+PR #68, `Resolve catalogue operational profiles for field selection`, is the current review branch:
 
 ```text
-feature/field-tool-candidate-search
+feature/catalogue-operational-profile-resolution
 ```
 
-PR #67 is intentionally a narrow recognition/search-boundary implementation. It does not rewrite historical portability semantics, Tool confirmation authority, candidate identity, attachment eligibility, connection compatibility, hard evaluation, operational-profile semantics, or ranking.
+PR #68 is intentionally a catalogue-to-demand normalization slice. It does not rewrite historical portability semantics, Tool confirmation authority, attachment eligibility, connection compatibility, candidate identity, hard evaluation, contextual ranking or recommendation-session semantics.
 
 Historical portability cohorts remain immutable at their original semantic revisions:
 
@@ -266,15 +266,56 @@ candidate_tool_refs
 
 The catalogue-backed Milwaukee/NLG/GRIPPS/NLG worker vertical now starts from this real search producer rather than a hand-injected Milwaukee candidate ref, while retaining the same mandatory confirmation boundary and downstream recommendation semantics.
 
+## PR #68: catalogue-backed operational profile resolution
+
+PR #68 closes the next catalogue-to-demand gap without teaching the field layer to infer configuration identity.
+
+The new boundary is:
+
+```text
+resolve_operational_tool_profiles(
+    claims,
+    tool_ref=...,
+    descriptors=...,
+    features=...,
+    direct_interfaces=...,
+)
+```
+
+`OperationalProfileDescriptor` carries exact normalized configuration identity:
+
+```text
+profile_ref
+worker-facing display_name
+configuration_product_refs
+```
+
+Configuration refs are required and must already come from normalized catalogue relationships. The resolver does **not** reconstruct Battery/configuration identity from:
+
+- compound profile-ref text;
+- manufacturer or SKU conventions;
+- source URLs;
+- arithmetic matching between Tool/Battery/profile masses; or
+- shared battery-platform labels.
+
+It binds accepted `operational_mass_kg` claims only to the exact supplied descriptor ref. An operational-mass claim without a descriptor fails closed; conflicting accepted masses for one profile do not receive invented precedence.
+
+Known configurations whose operational mass is still missing remain present as profiles with unknown mass. This is important: dropping an incomplete configuration could make another profile look like the Tool's only option and trigger incorrect automatic selection. If the worker selects the incomplete profile, the existing `operational_mass_not_established` readiness boundary stops the run before candidate generation.
+
+The first real proof uses Hilti SF 4-22 `2253847` with the already-ingested B 22-55 and B 22-85 operational masses. Text search remains advisory, the Tool still requires explicit confirmation, and confirmation then exposes both real Battery configurations through the existing `operational_profile_selection` requirement. Selecting B 22-85 retains its exact `2.072917 kg` configured mass and configuration-product identity.
+
+This does **not** yet make the SF 4-22 recommendation-ready. The current Hilti instructions pair the Tool with retaining strap `2293133` and tether `2261970`, but the retaining-strap Tool-side installation geometry/interface still needs reusable normalization before that pairing can enter candidate generation without SKU-pair logic.
+
 ## Current deliberate boundaries
 
-The field baseline through PR #67 does **not** add:
+The field baseline through PR #68 does **not** add:
 
 - image recognition or computer-vision inference;
 - fuzzy Tool identity acceptance;
 - search-derived confidence scores as recommendation authority;
 - persistent database/repository querying;
 - automatic Battery recognition;
+- configuration-relationship inference from profile IDs, source URLs or mass arithmetic;
 - free-form worker safety-fact inference;
 - anchorage recognition;
 - inventory optimization;
@@ -289,15 +330,20 @@ Those boundaries remain deliberate.
 
 ## Next highest-value demand-side seam
 
-With PR #67 stable, candidate Tool discovery is no longer purely hand-injected. The next demand-side value should come from **another real field scenario that adds useful catalogue/profile coverage and forces only the smallest missing worker-context question**, rather than from broadening recognition authority.
+With PR #68, real configuration-dependent catalogue evidence can now reach the existing worker profile-selection boundary without hand-building `OperationalToolProfile` masses.
 
-Good next candidates should preserve:
+The next highest-value seam is to carry one of those real profiles into a **complete recommendation run**. Hilti SF 4-22 is now the strongest candidate because its Tool/Battery mass side is ready and its first-party instructions explicitly identify the required retaining strap/tether system.
 
-- advisory-only discovery plus explicit Tool confirmation;
-- exact Tool/variant identity;
-- evidence-backed operational-profile mass/configuration;
-- the unchanged complete recommendation pipeline; and
-- context questions only where they can materially affect candidate feasibility, ranking or worker instructions.
+The implementation should remain reusable rather than encoding the `2253847 + 2293133 + 2261970` combination downstream. The likely work is to establish the smallest evidence-backed normalized representation of:
+
+- the SF 4-22 installation opening(s) as Tool-side physical feature(s);
+- the retaining strap's eligible installation relationship to that feature geometry;
+- the tether-side interface provided by the installed retaining strap; and
+- the existing Hilti tether endpoint/capacity facts needed by ordinary connection/capacity evaluation.
+
+If the current first-party evidence cannot support one of those semantics without inference, leave that part unresolved and choose another real scenario rather than adding a product-specific bypass.
+
+Only after a real complete path exists should we add the smallest task/anchorage question that can materially change feasibility, ranking or worker instructions. Required working reach remains a strong candidate because the contextual ranking layer already models it, but the field workflow should ask it only when a real candidate set makes it decision-relevant.
 
 Image recognition can later produce the same `candidate_tool_refs` contract when a curated pilot image set is ready. It should not bypass the confirmation boundary.
 
@@ -333,6 +379,8 @@ V6 B cases are useful throughput candidates, but they should not drive new recom
 - Preserve candidate identity and exact provenance through generation/evaluation.
 - Preserve generation-time Tool-side bindings independently of reconstructed Tool state.
 - Preserve operational profile/configuration identity independently of the normalized Tool used by the recommendation core.
+- Do not reconstruct configuration identity from compound profile refs, mass coincidences or source URLs.
+- Preserve known incomplete configuration alternatives so missing evidence cannot manufacture a one-profile auto-selection case.
 - Preserve ToolAttachment installation-method provenance independently of eligibility and candidate identity.
 - Recognition/search candidates are advisory only; no search/recognition producer may silently populate authoritative Tool confirmation.
 - Do not reconstruct safety-relevant facts or installation actions from human-readable reason text.
@@ -342,4 +390,4 @@ V6 B cases are useful throughput candidates, but they should not drive new recom
 
 ## Suggested next-chat starting point
 
-> Continue TetherLens from merged PR #67. Keep V1 **0 A / 5 B / 3 C / 0 D**, V2 **0 A / 6 B / 2 C / 0 D**, V3 **0 A / 5 B / 3 C / 0 D**, V4 **0 A / 4 B / 4 C / 0 D**, V5 **0 A / 6 B / 2 C / 0 D** and V6 **1 A / 7 B / 0 C / 0 D** frozen at their historical semantic revisions. Portability remains a periodic stress test rather than the primary implementation loop. PR #65 established explicit Tool confirmation, operational-profile/configuration provenance and the field recommendation coordinator. PR #66 retained accepted ToolAttachment installation-method provenance through `ToolAttachmentAssemblyOption` and the exact selected `CandidatePathSelection`, proved it in a catalogue-backed worker vertical, added scoped Milwaukee tether-ready Tool-feature ingestion, and hardened shared record scoping plus positive-only NLG cinch evidence. PR #67 adds deterministic lexical catalogue search as the first real producer of advisory `candidate_tool_refs`; even one exact result still requires explicit worker confirmation before Tool/profile resolution or recommendation. Continue targeted catalogue throughput and choose the next real field scenario that adds operational-profile coverage plus only the smallest context question needed to change feasibility/ranking/instructions, without broadening recognition authority or inventing new recommendation primitives prematurely.
+> Continue TetherLens from PR #68, `Resolve catalogue operational profiles for field selection`, on top of merged PR #67. Keep V1 **0 A / 5 B / 3 C / 0 D**, V2 **0 A / 6 B / 2 C / 0 D**, V3 **0 A / 5 B / 3 C / 0 D**, V4 **0 A / 4 B / 4 C / 0 D**, V5 **0 A / 6 B / 2 C / 0 D** and V6 **1 A / 7 B / 0 C / 0 D** frozen at their historical semantic revisions. Portability remains a periodic stress test rather than the primary implementation loop. PR #68 adds explicit `OperationalProfileDescriptor` configuration identity plus fail-closed binding of accepted `operational_mass_kg` claims into real field `OperationalToolProfile`s, preserving incomplete configurations instead of silently dropping them. The Hilti SF 4-22 now reaches advisory search -> explicit Tool confirmation -> real B 22-55/B 22-85 profile selection with exact configured mass/configuration provenance, but its retaining-strap/tether path is not yet recommendation-ready. Inspect the current Hilti first-party installation evidence and define the smallest reusable Tool-feature / ToolAttachment installation / provided-interface normalization needed to carry one selected Hilti profile into the ordinary complete recommendation pipeline without SKU-pair logic or unsupported geometric inference.
