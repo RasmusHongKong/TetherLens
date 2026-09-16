@@ -21,11 +21,15 @@ from .common import page_text
 
 
 _EVIDENCE_PRIORITY = {"manufacturer_stated": 2, "qualified_secondary_exact_sku": 1}
+_TETHER_READY_OPENING = re.compile(
+    r"\btether[-\s]?ready\s+(?:handle\s+loops?|lanyard\s+holes?)\b",
+    re.I,
+)
 
 
 class MilwaukeeAdapter(ManufacturerAdapter):
     manufacturer = "Milwaukee"
-    extractor = "milwaukee.v0.8"
+    extractor = "milwaukee.v0.9"
     recursive_related_sources = True
 
     def related_sources(self, identity: ProductIdentity, source_artifact: SourceArtifact) -> list[SourceRequest]:
@@ -96,6 +100,37 @@ class MilwaukeeAdapter(ManufacturerAdapter):
                         claims.append(self._claim(
                             "tool_body_mass_kg", q.value, "kg", raw_mass, artifact.url,
                         ))
+                if tether_ready := _TETHER_READY_OPENING.search(text):
+                    raw = tether_ready.group(0)
+                    claims.extend([
+                        self._claim(
+                            "feature.kind",
+                            "through_opening",
+                            None,
+                            raw,
+                            artifact.url,
+                            ClaimSubjectType.PHYSICAL_INTERFACE,
+                            "tether_ready_opening",
+                        ),
+                        self._claim(
+                            "feature.role",
+                            "tether_interface",
+                            None,
+                            raw,
+                            artifact.url,
+                            ClaimSubjectType.PHYSICAL_INTERFACE,
+                            "tether_ready_opening",
+                        ),
+                        self._claim(
+                            "feature.captive_state",
+                            "captive",
+                            None,
+                            raw,
+                            artifact.url,
+                            ClaimSubjectType.PHYSICAL_INTERFACE,
+                            "tether_ready_opening",
+                        ),
+                    ])
                 continue
 
             if role == "battery":
