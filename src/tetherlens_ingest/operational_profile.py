@@ -30,7 +30,7 @@ class OperationalProfileDescriptor(BaseModel):
 
     profile_ref: str = Field(min_length=1)
     display_name: str = Field(min_length=1)
-    configuration_product_refs: list[str] = Field(default_factory=list)
+    configuration_product_refs: list[str] = Field(min_length=1)
 
     @field_validator("configuration_product_refs")
     @classmethod
