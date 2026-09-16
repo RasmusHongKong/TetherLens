@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from urllib.parse import quote, urlsplit, urlunsplit, urljoin
+from urllib.parse import quote, urljoin, urlsplit, urlunsplit
 
 from tetherlens_ingest.models import (
     AcquisitionObservation,
@@ -17,10 +17,14 @@ from tetherlens_ingest.models import (
 )
 from tetherlens_ingest.normalize import mass_to_kg, parse_mass
 from .base import ManufacturerAdapter
-from .common import page_text
+from .common import bounded_record_for_identifier, page_text
 
 
 _EVIDENCE_PRIORITY = {"manufacturer_stated": 2, "qualified_secondary_exact_sku": 1}
+_MILWAUKEE_PRODUCT_SKU_MARKER = re.compile(
+    r"(?<![A-Z0-9])(?:\d{4}-\d{2}[A-Z]{0,3}|\d{2}-\d{2}-\d{4})(?![A-Z0-9])",
+    re.I,
+)
 _TETHER_READY_OPENING = re.compile(
     r"\btether[-\s]?ready\s+(?:handle\s+loops?|lanyard\s+holes?)\b",
     re.I,
@@ -100,37 +104,46 @@ class MilwaukeeAdapter(ManufacturerAdapter):
                         claims.append(self._claim(
                             "tool_body_mass_kg", q.value, "kg", raw_mass, artifact.url,
                         ))
-                if tether_ready := _TETHER_READY_OPENING.search(text):
-                    raw = tether_ready.group(0)
-                    claims.extend([
-                        self._claim(
-                            "feature.kind",
-                            "through_opening",
-                            None,
-                            raw,
-                            artifact.url,
-                            ClaimSubjectType.PHYSICAL_INTERFACE,
-                            "tether_ready_opening",
-                        ),
-                        self._claim(
-                            "feature.role",
-                            "tether_interface",
-                            None,
-                            raw,
-                            artifact.url,
-                            ClaimSubjectType.PHYSICAL_INTERFACE,
-                            "tether_ready_opening",
-                        ),
-                        self._claim(
-                            "feature.captive_state",
-                            "captive",
-                            None,
-                            raw,
-                            artifact.url,
-                            ClaimSubjectType.PHYSICAL_INTERFACE,
-                            "tether_ready_opening",
-                        ),
-                    ])
+
+                if identity.product_type == ProductType.TOOL:
+                    product_record = bounded_record_for_identifier(
+                        text,
+                        identity.sku,
+                        _MILWAUKEE_PRODUCT_SKU_MARKER,
+                    )
+                    if product_record and (
+                        tether_ready := _TETHER_READY_OPENING.search(product_record)
+                    ):
+                        raw = tether_ready.group(0)
+                        claims.extend([
+                            self._claim(
+                                "feature.kind",
+                                "through_opening",
+                                None,
+                                raw,
+                                artifact.url,
+                                ClaimSubjectType.PHYSICAL_INTERFACE,
+                                "tether_ready_opening",
+                            ),
+                            self._claim(
+                                "feature.role",
+                                "tether_interface",
+                                None,
+                                raw,
+                                artifact.url,
+                                ClaimSubjectType.PHYSICAL_INTERFACE,
+                                "tether_ready_opening",
+                            ),
+                            self._claim(
+                                "feature.captive_state",
+                                "captive",
+                                None,
+                                raw,
+                                artifact.url,
+                                ClaimSubjectType.PHYSICAL_INTERFACE,
+                                "tether_ready_opening",
+                            ),
+                        ])
                 continue
 
             if role == "battery":
