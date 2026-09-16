@@ -133,7 +133,7 @@ def test_repeated_selected_sku_remains_in_same_product_record() -> None:
         [
             _artifact(
                 """
-                <meta name="title" content="48-22-7215 14L Aluminum Pipe Wrench">
+                <title>48-22-7215 14L Aluminum Pipe Wrench</title>
                 <main>
                     <h1>48-22-7215 14L Aluminum Pipe Wrench with POWERLENGTH Handle</h1>
                     <p>Tether-ready lanyard hole</p>
