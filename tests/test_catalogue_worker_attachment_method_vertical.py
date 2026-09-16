@@ -18,6 +18,7 @@ from tetherlens_ingest.field_recommendation import (
     OperationalToolProfile,
     run_field_recommendation,
 )
+from tetherlens_ingest.field_tool_search import candidate_tool_refs_from_text_search
 from tetherlens_ingest.models import ProductIdentity, ProductType, SourceArtifact, SourceType
 from tetherlens_ingest.normalize import mass_to_kg
 from tetherlens_ingest.recommendation import CandidateCheckType, RecommendationState
@@ -215,7 +216,10 @@ def _catalogue() -> FieldRecommendationCatalogue:
         tools=[
             FieldToolCatalogueEntry(
                 tool_ref="Milwaukee:48-22-7215",
-                display_name='Milwaukee 48-22-7215 14L Aluminum Pipe Wrench',
+                display_name=(
+                    'Milwaukee 48-22-7215 14L Aluminum Pipe Wrench '
+                    'with POWERLENGTH Handle'
+                ),
                 operational_profiles=[profile],
             )
         ],
@@ -228,8 +232,14 @@ def _catalogue() -> FieldRecommendationCatalogue:
 def test_real_catalogue_worker_path_retains_cinch_method_after_explicit_tool_confirmation() -> None:
     catalogue = _catalogue()
 
+    candidate_tool_refs = candidate_tool_refs_from_text_search(
+        "Milwaukee POWERLENGTH 48-22-7215",
+        catalogue,
+    )
+    assert candidate_tool_refs == ["Milwaukee:48-22-7215"]
+
     recognition = run_field_recommendation(
-        FieldToolObservation(candidate_tool_refs=["Milwaukee:48-22-7215"]),
+        FieldToolObservation(candidate_tool_refs=candidate_tool_refs),
         catalogue,
     )
     assert recognition.state == FieldRecommendationState.NEEDS_INPUT

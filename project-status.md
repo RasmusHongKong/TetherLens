@@ -8,19 +8,19 @@ For detailed design, see `product-vision.md`, `mvp.md`, `domain-model.md`, `evid
 
 ## Current baseline
 
-PR #65, `Add first demand-side field recommendation orchestration`, is merged. Current `main` is:
+PR #67, `Add advisory field Tool catalogue search`, advances the merged PR #66 baseline. The pre-PR #67 `main` SHA is:
 
 ```text
-52255b721f326db5313032fdca6bc479e10cbe72
+a0e062df317e2de8e89d80c8b11f2db9846ee088
 ```
 
-PR #66, `Retain ToolAttachment installation method through field selection`, is the current proposed semantic baseline on branch:
+The PR #67 review branch is:
 
 ```text
-feature/tool-attachment-method-retention
+feature/field-tool-candidate-search
 ```
 
-PR #66 is intentionally an additive provenance/catalogue-throughput slice. It does not rewrite historical portability semantics, candidate identity, attachment eligibility, connection compatibility, hard evaluation, or ranking.
+PR #67 is intentionally a narrow recognition/search-boundary implementation. It does not rewrite historical portability semantics, Tool confirmation authority, candidate identity, attachment eligibility, connection compatibility, hard evaluation, operational-profile semantics, or ranking.
 
 Historical portability cohorts remain immutable at their original semantic revisions:
 
@@ -230,12 +230,49 @@ PR #66 review reinforced two reusable rules:
 
 These rules belong in shared ingestion behavior where safe; source-specific SKU grammars and wording stay in adapters.
 
+## PR #67: advisory Tool catalogue search
+
+PR #67 supplies the first real producer of `candidate_tool_refs` without changing who is allowed to confirm Tool identity.
+
+The producer is:
+
+```text
+candidate_tool_refs_from_text_search(query, catalogue, max_candidates=5)
+```
+
+It searches only the normalized Tool entries already present in the supplied `FieldRecommendationCatalogue`.
+
+Current semantics are deliberately modest:
+
+- search surface = exact `tool_ref` + worker-facing `display_name`;
+- matching = Unicode-aware lexical token containment after NFKC normalization and case-folding;
+- Unicode letters, numbers and combining marks remain part of identity tokens, while punctuation/separators form boundaries;
+- every query token must match;
+- partial identifier tokens, edit-distance/fuzzy matching and semantic expansion are not used;
+- catalogue order is retained rather than inventing a confidence ranking; and
+- results are bounded to a short list.
+
+The function returns refs only. It cannot set `confirmed_tool_ref`, choose an `OperationalToolProfile`, or invoke `run_recommendation()`.
+
+Therefore even a single exact SKU result still produces:
+
+```text
+candidate_tool_refs
+  -> TOOL_CONFIRMATION
+  -> explicit confirmed_tool_ref
+  -> operational-profile resolution
+  -> recommendation run
+```
+
+The catalogue-backed Milwaukee/NLG/GRIPPS/NLG worker vertical now starts from this real search producer rather than a hand-injected Milwaukee candidate ref, while retaining the same mandatory confirmation boundary and downstream recommendation semantics.
+
 ## Current deliberate boundaries
 
-PR #66 does **not** add:
+The field baseline through PR #67 does **not** add:
 
 - image recognition or computer-vision inference;
 - fuzzy Tool identity acceptance;
+- search-derived confidence scores as recommendation authority;
 - persistent database/repository querying;
 - automatic Battery recognition;
 - free-form worker safety-fact inference;
@@ -252,19 +289,17 @@ Those boundaries remain deliberate.
 
 ## Next highest-value demand-side seam
 
-With explicit Tool confirmation, operational-profile provenance, exact selected-path retention and ToolAttachment installation-method provenance now demonstrated in a real catalogue-backed worker vertical, the next demand-side value is to make the **candidate Tool identification input real** without weakening confirmation semantics.
+With PR #67 stable, candidate Tool discovery is no longer purely hand-injected. The next demand-side value should come from **another real field scenario that adds useful catalogue/profile coverage and forces only the smallest missing worker-context question**, rather than from broadening recognition authority.
 
-The next small slice should therefore connect one practical recognition/search producer to `candidate_tool_refs` while preserving:
+Good next candidates should preserve:
 
-- advisory-only candidate generation;
-- explicit worker confirmation before catalogue identity becomes authoritative;
-- exact catalogue Tool/variant identity after confirmation;
-- existing operational-profile selection and mass requirements; and
-- the unchanged complete recommendation pipeline after resolution.
+- advisory-only discovery plus explicit Tool confirmation;
+- exact Tool/variant identity;
+- evidence-backed operational-profile mass/configuration;
+- the unchanged complete recommendation pipeline; and
+- context questions only where they can materially affect candidate feasibility, ranking or worker instructions.
 
-This does not require the recognition model itself to become recommendation authority. A search/text lookup or a constrained recognition adapter is sufficient to exercise the boundary before broader computer-vision work.
-
-In parallel, continue targeted catalogue throughput where real field scenarios expose missing normalized facts.
+Image recognition can later produce the same `candidate_tool_refs` contract when a curated pilot image set is ready. It should not bypass the confirmation boundary.
 
 ## Catalogue throughput in parallel
 
@@ -279,6 +314,8 @@ High-value throughput work includes:
 - product-family adapter broadening;
 - decomposition of sellable kits into recommendation components; and
 - ingestion of the physical/interface facts actually required by demand-side sessions.
+
+The Milwaukee `48-22-7215` page currently publishes `Weight 2.85 lb`, but the existing Milwaukee adapter intentionally accepts more specific Tool-mass labels on this path. Do not broaden generic `Weight` into `tool_body_mass_kg` merely to remove the vertical's accepted normalized mass fixture; that could weaken configuration-dependent mass semantics on other Tools. Treat this as a catalogue-readiness/evidence-modelling question, not a recognition concern.
 
 V6 B cases are useful throughput candidates, but they should not drive new recommendation primitives unless implementation reveals a genuine reusable decision gap.
 
@@ -297,6 +334,7 @@ V6 B cases are useful throughput candidates, but they should not drive new recom
 - Preserve generation-time Tool-side bindings independently of reconstructed Tool state.
 - Preserve operational profile/configuration identity independently of the normalized Tool used by the recommendation core.
 - Preserve ToolAttachment installation-method provenance independently of eligibility and candidate identity.
+- Recognition/search candidates are advisory only; no search/recognition producer may silently populate authoritative Tool confirmation.
 - Do not reconstruct safety-relevant facts or installation actions from human-readable reason text.
 - Keep hard viability separate from ranking/context.
 - Preserve V1-V6 historical portability cohorts and the immutable Batch 2 blind baseline.
@@ -304,4 +342,4 @@ V6 B cases are useful throughput candidates, but they should not drive new recom
 
 ## Suggested next-chat starting point
 
-> Continue TetherLens from merged PR #66. Keep V1 **0 A / 5 B / 3 C / 0 D**, V2 **0 A / 6 B / 2 C / 0 D**, V3 **0 A / 5 B / 3 C / 0 D**, V4 **0 A / 4 B / 4 C / 0 D**, V5 **0 A / 6 B / 2 C / 0 D** and V6 **1 A / 7 B / 0 C / 0 D** frozen at their historical semantic revisions. Portability is a periodic stress test rather than the primary implementation loop. PR #65 established explicit Tool confirmation, operational-profile/configuration provenance and the field recommendation coordinator. PR #66 retains accepted ToolAttachment installation-method provenance through `ToolAttachmentAssemblyOption` and the exact selected `CandidatePathSelection`, proves it in a catalogue-backed worker vertical, adds scoped Milwaukee tether-ready Tool-feature ingestion, and hardens shared record scoping plus positive-only NLG cinch evidence. Inspect the demand-side recognition/search boundary and implement the smallest real producer of `candidate_tool_refs` that remains advisory until explicit worker confirmation, while continuing targeted catalogue throughput in parallel.
+> Continue TetherLens from merged PR #67. Keep V1 **0 A / 5 B / 3 C / 0 D**, V2 **0 A / 6 B / 2 C / 0 D**, V3 **0 A / 5 B / 3 C / 0 D**, V4 **0 A / 4 B / 4 C / 0 D**, V5 **0 A / 6 B / 2 C / 0 D** and V6 **1 A / 7 B / 0 C / 0 D** frozen at their historical semantic revisions. Portability remains a periodic stress test rather than the primary implementation loop. PR #65 established explicit Tool confirmation, operational-profile/configuration provenance and the field recommendation coordinator. PR #66 retained accepted ToolAttachment installation-method provenance through `ToolAttachmentAssemblyOption` and the exact selected `CandidatePathSelection`, proved it in a catalogue-backed worker vertical, added scoped Milwaukee tether-ready Tool-feature ingestion, and hardened shared record scoping plus positive-only NLG cinch evidence. PR #67 adds deterministic lexical catalogue search as the first real producer of advisory `candidate_tool_refs`; even one exact result still requires explicit worker confirmation before Tool/profile resolution or recommendation. Continue targeted catalogue throughput and choose the next real field scenario that adds operational-profile coverage plus only the smallest context question needed to change feasibility/ranking/instructions, without broadening recognition authority or inventing new recommendation primitives prematurely.
