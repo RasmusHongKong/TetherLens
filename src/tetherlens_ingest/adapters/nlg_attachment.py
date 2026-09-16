@@ -4,6 +4,10 @@ import re
 
 
 _ADHESIVE_TERM = r"(?:3m(?:®|™)?\s*)?(?:self[-\s]?|pressure[-\s]?sensitive\s+)?adhesive"
+_NEGATIVE_CINCH_LEAD = (
+    r"(?:do\s+not|does\s+not|do(?:es)?n['’]t|never|must\s+not|mustn['’]t|"
+    r"should\s+not|shouldn['’]t|not\s+to|avoid|without)"
+)
 
 
 def attachment_method_code(text: str) -> str | None:
@@ -36,24 +40,26 @@ def attachment_method_code(text: str) -> str | None:
     ):
         return "mechanical_capture"
 
-    # Cinching is a constricting loop/choke mechanism. Explicit cinch/choke wording
-    # takes precedence over incidental pass-through + later "secure" wording in the
-    # same instructions, as well as secondary tape/wrap wording. Otherwise a normal
-    # cinch installation can be misclassified as through_feature merely because the
-    # loop first passes through a captive feature before it is choked tight.
+    # Cinching is a constricting loop/choke mechanism. Explicit positive cinch/choke
+    # wording takes precedence over incidental pass-through + later "secure" wording
+    # in the same instructions, as well as secondary tape/wrap wording. Locally
+    # negated instructions are removed only from this evidence view so a prohibition
+    # cannot invent or outrank a method while other mechanisms still see the original
+    # manufacturer text.
+    cinch_text = _without_negative_cinch_phrases(text)
     if re.search(
         r"\b(?:cinch|cinches|cinched|cinching|choke|chokes|choked|choking)\b.{0,100}"
         r"\b(?:around|onto|to)\b",
-        text,
+        cinch_text,
         re.I | re.S,
     ) or re.search(
         r"\b(?:around|onto)\b.{0,80}\b(?:captive\s+)?(?:handle|hole|feature)\b.{0,100}"
         r"\b(?:cinch|cinched|cinching|choke)\b",
-        text,
+        cinch_text,
         re.I | re.S,
     ) or re.search(
         r"\b(?:create|form|make)\w*\b.{0,40}\b(?:a\s+)?(?:cinch|choke)\b",
-        text,
+        cinch_text,
         re.I | re.S,
     ):
         return "cinch"
@@ -83,13 +89,14 @@ def attachment_method_evidence(text: str, method: str) -> str:
     if method == "adhesive":
         return _adhesive_evidence(_without_negative_adhesive_phrases(text)) or "adhesive"
 
+    evidence_text = _without_negative_cinch_phrases(text) if method == "cinch" else text
     patterns = {
         "mechanical_capture": r".{0,50}\b(?:bracket|attachment)\b.{0,150}\bhandle\b.{0,50}",
         "through_feature": r".{0,50}\b(?:pass|feed|thread)\w*\b.{0,180}\b(?:hole|handle|eye)\b.{0,80}",
         "cinch": r".{0,50}\b(?:cinch|cinched|cinching|choke)\b.{0,120}",
         "wrap": r".{0,50}\bwrap(?:s|ped|ping)?\b.{0,120}\b(?:around|round)\b.{0,50}",
     }
-    match = re.search(patterns[method], text, re.I | re.S)
+    match = re.search(patterns[method], evidence_text, re.I | re.S)
     if not match:
         return method
     return re.sub(r"\s+", " ", match.group(0)).strip()
@@ -102,6 +109,25 @@ def _without_negative_adhesive_phrases(text: str) -> str:
         r"|\badhesive[-\s]?(?:free|less)\b"
         r"|\bnot\s+(?:an?\s+)?adhesive\b"
         r"|\bdoes(?:\s+not|n['’]t)\s+(?:use|require)\s+adhesive\b",
+        " ",
+        text,
+        flags=re.I,
+    )
+
+
+def _without_negative_cinch_phrases(text: str) -> str:
+    """Remove only sentence-local prohibitions on cinching/choking.
+
+    Other text is intentionally preserved so a later positive cinch instruction can
+    still be recognized and non-cinch mechanisms continue to evaluate the original
+    manufacturer copy.
+    """
+
+    return re.sub(
+        rf"\b{_NEGATIVE_CINCH_LEAD}\s+(?:"
+        rf"(?:creat|form|mak)\w*\b[^.!?\n]{{0,40}}\b(?:a\s+)?(?:cinch|choke)\w*"
+        rf"|(?:a\s+)?(?:cinch|choke)\w*"
+        rf")\b",
         " ",
         text,
         flags=re.I,
