@@ -189,6 +189,31 @@ class ResolvedFieldTool(BaseModel):
     operational_profile: OperationalToolProfile
 
 
+class FieldOperationalProfileBinding(BaseModel):
+    """Generation-time identity of the resolved field profile/configuration.
+
+    The recommendation core consumes the normalized Tool only, so operational-profile
+    identity must be retained separately at this field boundary. This prevents a
+    reconstructed result from relabelling an otherwise identical normalized Tool as a
+    different Battery/profile configuration after the recommendation run has completed.
+    """
+
+    source: FieldToolResolutionSource
+    tool_display_name: str = Field(min_length=1)
+    profile_ref: str = Field(min_length=1)
+    profile_display_name: str = Field(min_length=1)
+    configuration_product_refs: list[str] = Field(default_factory=list)
+
+    @field_validator("configuration_product_refs")
+    @classmethod
+    def validate_configuration_refs(cls, values: list[str]) -> list[str]:
+        if any(not value.strip() for value in values):
+            raise ValueError("profile binding configuration refs must be non-empty")
+        if len(set(values)) != len(values):
+            raise ValueError("profile binding configuration refs must be unique")
+        return values
+
+
 class FieldToolResolution(BaseModel):
     state: FieldToolResolutionState
     resolved: ResolvedFieldTool | None = None
@@ -253,6 +278,7 @@ class FieldRecommendationSummary(BaseModel):
 class FieldRecommendationResult(BaseModel):
     state: FieldRecommendationState
     tool_resolution: FieldToolResolution
+    operational_profile_binding: FieldOperationalProfileBinding | None = None
     recommendation_run: RecommendationRunResult | None = None
     recommendation: FieldRecommendationSummary | None = None
 
@@ -261,6 +287,7 @@ class FieldRecommendationResult(BaseModel):
         if self.state == FieldRecommendationState.NEEDS_INPUT:
             if (
                 self.tool_resolution.state != FieldToolResolutionState.NEEDS_INPUT
+                or self.operational_profile_binding is not None
                 or self.recommendation_run is not None
                 or self.recommendation is not None
             ):
@@ -272,6 +299,7 @@ class FieldRecommendationResult(BaseModel):
         if self.state == FieldRecommendationState.NOT_READY:
             if (
                 self.tool_resolution.state != FieldToolResolutionState.NOT_READY
+                or self.operational_profile_binding is not None
                 or self.recommendation_run is not None
                 or self.recommendation is not None
             ):
@@ -289,6 +317,16 @@ class FieldRecommendationResult(BaseModel):
         resolved = self.tool_resolution.resolved
         if resolved is None:  # pragma: no cover - protected by state validation above.
             raise ValueError("recommendation-run field states require a resolved tool")
+        binding = self.operational_profile_binding
+        if binding is None:
+            raise ValueError(
+                "recommendation-run field states require the generation-time operational profile binding"
+            )
+        expected_binding = _field_operational_profile_binding(resolved)
+        if binding != expected_binding:
+            raise ValueError(
+                "retained operational profile binding must match the resolved field profile identity"
+            )
         if run.tool != resolved.operational_profile.tool:
             raise ValueError(
                 "retained recommendation run Tool must match the resolved operational profile Tool"
@@ -317,14 +355,11 @@ class FieldRecommendationResult(BaseModel):
         summary = self.recommendation
         if selected is None or summary is None:
             raise ValueError("selected field recommendation requires a selected summary")
-        expected_summary = _build_field_recommendation_summary(
-            resolved.operational_profile,
-            run,
-        )
+        expected_summary = _build_field_recommendation_summary(binding, run)
         if summary != expected_summary:
             raise ValueError(
                 "field recommendation summary must match the deterministic projection "
-                "of the retained selected candidate and operational profile"
+                "of the retained selected candidate and operational profile binding"
             )
         return self
 
@@ -481,6 +516,7 @@ def run_field_recommendation(
     resolved = tool_resolution.resolved
     if resolved is None:  # pragma: no cover - protected by FieldToolResolution validation.
         raise ValueError("resolved field tool state is missing its resolved profile")
+    profile_binding = _field_operational_profile_binding(resolved)
 
     recommendation_run = run_recommendation(
         resolved.operational_profile.tool,
@@ -497,9 +533,10 @@ def run_field_recommendation(
         return FieldRecommendationResult(
             state=FieldRecommendationState.SELECTED,
             tool_resolution=tool_resolution,
+            operational_profile_binding=profile_binding,
             recommendation_run=recommendation_run,
             recommendation=_build_field_recommendation_summary(
-                resolved.operational_profile,
+                profile_binding,
                 recommendation_run,
             ),
         )
@@ -513,6 +550,7 @@ def run_field_recommendation(
     return FieldRecommendationResult(
         state=state,
         tool_resolution=tool_resolution,
+        operational_profile_binding=profile_binding,
         recommendation_run=recommendation_run,
     )
 
@@ -565,8 +603,21 @@ def _resolved_profile_or_not_ready(
     )
 
 
+def _field_operational_profile_binding(
+    resolved: ResolvedFieldTool,
+) -> FieldOperationalProfileBinding:
+    profile = resolved.operational_profile
+    return FieldOperationalProfileBinding(
+        source=resolved.source,
+        tool_display_name=resolved.tool_display_name,
+        profile_ref=profile.profile_ref,
+        profile_display_name=profile.display_name,
+        configuration_product_refs=list(profile.configuration_product_refs),
+    )
+
+
 def _build_field_recommendation_summary(
-    profile: OperationalToolProfile,
+    profile_binding: FieldOperationalProfileBinding,
     recommendation_run: RecommendationRunResult,
 ) -> FieldRecommendationSummary:
     selected = recommendation_run.selection.selected
@@ -604,15 +655,15 @@ def _build_field_recommendation_summary(
         None,
     )
 
-    mass = profile.tool.object_mass_kg
-    if mass is None:  # pragma: no cover - protected by resolution.
-        raise ValueError("selected operational profile is missing operational mass")
+    tool = recommendation_run.tool
+    if tool is None or tool.object_mass_kg is None:  # pragma: no cover - field invariant.
+        raise ValueError("selected field recommendation run is missing operational mass")
 
     return FieldRecommendationSummary(
-        operational_profile_ref=profile.profile_ref,
-        operational_profile_label=profile.display_name,
-        operational_mass_kg=mass,
-        configuration_product_refs=profile.configuration_product_refs,
+        operational_profile_ref=profile_binding.profile_ref,
+        operational_profile_label=profile_binding.profile_display_name,
+        operational_mass_kg=tool.object_mass_kg,
+        configuration_product_refs=list(profile_binding.configuration_product_refs),
         path_selection=selected.generated_candidate.selection,
         evaluation=evaluation,
         context_evaluation=context_evaluation,
