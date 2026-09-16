@@ -85,7 +85,8 @@ It searches only the Tool identities already present in the supplied `FieldRecom
 
 Matching is deterministic lexical matching rather than identity inference:
 
-- case and punctuation are normalized into alphanumeric tokens;
+- input is Unicode NFKC-normalized and case-folded;
+- Unicode letters, numbers and their combining marks stay inside identity tokens, while punctuation and separators form token boundaries;
 - every query token must occur in the Tool's searchable identity text;
 - partial identifier tokens, edit-distance matches and semantic expansion are not used;
 - catalogue order is preserved rather than inventing a recognition-confidence score; and
@@ -306,6 +307,7 @@ The field layer does not add:
 Focused tests cover at least:
 
 - deterministic lexical Tool search producing only refs from the supplied catalogue;
+- Unicode-safe tokenization retaining non-ASCII letters and combining marks while preserving distinct identities;
 - punctuation/case normalization without fuzzy or prefix identity matching;
 - bounded multi-match shortlists preserving catalogue order rather than invented confidence;
 - a one-item search result still requiring explicit worker Tool confirmation;
