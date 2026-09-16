@@ -146,6 +146,7 @@ def test_recognition_candidates_require_explicit_tool_confirmation_before_run():
     )
 
     assert result.state == FieldRecommendationState.NEEDS_INPUT
+    assert result.operational_profile_binding is None
     assert result.recommendation_run is None
     assert result.recommendation is None
     assert [requirement.kind for requirement in result.tool_resolution.requirements] == [
@@ -178,6 +179,7 @@ def test_multiple_operational_profiles_require_targeted_profile_selection():
         "profile:battery-small",
         "profile:battery-large",
     ]
+    assert result.operational_profile_binding is None
     assert result.recommendation_run is None
 
 
@@ -203,6 +205,9 @@ def test_selected_operational_profile_drives_load_reasoning_without_bare_tool_fa
     )
 
     assert result.state == FieldRecommendationState.NO_SUITABLE_RECOMMENDATION
+    assert result.operational_profile_binding is not None
+    assert result.operational_profile_binding.profile_ref == "profile:battery-large"
+    assert result.operational_profile_binding.configuration_product_refs == ["battery:large"]
     assert result.recommendation_run is not None
     assert result.recommendation_run.tool.object_mass_kg == 3.0
     assert {
@@ -232,6 +237,10 @@ def test_single_ready_profile_runs_complete_pipeline_and_builds_structured_field
     )
 
     assert result.state == FieldRecommendationState.SELECTED
+    assert result.operational_profile_binding is not None
+    assert result.operational_profile_binding.profile_ref == "profile:battery-small"
+    assert result.operational_profile_binding.profile_display_name == "profile:battery-small"
+    assert result.operational_profile_binding.configuration_product_refs == ["battery:small"]
     assert result.recommendation_run is not None
     assert result.tool_resolution.resolved is not None
     assert (
@@ -272,6 +281,39 @@ def test_deserialized_selected_result_rejects_profile_mass_that_differs_from_run
         type(result).model_validate(payload)
 
 
+def test_deserialized_selected_result_rejects_relabelled_identical_profile_configuration():
+    result = run_field_recommendation(
+        FieldToolObservation(
+            confirmed_tool_ref="tool:drill",
+            selected_operational_profile_ref="profile:battery-a",
+        ),
+        catalogue(
+            profile(
+                "profile:battery-a",
+                mass_kg=2.0,
+                configuration_refs=["battery:a"],
+            ),
+            profile(
+                "profile:battery-b",
+                mass_kg=2.0,
+                configuration_refs=["battery:b"],
+            ),
+        ),
+    )
+    assert result.state == FieldRecommendationState.SELECTED
+    payload = result.model_dump(mode="python")
+    resolved_profile = payload["tool_resolution"]["resolved"]["operational_profile"]
+    resolved_profile["profile_ref"] = "profile:battery-b"
+    resolved_profile["display_name"] = "profile:battery-b"
+    resolved_profile["configuration_product_refs"] = ["battery:b"]
+    payload["recommendation"]["operational_profile_ref"] = "profile:battery-b"
+    payload["recommendation"]["operational_profile_label"] = "profile:battery-b"
+    payload["recommendation"]["configuration_product_refs"] = ["battery:b"]
+
+    with pytest.raises(ValueError, match="profile binding"):
+        type(result).model_validate(payload)
+
+
 def test_missing_operational_mass_fails_before_candidate_generation():
     result = run_field_recommendation(
         FieldToolObservation(confirmed_tool_ref="tool:drill"),
@@ -279,6 +321,7 @@ def test_missing_operational_mass_fails_before_candidate_generation():
     )
 
     assert result.state == FieldRecommendationState.NOT_READY
+    assert result.operational_profile_binding is None
     assert result.recommendation_run is None
     assert result.recommendation is None
     assert result.tool_resolution.issues[0].code == (
@@ -307,6 +350,11 @@ def test_session_local_generic_profile_is_explicit_and_does_not_require_catalogu
         result.tool_resolution.resolved.source
         == FieldToolResolutionSource.SESSION_LOCAL_GENERIC
     )
+    assert result.operational_profile_binding is not None
+    assert (
+        result.operational_profile_binding.source
+        == FieldToolResolutionSource.SESSION_LOCAL_GENERIC
+    )
     assert result.recommendation is not None
     assert result.recommendation.path_selection.tool_ref == "session-tool:unlisted"
 
@@ -318,6 +366,8 @@ def test_empty_tether_set_remains_no_generated_candidates_not_no_suitable():
     )
 
     assert result.state == FieldRecommendationState.NO_GENERATED_CANDIDATES
+    assert result.operational_profile_binding is not None
+    assert result.operational_profile_binding.profile_ref == "profile:base"
     assert result.recommendation_run is not None
     assert result.recommendation_run.generated_candidates == []
     assert result.recommendation is None
