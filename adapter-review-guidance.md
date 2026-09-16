@@ -56,6 +56,21 @@ For a vendor-adapter bug or review comment:
 
 If no equivalent risk exists elsewhere and no safe generic invariant can be stated, a vendor-local fix is correct.
 
+## Flattened multi-record evidence
+
+When a source page or guide contains several product records, fields used for physical or recommendation-relevant claims must be scoped to the selected product record before parsing.
+
+The shared `bounded_record_for_identifier()` helper expresses the generic boundary while the caller supplies the source-specific identifier grammar.
+
+Its intended semantics are:
+
+- the requested identifier must itself be recognized as a record marker;
+- the selected record starts at the first occurrence of that identifier;
+- repeated occurrences of the **same** selected identifier remain inside the selected record, because flattened pages commonly repeat a SKU in metadata, titles and headings; and
+- the record ends at the first **different** recognized record marker.
+
+Do not treat every later marker as a new record if it merely repeats the selected product identity. Conversely, do not search the whole page after exact-page identity verification: proving that the page is for SKU A does not prove that every phrase on the page belongs to SKU A rather than a related-product card.
+
 ## Current examples
 
 PR #55 provides several examples of this boundary:
@@ -64,5 +79,12 @@ PR #55 provides several examples of this boundary:
 - Ty-Flot rounded `lb` / `kg` capacity comparison exposed the same semantic issue previously handled in GRIPPS, so source-precision-aware mass equivalence moved into shared reconciliation while property-specific conflict policy remained with the caller.
 - Ty-Flot flattened product-guide row bleed exposed a universal rule that one product's fields must not cross into the next record. The record-bounding helper is shared, while the `COLDSH...` row-marker grammar remains Ty-Flot-specific.
 - Ty-Flot contraction wording itself remains vendor extraction evidence, while the resulting `contraction_capture` value is a manufacturer-neutral attachment-method primitive.
+
+PR #66 reinforces the same split for Milwaukee product pages:
+
+- the Milwaukee SKU grammar and explicit `tether-ready handle loop` / `tether-ready lanyard hole` wording remain adapter-specific;
+- selected-product scoping uses the shared record-bounding invariant;
+- repeated selected-SKU markers are tolerated generically; and
+- a related-product SKU still terminates the selected record so tether-ready evidence cannot leak across products.
 
 These examples should be used as review precedents, not as a requirement to refactor every adapter whenever one vendor needs a fix.
