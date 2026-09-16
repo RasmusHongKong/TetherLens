@@ -83,6 +83,8 @@ def test_text_search_preserves_unicode_identity_tokens() -> None:
             _tool("Müller:M100", "Müller M100 Wrench"),
             _tool("Möller:M200", "Möller M200 Wrench"),
             _tool("牧田:TD001", "牧田 TD001 充电冲击起子"),
+            _tool("Unicode:H100", "हिंदी H100 Drill"),
+            _tool("Unicode:H200", "हिदी H200 Drill"),
         ]
     )
 
@@ -95,6 +97,19 @@ def test_text_search_preserves_unicode_identity_tokens() -> None:
     assert candidate_tool_refs_from_text_search("Mu\u0308ller M100", catalogue) == [
         "Müller:M100"
     ]
+
+    # Combining vowel signs and diacritics remain part of the identity token rather
+    # than collapsing distinct Devanagari strings to the same letter-only tokens.
+    assert candidate_tool_refs_from_text_search(
+        "हिंदी",
+        catalogue,
+        max_candidates=1,
+    ) == ["Unicode:H100"]
+    assert candidate_tool_refs_from_text_search(
+        "हिदी",
+        catalogue,
+        max_candidates=1,
+    ) == ["Unicode:H200"]
 
 
 def test_text_search_rejects_non_positive_candidate_limit() -> None:
