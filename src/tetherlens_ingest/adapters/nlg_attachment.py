@@ -36,19 +36,11 @@ def attachment_method_code(text: str) -> str | None:
     ):
         return "mechanical_capture"
 
-    # Through-feature is reserved for a loop/attachment passed through a captive
-    # feature and then closed by an explicit closure, rather than simply cinched.
-    if re.search(
-        r"\b(?:pass|feed|thread)\w*\b.{0,100}\bthrough\b.{0,100}"
-        r"\b(?:captive\s+)?(?:hole|handle|eye)\b.{0,140}"
-        r"\b(?:threaded|screw|closure|close|fasten|secure)\w*\b",
-        text,
-        re.I | re.S,
-    ):
-        return "through_feature"
-
-    # Cinching is a constricting loop/choke mechanism. It takes precedence over
-    # secondary tape/wrap wording on products whose primary retention is a cinch.
+    # Cinching is a constricting loop/choke mechanism. Explicit cinch/choke wording
+    # takes precedence over incidental pass-through + later "secure" wording in the
+    # same instructions, as well as secondary tape/wrap wording. Otherwise a normal
+    # cinch installation can be misclassified as through_feature merely because the
+    # loop first passes through a captive feature before it is choked tight.
     if re.search(
         r"\b(?:cinch|cinches|cinched|cinching|choke|chokes|choked|choking)\b.{0,100}"
         r"\b(?:around|onto|to)\b",
@@ -59,8 +51,23 @@ def attachment_method_code(text: str) -> str | None:
         r"\b(?:cinch|cinched|cinching|choke)\b",
         text,
         re.I | re.S,
+    ) or re.search(
+        r"\b(?:create|form|make)\w*\b.{0,40}\b(?:a\s+)?(?:cinch|choke)\b",
+        text,
+        re.I | re.S,
     ):
         return "cinch"
+
+    # Through-feature is reserved for a loop/attachment passed through a captive
+    # feature and then closed by an explicit closure, rather than simply cinched.
+    if re.search(
+        r"\b(?:pass|feed|thread)\w*\b.{0,100}\bthrough\b.{0,100}"
+        r"\b(?:captive\s+)?(?:hole|handle|eye)\b.{0,140}"
+        r"\b(?:threaded|screw|closure|close|fasten|secure)\w*\b",
+        text,
+        re.I | re.S,
+    ):
+        return "through_feature"
 
     if re.search(
         r"\bwrap(?:s|ped|ping)?\b.{0,120}\b(?:around|round)\b",
