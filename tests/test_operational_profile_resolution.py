@@ -248,6 +248,31 @@ def test_operational_mass_claim_without_explicit_configuration_descriptor_is_rej
         )
 
 
+def test_noncanonical_operational_mass_unit_is_rejected_before_runtime_mass_binding():
+    claim = CandidateClaim(
+        subject_type=ClaimSubjectType.OPERATIONAL_PROFILE,
+        subject_ref="profile:1",
+        property_key="operational_mass_kg",
+        value=5.0,
+        unit="lb",
+        source_url="https://example.test/profile",
+        extractor="test",
+    )
+
+    with pytest.raises(OperationalProfileResolutionError, match="canonical kg units"):
+        resolve_operational_tool_profiles(
+            [claim],
+            tool_ref="tool:1",
+            descriptors=[
+                OperationalProfileDescriptor(
+                    profile_ref="profile:1",
+                    display_name="Profile 1",
+                    configuration_product_refs=["battery:1"],
+                )
+            ],
+        )
+
+
 def test_conflicting_accepted_operational_masses_are_not_prioritized_silently():
     claims = [
         CandidateClaim(
