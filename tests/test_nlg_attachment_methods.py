@@ -87,6 +87,15 @@ def test_nlg_cinch_takes_precedence_over_secondary_tape_wrap():
     assert method_value(body) == "cinch"
 
 
+def test_nlg_cinch_takes_precedence_over_incidental_pass_through_secure_wording():
+    body = (
+        "Pass the loop end through the captive handle or hole of the tool. "
+        "Lift the D Ring end over the tool and pass through the open loop to create a cinch. "
+        "Pull tightly to secure."
+    )
+    assert method_value(body) == "cinch"
+
+
 def test_nlg_normalizes_through_feature_with_explicit_closure():
     body = "Pass the loop through the captive hole, then tighten the threaded closure to secure the attachment."
     assert method_value(body) == "through_feature"
