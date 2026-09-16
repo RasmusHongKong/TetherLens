@@ -68,6 +68,43 @@ If there are no recognition/search candidates, the result instead requests `tool
 
 A recognized or confirmed ref that is absent from the supplied normalized catalogue produces an explicit `not_ready` result rather than being silently discarded or widened to a similar Tool.
 
+## Advisory catalogue text search
+
+The first real producer of `candidate_tool_refs` is deliberately small:
+
+```python
+candidate_tool_refs_from_text_search(
+    query,
+    catalogue,
+    *,
+    max_candidates=5,
+)
+```
+
+It searches only the Tool identities already present in the supplied `FieldRecommendationCatalogue`. The searchable surface is the exact `tool_ref` plus worker-facing `display_name`.
+
+Matching is deterministic lexical matching rather than identity inference:
+
+- case and punctuation are normalized into alphanumeric tokens;
+- every query token must occur in the Tool's searchable identity text;
+- partial identifier tokens, edit-distance matches and semantic expansion are not used;
+- catalogue order is preserved rather than inventing a recognition-confidence score; and
+- the returned shortlist is bounded by `max_candidates`.
+
+The producer returns refs only. It cannot set `confirmed_tool_ref`, select an operational profile, or invoke recommendation logic.
+
+This means a one-item search result still flows through:
+
+```text
+candidate_tool_refs=[...]
+        ↓
+tool_confirmation
+        ↓
+worker supplies confirmed_tool_ref
+```
+
+A zero-result search remains ordinary `tool_identification`; it is not widened to a similar SKU. Future image recognition can replace or complement this lexical producer while retaining the same advisory contract.
+
 ## Operational profile resolution
 
 The recommendation engine consumes operational object mass through `ResolvedToolCandidate.object_mass_kg`.
@@ -268,7 +305,10 @@ The field layer does not add:
 
 Focused tests cover at least:
 
-- recognition candidates requiring explicit worker confirmation;
+- deterministic lexical Tool search producing only refs from the supplied catalogue;
+- punctuation/case normalization without fuzzy or prefix identity matching;
+- bounded multi-match shortlists preserving catalogue order rather than invented confidence;
+- a one-item search result still requiring explicit worker Tool confirmation;
 - one operational profile being used without an unnecessary extra question;
 - multiple operational profiles requiring explicit selection;
 - selected Battery/profile mass actually driving load evaluation;
@@ -281,16 +321,16 @@ Focused tests cover at least:
 - `no_generated_candidates` remaining distinct from global `no_suitable_recommendation`; and
 - pre-run not-ready states never masquerading as recommendation outcomes.
 
-PR #66 also proves this with a catalogue-backed worker vertical using a real Milwaukee Tool, NLG ToolAttachment, GRIPPS Tether and NLG anchor path. The scenario requires explicit Tool confirmation and retains the exact `cinch` provenance of the selected NLG ToolAttachment while leaving unresolved connection checks visible rather than inventing compatibility evidence.
+The catalogue-backed worker vertical now begins from a real text search for the Milwaukee Tool rather than a hand-injected candidate ref. The search result still stops at `tool_confirmation`; only a separate explicit `confirmed_tool_ref` allows the same Milwaukee/NLG/GRIPPS/NLG recommendation path to run. The selected path continues to retain the exact `cinch` provenance of the NLG ToolAttachment while unresolved connection checks remain visible rather than invented.
 
 ## Next demand-side steps
 
 After this boundary is stable, the next useful demand-side work should continue from real field scenarios rather than another broad modelling pass. Likely extensions are:
 
-1. bind a real recognition/search adapter to `candidate_tool_refs` while preserving explicit confirmation;
-2. resolve more real Tool/configuration profiles from catalogue evidence into `OperationalToolProfile`;
-3. add the smallest task/anchorage question flow needed by those scenarios;
-4. pass pending checks into the existing recommendation-session evidence adapters; and
+1. resolve more real Tool/configuration profiles from catalogue evidence into `OperationalToolProfile`;
+2. add the smallest task/anchorage question flow needed by those scenarios;
+3. pass pending checks into the existing recommendation-session evidence adapters;
+4. introduce image-recognition candidates behind the same advisory `candidate_tool_refs` boundary when a curated pilot image set is ready; and
 5. build a thin mobile result presentation over the structured field summary.
 
-Catalogue-ingestion work can proceed in parallel, especially where a real field scenario exposes missing normalized Tool/Tether/ToolAttachment/AnchorAttachment facts.
+Catalogue-ingestion work should continue in parallel, especially where a real field scenario exposes missing normalized Tool/Tether/ToolAttachment/AnchorAttachment facts. Searchability is not a substitute for recommendation readiness: a Tool may be discoverable before its operational profile or required physical evidence is complete, and confirmation of such a Tool should continue to fail closed at the existing readiness boundary.
