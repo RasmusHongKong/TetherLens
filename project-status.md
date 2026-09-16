@@ -8,13 +8,13 @@ For detailed design, see `product-vision.md`, `mvp.md`, `domain-model.md`, `evid
 
 ## Current baseline
 
-PR #66, `Retain ToolAttachment installation method through field selection`, is merged. Current `main` is:
+PR #67, `Add advisory field Tool catalogue search`, advances the merged PR #66 baseline. The pre-PR #67 `main` SHA is:
 
 ```text
 a0e062df317e2de8e89d80c8b11f2db9846ee088
 ```
 
-PR #67, `Add advisory field Tool catalogue search`, is the current proposed demand-side slice on branch:
+The PR #67 review branch is:
 
 ```text
 feature/field-tool-candidate-search
@@ -245,8 +245,8 @@ It searches only the normalized Tool entries already present in the supplied `Fi
 Current semantics are deliberately modest:
 
 - search surface = exact `tool_ref` + worker-facing `display_name`;
-- matching = case-insensitive alphanumeric token containment;
-- punctuation/separator variation is normalized;
+- matching = Unicode-aware lexical token containment after NFKC normalization and case-folding;
+- Unicode letters, numbers and combining marks remain part of identity tokens, while punctuation/separators form boundaries;
 - every query token must match;
 - partial identifier tokens, edit-distance/fuzzy matching and semantic expansion are not used;
 - catalogue order is retained rather than inventing a confidence ranking; and
@@ -268,7 +268,7 @@ The catalogue-backed Milwaukee/NLG/GRIPPS/NLG worker vertical now starts from th
 
 ## Current deliberate boundaries
 
-The merged baseline plus PR #67 do **not** add:
+The field baseline through PR #67 does **not** add:
 
 - image recognition or computer-vision inference;
 - fuzzy Tool identity acceptance;
@@ -289,7 +289,7 @@ Those boundaries remain deliberate.
 
 ## Next highest-value demand-side seam
 
-Once PR #67 is stable, candidate Tool discovery is no longer purely hand-injected. The next demand-side value should come from **another real field scenario that adds useful catalogue/profile coverage and forces only the smallest missing worker-context question**, rather than from broadening recognition authority.
+With PR #67 stable, candidate Tool discovery is no longer purely hand-injected. The next demand-side value should come from **another real field scenario that adds useful catalogue/profile coverage and forces only the smallest missing worker-context question**, rather than from broadening recognition authority.
 
 Good next candidates should preserve:
 
