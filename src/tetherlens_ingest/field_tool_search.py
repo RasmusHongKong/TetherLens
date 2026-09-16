@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 
 from .field_recommendation import FieldRecommendationCatalogue
 
 
-_SEARCH_TOKEN = re.compile(r"[a-z0-9]+", re.I)
+# Python's Unicode-aware ``\w`` includes letters/digits plus underscore. Excluding
+# underscore keeps punctuation/separators as boundaries while retaining non-ASCII
+# alphanumeric identity text.
+_SEARCH_TOKEN = re.compile(r"[^\W_]+")
 
 
 def candidate_tool_refs_from_text_search(
@@ -17,10 +21,10 @@ def candidate_tool_refs_from_text_search(
     """Return a bounded advisory shortlist from deterministic catalogue text search.
 
     Search is deliberately lexical rather than fuzzy or semantic. Case and punctuation
-    are normalized into alphanumeric tokens, and every query token must be present in
-    the Tool's ``tool_ref`` or ``display_name``. Matching preserves catalogue order and
-    never resolves or confirms a Tool; callers must pass the returned refs through the
-    existing explicit-confirmation field boundary.
+    are normalized into Unicode alphanumeric tokens, and every query token must be
+    present in the Tool's ``tool_ref`` or ``display_name``. Matching preserves catalogue
+    order and never resolves or confirms a Tool; callers must pass the returned refs
+    through the existing explicit-confirmation field boundary.
     """
 
     if isinstance(max_candidates, bool) or not isinstance(max_candidates, int):
@@ -45,4 +49,5 @@ def candidate_tool_refs_from_text_search(
 
 
 def _tokens(value: str) -> tuple[str, ...]:
-    return tuple(token.casefold() for token in _SEARCH_TOKEN.findall(value))
+    normalized = unicodedata.normalize("NFKC", value).casefold()
+    return tuple(_SEARCH_TOKEN.findall(normalized))
