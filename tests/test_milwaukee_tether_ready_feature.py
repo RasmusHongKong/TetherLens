@@ -127,6 +127,32 @@ def test_tether_ready_feature_is_scoped_to_selected_product_record() -> None:
     assert resolve_tool_interface_features(claims) == []
 
 
+def test_repeated_selected_sku_remains_in_same_product_record() -> None:
+    claims = MilwaukeeAdapter().extract(
+        _identity(),
+        [
+            _artifact(
+                """
+                <meta name="title" content="48-22-7215 14L Aluminum Pipe Wrench">
+                <main>
+                    <h1>48-22-7215 14L Aluminum Pipe Wrench with POWERLENGTH Handle</h1>
+                    <p>Tether-ready lanyard hole</p>
+                </main>
+                <aside>
+                    <h2>48-22-7216 Related wrench</h2>
+                    <p>Tether-ready handle loop</p>
+                </aside>
+                """
+            )
+        ],
+    )
+
+    features = resolve_tool_interface_features(claims)
+
+    assert len(features) == 1
+    assert features[0].feature_id == "tether_ready_opening"
+
+
 def test_tether_ready_feature_claims_require_tool_identity() -> None:
     claims = MilwaukeeAdapter().extract(
         _identity(ProductType.TETHER),
