@@ -77,6 +77,26 @@ def test_text_search_does_not_prefix_or_fuzzy_match_identifiers() -> None:
     assert candidate_tool_refs_from_text_search("---", catalogue) == []
 
 
+def test_text_search_preserves_unicode_identity_tokens() -> None:
+    catalogue = FieldRecommendationCatalogue(
+        tools=[
+            _tool("Müller:M100", "Müller M100 Wrench"),
+            _tool("Möller:M200", "Möller M200 Wrench"),
+            _tool("牧田:TD001", "牧田 TD001 充电冲击起子"),
+        ]
+    )
+
+    assert candidate_tool_refs_from_text_search("Müller", catalogue) == ["Müller:M100"]
+    assert candidate_tool_refs_from_text_search("Möller", catalogue) == ["Möller:M200"]
+    assert candidate_tool_refs_from_text_search("牧田 TD001", catalogue) == ["牧田:TD001"]
+
+    # Unicode normalization keeps canonically equivalent user input searchable without
+    # stripping the distinguishing accented letter.
+    assert candidate_tool_refs_from_text_search("Mu\u0308ller M100", catalogue) == [
+        "Müller:M100"
+    ]
+
+
 def test_text_search_rejects_non_positive_candidate_limit() -> None:
     catalogue = FieldRecommendationCatalogue()
 
