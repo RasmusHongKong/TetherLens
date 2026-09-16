@@ -123,6 +123,12 @@ def _resolve_operational_mass(
 
     values: set[float] = set()
     for claim in claims:
+        if claim.unit is not None and claim.unit != "kg":
+            raise OperationalProfileResolutionError(
+                f"operational mass for profile {profile_ref!r} must use canonical kg units; "
+                f"got {claim.unit!r}"
+            )
+
         value = claim.value
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise OperationalProfileResolutionError(
