@@ -58,7 +58,12 @@ def resolve_tool_attachment_installation_method(
     if not method_claims:
         return None
 
-    methods = {str(claim.value).strip() for claim in method_claims}
+    if any(not isinstance(claim.value, str) for claim in method_claims):
+        raise AttachmentMethodResolutionError(
+            "accepted ToolAttachment attachment_method_code must be a string"
+        )
+
+    methods = {claim.value.strip() for claim in method_claims}
     if "" in methods:
         raise AttachmentMethodResolutionError(
             "accepted ToolAttachment attachment_method_code must be non-empty"
