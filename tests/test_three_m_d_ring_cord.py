@@ -6,8 +6,25 @@ from tetherlens_ingest.compatibility import (
     CaptiveState,
     EligibilityStatus,
     FeatureKind,
+    ManufacturerPosition,
     ToolInterfaceFeature,
     evaluate_attachment_eligibility,
+)
+from tetherlens_ingest.connection import (
+    ConnectionInterface,
+    ConnectionInterfaceRole,
+    ConnectionStatus,
+    ConnectorSpec,
+    TetherSide,
+    evaluate_endpoint_engagement,
+)
+from tetherlens_ingest.manufacturer_instruction import (
+    ISSUER_MANUFACTURER_KEY,
+    REQUIRED_TETHER_MANUFACTURER_KEY,
+    SCOPE_KEY,
+    TARGET_INTERFACE_REF_KEY,
+    connection_contexts_from_required_tether_manufacturer_instructions,
+    resolve_required_tether_manufacturer_instructions,
 )
 from tetherlens_ingest.models import ProductIdentity, ProductType, SourceArtifact, SourceType
 from tetherlens_ingest.resolution import (
@@ -156,8 +173,20 @@ def test_d_ring_cord_ingestion_uses_existing_generic_tool_attachment_semantics()
     assert interface.interface_type == "ring"
     assert interface.attributes == {"ring_form": "d_ring"}
 
-    # The first-party family warning remains source evidence; it must not be promoted
-    # here into a mixed-manufacturer hard exclusion or SKU-pair compatibility rule.
+    instructions = resolve_required_tether_manufacturer_instructions(
+        result.claims,
+        source_product_ref="3M:1500009",
+    )
+    assert len(instructions) == 1
+    instruction = instructions[0]
+    assert instruction.target_interface_ref == "d_ring_tether_connection"
+    assert instruction.required_tether_manufacturer == "Python Safety"
+    assert instruction.issuer_manufacturer == "3M"
+    assert instruction.scope == "1500009 D-Ring Cord tether connection"
+    assert instruction.source_urls == [MANUAL_URL]
+
+    # Preserve the manufacturer instruction as a separate reasoning axis; do not turn
+    # it into dimensions, a hard mixed-manufacturer exclusion, or SKU-pair compatibility.
     assert set(by_key) == {
         "attachment_selection_class",
         "attachment_method_code",
@@ -165,11 +194,75 @@ def test_d_ring_cord_ingestion_uses_existing_generic_tool_attachment_semantics()
         "interface.role",
         "interface.type",
         "interface.attribute.ring_form",
+        REQUIRED_TETHER_MANUFACTURER_KEY,
+        TARGET_INTERFACE_REF_KEY,
+        ISSUER_MANUFACTURER_KEY,
+        SCOPE_KEY,
     }
     assert not any(
         claim.property_key.startswith(("feature.dimension.", "interface.dimension."))
         for claim in result.claims
     )
+
+
+def test_non_python_tether_retains_contrary_assessment_without_becoming_incompatible() -> None:
+    result = IngestionRunner(_FakeFetcher()).ingest(_identity(), ThreeMAdapter())
+    target = resolve_connection_interfaces(result.claims)[0]
+    instructions = resolve_required_tether_manufacturer_instructions(
+        result.claims,
+        source_product_ref="3M:1500009",
+    )
+    endpoint = ConnectionInterface(
+        interface_id="gripps-tool-end",
+        role=ConnectionInterfaceRole.TETHER_CONNECTION,
+        interface_type="carabiner",
+        tether_side=TetherSide.TOOL_SIDE,
+        connector_spec_ref="gripps-carabiner",
+    )
+
+    contexts = connection_contexts_from_required_tether_manufacturer_instructions(
+        tether_ref="GRIPPS:H01079",
+        tether_manufacturer="GRIPPS",
+        endpoints=[endpoint],
+        target_owner_ref="3M:1500009:assembly",
+        target_product_ref="3M:1500009",
+        target_interfaces=[target],
+        instructions=instructions,
+    )
+
+    assert len(contexts) == 1
+    assessment = contexts[0].manufacturer_assessments[0]
+    assert assessment.issuer_manufacturer == "3M"
+    assert assessment.position == ManufacturerPosition.CONTRARY_TO_MANUFACTURER_INSTRUCTION
+    assert assessment.claim_or_evidence_ref == MANUAL_URL
+    assert assessment.technical_causal_scope_established is False
+
+    evaluation = evaluate_endpoint_engagement(
+        endpoint,
+        target,
+        connector_specs={
+            "gripps-carabiner": ConnectorSpec(
+                connector_spec_id="gripps-carabiner",
+                opening_action_count=2,
+            )
+        },
+        manufacturer_assessments=contexts[0].manufacturer_assessments,
+    )
+
+    assert evaluation.status == ConnectionStatus.REQUIRES_VERIFICATION
+    assert evaluation.manufacturer_assessments == [assessment]
+
+    # "Appropriate Python Safety" does not prove every same-brand tether is endorsed,
+    # so a matching manufacturer suppresses only the known contrary assessment.
+    assert connection_contexts_from_required_tether_manufacturer_instructions(
+        tether_ref="PythonSafety:tether",
+        tether_manufacturer="Python Safety",
+        endpoints=[endpoint],
+        target_owner_ref="3M:1500009:assembly",
+        target_product_ref="3M:1500009",
+        target_interfaces=[target],
+        instructions=instructions,
+    ) == []
 
 
 def test_d_ring_cord_does_not_join_manual_from_unverified_aggregate_page() -> None:
