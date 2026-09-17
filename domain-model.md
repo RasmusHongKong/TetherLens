@@ -11,7 +11,7 @@ It is a conceptual domain model, not a final database schema.
 TetherLens contains three broad groups of entities:
 
 1. **Product entities** — the physical tools, supporting configuration products, and tethering components.
-2. **Knowledge entities** — what TetherLens knows about those products and why.
+2. **Knowledge entities** — what TetherLens knows about those products, their documented relationships, and why.
 3. **Recommendation entities** — the current work context and the reasoning output.
 
 ## Product entities
@@ -42,14 +42,16 @@ Physical tool-body mass should be established from trustworthy evidence bound to
 A tool does **not** need to have a manufacturer-documented tether point in order to be tetherable. A recommendation may use:
 
 - a native tether point;
-- another suitable captive feature or geometry on the tool;
-- a loop or cinch arrangement around an appropriate part of the tool; or
-- a separate ToolAttachment that creates a tethering interface.
+- another suitable physical feature or geometry on the tool;
+- a loop, cinch, wrap or other controlled attachment method around an appropriate part of the tool;
+- a separate ToolAttachment that creates a tethering interface through reusable technical eligibility; or
+- an exact manufacturer-documented ToolAttachment installation at a resolved feature/location when the relationship is established but complete geometry is not.
 
 The model should therefore distinguish between:
 
-- a documented or observed absence of a native tether point; and
-- absence of information about whether a tether point exists.
+- a documented or observed absence of a native tether point;
+- absence of information about whether a tether point exists; and
+- a manufacturer-defined installation feature/location whose exact physical form is not fully established.
 
 Suggested native tether-point states include:
 
@@ -61,27 +63,63 @@ Suggested native tether-point states include:
 
 #### ToolInterfaceFeature
 
-A `ToolInterfaceFeature` represents a physical feature that may participate in a tethering method, whether or not the manufacturer describes it as a tether point.
+A `ToolInterfaceFeature` represents one physical or manufacturer-defined feature/location that may participate in a tethering method, whether or not the manufacturer describes it as a tether point and whether or not complete geometry is known.
 
 Typical attributes may include:
 
-- `feature_type`
-- location on the tool
-- relevant geometry and dimensions
-- whether the feature is captive/closed
-- evidence method
-- source or observation reference
+- `feature_kind` — normalized physical form where established;
+- `feature_role` — manufacturer/functional purpose where established;
+- location description on the tool;
+- `captive_state`;
+- relevant geometry and dimensions where established;
+- feature-local attributes/constraints;
+- evidence method; and
+- source or observation reference.
 
-Possible feature types may include:
+Initial normalized feature kinds include:
 
-- dedicated tether eye;
-- captive hole;
-- closed or captive handle;
-- grip;
-- neck / waist / narrowing suitable for a controlled attachment method; or
-- other geometry defined by a reusable rule.
+```text
+through_opening
+ring
+handle
+narrowed_section
+external_section
+surface
+other
+```
 
-The feature vocabulary should remain small and geometry-led rather than becoming an application-specific classification system.
+Initial feature roles include:
+
+```text
+tether_interface
+accessory_mount
+grip
+working_part
+other
+unknown
+```
+
+Feature kind, role and state are orthogonal. For example:
+
+```text
+Klein screwdriver tether hole
+  feature_kind = through_opening
+  feature_role = tether_interface
+  captive_state = captive
+
+Hilti accessory-installation openings
+  feature_kind = other
+  feature_role = accessory_mount
+  captive_state = unknown
+```
+
+The Hilti example is intentionally conservative: current evidence establishes the named accessory-installation location and role, but not `through_opening`, captive state, dimensions, ring/eye form, or the number of independently usable openings.
+
+The feature vocabulary should remain small and geometry-led where geometry is known. `other` is a valid evidence state when a real resolved feature/location exists but the source does not justify a more specific physical classification.
+
+Every feature-local predicate used by one eligibility path must bind to the same concrete `ToolInterfaceFeature`; TetherLens must not combine geometry, captive state, dimensions, location or prohibitions from unrelated feature records.
+
+See `tool-anatomy-selection-semantics.md` and `compatibility-evidence-and-inference.md` for the executable normalization and sparse-evidence rules.
 
 ### Battery
 
@@ -234,13 +272,48 @@ Typical attributes may include:
 - `sku`
 - `rated_capacity`
 - attachment method
-- interface geometry
+- provided tether-side interface
+- reusable installation/eligibility facts where established
 - materials
 - applicable dimensional limits
 - manufacturer-declared compatibility or restrictions
 - catalogue status
 
 A ToolAttachment is not required where the tool already has an appropriate tethering interface.
+
+A ToolAttachment may participate in recommendation through reusable technical eligibility or through an exact accepted installation relationship when the manufacturer establishes the product/Tool/feature route but not enough physical detail for a generic rule.
+
+A tool-side attachment solution may contain multiple physical products. Runtime `ToolAttachmentAssembly` composition should therefore preserve selected component identity and the product that owns each provided interface when product-scoped manufacturer evidence depends on that ownership.
+
+#### ToolAttachmentInstallationBinding
+
+A `ToolAttachmentInstallationBinding` represents accepted positive evidence for one exact ToolAttachment installation when reusable geometry is insufficient.
+
+Conceptually:
+
+```text
+ToolAttachmentInstallationBinding
+- id / binding_ref
+- tool_ref
+- source_product_ref
+- installation_feature_id
+- issuer_manufacturer
+- scope
+- source_urls
+```
+
+It means:
+
+> accepted evidence establishes this attachment product at this resolved feature of this Tool.
+
+It does **not** mean:
+
+- every Tool with the same feature role accepts the attachment;
+- the feature has geometry that was not published;
+- only this attachment may be used; or
+- the product pairing itself is a reusable technical compatibility rule.
+
+Different documented product routes should have distinct relationship identity. Several sources documenting the same semantic route may support one binding while preserving all source provenance.
 
 ### AnchorAttachment
 
@@ -295,9 +368,10 @@ Although the product categories differ, they share common conceptual attributes:
 - manufacturer;
 - model / SKU;
 - rated or physical properties;
-- physical geometry;
+- physical geometry where established;
+- functional/interface role where established;
 - material information;
-- declared constraints;
+- declared constraints and relationships;
 - source-backed claims;
 - recommendation-readiness status where applicable.
 
@@ -311,18 +385,21 @@ That decision is intentionally deferred.
 
 ### Source
 
-A document, webpage, measurement record, test record, standard, or other artefact used to support a Claim or Rule.
+A document, webpage, measurement record, test record, standard, or other artefact used to support a Claim, relationship or Rule.
 
 Examples:
 
 - manufacturer datasheet;
 - manufacturer product page;
+- manufacturer operating instructions;
 - declaration of conformity;
 - reputable secondary product-detail source;
 - internal measurement record;
 - internal test record;
 - standard or formal guidance;
 - structured field study.
+
+For combined manufacturer documents, source attribution may need model-local section scope. A model name appearing somewhere in a document is not enough to assign an unrelated installation section to that model.
 
 ### Claim
 
@@ -337,8 +414,11 @@ Examples:
 - Connector D gate opening = 14 mm.
 - Product E material = polyester.
 - Manufacturer F explicitly pairs Tether G with ToolAttachment H.
+- Manufacturer F instructs ToolAttachment H to be secured at Tool A feature J.
 
-Claims should be granular enough that one incorrect or superseded fact does not invalidate unrelated facts about the same product.
+Claims should be granular enough that one incorrect or superseded fact does not invalidate unrelated facts about the same product or relationship.
+
+Equivalent claims may be supported by multiple sources, but the primary source URL and the raw wording/method metadata attributed to it must remain aligned. Additional equivalent artifacts should be retained as supporting provenance rather than causing wording from one source to be attributed to another.
 
 ### Evidence
 
@@ -350,9 +430,12 @@ Evidence should capture:
 - source;
 - method;
 - source location where useful;
+- exact model/product/interface scope where relevant;
 - who or what recorded it;
 - when it was recorded;
 - any qualification.
+
+Evidence scope should be as narrow as the source. Product-specific connection evidence must not apply to an unrelated same-shaped interface merely because the documented product appears elsewhere in the selected assembly.
 
 ### Rule
 
@@ -373,6 +456,8 @@ Examples:
 - prefer reduced free tether length where snag risk is elevated;
 - person anchoring is prohibited above a configured site threshold.
 
+An exact documented installation/compatibility relationship is not automatically a Rule. It may remain a narrowly scoped evidence-backed relationship until repeated evidence or direct physical facts justify a reusable rule.
+
 ## Claim classes
 
 ### Primitive claim
@@ -390,18 +475,21 @@ Examples:
 
 Primitive claims normally come from manufacturer data, qualified exact-product secondary evidence where the property policy permits it, or internal measurement.
 
-### Declared constraint
+### Declared constraint or relationship
 
-A source explicitly states a product-specific limit or compatibility condition.
+A source explicitly states a product-specific limit, compatibility condition, pairing or installation relationship.
 
 Examples:
 
 - maximum operating temperature = 80°C;
 - use only with attachment X;
 - manufacturer pairs tether A with attachment B;
+- manufacturer instructs attachment B to be installed at named Tool feature C;
 - not intended for a particular exposure.
 
-Declared constraints should be retained even where TetherLens cannot derive them from lower-level product facts.
+Declared constraints/relationships should be retained even where TetherLens cannot derive them from lower-level product facts.
+
+A positive documented pairing does not automatically prove that omitted alternatives are technically incompatible. Likewise, a documented installation must not be reverse-engineered into exact geometry the source did not publish.
 
 ### Derived claim
 
@@ -410,13 +498,15 @@ A conclusion produced from claims and rules.
 Examples:
 
 - operational mass of Tool A with Battery B = accepted tool-body mass + accepted battery mass;
-- connector A is compatible with attachment B;
+- connector A is geometrically compatible with attachment B;
 - configuration C satisfies all rated-capacity requirements;
 - configuration D is less suitable where snag risk is high.
 
 Derived claims should retain enough dependency information to explain how they were reached. For a persisted operational-mass Claim, the dependency chain should explicitly identify the accepted tool-body and battery-mass Claims rather than relying only on a human-readable note.
 
 Most derived recommendation conclusions may be computed at runtime. Operational mass profiles are a useful exception to persist because they are reusable configuration facts required by load checks and must retain their exact input provenance.
+
+Cross-product patterns should remain bounded hypotheses until independently validated; they must not silently become derived exact physical facts.
 
 ## Recommendation-side entities
 
@@ -429,6 +519,8 @@ The recommendation engine should support two tool-resolution modes.
 The preferred path is an exact or sufficiently specific match to a recommendation-ready Tool record. Verified catalogue facts can then be used directly, with provenance indicating whether an accepted physical property came from manufacturer evidence, qualified exact-SKU secondary evidence, or another permitted method.
 
 For a cordless catalogue tool, the resolved profile should also identify the applicable `OperationalMassProfile`, including the installed Battery identity. The engine must not substitute bare-tool mass or silently choose among several compatible batteries.
+
+The resolved Tool should retain its exact normalized feature instances even when some feature attributes remain unknown. Evidence-bound installation may require exact feature identity without requiring invented geometry.
 
 #### Generic tool profile
 
@@ -472,7 +564,7 @@ Examples:
 - manufacturer-only combinations required by local policy;
 - additional site-specific restrictions.
 
-Policy should be separable from technical suitability.
+Policy should be separable from technical suitability and manufacturer evidence. A manufacturer's documented route is not itself a site policy that all alternatives must be rejected.
 
 ### CandidateConfiguration
 
@@ -481,11 +573,14 @@ A possible tethering arrangement assembled from applicable product entities.
 A candidate may include:
 
 - resolved tool configuration, including an installed battery profile where applicable;
-- tool attachment, if required;
+- ToolAttachment assembly, if required;
+- exact bound Tool feature and installation provenance where applicable;
 - tether;
 - anchor attachment, if required;
 - anchorage method;
 - relevant configuration metadata, including selected endpoint identities and any operative endpoint-assignment declaration provenance.
+
+A ToolAttachment-mediated candidate may originate from reusable feature eligibility or from an exact accepted `ToolAttachmentInstallationBinding`. Both routes enter the same ordinary downstream load/connection/context evaluation; the latter must retain its original evidence separately rather than pretending its execution projection is a generic technical rule.
 
 CandidateConfiguration may be an ephemeral runtime object rather than a permanently curated database record.
 
@@ -500,7 +595,8 @@ A Recommendation should include enough structured information to describe:
 - viability result;
 - context suitability;
 - important cautions;
-- evidence limitations;
+- evidence/installation provenance and limitations;
+- manufacturer assessment where relevant;
 - policy status;
 - result state.
 
@@ -543,22 +639,29 @@ Depending on the configuration, this may include:
 
 Not all categories apply in every configuration.
 
-### 3. Interface compatibility
+### 3. Installation and interface viability
 
-TetherLens needs sufficient information to establish that every required physical connection in a proposed configuration can be made correctly.
+TetherLens needs sufficient information to establish every required step in a proposed configuration.
 
-For tools, this does **not** require a manufacturer-documented tether point. Compatibility may instead be established from native tether features, observed geometry, controlled loop/cinch rules, or the geometry requirements of a ToolAttachment.
+For tools, this does **not** require a manufacturer-documented native tether point and does not always require complete published geometry. A Tool-side path may be established through:
 
-This may come from:
+- native tether features with ordinary reusable connection rules;
+- observed/published geometry evaluated by a validated reusable ToolAttachment eligibility rule;
+- controlled loop/cinch/wrap rules against a bound feature; or
+- accepted exact manufacturer installation evidence binding one ToolAttachment product to one resolved Tool feature when reusable geometry is not established.
+
+Downstream tether/interface compatibility may come from:
 
 - published dimensions;
 - internal measurement;
 - explicit manufacturer compatibility;
 - manufacturer-supplied kit relationships;
-- observed/confirmed tool geometry evaluated by a validated rule; or
+- observed/confirmed geometry evaluated by a validated rule; or
 - another validated reusable interface rule.
 
-The model must distinguish `no native tether point` from `no information available`.
+Product-scoped manufacturer connection evidence must match the exact concrete products and, for multi-component target assemblies, the exact product that owns the target interface being evaluated.
+
+The model must distinguish `no native tether point` from `no information available`, and must distinguish `known documented route with incomplete geometry` from `generic physical compatibility established`.
 
 Endpoint assignment is a prerequisite to composing an oriented candidate path, but it is not itself interface compatibility. A role-backed or relation-backed assignment must still pass the ordinary connection-compatibility reasoning for the selected endpoint/target pair.
 
@@ -587,9 +690,11 @@ The domain model should distinguish:
 - disputed;
 - superseded.
 
-A missing value should not silently mean "safe", "compatible", or "not relevant".
+A missing value should not silently mean "safe", "compatible", "incompatible", or "not relevant".
 
 For endpoint roles specifically, missing/not-established must remain distinct from the affirmative `either` role. A separate accepted endpoint-assignment relation may authorize a candidate orientation without changing that unknown role state.
+
+For Tool geometry, `unknown` captive state or a broad `other` feature kind must remain unknown/broad; a known manufacturer installation does not authorize TetherLens to fill those gaps with the values that would make a generic rule pass.
 
 ## Product readiness
 
@@ -605,9 +710,11 @@ At least one relevant product source is recorded.
 
 ### Recommendation-ready
 
-Mandatory recommendation facts are available for the relevant product role.
+Mandatory recommendation facts are available for the relevant product role and at least one complete supported path can be established.
 
 For a battery-powered Tool, this includes at least one valid operational mass profile for any configuration intended to participate in load-based recommendations.
+
+A supported path may be geometry/rule-backed or, where the evidence boundary permits it, an exact evidence-bound installation plus ordinary downstream checks. Recommendation-readiness does not require TetherLens to invent a generic explanation for every documented valid relationship.
 
 ### Enriched
 
@@ -631,6 +738,20 @@ Tool ──manufacturer-backed relationship──> Battery
                  ▼
         load reasoning mass
 
+Tool
+  │
+  ├── ToolInterfaceFeature
+  │       │
+  │       ├── reusable eligibility predicates ──> ToolAttachmentAssembly
+  │       │
+  │       └── exact accepted installation binding ──> ToolAttachment product
+  │
+  └── selected configuration
+
+ToolAttachmentAssembly
+  │
+  └── provided interface ──owned by exact selected component product
+
 TetherConnectionPoint(s)
   │
   ├── individual role evidence ──> tool_side / anchor_side / either
@@ -639,13 +760,13 @@ TetherConnectionPoint(s)
 
 Source
   │
-  └── Evidence ──> Claim ──> Product / OperationalMassProfile
+  └── Evidence ──> Claim / exact relationship ──> Product / feature / profile
   │                    │
   │                    └── dependency ──> input Claim(s)
   │
   └── Evidence ──> Rule
 
-Product facts + Context + Rules + Policy
+Product facts + exact accepted relationships + Context + Rules + Policy
                 │
                 ▼
       CandidateConfigurations
@@ -656,6 +777,6 @@ Product facts + Context + Rules + Policy
 
 ## Domain modelling principle
 
-> **Store low-level truths once. Derive application conclusions many times.**
+> **Store the strongest low-level truths the evidence supports once. Derive reusable application conclusions many times, while retaining exact documented relationships when the evidence is narrower than a generic rule.**
 
 This is the main scalability principle for the TetherLens knowledge model.
