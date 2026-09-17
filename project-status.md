@@ -14,9 +14,9 @@ This is workflow/documentation guidance only. It does not change recommendation 
 
 ## Current baseline
 
-Merged `main` before the current PR is PR #69, `Carry evidence-bound ToolAttachment installations into field recommendations`.
+Merged `main` before this documentation-only PR is PR #70, `Broaden 3M ingestion for D-Ring Cord 1500009`.
 
-PR #70, `Broaden 3M ingestion for D-Ring Cord 1500009`, is the current completed slice and merge candidate. This file is written as the post-merge handoff: after PR #70 merges, the production baseline includes both PR #69's sparse-geometry evidence boundary and PR #70's first catalogue-throughput proof over a conventional reusable ToolAttachment path.
+PR #70 is the current production semantic baseline. It includes both PR #69's sparse-geometry evidence boundary and the first catalogue-throughput proof over a conventional reusable ToolAttachment path, while preserving manufacturer-position evidence as a separate axis from technical compatibility. This documentation-only PR does not alter that baseline.
 
 Historical portability cohorts remain immutable at their original semantic revisions:
 
