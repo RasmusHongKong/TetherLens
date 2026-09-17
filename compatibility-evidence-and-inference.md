@@ -71,6 +71,8 @@ engagement = pass_through_and_close
 
 These remain logic-based compatibility rules. They generalize beyond product pairs without requiring CAD-grade data that manufacturers may never publish.
 
+When the available evidence does not support even that level of reusable physical abstraction, a narrowly scoped evidence-bound relationship may still establish one known installation or connection path. That relationship is evidence about the documented path, not a substitute for a generic geometry rule.
+
 ## 3. Do not reverse-engineer precise physical facts from compatibility lists
 
 Catalogue relationships can provide evidence about what works without proving why it works.
@@ -205,3 +207,44 @@ It does not implement:
 - exclusion of mixed-manufacturer alternatives.
 
 Those belong to a follow-up evidence/inference workstream. The immediate goal is to let one selected, evidence-backed Hilti operational profile enter the ordinary recommendation pipeline without SKU-pair compatibility logic or unsupported geometric inference.
+
+## 10. Provenance must be scoped to the narrowest supported entity
+
+PR #69 review reinforced several reusable provenance invariants.
+
+### Product-scoped connection evidence belongs to the exact interface owner
+
+A declaration that product A connects to product B must not become applicable to every interface in an assembly merely because B appears somewhere among the selected components.
+
+For product-scoped manufacturer evidence, the runtime matcher must know which selected component product owns the specific target interface being evaluated and compare the declaration against that owner. Interface geometry itself remains manufacturer/product neutral.
+
+Single-product assemblies may infer ownership unambiguously. Multi-product assemblies must carry complete interface-to-product ownership explicitly or fail closed.
+
+### Model-specific executable evidence must be model-local in the source
+
+A Tool model appearing somewhere in a combined operating-instruction document is not sufficient to bind every installation section in that document to the Tool.
+
+Executable installation evidence must come from a section locally associated with the requested model. Where the same model has several scoped sections, incomplete contents/intro entries must not hide later complete evidence, and distinct complete routes may coexist.
+
+### Evidence-record identity should follow the documented relationship
+
+If two manuals document different attachment/tether pairings for the same Tool, they are independent evidence records and must not be forced into one conflicting subject merely because they share an adapter-defined label.
+
+Conversely, two sources documenting the same semantic relationship should normally support one logical binding/declaration rather than manufacture duplicate runtime relationships.
+
+For the current Hilti path, semantic identities therefore include the documented products, for example:
+
+```text
+retaining_strap_accessory_openings:<strap_identifier>
+tool_tether_to_retaining_strap:<tether_identifier>:<strap_identifier>
+```
+
+This is evidence identity, not SKU-pair technical compatibility logic.
+
+### A primary evidence tuple is atomic
+
+When equivalent candidate claims from several artifacts are deduplicated, `source_url`, raw source wording, evidence method and extractor provenance must stay aligned.
+
+The first accepted candidate claim may remain the primary evidence tuple while later equivalent source URLs are retained as supporting provenance. TetherLens must not select a different primary URL independently of the raw wording and thereby attribute text from source B to source A.
+
+These rules generalize beyond Hilti: evidence may aggregate across sources, but subject scope and source attribution must never become broader than the evidence actually supports.
