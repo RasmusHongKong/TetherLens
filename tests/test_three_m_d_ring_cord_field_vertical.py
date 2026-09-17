@@ -271,11 +271,13 @@ def test_3m_d_ring_cord_completes_mixed_manufacturer_worker_recommendation() -> 
     # 3M's family-level prescription is not converted into a technical mixed-brand
     # exclusion. The ordinary generator therefore evaluates this route on neutral
     # topology/capacity facts and leaves unproven connector engagement as verification.
+    selected = result.recommendation_run.selection.selected
+    assert selected is not None
     assert {
-        component.source_product_ref
-        for component in result.recommendation_run.selection.selected.generated_candidate.configuration.components
+        component.component_id
+        for component in selected.generated_candidate.configuration.load_bearing_components
     } == {
-        "3M:1500009",
-        "GRIPPS:H01079",
-        "NLG:101366",
+        "3M:1500009:component",
+        "GRIPPS:H01079:component",
+        "NLG:101366:component",
     }
