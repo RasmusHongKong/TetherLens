@@ -8,13 +8,9 @@ For detailed design, see `product-vision.md`, `mvp.md`, `domain-model.md`, `evid
 
 ## Current baseline
 
-PR #69, `Carry evidence-bound ToolAttachment installations into field recommendations`, is merged into `main` at:
+Merged `main` before the current PR is PR #69, `Carry evidence-bound ToolAttachment installations into field recommendations`.
 
-```text
-ae0efac76ee0e42c4f9ddd0e1e01b376c06869ae
-```
-
-PR #69 carries one real Hilti SF 4-22 operational profile through the complete ordinary recommendation pipeline while preserving sparse-evidence boundaries. It does not rewrite historical portability semantics, hard compatibility/capacity rules, contextual ranking, recommendation-session semantics, or mixed-manufacturer alternatives.
+PR #70, `Broaden 3M ingestion for D-Ring Cord 1500009`, is the current completed slice and merge candidate. This file is written as the post-merge handoff: after PR #70 merges, the production baseline includes both PR #69's sparse-geometry evidence boundary and PR #70's first catalogue-throughput proof over a conventional reusable ToolAttachment path.
 
 Historical portability cohorts remain immutable at their original semantic revisions:
 
@@ -49,13 +45,14 @@ The recommendation core remains a reusable evidence-bound pipeline:
 ```text
 normalized Tool / ToolAttachment / tether / anchor facts
   + accepted exact installation/connection evidence where needed
+  + issuer-scoped manufacturer-position evidence where applicable
   -> candidate generation
   -> hard candidate evaluation
   -> contextual ranking/selection
   -> recommendation-session condition resolution where needed
 ```
 
-Hard viability and ranking remain separate. Ranking cannot override hard incompatibility or missing required evidence. Global exhaustion may be concluded only after the complete generated alternative set has been evaluated.
+Hard viability, manufacturer position and ranking remain separate axes. Ranking cannot override hard incompatibility or missing required evidence. Manufacturer support/prescription wording does not become technical incompatibility unless the source establishes a causal technical failure mode. Global exhaustion may be concluded only after the complete generated alternative set has been evaluated.
 
 ### Sparse-geometry evidence boundary
 
@@ -78,246 +75,166 @@ An evidence-bound path is positive evidence for one documented relationship. It 
 
 Do not reverse-engineer a `through_opening`, captive state, dimensions, ring/eye form or other physical fact merely because such a fact would explain a manufacturer's pairing.
 
-See `compatibility-evidence-and-inference.md` for the normative evidence/inference model.
+PR #69 proves the exact evidence-bound fallback with Hilti SF 4-22 / retaining strap #2293133. PR #70 deliberately does **not** use that fallback for 3M 1500009 because 3M publishes enough functional topology for the ordinary reusable ToolAttachment model.
 
-### Tool-side installation
+## Demand-side baseline
 
-Reusable ToolAttachment eligibility binds one concrete `ToolInterfaceFeature`. Feature kind, captive state, dimensions, attributes and other feature-local predicates in that path must all be satisfied by the same feature instance.
+PRs #65–#68 establish the catalogue-to-field boundary without adding recommendation authority to search/recognition. The field coordinator supports advisory recognition/search candidate Tool refs, mandatory explicit worker Tool confirmation, exact operational-profile selection, configuration identity such as Battery refs, fail-closed missing operational mass, session-local generic fallback, and exact handoff into the existing recommendation run.
 
-PR #64 added manufacturer-neutral compilation of accepted feature-bound dimensional fit evidence through:
+PR #69 carries the first real Hilti SF 4-22 operational profile through the complete recommendation pipeline using an exact evidence-bound ToolAttachment installation while preserving exact binding provenance.
 
-```text
-attachment_eligibility.feature_kind
-attachment_eligibility.dimension.<code>
-```
+PR #70 adds a second real complete worker vertical using ordinary reusable ToolAttachment semantics rather than a new core exception.
 
-with explicit ordered comparison direction. Split-source envelope synthesis, conflicting fit subjects and unsupported inference remain fail-closed.
+## PR #70: 3M DBI-SALA 1500009 D-Ring Attachment with Cord
 
-PR #69 adds a separate exact evidence-bound installation path for accepted cases where the manufacturer establishes **what installs where** but does not publish enough geometry for a reusable eligibility rule.
+PR #70 closes the frozen V6 1500009 B case as catalogue/ingestion work rather than new recommendation ontology.
 
-### Anchor-side installation
+### Exact first-party evidence boundary
 
-The reusable path remains:
+The 3M adapter now supports 1500009 as a separate family from Quick Spin while preserving exact product-detail verification. The D-Ring Cord installation manual is joined only after the exact 1500009 primary record is verified, and executable document extraction requires the official manual plus product-local `1500009` identity and D-Ring Cord section semantics.
 
-```text
-PrimaryAnchorFeature
-  -> AnchorAttachment installation eligibility
-  -> exact AnchorInstallationBinding
-  -> installed AnchorAttachment tether-side interface
-  -> ordinary tether-endpoint compatibility
-```
+Aggregate 3M pages and manuals without local product identity remain fail-closed.
 
-Current proven primary-anchor feature vocabulary includes:
+### Existing generic ToolAttachment semantics
+
+The accepted 3M evidence normalizes only facts the manufacturer actually establishes:
 
 ```text
-belt
-beam
-rail
-wrist
-bucket_lip
+attachment_selection_class = captive_feature_attachment
+attachment_method_code = cinch
+rated_capacity_kg = 2.3
+provided interface role = tool_attachment_tether_side
+provided interface type = ring
+provided interface ring_form = d_ring
 ```
 
-Current proven anchor installation methods include:
+This reuses the existing captive-handle OR captive-through-opening eligibility compiler, existing `cinch` installation vocabulary, existing capacity reasoning, and existing provided-interface model.
+
+PR #70 does not infer dimensions, add SKU-pair compatibility, or create an evidence-bound ToolAttachment installation where ordinary reusable topology is already supported.
+
+### Manufacturer instruction remains a separate axis
+
+The 3M manual also states that Python Safety attachment points require an appropriate Python Safety lanyard, tether or retractor for safe connection.
+
+PR #70 preserves that statement rather than either discarding it or turning it into technical incompatibility.
+
+The reusable split is:
 
 ```text
-wrap
-cinch
-thread_over
-fasten_around
-hook_on
+vendor-specific source interpretation
+  -> required_tether_manufacturer = <manufacturer named by source>
+  -> shared comparison against accepted selected-tether manufacturer identity
+  -> mismatch: CONTRARY_TO_MANUFACTURER_INSTRUCTION
+  -> match: no contrary assessment, but no automatic positive endorsement
 ```
 
-Anchor installation eligibility remains distinct from tether-to-anchor connection compatibility.
+For 1500009 the source-specific value is `Python Safety`. The shared resolver contains no Python-Safety-specific recommendation rule: it compares the selected manufacturer with the manufacturer required by the accepted instruction.
 
-## Demand-side baseline through PR #68
+Important invariants:
 
-PRs #65–#68 establish the catalogue-to-field boundary without adding recommendation authority to search/recognition.
+- do not parse manufacturer identity from product refs;
+- a known manufacturer mismatch may create an issuer-scoped `CONTRARY_TO_MANUFACTURER_INSTRUCTION` assessment;
+- manufacturer-position evidence does not by itself change technical compatibility;
+- matching the named manufacturer only removes the known mismatch and does not prove every same-brand tether is endorsed; and
+- site policy may separately prohibit or warn on contrary-to-instruction configurations.
 
-The field coordinator supports:
+This is the concrete implementation of the existing `connection-compatibility.md` rule that manufacturer position and technical compatibility are independent.
 
-- advisory recognition/search candidate Tool refs;
-- mandatory explicit worker Tool confirmation;
-- exact operational-profile selection where several profiles exist;
-- automatic selection when exactly one profile exists;
-- installed configuration identity such as Battery refs;
-- fail-closed missing operational mass;
-- explicit session-local generic profile fallback; and
-- exact handoff of the normalized Tool plus all supplied tether, ToolAttachment and anchor alternatives to `run_recommendation()`.
+### Complete mixed-manufacturer field vertical
 
-PR #67 supplies lexical catalogue Tool search as a real producer of `candidate_tool_refs`, but a search hit cannot confirm Tool identity.
-
-PR #68 resolves accepted catalogue operational-profile mass claims against explicit `OperationalProfileDescriptor` configuration identity. It does not infer Battery identity from profile refs, URLs, SKU conventions or mass arithmetic.
-
-The first real proof is Hilti SF 4-22 `2253847` with B 22-55 and B 22-85. Selecting B 22-85 retains the exact configured mass and configuration-product identity required by load reasoning.
-
-## PR #69: evidence-bound ToolAttachment installation
-
-PR #69 closes the remaining Hilti recommendation-readiness gap without inventing installation geometry.
-
-### Exact installation evidence
-
-`ToolAttachmentInstallationBinding` represents positive manufacturer evidence that one ToolAttachment product installs at one exact resolved Tool feature:
+PR #70 reuses the existing worker-path scaffold with:
 
 ```text
-ToolAttachmentInstallationBinding
-  binding_id
-  tool_ref
-  source_product_ref
-  installation_feature_id
-  issuer_manufacturer
-  scope
-  source_urls
+Milwaukee 48-22-7215 Tool
+  -> 3M 1500009 D-Ring Cord ToolAttachment
+  -> GRIPPS H01079 tether
+  -> NLG 101366 belt-loop anchor
 ```
 
-This object is intentionally separate from generic `AttachmentEligibility` rules.
+The selected path retains:
 
-`EvidenceBoundToolAttachmentAssemblyOption` remains separate from ordinary geometry-backed `ToolAttachmentAssemblyOption` so exact manufacturer evidence cannot silently become a reusable technical rule.
+- Milwaukee's exact catalogued operational mass;
+- installation feature `tether_ready_opening`;
+- ordinary captive-feature eligibility;
+- 3M assembly `3M:1500009:assembly`;
+- `cinch` installation-method provenance from the 3M manual;
+- GRIPPS H01079 and NLG 101366 component identity;
+- unresolved connector engagement as ordinary field verification rather than invented compatibility; and
+- the 3M-issued contrary-to-manufacturer-instruction assessment on the mixed-brand Tool-side connection.
 
-At `run_recommendation()` the exact accepted binding is composed against the already-resolved Tool feature through an execution-local projection into the ordinary generator. The original binding is retained separately in `CandidateToolBinding`; the projection is never persisted or reused as generic compatibility.
-
-### Conservative Hilti normalization
-
-The current SF 4-22 evidence establishes a manufacturer-defined location described as `installation openings for accessories`, but does not establish its exact physical form.
-
-Current normalized Tool feature:
-
-```text
-feature_id = accessory_installation_openings
-feature_kind = other
-feature_role = accessory_mount
-captive_state = unknown
-location_description = "installation openings for accessories"
-```
-
-Do **not** normalize this evidence to `through_opening`, `captive`, ring/eye form or invented dimensions.
-
-The retaining strap #2293133 provides only the functional tether-side interface established by its product evidence:
-
-```text
-interface_id = tether_attachment_point
-role = tool_attachment_tether_side
-interface_type = attachment_point
-```
-
-Hilti's #2261970 tether-to-#2293133 retaining-strap instruction is retained as manufacturer-declared connection evidence scoped to those exact products. Product scope limits the positive manufacturer evidence; it is not a generic technical exclusion of other tethers/attachments.
-
-### Complete field vertical
-
-The PR proves:
-
-```text
-catalogue search
-  -> explicit SF 4-22 confirmation
-  -> B 22-55 / B 22-85 profile selection
-  -> exact evidence-bound retaining-strap installation
-  -> ordinary load + connection evaluation
-  -> deterministic selection
-  -> RECOMMENDED_WITH_CONSTRAINTS
-```
-
-For the B 22-85 route the selected recommendation retains:
-
-- exact Tool and Battery profile/configuration identity;
-- exact operational mass;
-- attachment assembly `Hilti:2293133:assembly`;
-- exact installation feature `accessory_installation_openings`;
-- exact installation binding provenance;
-- tether `Hilti:2261970`;
-- manufacturer-declared Tool-side tether/strap connection;
-- runtime verification on the unresolved anchor-side connection; and
-- ordinary component capacity checks.
-
-The documented Hilti route does not suppress a separately geometry-eligible ToolAttachment competitor.
+The candidate remains technically usable with conditions. The manufacturer assessment is retained for policy/user transparency rather than smuggled into the hard technical result.
 
 ## Review-derived reusable provenance invariants
 
-PR #69 review reinforced reusable evidence rules that apply beyond Hilti.
+The PR #69 and #70 reviews reinforce several reusable rules:
 
-1. **Product-scoped connection evidence belongs to the exact target interface owner.** Assembly-wide product membership is insufficient when several selected components expose similar interfaces.
-2. **Multi-product evidence-bound assemblies require complete interface ownership.** Single-product ownership may be inferred; ambiguous multi-product ownership fails closed.
-3. **Executable document evidence must be model-local.** A model appearing somewhere in a combined manual does not authorize another model's installation section.
-4. **Enumerate all safely scoped model sections.** An incomplete contents/intro entry must not hide a later complete section, and distinct complete routes may coexist.
-5. **Evidence-record identity follows the documented relationship.** Different product routes use different semantic subjects; repeated sources for the same route support one logical relationship.
-6. **Primary evidence provenance is atomic.** `source_url`, raw wording, evidence method and extractor metadata must remain aligned. Later equivalent artifacts may become supporting sources but must not steal the primary URL while leaving another source's wording attached.
-7. **Duplicate evidence-bound assembly identities are invalid.** Do not let candidate-ID deduplication hide catalogue ambiguity.
+1. **Product-scoped evidence belongs to the exact owner/interface it describes.** Assembly-wide membership is insufficient when several products expose similar interfaces.
+2. **Executable document evidence must be model-local.** A product appearing somewhere in a combined/related document does not authorize another model's section.
+3. **Evidence identity follows the documented relationship.** Repeated sources for one relationship support one logical record; distinct routes remain distinct.
+4. **Primary evidence provenance is atomic.** Source URL, raw wording, evidence method and extractor metadata must remain aligned.
+5. **Vendor-specific wording may produce manufacturer-specific values, but downstream reasoning should remain manufacturer-neutral.** 3M parsing may extract `Python Safety`; shared logic compares selected vs required manufacturer without a Python-Safety branch.
+6. **Manufacturer prescription and physical compatibility are independent unless causal technical scope is established.** A mixed-brand route can remain technically field-verifiable while carrying contrary manufacturer-position evidence.
+7. **Matching a manufacturer family is not blanket endorsement.** `appropriate <manufacturer> tether` does not prove every tether sold by that manufacturer is approved.
+8. **Historical portability classifications remain historical.** Closing the 1500009 B gap does not rewrite V6.
 
 ## Current deliberate boundaries
 
-The PR #69 baseline does **not** add:
+The post-PR #70 baseline does **not** add:
 
 - image recognition or computer-vision inference;
 - fuzzy Tool identity acceptance;
 - search-derived confidence scores as recommendation authority;
 - persistent database/repository querying;
 - automatic Battery recognition;
-- configuration-relationship inference from profile IDs, source URLs or mass arithmetic;
 - free-form worker safety-fact inference;
 - anchorage recognition;
 - inventory optimization;
 - user-facing natural-language recommendation generation;
-- cross-product compatibility inference;
+- generic cross-product compatibility inference;
 - confidence scoring for inferred compatibility rules;
 - automatic promotion of repeated manufacturer pairings into technical rules;
-- configuration-component/assembled-configuration feature ownership beyond current exact selected-component interface ownership;
-- global mixed-manufacturer exclusion; or
+- global mixed-manufacturer exclusion;
+- manufacturer identity inference from SKU/product-ref naming conventions;
+- automatic positive endorsement for same-manufacturer combinations; or
 - a replacement for the existing recommendation-session condition resolver.
 
 Those boundaries remain deliberate.
 
-## Next recommended slice after PR #69
+## Next recommended slice after PR #70
 
-The next slice should prove that the mature reusable semantics now buy us **faster catalogue expansion**, rather than immediately adding another abstraction.
+The next slice should continue proving catalogue throughput, but should exercise a **different supply-side shape** rather than immediately adding another conventional ToolAttachment family branch.
 
-The recommended target is:
-
-```text
-3M DBI-SALA 1500009 — D-Ring Attachment with Cord
-```
-
-V6 already classified this product as a catalogue/ingestion gap rather than a missing recommendation primitive. Manufacturer evidence describes a loop passed through a pre-drilled hole or closed handle and choked off, creating a D-ring attachment point with a 5 lb capacity. Those semantics map onto capabilities already established in the current model:
+Recommended inspection target:
 
 ```text
-captive through-opening OR captive handle eligibility
-  + cinch/choke installation
-  + rated capacity
-  + provided D-ring tether interface
+GRIPPS H01088 — Adjustable Wrist Anchor With Tool Tether
 ```
 
-The implementation goal should therefore be:
+The frozen V6 review classified H01088 as B because GRIPPS explicitly identifies the sellable kit as containing separately identifiable recommendation components:
 
 ```text
-real 3M manufacturer evidence
-  -> broadened 3M family ingestion for 1500009
-  -> existing generic ToolAttachment normalization
-  -> existing feature-bound eligibility
-  -> existing cinch/choke installation semantics
-  -> provided D-ring interface
-  -> ordinary candidate generation/evaluation
-  -> one complete worker-facing recommendation
+H01067 Webbing Wrist Tether
++
+H01085 Slip-On Wrist Anchor
 ```
 
-Prefer a mixed-manufacturer complete vertical if the existing catalogue contains a Tool/tether/anchor combination whose accepted facts genuinely support it. Do not manufacture a mixed-brand case merely to demonstrate one.
+The likely reusable lesson is catalogue decomposition, not a runtime `Composite` load-path type. A commercial wrapper may describe/package components without itself becoming another physical component in candidate evaluation.
 
-The key success criterion is **no new compatibility ontology unless inspection reveals a genuine missing reusable semantic**. In particular:
+Start the next slice by inspecting current GRIPPS ingestion, any existing related-product/kit relationship semantics, the H01067 and H01085 first-party evidence, current wrist-anchor installation support, and how `FieldRecommendationCatalogue` should receive the decomposed components.
 
-- do not turn the 3M product into a SKU-pair recommendation rule;
-- do not add an evidence-bound installation path if published geometry already supports ordinary reusable eligibility;
-- preserve exact manufacturer evidence and source scope;
-- keep Tool feature predicates bound to one concrete feature instance; and
-- let the existing generator/evaluator/selector do the downstream work wherever possible.
+The target should be the smallest evidence-backed path that proves:
 
-Start by inspecting the frozen V6 1500009 case, the current 3M adapter (currently Quick-Spin-specific), existing ToolAttachment eligibility/method/interface resolvers, current catalogue candidates for a complete field vertical, and available first-party 3M evidence. Recommend the smallest reusable slice before changing code.
+```text
+sellable kit identity
+  -> accepted contained-product relationships
+  -> exact contained product identities
+  -> ordinary tether + AnchorAttachment normalization
+  -> ordinary candidate composition/evaluation
+```
 
-Do not immediately generalize the Hilti relationship into a physical rule. One documented route remains insufficient evidence for `through_opening`, captive state, dimensions or a broader family rule.
+Do not create a new composite runtime primitive unless inspection finds a real load-path or decision semantic that cannot be represented by the contained products.
 
-After the 3M vertical, use what it teaches us to choose between:
-
-- another catalogue-backed complete vertical;
-- a genuinely recurring sparse-geometry/evidence-bound case;
-- a demand-side context question such as required working reach once multiple real candidate sets make it decision-relevant; or
-- a new inference/provenance abstraction only if a concrete case requires it.
-
-Image recognition can later produce the same `candidate_tool_refs` contract when a curated pilot image set is ready. It should not bypass the confirmation boundary.
+If H01088 evidence turns out not to support a clean decomposition without additional catalogue work, choose another remaining V6 B throughput case rather than forcing the abstraction. The next alternatives are the FallTech 5106A5 conventional ToolAttachment family, Ergodyne 3172/19172 AnchorAttachment family, or one of the exact-product capacity-conflict cases where existing reconciliation should fail closed.
 
 ## Catalogue throughput in parallel
 
@@ -334,22 +251,19 @@ High-value throughput work includes:
 - decomposition of sellable kits into recommendation components; and
 - ingestion of the physical, functional and relationship facts actually required by demand-side sessions.
 
-V6 B cases remain useful throughput candidates, but they should not drive new recommendation primitives unless implementation reveals a genuine reusable decision gap.
-
 ## Guardrails that must remain true
 
 - Do not introduce manufacturer/SKU branches downstream of ingestion/resolution unless no reusable semantic representation exists and the exception is explicitly justified.
+- Manufacturer-specific strings extracted from source evidence are data, not permission for manufacturer-specific recommendation logic.
 - Missing evidence fails closed; do not infer geometry, direction, compatibility, capacity or installation suitability from absence of contrary evidence.
 - Exact manufacturer-documented relationships may be retained when geometry is incomplete, but they must stay narrowly scoped evidence rather than becoming generic rules by convenience.
 - Do not convert qualitative marketing language into numeric fit envelopes.
-- Compile numeric feature predicates only from accepted source evidence that explicitly establishes the dimension, declared-constraint semantics and comparison/bound.
 - Keep every feature-bound predicate on one concrete feature instance.
-- Do not synthesize fit envelopes by joining bounds from unrelated subjects or incomplete evidence sources.
 - Keep manufacturer provenance separate from exact product/variant identity.
 - Bind product-scoped manufacturer connection evidence to the exact product that owns the evaluated interface.
 - Bound flattened multi-product or multi-model evidence to the requested identity before parsing sibling-specific fields.
 - Preserve the primary source/evidence tuple atomically when merging equivalent claims from multiple sources.
-- Treat manufacturer prescription as positive issuer-scoped evidence unless the source establishes a causal technical prohibition.
+- Preserve manufacturer prescription on the manufacturer-assessment axis; promote it to technical incompatibility only when accepted evidence establishes causal technical scope.
 - Omission from a manufacturer compatibility list remains `unknown`, not `incompatible`.
 - Keep operational mass configuration-specific when the Tool requires an installed configuration.
 - Search/recognition remains advisory until the worker explicitly confirms Tool identity.
@@ -359,13 +273,13 @@ V6 B cases remain useful throughput candidates, but they should not drive new re
 ## Suggested opening prompt for the next chat
 
 ```text
-Continue TetherLens from merged `main` after PR #69. Keep all historical portability cohorts frozen at their existing semantic revisions: V1 is 0 A / 5 B / 3 C / 0 D, V2 is 0 A / 6 B / 2 C / 0 D, V3 is 0 A / 5 B / 3 C / 0 D, V4 is 0 A / 4 B / 4 C / 0 D, V5 is 0 A / 6 B / 2 C / 0 D, and V6 is 1 A / 7 B / 0 C / 0 D.
+Continue TetherLens from merged `main` after PR #70. Keep all historical portability cohorts frozen at their existing semantic revisions: V1 is 0 A / 5 B / 3 C / 0 D, V2 is 0 A / 6 B / 2 C / 0 D, V3 is 0 A / 5 B / 3 C / 0 D, V4 is 0 A / 4 B / 4 C / 0 D, V5 is 0 A / 6 B / 2 C / 0 D, and V6 is 1 A / 7 B / 0 C / 0 D.
 
-PR #69 establishes the sparse-geometry evidence boundary: use reusable physical/topological rules where the source supports them, but retain exact evidence-bound installation/connection relationships when manufacturer evidence establishes what works without enough geometry to infer why. Do not reverse-engineer unsupported geometry from manufacturer pairings, and do not treat positive OEM evidence as a global mixed-manufacturer exclusion.
+PR #69 establishes the sparse-geometry evidence boundary: use reusable physical/topological rules where the source supports them, but retain exact evidence-bound installation/connection relationships when manufacturer evidence establishes what works without enough geometry to infer why.
 
-For the next slice, tackle 3M DBI-SALA 1500009 D-Ring Attachment with Cord. Start by inspecting the frozen V6 case, the current 3M ingestion path, existing ToolAttachment eligibility / attachment-method / provided-interface semantics, current catalogue candidates for a complete worker-facing vertical, and available first-party 3M evidence.
+PR #70 closes the frozen 3M 1500009 V6 B case using existing generic ToolAttachment semantics: captive handle OR captive through-opening eligibility, cinch installation, 2.3 kg rated capacity and a provided D-ring interface. It also preserves 3M's Python Safety tether-family requirement on the manufacturer-position axis. The shared resolver compares accepted selected-tether manufacturer identity against the manufacturer named by the source; a mismatch becomes CONTRARY_TO_MANUFACTURER_INSTRUCTION without becoming technical incompatibility, and a same-manufacturer match is not blanket endorsement.
 
-The target is to broaden 3M ingestion and carry 1500009 through one real complete recommendation using existing generic semantics wherever possible: captive through-opening OR captive-handle eligibility, cinch/choke installation, rated capacity, provided D-ring interface, ordinary candidate generation/evaluation/selection. Prefer a defensible mixed-manufacturer vertical if the current catalogue supports one, but do not force it.
+For the next slice, inspect GRIPPS H01088 Adjustable Wrist Anchor With Tool Tether as a catalogue-decomposition case. Determine whether the sellable kit can be represented as accepted relationships to its separately identified H01067 Webbing Wrist Tether and H01085 Slip-On Wrist Anchor, then composed through the existing tether + AnchorAttachment recommendation path without inventing a runtime Composite component.
 
-Before changing code, identify the smallest reusable implementation slice and recommend the approach. Treat a need for new ontology as a finding to justify from the evidence, not as the default objective.
+Before changing code, inspect current GRIPPS ingestion, related-product/kit semantics, first-party evidence for all three SKUs, and existing wrist-anchor support. Identify the smallest reusable implementation slice and recommend the approach before building it.
 ```
