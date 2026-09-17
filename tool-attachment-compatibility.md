@@ -2,31 +2,33 @@
 
 ## Status
 
-Reusable claim semantics for ToolAttachment applicability, required tool geometry, installation constraints, and manufacturer-position handling.
+Reusable claim semantics for ToolAttachment applicability, required tool geometry, installation constraints, manufacturer-position handling, and evidence-bound installation when complete geometry is unavailable.
 
-This document complements `attachment-method-vocabulary.md` and `tool-anatomy-selection-semantics.md`.
+This document complements `attachment-method-vocabulary.md`, `tool-anatomy-selection-semantics.md`, and `compatibility-evidence-and-inference.md`.
 
-`attachment_method_code` continues to describe only the primary physical retention mechanism. Tool anatomy, dimensional fit, technical suitability, manufacturer assessments, and policy are represented independently.
+`attachment_method_code` continues to describe only the primary physical retention mechanism. Tool anatomy, dimensional fit, technical suitability, manufacturer assessments, evidence-bound installation, and policy are represented independently.
 
 Where older wording treated manufacturer-declared application scope as a universal technical exclusion, `tool-anatomy-selection-semantics.md` now governs: manufacturer instructions must be preserved, but brand/category declarations do not automatically prove physical incompatibility.
+
+Where older exploratory Hilti wording inferred a specific `through_opening` / `captive` geometry from `installation openings for accessories`, `compatibility-evidence-and-inference.md` governs. Current evidence supports the named installation location and relationship, not that stronger geometry.
 
 ## Compatibility axes
 
 A ToolAttachment may depend on several independent facts:
 
-1. **Tool anatomy / geometry** — the attachment may require a handle, through-opening, narrowed section, external section, surface, or another reusable physical feature.
+1. **Tool anatomy / geometry** — the attachment may require a handle, through-opening, narrowed section, external section, surface, or another reusable physical feature where that geometry is actually established.
 2. **Dimensional fit** — a geometrically relevant feature may still need to fall inside published or measured dimensional limits.
 3. **Operational behaviour** — whole-tool rotation, working-part rotation, articulated handles, or other validated behaviours may affect viability.
 4. **Installation constraints** — surface condition, prohibited attachment locations, cure time, companion products, pre-use checks, or related requirements.
 5. **Rated capacity and paired-product limits** — ordinary load and lanyard constraints remain separate mandatory checks.
-6. **Manufacturer assessments** — each issuing manufacturer may require, endorse, support, discourage, or prohibit a particular configuration or relationship.
+6. **Manufacturer assessments / installation evidence** — each issuing manufacturer may require, endorse, support, discourage, prohibit, or document a particular configuration or relationship.
 7. **Policy** — a site or organisation may impose stricter combination requirements than the technical compatibility rules.
 
 These axes are complementary.
 
-The recommendation engine should derive technical compatibility primarily from low-level physical facts. Manufacturer assessments should normally qualify the result rather than replace the physical analysis, unless the source establishes a genuine technical prohibition or requirement that cannot be represented by lower-level facts.
+The recommendation engine should derive technical compatibility from low-level physical facts and reusable rules whenever the source supports them. Exact physical geometry is strong evidence, but it is not always published. When first-party evidence establishes one exact installation path without enough geometry to compile a reusable technical rule, TetherLens may retain and execute that path as a narrowly scoped evidence-bound installation. That known-valid relationship must remain distinct from generic technical compatibility and must not exclude alternatives that qualify independently.
 
-## Geometry-first reasoning
+## Geometry-led reasoning when supported
 
 Prefer reusable predicates such as:
 
@@ -46,11 +48,47 @@ where:
   feature.section_diameter within published limits
 ```
 
-rather than product-specific compatibility entries.
+rather than product-specific compatibility entries **when the source actually establishes those physical facts**.
 
 Every feature-local predicate in one path must evaluate against the same bound feature instance. Geometry, captive state, dimensions, role, location, surface profile, structural state, and feature-local prohibitions must not be joined from unrelated tool features.
 
 Tool category may still matter when function/behaviour cannot be reduced to geometry, but category references in manufacturer material must not automatically become closed hard whitelists.
+
+A manufacturer-named installation location should not be promoted to a more specific feature kind merely because that geometry would make an existing reusable rule convenient. If the source only establishes a functional location and a documented installation relationship, retain those facts and use an evidence-bound relationship until stronger evidence supports a reusable rule.
+
+## Evidence-bound installation
+
+`ToolAttachmentInstallationBinding` exists for the narrow case where accepted evidence establishes:
+
+- one concrete Tool;
+- one concrete ToolAttachment product;
+- one resolved Tool feature/location; and
+- an explicit manufacturer installation relationship;
+
+but does **not** establish enough physical geometry to compile a reusable eligibility rule.
+
+Conceptually:
+
+```text
+ToolAttachmentInstallationBinding
+  tool_ref
+  source_product_ref
+  installation_feature_id
+  issuer_manufacturer
+  scope
+  source_urls
+```
+
+This is positive installation evidence, not a product-pair hard-compatibility table.
+
+It does not imply that:
+
+- the feature's missing geometry can be inferred;
+- every Tool with a similarly named/typed feature accepts the attachment;
+- other attachments are incompatible; or
+- the manufacturer pairing itself should be promoted to a generic rule.
+
+Evidence-bound assemblies remain separate from ordinary geometry-backed `ToolAttachmentAssemblyOption` inputs. At recommendation-run time, an exact accepted binding may permit the documented route to enter the ordinary candidate/evaluation/selection pipeline while retaining the original evidence separately from the temporary execution projection.
 
 ## Candidate-claim semantics
 
@@ -277,7 +315,7 @@ This follows a general conflict policy:
 
 ## Representative geometry / relationship cases
 
-The following cases now anchor the next implementation pass:
+The following cases anchor the implemented and next-step semantics:
 
 ### NLG 101363 360 D Ring Loop
 
@@ -293,20 +331,29 @@ This is the canonical test case for bounded OR-path semantics and feature-instan
 
 ### Hilti SF 4-22 + retaining strap 2293133
 
-Hilti provides a manufacturer-specified tool/attachment/tether configuration and identifies accessory-installation openings used by the retaining strap.
+Hilti provides a manufacturer-specified tool/attachment/tether configuration and identifies `installation openings for accessories` used by the retaining strap.
 
-This case should preserve the Hilti instruction as an issuer-scoped manufacturer assessment while allowing technical evaluation of other candidates from geometry, dimensions, capacity, installation, and interface facts.
-
-The physical feature should normalize toward:
+The accepted evidence currently establishes:
 
 ```text
-feature_kind = through_opening
+feature_kind = other
 feature_role = accessory_mount
+captive_state = unknown
+location_description = "installation openings for accessories"
 ```
 
-rather than becoming a manufacturer-specific interface type.
+It does **not** establish `through_opening`, `captive`, exact dimensions, or ring/eye form. The retaining strap's documented installation is therefore represented as an evidence-bound `ToolAttachmentInstallationBinding`, not by fabricating a reusable geometry eligibility rule.
 
-A different attachment manufacturer may simultaneously state that its product is compatible with the relevant tool class or geometry. Both assessments must remain available to policy and explanation logic.
+The installed retaining strap provides only the functional tether-side interface supported by first-party product evidence:
+
+```text
+role = tool_attachment_tether_side
+interface_type = attachment_point
+```
+
+Hilti's documented tether-to-strap connection is positive manufacturer evidence scoped to the documented tether product and to the exact assembly interface owned by the retaining-strap product. It must not leak to an unrelated same-shaped interface in a multi-component assembly.
+
+Other ToolAttachments remain independently eligible if reusable geometry/installation rules or their own accepted evidence support them. The Hilti instruction is not a global mixed-manufacturer exclusion.
 
 ### Ergodyne web ToolAttachment + companion tape/wrap
 
