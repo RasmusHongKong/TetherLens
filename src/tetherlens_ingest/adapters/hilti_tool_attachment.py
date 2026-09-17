@@ -324,17 +324,6 @@ class HiltiAdapter(_BaseHiltiAdapter):
                 evidence_method="manufacturer_functional_interface",
                 extractor="hilti.v0.9",
             ),
-            CandidateClaim(
-                subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
-                subject_ref=_RETAINING_STRAP_INTERFACE_REF,
-                property_key="interface.attribute.manufacturer_item_code",
-                value=identity.sku or "2293133",
-                unit=None,
-                raw_value=raw,
-                source_url=artifact.url,
-                evidence_method="manufacturer_functional_interface",
-                extractor="hilti.v0.9",
-            ),
         ]
 
     @staticmethod
