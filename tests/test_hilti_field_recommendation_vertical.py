@@ -268,11 +268,19 @@ def test_selected_hilti_operational_profile_reaches_complete_recommendation_pipe
     )
     strap = _strap_assembly(tool_claims)
     tether = _tether()
-    declarations = resolve_connector_interface_compatibility_declarations(tool_claims)
+    declarations = resolve_connector_interface_compatibility_declarations(
+        tool_claims,
+        product_refs_by_identifier={
+            "2261970": tether.component.source_product_ref,
+            "2293133": strap.components[0].source_product_ref,
+        },
+    )
     connection_contexts = connection_contexts_from_compatibility_declarations(
         tether_ref=tether.tether_ref,
+        tether_product_ref=tether.component.source_product_ref,
         endpoints=tether.endpoints,
         target_owner_ref=strap.assembly_ref,
+        target_product_refs={component.source_product_ref for component in strap.components},
         target_interfaces=strap.provided_interfaces,
         declarations=declarations,
     )
