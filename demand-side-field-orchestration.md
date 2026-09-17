@@ -86,7 +86,7 @@ It searches only the Tool identities already present in the supplied `FieldRecom
 Matching is deterministic lexical matching rather than identity inference:
 
 - input is Unicode NFKC-normalized and case-folded;
-- Unicode letters, numbers and their combining marks stay inside identity tokens, while punctuation and separators form token boundaries;
+- Unicode letters, numbers and their combining marks stay inside identity tokens, while punctuation and separators form boundaries;
 - every query token must occur in the Tool's searchable identity text;
 - partial identifier tokens, edit-distance matches and semantic expansion are not used;
 - catalogue order is preserved rather than inventing a recognition-confidence score; and
@@ -121,6 +121,39 @@ configuration_product_refs
 
 `configuration_product_refs` retain supporting configuration identity such as an installed Battery. They are not load-bearing tethering components and do not enter candidate topology.
 
+### Catalogue-backed profile materialization
+
+Accepted operational-mass evidence can now be materialized into field profiles through:
+
+```python
+resolve_operational_tool_profiles(
+    claims,
+    *,
+    tool_ref,
+    descriptors,
+    features=None,
+    direct_interfaces=None,
+)
+```
+
+Each `OperationalProfileDescriptor` supplies the exact normalized configuration identity already established by the catalogue layer:
+
+```text
+profile_ref
+worker-facing display_name
+configuration_product_refs
+```
+
+The descriptor is intentionally separate from Claim resolution. The resolver does not infer Battery/configuration identity by parsing a compound profile ref, matching arithmetic mass combinations, joining source URLs, using manufacturer/SKU conventions, or widening a platform label. Configuration identity and relationship validity must already have been established upstream.
+
+The resolver binds only accepted `operational_mass_kg` Claims whose subject is the exact descriptor `profile_ref`. An operational-mass Claim without a corresponding descriptor fails closed, as do conflicting accepted masses for the same profile.
+
+A known descriptor whose operational mass is still missing is **not dropped**. It becomes an `OperationalToolProfile` with unknown mass so the worker can still select the actual configuration; selecting that profile then reaches the existing `operational_mass_not_established` readiness boundary before candidate generation. This prevents an incomplete multi-configuration Tool from silently collapsing into one apparently selectable profile merely because only one configuration currently has complete mass evidence.
+
+The first catalogue-backed proof uses Hilti SF 4-22 `2253847` with the already-ingested B 22-55 and B 22-85 operational-mass Claims. Advisory text search still stops at explicit Tool confirmation; confirmation then exposes both real Battery profiles through the existing `operational_profile_selection` requirement, and the selected profile retains its exact configured mass and configuration-product identity.
+
+This profile materialization step does not itself make the Hilti Tool recommendation-ready. The manufacturer-required retaining strap/tether installation path remains a separate supply-side normalization task; the field layer does not turn that exact pairing into SKU-based candidate logic.
+
 ### One profile
 
 If a confirmed Tool has exactly one operational profile, it is selected automatically. No redundant worker question is introduced.
@@ -141,7 +174,7 @@ A selected profile whose `ResolvedToolCandidate.object_mass_kg` is unknown also 
 
 This is intentional. The field layer must not enter load reasoning with an unknown operational mass and must not substitute bare-tool mass for a Tool/configuration that requires an installed profile.
 
-The coordinator does not itself decide what catalogue evidence is acceptable for Tool or Battery mass. Evidence acceptance and profile derivation remain upstream catalogue responsibilities.
+The coordinator does not itself decide what catalogue evidence is acceptable for Tool or Battery mass. Evidence acceptance and configuration-relationship validation remain upstream catalogue responsibilities.
 
 ## Session-local generic fallback
 
@@ -290,7 +323,7 @@ The field layer does not add:
 - fuzzy Tool/SKU matching;
 - a persistent catalogue/database repository;
 - automatic Battery recognition;
-- evidence acceptance or operational-profile derivation from raw Claims;
+- evidence acceptance or configuration-relationship inference from raw Claims/source URLs;
 - free-form worker entry of safety-relevant mass/geometry facts;
 - anchorage recognition;
 - inventory/availability selection;
@@ -311,6 +344,10 @@ Focused tests cover at least:
 - punctuation/case normalization without fuzzy or prefix identity matching;
 - bounded multi-match shortlists preserving catalogue order rather than invented confidence;
 - a one-item search result still requiring explicit worker Tool confirmation;
+- catalogue-backed operational-mass Claims materializing only against exact normalized profile descriptors;
+- operational-mass evidence without configuration identity failing closed rather than having identity reconstructed from profile strings/URLs/mass arithmetic;
+- known configurations with missing operational mass remaining visible and failing closed when selected;
+- conflicting accepted operational masses not receiving an invented precedence;
 - one operational profile being used without an unnecessary extra question;
 - multiple operational profiles requiring explicit selection;
 - selected Battery/profile mass actually driving load evaluation;
@@ -323,16 +360,19 @@ Focused tests cover at least:
 - `no_generated_candidates` remaining distinct from global `no_suitable_recommendation`; and
 - pre-run not-ready states never masquerading as recommendation outcomes.
 
-The catalogue-backed worker vertical now begins from a real text search for the Milwaukee Tool rather than a hand-injected candidate ref. The search result still stops at `tool_confirmation`; only a separate explicit `confirmed_tool_ref` allows the same Milwaukee/NLG/GRIPPS/NLG recommendation path to run. The selected path continues to retain the exact `cinch` provenance of the NLG ToolAttachment while unresolved connection checks remain visible rather than invented.
+The catalogue-backed Milwaukee/NLG/GRIPPS/NLG worker vertical still proves the complete recommendation handoff. It begins from real text search, stops at explicit Tool confirmation, retains the exact `cinch` provenance of the selected NLG ToolAttachment and leaves unresolved connection checks visible rather than inventing compatibility evidence.
+
+The Hilti SF 4-22 profile vertical separately proves that real catalogue-backed configuration choices can now reach the existing worker profile-selection boundary without weakening that recommendation pipeline or pretending the still-incomplete retaining-strap path is ready.
 
 ## Next demand-side steps
 
 After this boundary is stable, the next useful demand-side work should continue from real field scenarios rather than another broad modelling pass. Likely extensions are:
 
-1. resolve more real Tool/configuration profiles from catalogue evidence into `OperationalToolProfile`;
-2. add the smallest task/anchorage question flow needed by those scenarios;
-3. pass pending checks into the existing recommendation-session evidence adapters;
-4. introduce image-recognition candidates behind the same advisory `candidate_tool_refs` boundary when a curated pilot image set is ready; and
-5. build a thin mobile result presentation over the structured field summary.
+1. normalize the smallest reusable Hilti retaining-strap/tool-interface path needed to carry the SF 4-22 selected profile into a complete recommendation run, without converting the manufacturer-required 2293133 + 2261970 pairing into SKU-pair recommendation logic;
+2. apply the same profile materialization boundary to additional real configuration-dependent Tools as catalogue relationships become recommendation-ready;
+3. add the smallest task/anchorage question flow needed by those scenarios;
+4. pass pending checks into the existing recommendation-session evidence adapters;
+5. introduce image-recognition candidates behind the same advisory `candidate_tool_refs` boundary when a curated pilot image set is ready; and
+6. build a thin mobile result presentation over the structured field summary.
 
-Catalogue-ingestion work should continue in parallel, especially where a real field scenario exposes missing normalized Tool/Tether/ToolAttachment/AnchorAttachment facts. Searchability is not a substitute for recommendation readiness: a Tool may be discoverable before its operational profile or required physical evidence is complete, and confirmation of such a Tool should continue to fail closed at the existing readiness boundary.
+Catalogue-ingestion work should continue in parallel, especially where a real field scenario exposes missing normalized Tool/Tether/ToolAttachment/AnchorAttachment facts. Searchability and profile materialization are not substitutes for recommendation readiness: a Tool may be discoverable and its installed mass known before its required physical tethering path is complete, and the system must continue to fail closed at the existing readiness boundaries.
