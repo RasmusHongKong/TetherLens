@@ -7,6 +7,7 @@ from tetherlens_ingest.candidate_generation import (
     TetherOption,
     ToolAttachmentAssemblyOption,
 )
+from tetherlens_ingest.compatibility import ManufacturerPosition
 from tetherlens_ingest.connection import ConnectionInterface, ConnectionInterfaceRole
 from tetherlens_ingest.constraints import resolve_product_constraints
 from tetherlens_ingest.field_recommendation import (
@@ -19,6 +20,10 @@ from tetherlens_ingest.field_recommendation import (
     run_field_recommendation,
 )
 from tetherlens_ingest.field_tool_search import candidate_tool_refs_from_text_search
+from tetherlens_ingest.manufacturer_instruction import (
+    connection_contexts_from_required_tether_manufacturer_instructions,
+    resolve_required_tether_manufacturer_instructions,
+)
 from tetherlens_ingest.models import ProductIdentity, ProductType, SourceArtifact, SourceType
 from tetherlens_ingest.normalize import mass_to_kg
 from tetherlens_ingest.recommendation import CandidateCheckType, RecommendationState
@@ -162,7 +167,7 @@ def _nlg_attachment() -> ToolAttachmentAssemblyOption:
     )
 
 
-def _three_m_attachment() -> ToolAttachmentAssemblyOption:
+def _three_m_attachment():
     identity = ProductIdentity(
         manufacturer="3M",
         product_type=ProductType.TOOL_ATTACHMENT,
@@ -208,7 +213,7 @@ def _three_m_attachment() -> ToolAttachmentAssemblyOption:
         for claim in claims
         if claim.property_key == "rated_capacity_kg"
     )
-    return ToolAttachmentAssemblyOption(
+    assembly = ToolAttachmentAssemblyOption(
         assembly_ref="3M:1500009:assembly",
         components=[
             CandidateComponentOption(
@@ -225,6 +230,11 @@ def _three_m_attachment() -> ToolAttachmentAssemblyOption:
         provided_interfaces=interfaces,
         installation_method=method,
     )
+    instructions = resolve_required_tether_manufacturer_instructions(
+        claims,
+        source_product_ref="3M:1500009",
+    )
+    return assembly, instructions
 
 
 def _gripps_tether() -> TetherOption:
@@ -377,9 +387,23 @@ def test_real_catalogue_worker_path_retains_cinch_method_after_explicit_tool_con
 
 
 def test_3m_d_ring_cord_reuses_existing_worker_vertical_without_core_special_cases() -> None:
+    attachment, instructions = _three_m_attachment()
+    catalogue = _catalogue(tool_attachment=attachment)
+    tether = catalogue.tethers[0]
+    connection_contexts = connection_contexts_from_required_tether_manufacturer_instructions(
+        tether_ref=tether.tether_ref,
+        tether_manufacturer="GRIPPS",
+        endpoints=tether.endpoints,
+        target_owner_ref=attachment.assembly_ref,
+        target_product_ref="3M:1500009",
+        target_interfaces=attachment.provided_interfaces,
+        instructions=instructions,
+    )
+
     result = run_field_recommendation(
         FieldToolObservation(confirmed_tool_ref="Milwaukee:48-22-7215"),
-        _catalogue(tool_attachment=_three_m_attachment()),
+        catalogue,
+        connection_contexts=connection_contexts,
     )
 
     assert result.state == FieldRecommendationState.SELECTED
@@ -408,14 +432,23 @@ def test_3m_d_ring_cord_reuses_existing_worker_vertical_without_core_special_cas
         for check in summary.pending_verification_checks
     )
 
-    # 3M's family-level prescription is not converted into a technical mixed-brand
-    # exclusion. The ordinary generator evaluates the route on neutral topology and
-    # capacity facts, leaving unproven connector engagement as field verification.
+    # The 3M instruction stays on the manufacturer-position axis. It does not turn the
+    # mixed-brand route into technical incompatibility, while policy remains free to use
+    # the retained assessment if the site requires manufacturer-approved combinations.
     selected = result.recommendation_run.selection.selected
     assert selected is not None
+    generated = selected.generated_candidate
+    tool_connection = generated.configuration.tool_side_connection
+    assert len(tool_connection.manufacturer_assessments) == 1
+    assessment = tool_connection.manufacturer_assessments[0]
+    assert assessment.issuer_manufacturer == "3M"
+    assert assessment.position == ManufacturerPosition.CONTRARY_TO_MANUFACTURER_INSTRUCTION
+    assert assessment.claim_or_evidence_ref == THREE_M_D_RING_CORD_MANUAL_URL
+    assert assessment.technical_causal_scope_established is False
+
     assert {
         component.component_id
-        for component in selected.generated_candidate.configuration.load_bearing_components
+        for component in generated.configuration.load_bearing_components
     } == {
         "3M:1500009:component",
         "GRIPPS:H01079:component",
