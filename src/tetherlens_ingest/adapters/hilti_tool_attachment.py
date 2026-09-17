@@ -256,8 +256,8 @@ class HiltiAdapter(_BaseHiltiAdapter):
                     "connection_compatibility.scope",
                     f"{model}: Hilti tool tether #{tether_match.group(1)} carabiner to retaining strap #{strap_match.group(1)}",
                 ),
-                # Retain the explicit product scope even though the current generic
-                # declaration resolver does not yet execute on these two audit fields.
+                # These identifiers constrain where the manufacturer declaration may be
+                # applied; they do not themselves define a generic compatibility rule.
                 (
                     "connection_compatibility.source_product_identifier",
                     tether_match.group(1),
