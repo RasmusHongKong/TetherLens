@@ -32,6 +32,10 @@ _TOOL_MODEL_TOKEN_RE = re.compile(
 )
 _FALL_ARREST_RE = re.compile(r"(?:fall arrest|drop arrester)", re.I)
 _MODEL_HEADING_SEPARATOR_RE = re.compile(r"[\s,;/()0-9.:\-]*\Z")
+_MODEL_HEADING_SUFFIX_RE = re.compile(
+    r"[\s,;/()0-9.:\-]*(?:(?:original operating instructions[\s,;/()0-9.:\-]*)?as\s*)?\Z",
+    re.I,
+)
 
 
 class HiltiAdapter(_BaseHiltiAdapter):
@@ -363,23 +367,27 @@ def _model_local_drop_arrest_window(text: str, model: str) -> str | None:
     """Return only a fall-arrest section locally headed by the requested Tool model.
 
     Hilti operating-instruction PDFs can cover multiple Tool models. A document-level
-    model hit is therefore insufficient for executable installation evidence. The nearest
-    model-token cluster immediately preceding a fall-arrest heading must contain the
-    requested model, and extraction is bounded before the next fall-arrest heading so
-    evidence cannot spill into another model section.
+    model hit is therefore insufficient for executable installation evidence. A usable
+    section anchor must retain an immediately preceding model-token heading (optionally
+    through Hilti's ``Original operating instructions ... As drop arrester`` layout), and
+    extraction is bounded before the next *model-scoped* fall-arrest anchor so an in-section
+    ``As drop arrester`` phrase cannot truncate its own evidence.
     """
 
-    anchors = list(_FALL_ARREST_RE.finditer(text))
-    if not anchors:
+    scoped_anchors: list[tuple[re.Match[str], str]] = []
+    for anchor in _FALL_ARREST_RE.finditer(text):
+        heading = _nearest_model_heading(text, anchor.start())
+        if heading is not None:
+            scoped_anchors.append((anchor, heading))
+    if not scoped_anchors:
         return None
 
-    for index, anchor in enumerate(anchors):
-        heading = _nearest_model_heading(text, anchor.start())
-        if heading is None or not _contains_model(heading, model):
+    for index, (anchor, heading) in enumerate(scoped_anchors):
+        if not _contains_model(heading, model):
             continue
         section_end = (
-            anchors[index + 1].start()
-            if index + 1 < len(anchors)
+            scoped_anchors[index + 1][0].start()
+            if index + 1 < len(scoped_anchors)
             else len(text)
         )
         return text[anchor.start():min(section_end, anchor.start() + 2200)]
@@ -393,10 +401,10 @@ def _nearest_model_heading(text: str, anchor_start: int) -> str | None:
         return None
 
     last = mentions[-1]
-    # The final model token must itself belong to the immediate heading. If arbitrary
-    # prose occurs between it and "Fall arrest", a model mentioned elsewhere nearby is
-    # not enough to establish section ownership.
-    if not _MODEL_HEADING_SEPARATOR_RE.fullmatch(prefix[last.end():]):
+    # The final model token must belong to the immediate section heading. Hilti PDFs may
+    # place "Original operating instructions" and/or the grammatical "As" between that
+    # heading and the "drop arrester" phrase, but arbitrary intervening prose is rejected.
+    if not _MODEL_HEADING_SUFFIX_RE.fullmatch(prefix[last.end():]):
         return None
 
     cluster_start = last.start()
