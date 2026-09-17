@@ -1,6 +1,6 @@
 # TetherLens Project Status
 
-_Last updated: 2026-09-16_
+_Last updated: 2026-09-17_
 
 This is the operational handoff for the current TetherLens knowledge/recommendation stack and the immediate MVP work sequence. Durable design detail lives in the dedicated documents; this file stays focused on the current semantic baseline, invariants that must not regress, and the next highest-value work.
 
@@ -300,6 +300,8 @@ Configuration refs are required and must already come from normalized catalogue 
 
 It binds accepted `operational_mass_kg` claims only to the exact supplied descriptor ref. An operational-mass claim without a descriptor fails closed; conflicting accepted masses for one profile do not receive invented precedence.
 
+`operational_mass_kg` is a canonical normalized property at this boundary. If a unit is explicitly present, it must be `kg`; a non-canonical unit such as `lb` is rejected rather than converted or reinterpreted as kilograms. Raw-unit conversion remains an upstream ingestion/normalization responsibility.
+
 Known configurations whose operational mass is still missing remain present as profiles with unknown mass. This is important: dropping an incomplete configuration could make another profile look like the Tool's only option and trigger incorrect automatic selection. If the worker selects the incomplete profile, the existing `operational_mass_not_established` readiness boundary stops the run before candidate generation.
 
 The first real proof uses Hilti SF 4-22 `2253847` with the already-ingested B 22-55 and B 22-85 operational masses. Text search remains advisory, the Tool still requires explicit confirmation, and confirmation then exposes both real Battery configurations through the existing `operational_profile_selection` requirement. Selecting B 22-85 retains its exact `2.072917 kg` configured mass and configuration-product identity.
@@ -381,6 +383,7 @@ V6 B cases are useful throughput candidates, but they should not drive new recom
 - Preserve operational profile/configuration identity independently of the normalized Tool used by the recommendation core.
 - Do not reconstruct configuration identity from compound profile refs, mass coincidences or source URLs.
 - Preserve known incomplete configuration alternatives so missing evidence cannot manufacture a one-profile auto-selection case.
+- Treat canonical normalized properties as canonical at resolver boundaries; do not reinterpret or silently convert a mismatched explicit unit into the runtime field's expected unit.
 - Preserve ToolAttachment installation-method provenance independently of eligibility and candidate identity.
 - Recognition/search candidates are advisory only; no search/recognition producer may silently populate authoritative Tool confirmation.
 - Do not reconstruct safety-relevant facts or installation actions from human-readable reason text.
