@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from .candidate_generation import (
     AnchorPathOption,
+    CandidateComponentRole,
     CandidatePolicyContext,
     ConnectionEvaluationContext,
     GeneratedCandidate,
@@ -21,31 +22,62 @@ from .candidate_selection import (
     CandidateSelectionResult,
     rank_and_select_candidates,
 )
-from .compatibility import ToolInterfaceFeature
+from .compatibility import (
+    AttachmentEligibility,
+    EligibilityPath,
+    FeaturePredicate,
+    ToolInterfaceFeature,
+)
 from .connection import ConnectionInterface
-from .recommendation import CandidateEvaluation, evaluate_candidate_configuration
+from .recommendation import (
+    CandidateEvaluation,
+    PolicyApplicability,
+    evaluate_candidate_configuration,
+)
+from .tool_attachment_installation import (
+    EvidenceBoundToolAttachmentAssemblyOption,
+    ToolAttachmentInstallationBinding,
+)
 
 
 class CandidateToolBinding(BaseModel):
     """Generation-time Tool-side facts independently bound to one candidate.
 
     A direct candidate retains the exact normalized Tool interface it targeted. A
-    ToolAttachment candidate instead retains the exact Tool feature whose facts made the
-    selected eligibility binding possible. These snapshots are deliberately independent
-    of ``RecommendationRunResult.tool`` so reconstruction cannot replace the retained Tool
-    and make an old generated path appear valid merely by recomputing a run-level digest.
+    ToolAttachment candidate retains the exact Tool feature selected during generation.
+    When that path exists because of product-scoped manufacturer installation evidence,
+    the accepted ``ToolAttachmentInstallationBinding`` is retained separately from the
+    feature snapshot rather than being rewritten as a reusable geometry rule.
     """
 
     candidate_id: str = Field(min_length=1)
     direct_interface: ConnectionInterface | None = None
     installation_feature: ToolInterfaceFeature | None = None
+    attachment_installation_binding: ToolAttachmentInstallationBinding | None = None
 
     @model_validator(mode="after")
-    def validate_one_binding_kind(self) -> CandidateToolBinding:
-        if (self.direct_interface is None) == (self.installation_feature is None):
+    def validate_binding_shape(self) -> CandidateToolBinding:
+        if self.direct_interface is not None:
+            if (
+                self.installation_feature is not None
+                or self.attachment_installation_binding is not None
+            ):
+                raise ValueError(
+                    "direct candidate Tool bindings must not retain ToolAttachment installation data"
+                )
+            return self
+
+        if self.installation_feature is None:
             raise ValueError(
-                "candidate Tool binding must retain exactly one direct interface or "
-                "ToolAttachment installation feature"
+                "candidate Tool binding must retain a direct interface or ToolAttachment feature"
+            )
+        evidence_binding = self.attachment_installation_binding
+        if (
+            evidence_binding is not None
+            and evidence_binding.installation_feature_id != self.installation_feature.feature_id
+        ):
+            raise ValueError(
+                "evidence-bound ToolAttachment provenance must match the retained installation feature"
             )
         return self
 
@@ -169,24 +201,49 @@ class RecommendationRunResult(BaseModel):
                             "recommendation run generation-time direct interface binding must match "
                             f"the exact retained run Tool; candidate {candidate_id!r}"
                         )
-                else:
-                    feature_id = selection.installation_feature_id
-                    retained_feature = features_by_id.get(feature_id)
-                    if retained_feature is None:
+                    if binding.attachment_installation_binding is not None:
                         raise ValueError(
-                            "recommendation run ToolAttachment candidate installation feature must "
-                            "belong to the exact retained run Tool; "
-                            f"candidate {candidate_id!r} binds {feature_id!r}"
+                            "direct candidate must not retain ToolAttachment installation evidence"
                         )
-                    if binding.installation_feature is None:
+                    continue
+
+                feature_id = selection.installation_feature_id
+                retained_feature = features_by_id.get(feature_id)
+                if retained_feature is None:
+                    raise ValueError(
+                        "recommendation run ToolAttachment candidate installation feature must "
+                        "belong to the exact retained run Tool; "
+                        f"candidate {candidate_id!r} binds {feature_id!r}"
+                    )
+                if binding.installation_feature is None:
+                    raise ValueError(
+                        "recommendation run ToolAttachment candidate must retain its "
+                        f"generation-time installation feature binding; candidate {candidate_id!r}"
+                    )
+                if binding.installation_feature != retained_feature:
+                    raise ValueError(
+                        "recommendation run generation-time ToolAttachment feature binding must "
+                        f"match the exact retained run Tool; candidate {candidate_id!r}"
+                    )
+
+                evidence_binding = binding.attachment_installation_binding
+                if evidence_binding is not None:
+                    if evidence_binding.tool_ref != self.tool.tool_ref:
                         raise ValueError(
-                            "recommendation run ToolAttachment candidate must retain its "
-                            f"generation-time installation feature binding; candidate {candidate_id!r}"
+                            "ToolAttachment installation evidence must retain the exact run Tool identity"
                         )
-                    if binding.installation_feature != retained_feature:
+                    if evidence_binding.installation_feature_id != feature_id:
                         raise ValueError(
-                            "recommendation run generation-time ToolAttachment feature binding must "
-                            f"match the exact retained run Tool; candidate {candidate_id!r}"
+                            "ToolAttachment installation evidence must retain the selected feature identity"
+                        )
+                    attachment_products = {
+                        component.source_product_ref
+                        for component in selection.components
+                        if component.role == CandidateComponentRole.TOOL_ATTACHMENT
+                    }
+                    if evidence_binding.source_product_ref not in attachment_products:
+                        raise ValueError(
+                            "ToolAttachment installation evidence must belong to a selected attachment product"
                         )
 
         selected_candidates = [
@@ -267,13 +324,16 @@ def resolved_tool_fingerprint(tool: ResolvedToolCandidate) -> str:
 def _generation_tool_bindings(
     tool: ResolvedToolCandidate,
     generated_candidates: list[GeneratedCandidate],
+    *,
+    evidence_bindings_by_candidate: dict[str, ToolAttachmentInstallationBinding] | None = None,
 ) -> list[CandidateToolBinding]:
-    """Snapshot the exact Tool-side object each generated candidate bound to."""
+    """Snapshot exact Tool-side objects and any evidence-bound installation provenance."""
 
     direct_interfaces_by_id = {
         interface.interface_id: interface for interface in tool.direct_interfaces
     }
     features_by_id = {feature.feature_id: feature for feature in tool.features}
+    evidence_bindings = evidence_bindings_by_candidate or {}
     bindings: list[CandidateToolBinding] = []
 
     for candidate in generated_candidates:
@@ -301,13 +361,25 @@ def _generation_tool_bindings(
                 "generated ToolAttachment candidate feature is absent from its generation Tool; "
                 f"candidate {candidate_id!r} binds {feature_id!r}"
             )
+        evidence_binding = evidence_bindings.get(candidate_id)
         bindings.append(
             CandidateToolBinding(
                 candidate_id=candidate_id,
                 installation_feature=feature.model_copy(deep=True),
+                attachment_installation_binding=(
+                    evidence_binding.model_copy(deep=True)
+                    if evidence_binding is not None
+                    else None
+                ),
             )
         )
 
+    unexpected = sorted(set(evidence_bindings) - {binding.candidate_id for binding in bindings})
+    if unexpected:
+        raise ValueError(
+            "ToolAttachment installation evidence refers to candidates outside the generated set: "
+            f"{unexpected!r}"
+        )
     return bindings
 
 
@@ -317,6 +389,10 @@ def run_recommendation(
     anchor_paths: list[AnchorPathOption],
     *,
     tool_attachment_assemblies: list[ToolAttachmentAssemblyOption] | None = None,
+    evidence_bound_tool_attachment_assemblies: list[
+        EvidenceBoundToolAttachmentAssemblyOption
+    ]
+    | None = None,
     product_runtime_state: list[ProductConstraintRuntimeState] | None = None,
     connection_contexts: list[ConnectionEvaluationContext] | None = None,
     policy_contexts: list[CandidatePolicyContext] | None = None,
@@ -324,26 +400,46 @@ def run_recommendation(
 ) -> RecommendationRunResult:
     """Run complete generation -> evaluation -> deterministic contextual selection.
 
-    This boundary owns the generator invocation and evaluates exactly the complete list
-    returned by it before selection. The existing generator, evaluator and selector remain
-    the sole authorities for candidate construction, hard viability and contextual
-    selection/global exhaustion respectively. Ranking context may reorder hard-viable
-    candidates and may exclude a candidate only when an explicit contextual feasibility
-    rule establishes that the candidate cannot satisfy the stated task requirement.
+    Reusable technical ToolAttachment eligibility is passed to the existing generator
+    unchanged. When accepted first-party evidence establishes an exact Tool/product/
+    feature installation without enough geometry for a reusable rule, this boundary
+    invokes the same generator on a one-feature Tool projection and retains the original
+    evidence binding separately in ``CandidateToolBinding``. That execution projection
+    is local to this run; it is never persisted or reused as technical compatibility.
 
-    Exceptions from any stage deliberately propagate. An orchestration/invariant failure
-    is not equivalent to a successful run whose complete candidate set is exhausted.
+    When no evidence-bound assemblies are supplied, generation is exactly the historical
+    single generator invocation. Exceptions from any stage deliberately propagate: an
+    orchestration/invariant failure is not equivalent to successful global exhaustion.
     """
 
-    generated_candidates = generate_candidate_configurations(
-        tool,
-        tethers,
-        anchor_paths,
-        tool_attachment_assemblies=tool_attachment_assemblies,
-        product_runtime_state=product_runtime_state,
-        connection_contexts=connection_contexts,
-        policy_contexts=policy_contexts,
-    )
+    evidence_assemblies = list(evidence_bound_tool_attachment_assemblies or [])
+    if not evidence_assemblies:
+        generated_candidates = generate_candidate_configurations(
+            tool,
+            tethers,
+            anchor_paths,
+            tool_attachment_assemblies=tool_attachment_assemblies,
+            product_runtime_state=product_runtime_state,
+            connection_contexts=connection_contexts,
+            policy_contexts=policy_contexts,
+        )
+        evidence_bindings_by_candidate: dict[
+            str, ToolAttachmentInstallationBinding
+        ] = {}
+    else:
+        generated_candidates, evidence_bindings_by_candidate = (
+            _generate_with_evidence_bound_installations(
+                tool,
+                tethers,
+                anchor_paths,
+                tool_attachment_assemblies=tool_attachment_assemblies,
+                evidence_bound_tool_attachment_assemblies=evidence_assemblies,
+                product_runtime_state=product_runtime_state,
+                connection_contexts=connection_contexts,
+                policy_contexts=policy_contexts,
+            )
+        )
+
     evaluations = [
         evaluate_candidate_configuration(candidate.configuration)
         for candidate in generated_candidates
@@ -358,9 +454,244 @@ def run_recommendation(
     return RecommendationRunResult(
         tool=retained_tool,
         tool_fingerprint=resolved_tool_fingerprint(retained_tool),
-        generation_tool_bindings=_generation_tool_bindings(tool, generated_candidates),
+        generation_tool_bindings=_generation_tool_bindings(
+            tool,
+            generated_candidates,
+            evidence_bindings_by_candidate=evidence_bindings_by_candidate,
+        ),
         generated_candidates=generated_candidates,
         evaluations=evaluations,
         ranking_context=ranking_context,
         selection=selection,
     )
+
+
+def _generate_with_evidence_bound_installations(
+    tool: ResolvedToolCandidate,
+    tethers: list[TetherOption],
+    anchor_paths: list[AnchorPathOption],
+    *,
+    tool_attachment_assemblies: list[ToolAttachmentAssemblyOption] | None,
+    evidence_bound_tool_attachment_assemblies: list[
+        EvidenceBoundToolAttachmentAssemblyOption
+    ],
+    product_runtime_state: list[ProductConstraintRuntimeState] | None,
+    connection_contexts: list[ConnectionEvaluationContext] | None,
+    policy_contexts: list[CandidatePolicyContext] | None,
+) -> tuple[list[GeneratedCandidate], dict[str, ToolAttachmentInstallationBinding]]:
+    generic_assemblies = list(tool_attachment_assemblies or [])
+    generic_refs = {assembly.assembly_ref for assembly in generic_assemblies}
+    evidence_ref_list = [
+        assembly.assembly_ref for assembly in evidence_bound_tool_attachment_assemblies
+    ]
+    evidence_refs = set(evidence_ref_list)
+    if len(evidence_refs) != len(evidence_ref_list):
+        duplicates = sorted(
+            ref for ref in evidence_refs if evidence_ref_list.count(ref) > 1
+        )
+        raise ValueError(
+            "evidence-bound ToolAttachment assembly refs must be unique: "
+            f"{duplicates!r}"
+        )
+    overlap = sorted(generic_refs & evidence_refs)
+    if overlap:
+        raise ValueError(
+            "ToolAttachment assembly refs must be unique across technical and evidence-bound routes: "
+            f"{overlap!r}"
+        )
+
+    generic_policy_contexts = _generic_policy_contexts(
+        generic_refs,
+        policy_contexts,
+    )
+    generated = generate_candidate_configurations(
+        tool,
+        tethers,
+        anchor_paths,
+        tool_attachment_assemblies=generic_assemblies,
+        product_runtime_state=product_runtime_state,
+        connection_contexts=connection_contexts,
+        policy_contexts=generic_policy_contexts,
+    )
+    candidate_ids = {candidate.configuration.candidate_id for candidate in generated}
+    evidence_by_candidate: dict[str, ToolAttachmentInstallationBinding] = {}
+    features_by_id = {feature.feature_id: feature for feature in tool.features}
+
+    for assembly in sorted(
+        evidence_bound_tool_attachment_assemblies,
+        key=lambda item: item.assembly_ref,
+    ):
+        for binding in sorted(
+            assembly.installation_bindings,
+            key=lambda item: item.binding_id,
+        ):
+            if binding.tool_ref != tool.tool_ref:
+                continue
+            feature = features_by_id.get(binding.installation_feature_id)
+            if feature is None:
+                # Accepted evidence cannot become executable until the feature itself is
+                # normalized on the selected Tool. Do not fabricate the missing feature.
+                continue
+
+            projected_assembly = ToolAttachmentAssemblyOption(
+                assembly_ref=assembly.assembly_ref,
+                components=[component.model_copy(deep=True) for component in assembly.components],
+                eligibility=AttachmentEligibility(
+                    paths=[
+                        EligibilityPath(
+                            binding_name="manufacturer_declared_installation",
+                            requirements=[
+                                FeaturePredicate(
+                                    property_key="feature_kind",
+                                    value=feature.feature_kind.value,
+                                )
+                            ],
+                        )
+                    ]
+                ),
+                provided_interfaces=[
+                    interface.model_copy(deep=True)
+                    for interface in assembly.provided_interfaces
+                ],
+                installation_method=(
+                    assembly.installation_method.model_copy(deep=True)
+                    if assembly.installation_method is not None
+                    else None
+                ),
+            )
+            projected_tool = tool.model_copy(
+                deep=True,
+                update={
+                    "features": [feature.model_copy(deep=True)],
+                    "direct_interfaces": [],
+                },
+            )
+            binding_policy_contexts = _binding_policy_contexts(
+                assembly.assembly_ref,
+                binding.installation_feature_id,
+                policy_contexts,
+            )
+            bound_candidates = generate_candidate_configurations(
+                projected_tool,
+                tethers,
+                anchor_paths,
+                tool_attachment_assemblies=[projected_assembly],
+                product_runtime_state=product_runtime_state,
+                connection_contexts=connection_contexts,
+                policy_contexts=binding_policy_contexts,
+            )
+
+            for candidate in bound_candidates:
+                candidate_id = candidate.configuration.candidate_id
+                if candidate_id in candidate_ids:
+                    continue
+                generated.append(candidate)
+                candidate_ids.add(candidate_id)
+                evidence_by_candidate[candidate_id] = binding
+
+    if policy_contexts is not None:
+        _validate_policy_context_coverage(policy_contexts, generated)
+    else:
+        _validate_combined_legacy_anchor_policy(generated, anchor_paths)
+
+    return generated, evidence_by_candidate
+
+
+def _generic_policy_contexts(
+    generic_assembly_refs: set[str],
+    policy_contexts: list[CandidatePolicyContext] | None,
+) -> list[CandidatePolicyContext] | None:
+    if policy_contexts is None:
+        return None
+    return [
+        context
+        for context in policy_contexts
+        if context.attachment_assembly_ref is None
+        or context.attachment_assembly_ref in generic_assembly_refs
+    ]
+
+
+def _binding_policy_contexts(
+    assembly_ref: str,
+    feature_id: str,
+    policy_contexts: list[CandidatePolicyContext] | None,
+) -> list[CandidatePolicyContext] | None:
+    if policy_contexts is None:
+        return None
+    return [
+        context
+        for context in policy_contexts
+        if context.attachment_assembly_ref == assembly_ref
+        and context.installation_feature_id == feature_id
+    ]
+
+
+def _policy_context_key(context: CandidatePolicyContext) -> tuple[str | None, ...]:
+    return (
+        context.tool_ref,
+        context.tether_ref,
+        context.anchor_path_ref,
+        context.attachment_assembly_ref,
+        context.installation_feature_id,
+        context.primary_anchor_ref,
+        context.anchor_installation_feature_id,
+        context.anchor_installation_rule_id,
+        context.tool_endpoint_id,
+        context.tool_target_interface_id,
+        context.anchor_endpoint_id,
+        context.anchor_target_interface_id,
+    )
+
+
+def _selection_policy_key(candidate: GeneratedCandidate) -> tuple[str | None, ...]:
+    selection = candidate.selection
+    anchor_binding = selection.anchor_installation_binding
+    return (
+        selection.tool_ref,
+        selection.tether_ref,
+        selection.anchor_path_ref,
+        selection.attachment_assembly_ref,
+        selection.installation_feature_id,
+        anchor_binding.primary_anchor_ref if anchor_binding is not None else None,
+        anchor_binding.installation_feature_id if anchor_binding is not None else None,
+        anchor_binding.rule_id if anchor_binding is not None else None,
+        selection.tool_endpoint_id,
+        selection.tool_target_interface_id,
+        selection.anchor_endpoint_id,
+        selection.anchor_target_interface_id,
+    )
+
+
+def _validate_policy_context_coverage(
+    policy_contexts: list[CandidatePolicyContext],
+    generated_candidates: list[GeneratedCandidate],
+) -> None:
+    expected = {_policy_context_key(context) for context in policy_contexts}
+    actual = {_selection_policy_key(candidate) for candidate in generated_candidates}
+    unused = expected - actual
+    if unused:
+        raise ValueError(
+            "candidate policy contexts must match generated candidates; unused contexts: "
+            f"{sorted(repr(key) for key in unused)!r}"
+        )
+
+
+def _validate_combined_legacy_anchor_policy(
+    generated_candidates: list[GeneratedCandidate],
+    anchor_paths: list[AnchorPathOption],
+) -> None:
+    applicable_anchor_refs = {
+        anchor.anchor_path_ref
+        for anchor in anchor_paths
+        if anchor.policy_applicability == PolicyApplicability.APPLICABLE
+    }
+    for anchor_ref in applicable_anchor_refs:
+        count = sum(
+            candidate.selection.anchor_path_ref == anchor_ref
+            for candidate in generated_candidates
+        )
+        if count > 1:
+            raise ValueError(
+                "anchor-scoped applicable policy cannot be broadcast across multiple generated "
+                "candidates; supply CandidatePolicyContext values for the complete candidate selections"
+            )

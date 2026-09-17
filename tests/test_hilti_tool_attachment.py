@@ -1,5 +1,7 @@
 from tetherlens_ingest.adapters.hilti_tool_attachment import HiltiAdapter
+from tetherlens_ingest.connection import ConnectionInterfaceRole
 from tetherlens_ingest.models import ProductIdentity, ProductType, SourceArtifact, SourceType
+from tetherlens_ingest.resolution import resolve_connection_interfaces
 
 
 def _identity(sku="2293133"):
@@ -36,6 +38,33 @@ def test_hilti_retaining_strap_extracts_metric_capacity_from_exact_product_optio
     assert by_key["rated_capacity_kg"].evidence_method == "manufacturer_stated"
 
 
+def test_hilti_retaining_strap_normalizes_only_functional_tether_attachment_point():
+    claims = HiltiAdapter().extract(_identity(), [_artifact("""
+        <h1>Retaining strap 15lb cordl.</h1>
+        <div>#2293133</div>
+        <p>Accessory for connecting compatible power tools to a Hilti tool lanyard</p>
+    """)])
+
+    interfaces = resolve_connection_interfaces(claims)
+    assert len(interfaces) == 1
+    interface = interfaces[0]
+    assert interface.interface_id == "tether_attachment_point"
+    assert interface.role == ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE
+    assert interface.interface_type == "attachment_point"
+    assert interface.dimensions_mm == {}
+    assert interface.attributes == {}
+
+    assert not any(
+        claim.property_key in {
+            "feature.kind",
+            "feature.captive_state",
+            "interface.dimension.opening_width",
+            "interface.attribute.manufacturer_item_code",
+        }
+        for claim in claims
+    )
+
+
 def test_hilti_retaining_strap_capacity_requires_expected_sku_on_resolved_page():
     claims = HiltiAdapter().extract(_identity("9999999"), [_artifact("""
         <h1>Retaining strap 15lb cordl.</h1>
@@ -44,3 +73,4 @@ def test_hilti_retaining_strap_capacity_requires_expected_sku_on_resolved_page()
     """)])
 
     assert not any(claim.property_key == "rated_capacity_kg" for claim in claims)
+    assert not resolve_connection_interfaces(claims)

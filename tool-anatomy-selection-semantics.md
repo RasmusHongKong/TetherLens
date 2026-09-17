@@ -2,17 +2,17 @@
 
 ## Status
 
-Normative design proposal for the next Tool / ToolAttachment recommendation-model increment.
+Normative design guidance for Tool / ToolAttachment recommendation semantics.
 
-This document records the semantics validated against the current tool sample and representative ToolAttachments before changing the Python claim model, persistence schema, adapters, or recommendation implementation.
+This document records the semantics validated against the current tool sample and representative ToolAttachments. Where it conflicts with older exploratory wording or the v0.1 `interface_type_code` examples in `technical-schema.md`, this document describes the intended migration direction.
 
-Where this document conflicts with older exploratory wording in `tool-attachment-compatibility.md` or the current v0.1 `interface_type_code` examples in `technical-schema.md`, this document describes the intended migration direction. The migration should be implemented and tested explicitly rather than inferred from documentation alone.
+`compatibility-evidence-and-inference.md` governs the complementary case where accepted manufacturer evidence establishes a known installation relationship but does not establish enough physical geometry to compile a reusable eligibility rule. In that case TetherLens must preserve the known relationship without inventing a more specific feature kind, captive state or dimensions.
 
 ## Design objective
 
 TetherLens should minimize product-specific compatibility rules.
 
-The preferred reasoning path is:
+The preferred reasoning path, where the evidence supports it, is:
 
 ```text
 resolved tool facts
@@ -24,11 +24,11 @@ resolved tool facts
   -> technical suitability
 ```
 
-Manufacturer endorsement, manufacturer instructions, evidence confidence, and site policy remain first-class, but they should not be substituted for physical compatibility reasoning unless the source establishes an actual technical requirement or prohibition.
+Manufacturer endorsement, manufacturer instructions, evidence confidence, and site policy remain first-class. When lower-level physical facts are incomplete, a narrowly scoped manufacturer-documented installation may establish one known-valid route without becoming a generic technical rule or an exclusion of other independently supported routes.
 
 The governing principle is:
 
-> **Store low-level physical and declared facts once; derive attachment suitability through a small reusable rule set.**
+> **Store the strongest low-level physical and declared facts the source actually establishes; derive reusable suitability where justified, and preserve narrower evidence-bound relationships where it is not.**
 
 ## 1. Separate category, anatomy, role, and behaviour
 
@@ -68,9 +68,9 @@ surface
 other
 ```
 
-These are deliberately geometry-led.
+These are deliberately geometry-led, but `other` is important when the source establishes a real installation location or role without enough evidence to classify its physical form more specifically.
 
-Do not use manufacturer application terms such as `captive_hole`, `closed_handle`, `grip`, `neck`, or `waist` as mutually exclusive geometry primitives when the same meaning can be expressed through a feature kind plus qualifiers.
+Do not use manufacturer application terms such as `captive_hole`, `closed_handle`, `grip`, `neck`, or `waist` as mutually exclusive geometry primitives when the same meaning can be expressed through a feature kind plus qualifiers. Equally, do not force a manufacturer term into a known geometry primitive when the source does not establish that geometry.
 
 ### Feature role / declared purpose
 
@@ -95,13 +95,15 @@ Klein screwdriver tether hole
   feature_role = tether_interface
   captive_state = captive
 
-Hilti accessory-installation opening
-  feature_kind = through_opening
+Hilti accessory-installation openings
+  feature_kind = other
   feature_role = accessory_mount
-  captive_state = captive
+  captive_state = unknown
 ```
 
-This prevents a generic through-opening from being silently promoted to a manufacturer-designed tether point.
+The Klein evidence establishes the physical form. The current Hilti evidence establishes the named accessory-installation location and its role, but not `through_opening`, captive state, exact dimensions, or ring/eye form.
+
+This distinction prevents a generic physical feature from being silently promoted to a manufacturer-designed tether point and prevents a manufacturer-named location from being silently promoted to geometry the source never stated.
 
 ### Feature qualifiers
 
@@ -115,6 +117,8 @@ non_captive
 unknown
 not_applicable
 ```
+
+`unknown` is a real evidence state, not an invitation to select the value that makes a candidate rule convenient.
 
 A later schema increment may add a structural-state qualifier where real rules require it, for example:
 
@@ -170,7 +174,7 @@ Every tool-feature dimension is scoped to one `ToolInterfaceFeature`. A dimensio
 
 Existing connector dimensions such as gate opening and internal connector geometry remain separate connector facts.
 
-Overall product dimensions must not be mistaken for attachment-interface dimensions.
+Overall product dimensions must not be mistaken for attachment-interface dimensions. A compatibility list or documented pairing must not be reverse-engineered into an invented feature dimension merely because a dimension would explain the relationship.
 
 ## 3. Native tether status and physical geometry are separate
 
@@ -180,7 +184,8 @@ A tool may have:
 
 - a documented native tether feature;
 - a physical feature that is not manufacturer-designated for tethering;
-- no observed native tether feature but usable retrofit geometry; or
+- no observed native tether feature but usable retrofit geometry;
+- a manufacturer-defined installation location whose exact geometry is not established; or
 - insufficient information.
 
 A manufacturer statement such as `Tether Capable: No` should be preserved as a manufacturer assessment from that issuing manufacturer. It must not automatically be translated into `prohibits_tethering = true` unless the source actually establishes a prohibition.
@@ -206,6 +211,8 @@ one or more ToolAttachment paths
 ```
 
 A direct path will often be simpler and may rank higher where connector fit, capacity, context, and policy are otherwise equal, but an attachment may still provide a useful interface transformation such as a larger ring or swivel.
+
+A documented manufacturer installation is one possible ToolAttachment path. It does not suppress other ToolAttachment paths that qualify through reusable technical eligibility or their own accepted installation evidence.
 
 ## 5. Attachment selection needs bounded OR semantics with feature binding
 
@@ -300,9 +307,25 @@ The implementation must never obtain multi-feature semantics accidentally by joi
 
 This feature-binding requirement is narrower than a general rule DSL. It is a subject-scoping safeguard needed to preserve the meaning of atomic anatomy facts.
 
-The current scalar `CandidateClaim` / `declared_constraint` representation cannot express either the OR relationship or the feature binding on its own. Persistence and executable rule changes should therefore preserve atomic source claims and add composition at the rule/eligibility layer.
+The scalar `CandidateClaim` / `declared_constraint` representation cannot express either the OR relationship or the feature binding on its own. Source claims should remain atomic while composition occurs at the rule/eligibility layer.
 
-## 6. ToolAttachment selection class is orthogonal to attachment method
+## 6. Evidence-bound installation is distinct from reusable eligibility
+
+When accepted first-party evidence establishes that one concrete ToolAttachment installs at one concrete resolved Tool feature, but does not establish enough geometry to compile a reusable eligibility rule, TetherLens may retain an exact `ToolAttachmentInstallationBinding`.
+
+This binding is positive evidence for one known route. It is not a claim that every Tool with the same feature role accepts the attachment, not a claim that the feature has missing geometry, and not a universal SKU-pair compatibility rule.
+
+The ordinary geometry-backed path and the evidence-bound path therefore coexist:
+
+```text
+reusable feature/dimension eligibility
+OR
+exact evidence-bound Tool/product/feature installation
+```
+
+At recommendation-run time the evidence-bound route may be projected through the ordinary generator using the already-resolved exact feature. The original installation binding remains retained separately as provenance; the execution projection must never be persisted or reused as generic technical compatibility.
+
+## 7. ToolAttachment selection class is orthogonal to attachment method
 
 `attachment_method_code` describes how the ToolAttachment is retained on the tool.
 
@@ -349,7 +372,7 @@ NLG Angle Grinder Bracket
 
 Do not make `direct` a ToolAttachment class. Direct connection is a separate attachment path with `tool_attachment_required = false`.
 
-## 7. Technical suitability is separate from manufacturer assessments
+## 8. Technical suitability is separate from manufacturer assessments
 
 Manufacturer statements must be preserved accurately, but brand should not become a compatibility rule by default.
 
@@ -375,6 +398,8 @@ Technical status is derived from reusable physical facts and rules, including as
 - installation requirements;
 - movement/clearance requirements; and
 - genuine technical prohibitions.
+
+An evidence-bound installation is not evidence that all generic technical predicates are known to pass. It establishes the documented installation path at the scope supported by the source. Other independent hard checks such as load capacity and downstream connection compatibility still run normally.
 
 ### Manufacturer assessments are issuer-scoped
 
@@ -412,15 +437,13 @@ explicitly_prohibited
 
 `no_statement` should normally be derived from the absence of an applicable assessment from the manufacturer being queried rather than stored as an evidence row.
 
-The exact persisted shape should be chosen during schema implementation after checking how it interacts with existing `declared_relationship_type`, `declared_constraint`, product identity, and evidence records.
-
 A mixed-brand candidate may legitimately have simultaneous assessments such as:
 
 ```text
 technical_status = compatible
 
 manufacturer_assessments:
-  - issuer = Hilti              # tool manufacturer
+  - issuer = Hilti
     scope = tool_to_attachment
     position = contrary_to_manufacturer_instruction
 
@@ -471,17 +494,7 @@ TetherLens should not encode a speculative motive such as vendor lock-in. It sho
 
 Site or organisation policy remains separate from both technical compatibility and manufacturer assessments.
 
-For example, a policy requiring tool-manufacturer endorsement may yield:
-
-```text
-technical_status = compatible
-manufacturer_assessments[tool_manufacturer] = contrary_to_manufacturer_instruction
-policy_status = prohibited
-```
-
-while another site may allow the same technically compatible mixed-brand candidate with a visible manufacturer qualification.
-
-## 8. Explicit category scope should be rare as a hard technical rule
+## 9. Explicit category scope should be rare as a hard technical rule
 
 A manufacturer category reference must not automatically become a hard whitelist.
 
@@ -499,41 +512,19 @@ A category should be a hard technical eligibility predicate only when:
 
 Otherwise category may contribute an issuer-scoped manufacturer assessment or ranking signal without excluding a geometry-compatible mixed-brand candidate.
 
-This distinction is especially important for manufacturer statements that specify their own ecosystem. TetherLens should surface the statement prominently without silently converting it into a claim that other brands are physically incompatible.
-
-## 9. Required companion components and attachment assemblies
+## 10. Required companion components and attachment assemblies
 
 A tool-side attachment solution may contain more than one physical product.
 
 For example, a web ToolAttachment may require a separate manufacturer-specified tape/wrap product to create the rated installed assembly.
 
-The recommendation model should therefore move conceptually from:
+The recommendation model therefore supports runtime ToolAttachment assemblies rather than assuming exactly one ToolAttachment product.
 
-```text
-tool_attachment: optional single product
-```
-
-toward:
-
-```text
-tool_attachment_components[]
-```
-
-or an ephemeral:
-
-```text
-ToolAttachmentAssembly
-  components[]
-  provided_interface
-```
-
-A persisted assembly entity is not required yet. Existing manufacturer-backed product relationships may be sufficient to express required pairings while candidate generation composes the assembly at runtime.
+For evidence-bound multi-product assemblies, each provided interface must be owned by an exact selected component product. Product-scoped manufacturer connection evidence is matched against the owner of the specific target interface, not merely against assembly-wide product membership. Single-product ownership may be inferred; multi-product ownership must be explicit and complete.
 
 A required companion product should only be substituted cross-brand when TetherLens has sufficient evidence that the resulting installed assembly still satisfies the applicable retention, capacity, geometry, and installation requirements. Mere apparent physical fit is not enough.
 
-Manufacturer assessments of the original and substituted assemblies remain issuer-scoped rather than being collapsed into one status.
-
-## 10. Evidence source for tool facts
+## 11. Evidence source for tool facts
 
 The source appropriate for a fact depends on the fact.
 
@@ -576,30 +567,29 @@ Runtime confirmation should identify the feature being confirmed where the answe
 
 Computer vision should resolve physical facts; it should not directly decide that a particular SKU is suitable.
 
-## 11. Candidate reasoning order
+## 12. Candidate reasoning order
 
 The intended tool-side reasoning sequence is:
 
 ```text
 1. resolve tool/category/configuration
 2. resolve operational mass
-3. resolve distinct physical feature instances + dimensions + behaviour
+3. resolve distinct physical feature instances + known dimensions + behaviour
 4. generate direct interface path(s)
-5. generate ToolAttachment path(s) with explicit feature binding
-6. compose required companion components where applicable
-7. check load, interface, dimensional, installation, and movement constraints
-8. derive technical_status
-9. collect issuer-scoped manufacturer_assessments[]
-10. apply context/ranking
-11. apply policy, querying specific manufacturer assessments where relevant
-12. present recommendation + evidence/manufacturer qualifications
+5. generate reusable ToolAttachment eligibility path(s) with explicit feature binding
+6. add accepted evidence-bound ToolAttachment installation path(s) where needed
+7. compose required companion components where applicable
+8. check load, interface, dimensional, installation, and movement constraints that apply
+9. derive technical_status where reusable technical evidence permits it
+10. retain issuer-scoped manufacturer assessments / known installation evidence
+11. apply context/ranking
+12. apply policy
+13. present recommendation + evidence/manufacturer qualifications
 ```
 
-Manufacturer-specific pairings can still be generated as high-confidence candidates, but they should not prevent the engine from evaluating other candidates that independently satisfy technical rules unless an actual technical prohibition or policy rule applies.
+Manufacturer-specific documented routes can be high-confidence candidate paths, but they must not prevent the engine from evaluating other candidates that independently satisfy technical rules or their own accepted evidence unless an actual technical prohibition or policy rule applies.
 
-## 12. Current representative cases
-
-The design has been checked conceptually against the current tool sample plus representative ToolAttachments.
+## 13. Current representative cases
 
 ### NLG 360 D Ring Loop
 
@@ -619,16 +609,22 @@ This validates both bounded OR-path semantics and feature-instance binding.
 
 ### Hilti SF 4-22 + retaining strap 2293133
 
-The tool operating guidance gives a strong manufacturer-specified combination and identifies accessory-installation openings used by the retaining strap.
+The operating instructions identify `installation openings for accessories`, prescribe retaining strap `2293133`, and pair that installed strap with tether `2261970`.
 
-This validates:
+Current evidence validates:
 
-- `through_opening` geometry;
-- `feature_role = accessory_mount`;
-- issuer-scoped manufacturer assessment separate from geometry; and
-- manufacturer-specific candidate generation without universal brand exclusion.
+```text
+feature_kind = other
+feature_role = accessory_mount
+captive_state = unknown
+location_description = "installation openings for accessories"
+```
 
-A mixed-brand candidate may therefore be technically compatible while also carrying a Hilti assessment that it is contrary to Hilti's instruction and a different attachment-manufacturer assessment that the attachment supports the relevant geometry/tool scope.
+It does **not** validate `through_opening` geometry, captive state, dimensions, or ring/eye form.
+
+The documented Tool-to-strap relationship is therefore retained as an exact evidence-bound installation. The strap exposes only the functional tether-side `attachment_point` established by first-party evidence. The tether-to-strap manufacturer declaration is product-scoped and applies only to the interface owned by the documented strap product.
+
+This case validates that incomplete geometry does not require either abstention or fabricated physical facts: TetherLens can carry one known manufacturer-documented route into the ordinary recommendation pipeline while leaving other independently supported alternatives available.
 
 ### Klein 6826INS screwdriver
 
@@ -655,23 +651,30 @@ This validates:
 - feature-bound installation predicates; and
 - multi-component tool-side attachment assemblies.
 
-## 13. Implementation sequence
+## 14. Current implementation and next increments
 
-The next implementation should remain narrow.
+The reusable core now supports:
 
-1. Migrate the tool-feature vocabulary in the domain/schema model from mixed anatomy labels toward `feature_kind` + qualifiers/role while preserving source wording.
-2. Add the minimum claim/property vocabulary required to represent those facts on distinct feature subjects.
-3. Add bounded eligibility-path composition (`AND` inside a path, `OR` between paths) with explicit feature binding, without a general DSL.
-4. Separate technical compatibility results from issuer-scoped manufacturer assessments; do not introduce a global manufacturer-status scalar.
-5. Allow candidate configurations to contain multiple ToolAttachment components where a required pairing exists.
-6. Add representative tests before extending manufacturer extraction broadly.
-7. Keep existing atomic claims and provenance intact during the migration.
+- normalized `ToolInterfaceFeature` records with feature-local facts;
+- bounded eligibility paths and exact feature binding;
+- feature-bound dimensional predicates;
+- runtime multi-component ToolAttachment assemblies;
+- retained ToolAttachment installation-method provenance;
+- issuer-scoped connection/manufacturer evidence;
+- exact evidence-bound Tool/product/feature installation paths where reusable geometry is insufficient; and
+- interface-to-product ownership for product-scoped connection evidence in evidence-bound assemblies.
 
-No adapter should gain SKU-specific branching merely to satisfy the representative cases.
+The next increments should not manufacture a generic Hilti rule from the one documented pairing. Higher-value follow-up work is:
 
-## 14. Migration guardrails
+- attach explicit epistemic/provenance basis to reusable rules when a real inference workflow needs it;
+- test bounded cross-product pattern inference against additional catalogue evidence before promoting any hypothesis to a reusable rule;
+- add configuration-component/assembled-configuration feature ownership only when a real attachment case requires it; and
+- validate the evidence-bound pattern on another manufacturer/product family rather than broadening it through SKU-specific branches.
+
+## 15. Migration and implementation guardrails
 
 - Do not infer `tether_interface` role merely from a hole/ring being visible.
+- Do not infer `through_opening`, captive state or dimensions from a manufacturer-named installation location unless the source establishes those physical facts.
 - Do not infer technical incompatibility from different manufacturer names.
 - Do not infer manufacturer endorsement from geometry compatibility.
 - Do not convert category examples into closed whitelists without clear evidence.
@@ -681,5 +684,7 @@ No adapter should gain SKU-specific branching merely to satisfy the representati
 - Do not collapse manufacturer positions from different issuers into one scalar status.
 - Do not derive a default aggregate manufacturer status; aggregation requires explicit policy or presentation semantics.
 - Do not collapse a required multi-product attachment assembly into one unexplained product claim.
+- Do not apply product-scoped connection evidence to an interface owned by another selected assembly component.
+- Do not promote one documented product relationship into a generic eligibility rule without independent support for the rule predicates.
 - Do not add dimensions, feature kinds, or operational characteristics until a real rule consumes them.
-- Preserve raw manufacturer terminology, issuing party, scope, and evidence even when normalized semantics differ.
+- Preserve raw manufacturer terminology, issuing party, subject scope, model-local source context, product/interface ownership and evidence provenance even when normalized semantics differ.

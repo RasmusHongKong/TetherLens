@@ -1,6 +1,6 @@
 {
-  "version": "1.5",
-  "description": "Source-graph and generalized NLG constraint expectations layered onto the Batch 1 golden contract. Version 1.5 preserves the evidence-backed pre-use attachment test on NLG 101363 while retaining the v1.4 D-ring form contract; historical Batch 1 expectations remain unchanged.",
+  "version": "1.6",
+  "description": "Source-graph and generalized NLG constraint expectations layered onto the Batch 1 golden contract. Version 1.6 adds conservative Hilti retaining-strap capacity and functional tether-side interface expectations without inferring unpublished geometry; historical portability cohorts remain unchanged.",
   "products": {
     "NLG:101363": {
       "expected_claims": [
@@ -87,19 +87,26 @@
     "Hilti:2293133": {
       "expected_claims": [
         {"subject_type": "product", "subject_ref": "self", "property_key": "manufacturer_item_code", "value": "2293133"},
-        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 6.8}
+        {"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 6.8},
+        {"subject_type": "physical_interface", "subject_ref": "tether_attachment_point", "property_key": "interface.type", "value": "attachment_point"},
+        {"subject_type": "physical_interface", "subject_ref": "tether_attachment_point", "property_key": "interface.role", "value": "tool_attachment_tether_side"}
       ],
       "forbidden_claims": [
         {"property_key": "tether.connection_count"},
-        {"property_key": "connector.locking_mode"}
+        {"property_key": "connector.locking_mode"},
+        {"subject_type": "physical_interface", "subject_ref": "tether_attachment_point", "property_key": "feature.kind"},
+        {"subject_type": "physical_interface", "subject_ref": "tether_attachment_point", "property_key": "feature.captive_state"}
       ],
       "ignored_claims": [],
       "recommendation_data": {
         "baseline_requirements": [
-          {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 6.8}], "gap_if_missing": "public_fact_missing", "detail": "The current Hilti product option explicitly states the 6.8 kg retaining-strap capacity."}
+          {"name": "rated_capacity", "any_of": [{"subject_type": "product", "subject_ref": "self", "property_key": "rated_capacity_kg", "value": 6.8}], "gap_if_missing": "public_fact_missing", "detail": "The current Hilti product option explicitly states the 6.8 kg retaining-strap capacity."},
+          {"name": "provided_tether_interface_type", "any_of": [{"subject_type": "physical_interface", "subject_ref": "tether_attachment_point", "property_key": "interface.type", "value": "attachment_point"}], "gap_if_missing": "public_fact_missing"},
+          {"name": "provided_tether_interface_role", "any_of": [{"subject_type": "physical_interface", "subject_ref": "tether_attachment_point", "property_key": "interface.role", "value": "tool_attachment_tether_side"}], "gap_if_missing": "public_fact_missing"}
         ],
         "known_gaps": [
-          {"category": "document_revision", "field": "compatible_tool_coverage", "detail": "Current Hilti online operating instructions can explicitly pair tools with retaining strap 2293133, but the deterministic US Technical Library PDF path may surface a revision whose extractable evidence omits the exact drop-arrest component SKUs."}
+          {"category": "document_revision", "field": "tool_installation_paths", "detail": "Current Hilti online operating instructions can explicitly pair tools with retaining strap 2293133, but the deterministic US Technical Library PDF path may surface a revision whose extractable evidence omits the exact drop-arrest component SKUs."},
+          {"category": "internal_measurement", "field": "interface_geometry", "detail": "Exact retaining-strap attachment-point geometry is not published and must not be inferred from the functional product wording."}
         ]
       }
     },

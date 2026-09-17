@@ -23,6 +23,10 @@ from .candidate_selection import (
 )
 from .recommendation import CandidateCheck, CandidateEvaluation
 from .recommendation_run import RecommendationRunResult, run_recommendation
+from .tool_attachment_installation import (
+    EvidenceBoundToolAttachmentAssemblyOption,
+    ToolAttachmentInstallationBinding,
+)
 
 
 class FieldToolResolutionSource(StrEnum):
@@ -109,9 +113,10 @@ class FieldToolCatalogueEntry(BaseModel):
 class FieldRecommendationCatalogue(BaseModel):
     """Normalized catalogue slice available to one field recommendation workflow.
 
-    This model does not perform ingestion, evidence acceptance, or catalogue querying.
-    Callers supply the complete set of normalized tethering alternatives and anchor paths
-    that are actually available to this recommendation run.
+    Geometry-backed ToolAttachment assemblies remain in ``tool_attachment_assemblies``.
+    ``evidence_bound_tool_attachment_assemblies`` is separate because manufacturer-
+    documented installability without sufficient geometry must not be silently widened
+    into a reusable technical rule.
     """
 
     tools: list[FieldToolCatalogueEntry] = Field(default_factory=list)
@@ -120,6 +125,9 @@ class FieldRecommendationCatalogue(BaseModel):
     tool_attachment_assemblies: list[ToolAttachmentAssemblyOption] = Field(
         default_factory=list
     )
+    evidence_bound_tool_attachment_assemblies: list[
+        EvidenceBoundToolAttachmentAssemblyOption
+    ] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_tool_identity(self) -> FieldRecommendationCatalogue:
@@ -250,8 +258,9 @@ class FieldRecommendationSummary(BaseModel):
     """Field-facing structured projection of the exact selected candidate.
 
     Safety-relevant installation/connection facts remain on the exact retained path
-    selection and evaluation. Pending checks are copied as complete ``CandidateCheck``
-    objects; no outcome or instruction is reconstructed by parsing reason text.
+    selection and evaluation. An evidence-bound ToolAttachment installation is copied
+    from the selected candidate's generation-time Tool binding rather than reconstructed
+    from product ids or reason text.
     """
 
     operational_profile_ref: str = Field(min_length=1)
@@ -259,6 +268,7 @@ class FieldRecommendationSummary(BaseModel):
     operational_mass_kg: float
     configuration_product_refs: list[str] = Field(default_factory=list)
     path_selection: CandidatePathSelection
+    attachment_installation_binding: ToolAttachmentInstallationBinding | None = None
     evaluation: CandidateEvaluation
     context_evaluation: CandidateContextEvaluation | None = None
     pending_verification_checks: list[CandidateCheck] = Field(default_factory=list)
@@ -494,11 +504,10 @@ def run_field_recommendation(
 ) -> FieldRecommendationResult:
     """Drive one field workflow into the existing complete recommendation pipeline.
 
-    Tool/profile resolution is the only new decision layer here. Once it succeeds, the
-    function passes the normalized Tool and the catalogue's complete supplied alternatives
-    to ``run_recommendation`` unchanged. Generation, hard evaluation, contextual
-    feasibility/ranking and global exhaustion therefore remain owned by their existing
-    layers.
+    Once Tool/profile resolution succeeds, the normalized Tool and complete catalogue
+    alternatives pass to ``run_recommendation``. Evidence-bound ToolAttachment assemblies
+    remain a separate positive-evidence input; they do not remove competing technical
+    attachment alternatives or rewrite manufacturer pairing language into exclusion rules.
     """
 
     tool_resolution = resolve_field_tool(observation, catalogue.tools)
@@ -523,6 +532,9 @@ def run_field_recommendation(
         catalogue.tethers,
         catalogue.anchor_paths,
         tool_attachment_assemblies=catalogue.tool_attachment_assemblies,
+        evidence_bound_tool_attachment_assemblies=(
+            catalogue.evidence_bound_tool_attachment_assemblies
+        ),
         product_runtime_state=product_runtime_state,
         connection_contexts=connection_contexts,
         policy_contexts=policy_contexts,
@@ -654,6 +666,18 @@ def _build_field_recommendation_summary(
         ),
         None,
     )
+    generation_binding = next(
+        (
+            binding
+            for binding in recommendation_run.generation_tool_bindings
+            if binding.candidate_id == selected.candidate_id
+        ),
+        None,
+    )
+    if generation_binding is None:
+        raise ValueError(
+            "selected field recommendation is missing its generation-time Tool binding"
+        )
 
     tool = recommendation_run.tool
     if tool is None or tool.object_mass_kg is None:  # pragma: no cover - field invariant.
@@ -665,6 +689,9 @@ def _build_field_recommendation_summary(
         operational_mass_kg=tool.object_mass_kg,
         configuration_product_refs=list(profile_binding.configuration_product_refs),
         path_selection=selected.generated_candidate.selection,
+        attachment_installation_binding=(
+            generation_binding.attachment_installation_binding
+        ),
         evaluation=evaluation,
         context_evaluation=context_evaluation,
         pending_verification_checks=pending_verification_checks,
