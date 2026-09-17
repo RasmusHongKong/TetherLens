@@ -8,16 +8,10 @@ For detailed design, see `product-vision.md`, `mvp.md`, `domain-model.md`, `evid
 
 ## Current baseline
 
-PR #68, `Resolve catalogue operational profiles for field selection`, is merged. Current `main` at the base of PR #69 is:
+PR #69, `Carry evidence-bound ToolAttachment installations into field recommendations`, is merged into `main` at:
 
 ```text
-7027a90248708eec0ddae0d20799ce95f503a4f1
-```
-
-PR #69, `Carry evidence-bound ToolAttachment installations into field recommendations`, is the current review branch:
-
-```text
-feature/hilti-evidence-bound-installation
+ae0efac76ee0e42c4f9ddd0e1e01b376c06869ae
 ```
 
 PR #69 carries one real Hilti SF 4-22 operational profile through the complete ordinary recommendation pipeline while preserving sparse-evidence boundaries. It does not rewrite historical portability semantics, hard compatibility/capacity rules, contextual ranking, recommendation-session semantics, or mixed-manufacturer alternatives.
@@ -270,20 +264,58 @@ The PR #69 baseline does **not** add:
 
 Those boundaries remain deliberate.
 
-## Next highest-value seam after PR #69
+## Next recommended slice after PR #69
 
-Do not immediately generalize the Hilti relationship into a physical rule. One documented route is insufficient evidence for `through_opening`, captive state, dimensions or a broader family rule.
+The next slice should prove that the mature reusable semantics now buy us **faster catalogue expansion**, rather than immediately adding another abstraction.
 
-The next work should remain driven by real catalogue/user-value pressure. Highest-value candidates are:
+The recommended target is:
 
-- validate the evidence-bound installation pattern against another real manufacturer/product family with similarly sparse geometry;
-- continue catalogue throughput toward additional complete worker-facing recommendation scenarios;
-- introduce explicit epistemic/provenance basis on reusable inferred rules only when a concrete cross-product inference case requires it; and
-- add configuration-component or assembled-configuration feature ownership only when a real ToolAttachment installs on a selected Battery/configuration rather than the bare Tool.
+```text
+3M DBI-SALA 1500009 — D-Ring Attachment with Cord
+```
 
-The first goal should be to learn whether the new evidence-bound primitive is genuinely reusable, not to increase abstraction for its own sake.
+V6 already classified this product as a catalogue/ingestion gap rather than a missing recommendation primitive. Manufacturer evidence describes a loop passed through a pre-drilled hole or closed handle and choked off, creating a D-ring attachment point with a 5 lb capacity. Those semantics map onto capabilities already established in the current model:
 
-Only after more real complete paths exist should the field workflow add the smallest task/anchorage questions that materially change feasibility, ranking or worker instructions. Required working reach remains a strong candidate because the contextual ranking layer already models it, but the field workflow should ask it only when a real candidate set makes it decision-relevant.
+```text
+captive through-opening OR captive handle eligibility
+  + cinch/choke installation
+  + rated capacity
+  + provided D-ring tether interface
+```
+
+The implementation goal should therefore be:
+
+```text
+real 3M manufacturer evidence
+  -> broadened 3M family ingestion for 1500009
+  -> existing generic ToolAttachment normalization
+  -> existing feature-bound eligibility
+  -> existing cinch/choke installation semantics
+  -> provided D-ring interface
+  -> ordinary candidate generation/evaluation
+  -> one complete worker-facing recommendation
+```
+
+Prefer a mixed-manufacturer complete vertical if the existing catalogue contains a Tool/tether/anchor combination whose accepted facts genuinely support it. Do not manufacture a mixed-brand case merely to demonstrate one.
+
+The key success criterion is **no new compatibility ontology unless inspection reveals a genuine missing reusable semantic**. In particular:
+
+- do not turn the 3M product into a SKU-pair recommendation rule;
+- do not add an evidence-bound installation path if published geometry already supports ordinary reusable eligibility;
+- preserve exact manufacturer evidence and source scope;
+- keep Tool feature predicates bound to one concrete feature instance; and
+- let the existing generator/evaluator/selector do the downstream work wherever possible.
+
+Start by inspecting the frozen V6 1500009 case, the current 3M adapter (currently Quick-Spin-specific), existing ToolAttachment eligibility/method/interface resolvers, current catalogue candidates for a complete field vertical, and available first-party 3M evidence. Recommend the smallest reusable slice before changing code.
+
+Do not immediately generalize the Hilti relationship into a physical rule. One documented route remains insufficient evidence for `through_opening`, captive state, dimensions or a broader family rule.
+
+After the 3M vertical, use what it teaches us to choose between:
+
+- another catalogue-backed complete vertical;
+- a genuinely recurring sparse-geometry/evidence-bound case;
+- a demand-side context question such as required working reach once multiple real candidate sets make it decision-relevant; or
+- a new inference/provenance abstraction only if a concrete case requires it.
 
 Image recognition can later produce the same `candidate_tool_refs` contract when a curated pilot image set is ready. It should not bypass the confirmation boundary.
 
@@ -323,3 +355,17 @@ V6 B cases remain useful throughput candidates, but they should not drive new re
 - Search/recognition remains advisory until the worker explicitly confirms Tool identity.
 - Preserve exact candidate, component, feature, endpoint, installation-binding and source-product provenance through generation, evaluation, ranking and field output.
 - Historical portability cohorts V1–V6 remain frozen at their original semantic revisions.
+
+## Suggested opening prompt for the next chat
+
+```text
+Continue TetherLens from merged `main` after PR #69. Keep all historical portability cohorts frozen at their existing semantic revisions: V1 is 0 A / 5 B / 3 C / 0 D, V2 is 0 A / 6 B / 2 C / 0 D, V3 is 0 A / 5 B / 3 C / 0 D, V4 is 0 A / 4 B / 4 C / 0 D, V5 is 0 A / 6 B / 2 C / 0 D, and V6 is 1 A / 7 B / 0 C / 0 D.
+
+PR #69 establishes the sparse-geometry evidence boundary: use reusable physical/topological rules where the source supports them, but retain exact evidence-bound installation/connection relationships when manufacturer evidence establishes what works without enough geometry to infer why. Do not reverse-engineer unsupported geometry from manufacturer pairings, and do not treat positive OEM evidence as a global mixed-manufacturer exclusion.
+
+For the next slice, tackle 3M DBI-SALA 1500009 D-Ring Attachment with Cord. Start by inspecting the frozen V6 case, the current 3M ingestion path, existing ToolAttachment eligibility / attachment-method / provided-interface semantics, current catalogue candidates for a complete worker-facing vertical, and available first-party 3M evidence.
+
+The target is to broaden 3M ingestion and carry 1500009 through one real complete recommendation using existing generic semantics wherever possible: captive through-opening OR captive-handle eligibility, cinch/choke installation, rated capacity, provided D-ring interface, ordinary candidate generation/evaluation/selection. Prefer a defensible mixed-manufacturer vertical if the current catalogue supports one, but do not force it.
+
+Before changing code, identify the smallest reusable implementation slice and recommend the approach. Treat a need for new ontology as a finding to justify from the evidence, not as the default objective.
+```
