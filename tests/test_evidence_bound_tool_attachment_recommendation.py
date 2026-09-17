@@ -1,3 +1,5 @@
+import pytest
+
 from tetherlens_ingest.candidate_generation import (
     AnchorPathOption,
     CandidateComponentOption,
@@ -277,3 +279,22 @@ def test_documented_installation_fails_closed_when_named_feature_is_not_resolved
 
     assert result.selection.state == CandidateSelectionState.NO_GENERATED_CANDIDATES
     assert result.generated_candidates == []
+
+
+def test_duplicate_evidence_bound_assembly_refs_are_rejected_before_generation():
+    duplicate = _evidence_assembly().model_copy(deep=True)
+
+    with pytest.raises(
+        ValueError,
+        match="evidence-bound ToolAttachment assembly refs must be unique",
+    ):
+        run_recommendation(
+            _tool("tool:documented"),
+            [_tether()],
+            [_anchor()],
+            evidence_bound_tool_attachment_assemblies=[
+                _evidence_assembly(),
+                duplicate,
+            ],
+            connection_contexts=[_documented_connection_context()],
+        )
