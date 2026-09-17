@@ -87,4 +87,15 @@ PR #66 reinforces the same split for Milwaukee product pages:
 - repeated selected-SKU markers are tolerated generically; and
 - a related-product SKU still terminates the selected record so tether-ready evidence cannot leak across products.
 
+PR #70 adds a second useful form of the same boundary for manufacturer-position evidence:
+
+- 3M-specific wording and document scoping remain in the 3M adapter;
+- the adapter may legitimately extract a manufacturer-specific **value** such as `required_tether_manufacturer = Python Safety` because that value is source evidence, not downstream branching logic;
+- the shared resolver compares the accepted selected-tether manufacturer identity with the manufacturer named by the instruction and emits `CONTRARY_TO_MANUFACTURER_INSTRUCTION` only on a known mismatch;
+- the shared resolver contains no `Python Safety`, `3M`, or other manufacturer-specific recommendation branch;
+- manufacturer identity must be supplied explicitly by catalogue composition rather than reconstructed from product-ref strings; and
+- matching the named manufacturer suppresses the known contrary assessment but does not create blanket positive endorsement, because wording such as `appropriate <manufacturer> tether` does not establish that every same-brand product is approved.
+
+This is the preferred pattern for future manufacturer-family prescriptions: source-specific extraction may carry concrete manufacturer names as data, while the interpretation of `required manufacturer` versus `selected manufacturer` remains generic and separate from technical compatibility.
+
 These examples should be used as review precedents, not as a requirement to refactor every adapter whenever one vendor needs a fix.

@@ -1,4 +1,4 @@
-from tetherlens_ingest.adapters import GRIPPSAdapter, MilwaukeeAdapter, NLGAdapter
+from tetherlens_ingest.adapters import GRIPPSAdapter, MilwaukeeAdapter, NLGAdapter, ThreeMAdapter
 from tetherlens_ingest.attachment_method import resolve_tool_attachment_installation_method
 from tetherlens_ingest.candidate_generation import (
     AnchorPathOption,
@@ -7,6 +7,7 @@ from tetherlens_ingest.candidate_generation import (
     TetherOption,
     ToolAttachmentAssemblyOption,
 )
+from tetherlens_ingest.compatibility import ManufacturerPosition
 from tetherlens_ingest.connection import ConnectionInterface, ConnectionInterfaceRole
 from tetherlens_ingest.constraints import resolve_product_constraints
 from tetherlens_ingest.field_recommendation import (
@@ -19,6 +20,10 @@ from tetherlens_ingest.field_recommendation import (
     run_field_recommendation,
 )
 from tetherlens_ingest.field_tool_search import candidate_tool_refs_from_text_search
+from tetherlens_ingest.manufacturer_instruction import (
+    connection_contexts_from_required_tether_manufacturer_instructions,
+    resolve_required_tether_manufacturer_instructions,
+)
 from tetherlens_ingest.models import ProductIdentity, ProductType, SourceArtifact, SourceType
 from tetherlens_ingest.normalize import mass_to_kg
 from tetherlens_ingest.recommendation import CandidateCheckType, RecommendationState
@@ -36,15 +41,29 @@ MILWAUKEE_URL = (
 )
 NLG_ATTACHMENT_URL = "https://neverletgo.com/products/360-d-ring-loop-tool-tether"
 NLG_GUIDE_URL = "https://neverletgo.com/pages/tool-tether-guide"
+THREE_M_ATTACHMENT_URL = "https://www.3m.com/3M/en_US/p/d/v100323824/"
+THREE_M_D_RING_CORD_MANUAL_URL = (
+    "https://multimedia.3m.com/mws/media/1300990O/"
+    "ifu-5903828-python-d-ring-cord-a3-a3-size-instructions-manual.pdf"
+)
 GRIPPS_TETHER_URL = "https://gripps.com/products/webbing-extra-heavy-duty-dual-action-tether"
 NLG_ANCHOR_URL = "https://neverletgo.com/products/belt-loop-anchor"
 
 
-def _artifact(body: str, *, url: str) -> SourceArtifact:
+def _artifact(
+    body: str,
+    *,
+    url: str,
+    source_type: SourceType = SourceType.MANUFACTURER_WEBPAGE,
+) -> SourceArtifact:
     return SourceArtifact(
         url=url,
-        source_type=SourceType.MANUFACTURER_WEBPAGE,
-        content_type="text/html",
+        source_type=source_type,
+        content_type=(
+            "application/pdf"
+            if source_type == SourceType.MANUFACTURER_DOCUMENT
+            else "text/html"
+        ),
         body=body,
     )
 
@@ -148,6 +167,76 @@ def _nlg_attachment() -> ToolAttachmentAssemblyOption:
     )
 
 
+def _three_m_attachment():
+    identity = ProductIdentity(
+        manufacturer="3M",
+        product_type=ProductType.TOOL_ATTACHMENT,
+        name="DBI-SALA D-Ring Attachment with Cord",
+        sku="1500009",
+        url=THREE_M_ATTACHMENT_URL,
+    )
+    claims = ThreeMAdapter().extract(
+        identity,
+        [
+            _artifact(
+                "<html><body>"
+                "<h1>3M DBI-SALA D-Ring Attachment with Cord 1500009, 10 EA/PACK</h1>"
+                "<div>3M Product Number 1500009</div>"
+                "</body></html>",
+                url=THREE_M_ATTACHMENT_URL,
+            ),
+            _artifact(
+                "Installation and Use Instructions for Python Safety D-Ring Cord Attachment. "
+                "Simply pass the loop end of a D-Ring Cord through a pre-drilled hole or closed "
+                "handle to create an instant attachment point. On tools weighing up to 5 lbs "
+                "(2.3 kg). Python Safety attachment points require the use of an appropriate "
+                "Python Safety Lanyard, Tether or Retractor for safe connection. "
+                "Pass the Ring side of the D-Ring Cord through the loop of the Cord. "
+                "Pull tightly to cinch and create a secure connection. "
+                "1500009 Load Rating 5lbs (2.3kg).",
+                url=THREE_M_D_RING_CORD_MANUAL_URL,
+                source_type=SourceType.MANUFACTURER_DOCUMENT,
+            ),
+        ],
+    )
+    eligibility = resolve_attachment_eligibility(claims)
+    assert eligibility is not None
+    interfaces = resolve_connection_interfaces(claims)
+    assert len(interfaces) == 1
+    method = resolve_tool_attachment_installation_method(
+        claims,
+        source_product_ref="3M:1500009",
+    )
+    assert method is not None
+    capacity = next(
+        float(claim.value)
+        for claim in claims
+        if claim.property_key == "rated_capacity_kg"
+    )
+    assembly = ToolAttachmentAssemblyOption(
+        assembly_ref="3M:1500009:assembly",
+        components=[
+            CandidateComponentOption(
+                component_ref="3M:1500009:component",
+                source_product_ref="3M:1500009",
+                rated_capacity_kg=capacity,
+                product_constraints=resolve_product_constraints(
+                    claims,
+                    source_product_ref="3M:1500009",
+                ),
+            )
+        ],
+        eligibility=eligibility,
+        provided_interfaces=interfaces,
+        installation_method=method,
+    )
+    instructions = resolve_required_tether_manufacturer_instructions(
+        claims,
+        source_product_ref="3M:1500009",
+    )
+    return assembly, instructions
+
+
 def _gripps_tether() -> TetherOption:
     identity = ProductIdentity(
         manufacturer="GRIPPS",
@@ -210,7 +299,10 @@ def _nlg_anchor() -> AnchorPathOption:
     )
 
 
-def _catalogue() -> FieldRecommendationCatalogue:
+def _catalogue(
+    *,
+    tool_attachment: ToolAttachmentAssemblyOption | None = None,
+) -> FieldRecommendationCatalogue:
     profile = _milwaukee_profile()
     return FieldRecommendationCatalogue(
         tools=[
@@ -225,7 +317,7 @@ def _catalogue() -> FieldRecommendationCatalogue:
         ],
         tethers=[_gripps_tether()],
         anchor_paths=[_nlg_anchor()],
-        tool_attachment_assemblies=[_nlg_attachment()],
+        tool_attachment_assemblies=[tool_attachment or _nlg_attachment()],
     )
 
 
@@ -292,3 +384,73 @@ def test_real_catalogue_worker_path_retains_cinch_method_after_explicit_tool_con
     generated = selected.generated_candidate
     assert generated.selection == summary.path_selection
     assert generated.selection.attachment_installation_method == method
+
+
+def test_3m_d_ring_cord_reuses_existing_worker_vertical_without_core_special_cases() -> None:
+    attachment, instructions = _three_m_attachment()
+    catalogue = _catalogue(tool_attachment=attachment)
+    tether = catalogue.tethers[0]
+    connection_contexts = connection_contexts_from_required_tether_manufacturer_instructions(
+        tether_ref=tether.tether_ref,
+        tether_manufacturer="GRIPPS",
+        endpoints=tether.endpoints,
+        target_owner_ref=attachment.assembly_ref,
+        target_product_ref="3M:1500009",
+        target_interfaces=attachment.provided_interfaces,
+        instructions=instructions,
+    )
+
+    result = run_field_recommendation(
+        FieldToolObservation(confirmed_tool_ref="Milwaukee:48-22-7215"),
+        catalogue,
+        connection_contexts=connection_contexts,
+    )
+
+    assert result.state == FieldRecommendationState.SELECTED
+    assert result.recommendation_run is not None
+    assert len(result.recommendation_run.generated_candidates) == 1
+
+    summary = result.recommendation
+    assert summary is not None
+    assert summary.operational_profile_ref == "Milwaukee:48-22-7215:catalogue"
+    assert summary.operational_mass_kg == mass_to_kg(2.85, "lb")
+    assert summary.path_selection.installation_feature_id == "tether_ready_opening"
+    assert summary.path_selection.attachment_assembly_ref == "3M:1500009:assembly"
+    assert summary.path_selection.tether_ref == "GRIPPS:H01079"
+    assert summary.path_selection.anchor_path_ref == "NLG:101366:installed-belt-loop"
+
+    method = summary.path_selection.attachment_installation_method
+    assert method is not None
+    assert method.source_product_ref == "3M:1500009"
+    assert method.attachment_method_code == "cinch"
+    assert method.source_urls == [THREE_M_D_RING_CORD_MANUAL_URL]
+
+    assert summary.evaluation.recommendation_state == RecommendationState.RECOMMENDED_WITH_CONSTRAINTS
+    assert summary.pending_verification_checks
+    assert all(
+        check.check_type == CandidateCheckType.CONNECTION_COMPATIBILITY
+        for check in summary.pending_verification_checks
+    )
+
+    # The 3M instruction stays on the manufacturer-position axis. It does not turn the
+    # mixed-brand route into technical incompatibility, while policy remains free to use
+    # the retained assessment if the site requires manufacturer-approved combinations.
+    selected = result.recommendation_run.selection.selected
+    assert selected is not None
+    generated = selected.generated_candidate
+    tool_connection = generated.configuration.tool_side_connection
+    assert len(tool_connection.manufacturer_assessments) == 1
+    assessment = tool_connection.manufacturer_assessments[0]
+    assert assessment.issuer_manufacturer == "3M"
+    assert assessment.position == ManufacturerPosition.CONTRARY_TO_MANUFACTURER_INSTRUCTION
+    assert assessment.claim_or_evidence_ref == THREE_M_D_RING_CORD_MANUAL_URL
+    assert assessment.technical_causal_scope_established is False
+
+    assert {
+        component.component_id
+        for component in generated.configuration.load_bearing_components
+    } == {
+        "3M:1500009:component",
+        "GRIPPS:H01079:component",
+        "NLG:101366:component",
+    }
