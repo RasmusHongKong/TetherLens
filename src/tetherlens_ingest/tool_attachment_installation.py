@@ -53,11 +53,18 @@ class EvidenceBoundToolAttachmentAssemblyOption(BaseModel):
     represents reusable technical eligibility and remains unchanged. This model is used
     only when accepted first-party evidence says that an attachment installs on a named
     Tool feature but does not establish enough geometry to compile a reusable rule.
+
+    ``provided_interface_product_refs`` retains assembly provenance rather than physical
+    compatibility: it says which selected component product owns each local tether-side
+    interface. Single-product assemblies infer that ownership safely; multi-product
+    assemblies must supply it explicitly so product-scoped manufacturer evidence cannot
+    leak from one component's interface to another component in the same assembly.
     """
 
     assembly_ref: str = Field(min_length=1)
     components: list[CandidateComponentOption] = Field(min_length=1)
     provided_interfaces: list[ConnectionInterface] = Field(min_length=1)
+    provided_interface_product_refs: dict[str, str] = Field(default_factory=dict)
     installation_bindings: list[ToolAttachmentInstallationBinding] = Field(min_length=1)
     installation_method: ToolAttachmentInstallationMethod | None = None
 
@@ -91,6 +98,34 @@ class EvidenceBoundToolAttachmentAssemblyOption(BaseModel):
             )
 
         component_products = {component.source_product_ref for component in self.components}
+        interface_ownership = dict(self.provided_interface_product_refs)
+        if not interface_ownership:
+            if len(component_products) != 1:
+                raise ValueError(
+                    "multi-product evidence-bound ToolAttachment assemblies must explicitly "
+                    "identify the owning component product for every provided interface"
+                )
+            owner = next(iter(component_products))
+            interface_ownership = {interface_id: owner for interface_id in interface_ids}
+        else:
+            unexpected_interfaces = sorted(set(interface_ownership) - set(interface_ids))
+            missing_interfaces = sorted(set(interface_ids) - set(interface_ownership))
+            if unexpected_interfaces or missing_interfaces:
+                raise ValueError(
+                    "evidence-bound ToolAttachment interface ownership must cover exactly the "
+                    "provided interface ids; "
+                    f"missing={missing_interfaces!r}, unexpected={unexpected_interfaces!r}"
+                )
+            unexpected_products = sorted(
+                set(interface_ownership.values()) - component_products
+            )
+            if unexpected_products:
+                raise ValueError(
+                    "evidence-bound ToolAttachment interface ownership must refer to selected "
+                    f"component products: {unexpected_products!r}"
+                )
+        self.provided_interface_product_refs = interface_ownership
+
         invalid_bindings = [
             binding.binding_id
             for binding in self.installation_bindings
