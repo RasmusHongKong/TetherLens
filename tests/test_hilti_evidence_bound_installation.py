@@ -1,6 +1,8 @@
 from tetherlens_ingest.adapters.hilti_tool_attachment import HiltiAdapter
 from tetherlens_ingest.compatibility import CaptiveState, FeatureKind, FeatureRole
+from tetherlens_ingest.connection import ConnectionInterface, ConnectionInterfaceRole
 from tetherlens_ingest.declared_compatibility import (
+    connection_contexts_from_compatibility_declarations,
     resolve_connector_interface_compatibility_declarations,
 )
 from tetherlens_ingest.models import (
@@ -65,6 +67,18 @@ def _claims():
     return HiltiAdapter().extract(_identity(), [_primary(), _manual()])
 
 
+def _resolved_connection_declaration():
+    declarations = resolve_connector_interface_compatibility_declarations(
+        _claims(),
+        product_refs_by_identifier={
+            "2261970": "Hilti:2261970",
+            "2293133": "Hilti:2293133",
+        },
+    )
+    assert len(declarations) == 1
+    return declarations[0]
+
+
 def test_hilti_manual_resolves_conservative_accessory_installation_feature_and_binding():
     claims = _claims()
     features = resolve_tool_interface_features(claims)
@@ -115,14 +129,19 @@ def test_unmapped_attachment_reference_does_not_become_runtime_installation_bind
 
 def test_hilti_manual_retains_product_scoped_connection_evidence_without_inventing_form():
     claims = _claims()
-    declarations = resolve_connector_interface_compatibility_declarations(claims)
-    assert len(declarations) == 1
-    declaration = declarations[0]
+
+    # Product-scoped manufacturer evidence cannot execute until both identifiers have
+    # been resolved by catalogue composition; it must not silently widen to a generic rule.
+    assert resolve_connector_interface_compatibility_declarations(claims) == []
+
+    declaration = _resolved_connection_declaration()
     assert declaration.declaration_id == "tool_tether_to_retaining_strap"
     assert declaration.connector_spec_ref == "tether_connector"
     assert declaration.source_interface_type == "carabiner"
     assert declaration.target_interface_type == "attachment_point"
     assert declaration.target_role.value == "tool_attachment_tether_side"
+    assert declaration.source_product_ref == "Hilti:2261970"
+    assert declaration.target_product_ref == "Hilti:2293133"
     assert declaration.issuer_manufacturer == "Hilti"
     assert declaration.source_urls == [MANUAL_URL]
 
@@ -134,3 +153,51 @@ def test_hilti_manual_retains_product_scoped_connection_evidence_without_inventi
     }
     assert audit_scope["connection_compatibility.source_product_identifier"] == "2261970"
     assert audit_scope["connection_compatibility.target_product_identifier"] == "2293133"
+
+
+def test_hilti_product_scoped_connection_evidence_does_not_leak_to_matching_primitives():
+    declaration = _resolved_connection_declaration()
+    endpoint = ConnectionInterface(
+        interface_id="connection_point_1",
+        role=ConnectionInterfaceRole.TETHER_CONNECTION,
+        interface_type="carabiner",
+        connector_spec_ref="tether_connector",
+    )
+    target = ConnectionInterface(
+        interface_id="tether_attachment_point",
+        role=ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE,
+        interface_type="attachment_point",
+    )
+
+    matching = connection_contexts_from_compatibility_declarations(
+        tether_ref="Hilti:2261970",
+        tether_product_ref="Hilti:2261970",
+        endpoints=[endpoint],
+        target_owner_ref="Hilti:2293133:assembly",
+        target_product_refs={"Hilti:2293133"},
+        target_interfaces=[target],
+        declarations=[declaration],
+    )
+    assert len(matching) == 1
+
+    wrong_tether = connection_contexts_from_compatibility_declarations(
+        tether_ref="Other:2261970-shaped",
+        tether_product_ref="Other:tether",
+        endpoints=[endpoint],
+        target_owner_ref="Hilti:2293133:assembly",
+        target_product_refs={"Hilti:2293133"},
+        target_interfaces=[target],
+        declarations=[declaration],
+    )
+    assert wrong_tether == []
+
+    wrong_attachment = connection_contexts_from_compatibility_declarations(
+        tether_ref="Hilti:2261970",
+        tether_product_ref="Hilti:2261970",
+        endpoints=[endpoint],
+        target_owner_ref="Other:attachment:assembly",
+        target_product_refs={"Other:attachment"},
+        target_interfaces=[target],
+        declarations=[declaration],
+    )
+    assert wrong_attachment == []
