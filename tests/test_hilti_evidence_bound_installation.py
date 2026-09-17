@@ -99,7 +99,7 @@ def test_hilti_manual_resolves_conservative_accessory_installation_feature_and_b
     )
     assert len(bindings) == 1
     binding = bindings[0]
-    assert binding.binding_id == "retaining_strap_accessory_openings"
+    assert binding.binding_id == "retaining_strap_accessory_openings:2293133"
     assert binding.tool_ref == "Hilti:2253847"
     assert binding.source_product_ref == "Hilti:2293133"
     assert binding.installation_feature_id == feature.feature_id
@@ -135,7 +135,7 @@ def test_hilti_manual_retains_product_scoped_connection_evidence_without_inventi
     assert resolve_connector_interface_compatibility_declarations(claims) == []
 
     declaration = _resolved_connection_declaration()
-    assert declaration.declaration_id == "tool_tether_to_retaining_strap"
+    assert declaration.declaration_id == "tool_tether_to_retaining_strap:2261970:2293133"
     assert declaration.connector_spec_ref == "tether_connector"
     assert declaration.source_interface_type == "carabiner"
     assert declaration.target_interface_type == "attachment_point"
@@ -149,7 +149,7 @@ def test_hilti_manual_retains_product_scoped_connection_evidence_without_inventi
         claim.property_key: claim.value
         for claim in claims
         if claim.subject_type == ClaimSubjectType.CONNECTION_COMPATIBILITY
-        and claim.subject_ref == "tool_tether_to_retaining_strap"
+        and claim.subject_ref == "tool_tether_to_retaining_strap:2261970:2293133"
     }
     assert audit_scope["connection_compatibility.source_product_identifier"] == "2261970"
     assert audit_scope["connection_compatibility.target_product_identifier"] == "2293133"
