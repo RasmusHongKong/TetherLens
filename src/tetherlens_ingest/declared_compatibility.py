@@ -200,14 +200,17 @@ def connection_contexts_from_compatibility_declarations(
     declarations: list[ConnectorInterfaceCompatibilityDeclaration],
     tether_product_ref: str | None = None,
     target_product_refs: set[str] | None = None,
+    target_interface_product_refs: dict[str, str] | None = None,
     existing_contexts: list[ConnectionEvaluationContext] | None = None,
 ) -> list[ConnectionEvaluationContext]:
     """Bind declarations to concrete endpoint/target pairs for one owner scope.
 
     Generic declarations match only retained connector/interface primitives. If a source
     explicitly scoped its statement to named products, the resolved stable product refs
-    must also match the concrete tether and target assembly before an
-    ``EXPLICITLY_COMPATIBLE`` manufacturer assessment is emitted.
+    must also match the concrete tether product and the product that owns the *current*
+    target interface before an ``EXPLICITLY_COMPATIBLE`` manufacturer assessment is
+    emitted. A single-product target may omit the per-interface ownership map because
+    ownership is unambiguous; multi-product targets fail closed without exact ownership.
     """
 
     contexts: dict[tuple[str, str, str, str], ConnectionEvaluationContext] = {}
@@ -218,8 +221,36 @@ def connection_contexts_from_compatibility_declarations(
         contexts[key] = context
 
     concrete_target_product_refs = target_product_refs or set()
+    interface_ids = {interface.interface_id for interface in target_interfaces}
+    interface_product_refs = dict(target_interface_product_refs or {})
+    unexpected_interface_ids = sorted(set(interface_product_refs) - interface_ids)
+    if unexpected_interface_ids:
+        raise ValueError(
+            "target interface product ownership refers to interfaces outside the target set: "
+            f"{unexpected_interface_ids!r}"
+        )
+    if concrete_target_product_refs:
+        unexpected_products = sorted(
+            set(interface_product_refs.values()) - concrete_target_product_refs
+        )
+        if unexpected_products:
+            raise ValueError(
+                "target interface product ownership must refer to selected target products: "
+                f"{unexpected_products!r}"
+            )
+
+    inferred_single_target_product_ref = (
+        next(iter(concrete_target_product_refs))
+        if len(concrete_target_product_refs) == 1
+        else None
+    )
+
     for endpoint in endpoints:
         for target in target_interfaces:
+            target_interface_product_ref = interface_product_refs.get(
+                target.interface_id,
+                inferred_single_target_product_ref,
+            )
             matching = [
                 declaration
                 for declaration in declarations
@@ -228,7 +259,7 @@ def connection_contexts_from_compatibility_declarations(
                     endpoint,
                     target,
                     tether_product_ref=tether_product_ref,
-                    target_product_refs=concrete_target_product_refs,
+                    target_interface_product_ref=target_interface_product_ref,
                 )
             ]
             if not matching:
@@ -277,12 +308,12 @@ def _declaration_matches(
     target: ConnectionInterface,
     *,
     tether_product_ref: str | None,
-    target_product_refs: set[str],
+    target_interface_product_ref: str | None,
 ) -> bool:
     if declaration.source_product_ref is not None:
         if tether_product_ref != declaration.source_product_ref:
             return False
-        if declaration.target_product_ref not in target_product_refs:
+        if target_interface_product_ref != declaration.target_product_ref:
             return False
     if endpoint.role != ConnectionInterfaceRole.TETHER_CONNECTION:
         return False
