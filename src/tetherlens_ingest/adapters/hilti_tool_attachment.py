@@ -460,22 +460,17 @@ def _dedupe_claims(claims: list[CandidateClaim]) -> list[CandidateClaim]:
             continue
 
         existing = out[position]
-        urls = sorted({
+        supporting_urls = sorted({
             url
             for url in [
-                existing.source_url,
                 *existing.supporting_source_urls,
                 claim.source_url,
                 *claim.supporting_source_urls,
             ]
-            if url
+            if url and url != existing.source_url
         })
-        primary_url = urls[0]
         out[position] = existing.model_copy(
-            update={
-                "source_url": primary_url,
-                "supporting_source_urls": [url for url in urls if url != primary_url],
-            }
+            update={"supporting_source_urls": supporting_urls}
         )
     return out
 
