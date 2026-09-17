@@ -6,7 +6,7 @@ from .klein import KleinAdapter
 from .milwaukee_combined import MilwaukeeAdapter
 from .nlg_live_source_guard import NLGAdapter
 from .stopdrop import StopDropAdapter
-from .three_m import ThreeMAdapter
+from .three_m_combined import ThreeMAdapter
 from .tyflot import TyFlotAdapter
 
 __all__ = [
