@@ -48,10 +48,10 @@ def _manual(body: str, url: str) -> SourceArtifact:
     )
 
 
-def _complete_section(strap: str, tether: str) -> str:
+def _complete_section(strap: str, tether: str, *, wording: str = "for this product") -> str:
     return (
         "SF 4-22 (02). Fall arrest. "
-        "As drop arrester for this product, use only a combination of the Hilti "
+        f"As drop arrester {wording}, use only a combination of the Hilti "
         f"retaining strap #{strap} and the Hilti tool tether #{tether}. "
         "Secure the retaining strap to the installation openings for accessories. "
         "Secure one carabiner of the tool tether to the retaining strap and secure the "
@@ -142,6 +142,40 @@ def test_same_pairing_from_two_manuals_merges_source_provenance():
     )
     assert len(declarations) == 1
     assert declarations[0].source_urls == [MANUAL_A, MANUAL_B]
+
+
+def test_duplicate_claim_keeps_raw_evidence_aligned_with_primary_source_url():
+    claims = _extract(
+        _manual(
+            _complete_section(
+                "2293133",
+                "2261970",
+                wording="for this product according to manual B",
+            ),
+            MANUAL_B,
+        ),
+        _manual(
+            _complete_section(
+                "2293133",
+                "2261970",
+                wording="for this product according to manual A",
+            ),
+            MANUAL_A,
+        ),
+    )
+
+    claim = next(
+        claim
+        for claim in claims
+        if claim.subject_type == ClaimSubjectType.PRODUCT
+        and claim.property_key == "tool.required_tool_attachment"
+        and str(claim.value) == "2293133"
+    )
+    assert claim.source_url == MANUAL_B
+    assert claim.supporting_source_urls == [MANUAL_A]
+    assert claim.raw_value is not None
+    assert "manual B" in claim.raw_value
+    assert "manual A" not in claim.raw_value
 
 
 def test_incomplete_first_matching_model_section_does_not_hide_later_complete_section():
