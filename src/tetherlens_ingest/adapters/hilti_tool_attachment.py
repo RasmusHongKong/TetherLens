@@ -26,6 +26,12 @@ _ACCESSORY_OPENINGS_FEATURE_REF = "accessory_installation_openings"
 _RETAINING_STRAP_INTERFACE_REF = "tether_attachment_point"
 _RETAINING_STRAP_INSTALLATION_REF = "retaining_strap_accessory_openings"
 _TETHER_TO_STRAP_DECLARATION_REF = "tool_tether_to_retaining_strap"
+_TOOL_MODEL_TOKEN_RE = re.compile(
+    r"\b[A-Z]{2,5}\s+\d+[A-Z]?(?:-\d+[A-Z]?)?\b",
+    re.I,
+)
+_FALL_ARREST_RE = re.compile(r"(?:fall arrest|drop arrester)", re.I)
+_MODEL_HEADING_SEPARATOR_RE = re.compile(r"[\s,;/()0-9.:\-]*\Z")
 
 
 class HiltiAdapter(_BaseHiltiAdapter):
@@ -145,13 +151,12 @@ class HiltiAdapter(_BaseHiltiAdapter):
     def _extract_drop_arrest_pairing(identity: ProductIdentity, artifact: SourceArtifact) -> list[CandidateClaim]:
         model = _tool_model(identity)
         text = _normalized_document_text(artifact)
-        if not model or not _contains_model(text, model):
+        if not model:
             return []
 
-        anchor = re.search(r"(?:fall arrest|drop arrester)", text, re.I)
-        if not anchor:
+        window = _model_local_drop_arrest_window(text, model)
+        if window is None:
             return []
-        window = text[anchor.start():anchor.start() + 2200]
         pairing = re.search(
             r"retaining strap(?P<strap>.{0,220}?)and the Hilti tool tether(?P<tether>.{0,160}?)(?:\.|$)",
             window,
@@ -354,12 +359,61 @@ def _normalized_document_text(artifact: SourceArtifact) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def _model_local_drop_arrest_window(text: str, model: str) -> str | None:
+    """Return only a fall-arrest section locally headed by the requested Tool model.
+
+    Hilti operating-instruction PDFs can cover multiple Tool models. A document-level
+    model hit is therefore insufficient for executable installation evidence. The nearest
+    model-token cluster immediately preceding a fall-arrest heading must contain the
+    requested model, and extraction is bounded before the next fall-arrest heading so
+    evidence cannot spill into another model section.
+    """
+
+    anchors = list(_FALL_ARREST_RE.finditer(text))
+    if not anchors:
+        return None
+
+    for index, anchor in enumerate(anchors):
+        heading = _nearest_model_heading(text, anchor.start())
+        if heading is None or not _contains_model(heading, model):
+            continue
+        section_end = (
+            anchors[index + 1].start()
+            if index + 1 < len(anchors)
+            else len(text)
+        )
+        return text[anchor.start():min(section_end, anchor.start() + 2200)]
+    return None
+
+
+def _nearest_model_heading(text: str, anchor_start: int) -> str | None:
+    prefix = text[max(0, anchor_start - 320):anchor_start].rstrip()
+    mentions = list(_TOOL_MODEL_TOKEN_RE.finditer(prefix))
+    if not mentions:
+        return None
+
+    last = mentions[-1]
+    # The final model token must itself belong to the immediate heading. If arbitrary
+    # prose occurs between it and "Fall arrest", a model mentioned elsewhere nearby is
+    # not enough to establish section ownership.
+    if not _MODEL_HEADING_SEPARATOR_RE.fullmatch(prefix[last.end():]):
+        return None
+
+    cluster_start = last.start()
+    for previous in reversed(mentions[:-1]):
+        separator = prefix[previous.end():cluster_start]
+        if not _MODEL_HEADING_SEPARATOR_RE.fullmatch(separator):
+            break
+        cluster_start = previous.start()
+    return prefix[cluster_start:last.end()]
+
+
 def _tool_model(identity: ProductIdentity) -> str | None:
     candidates = [identity.model, identity.name]
     for candidate in candidates:
         if not candidate:
             continue
-        match = re.search(r"\b[A-Z]{2,5}\s+\d+[A-Z]?(?:-\d+[A-Z]?)?\b", candidate, re.I)
+        match = _TOOL_MODEL_TOKEN_RE.search(candidate)
         if match:
             return re.sub(r"\s+", " ", match.group(0)).upper()
     return None
