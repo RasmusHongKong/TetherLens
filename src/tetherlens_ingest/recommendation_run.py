@@ -481,9 +481,18 @@ def _generate_with_evidence_bound_installations(
 ) -> tuple[list[GeneratedCandidate], dict[str, ToolAttachmentInstallationBinding]]:
     generic_assemblies = list(tool_attachment_assemblies or [])
     generic_refs = {assembly.assembly_ref for assembly in generic_assemblies}
-    evidence_refs = {
+    evidence_ref_list = [
         assembly.assembly_ref for assembly in evidence_bound_tool_attachment_assemblies
-    }
+    ]
+    evidence_refs = set(evidence_ref_list)
+    if len(evidence_refs) != len(evidence_ref_list):
+        duplicates = sorted(
+            ref for ref in evidence_refs if evidence_ref_list.count(ref) > 1
+        )
+        raise ValueError(
+            "evidence-bound ToolAttachment assembly refs must be unique: "
+            f"{duplicates!r}"
+        )
     overlap = sorted(generic_refs & evidence_refs)
     if overlap:
         raise ValueError(
