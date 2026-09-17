@@ -349,7 +349,7 @@ def test_selected_hilti_operational_profile_reaches_complete_recommendation_pipe
     assert summary.path_selection.tether_ref == "Hilti:2261970"
     assert summary.attachment_installation_binding is not None
     assert summary.attachment_installation_binding.binding_id == (
-        "retaining_strap_accessory_openings"
+        "retaining_strap_accessory_openings:2293133"
     )
     assert summary.attachment_installation_binding.tool_ref == "Hilti:2253847"
     assert summary.attachment_installation_binding.source_product_ref == "Hilti:2293133"
