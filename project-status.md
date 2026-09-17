@@ -6,6 +6,12 @@ This is the operational handoff for the current TetherLens knowledge/recommendat
 
 For detailed design, see `product-vision.md`, `mvp.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `connection-compatibility.md`, `anchor-interface-form.md`, `anchor-installation-binding.md`, `tool-attachment-compatibility.md`, `tool-anatomy-selection-semantics.md`, `compatibility-evidence-and-inference.md`, `feature-bound-dimensional-eligibility.md`, `attachment-method-vocabulary.md`, `candidate-ranking-selection.md`, `recommendation-run.md`, `recommendation-session.md`, `demand-side-field-orchestration.md`, `recommendation-benchmark.md`, `portability-benchmark.md`, `portability-v5-post-pr62.md`, `portability-v6-post-feature-dimensional.md`, `benchmark-goals.md`, and `adapter-review-guidance.md`.
 
+## Repository agent guidance
+
+Root-level `AGENTS.md` now provides durable repository-wide guidance for AI coding agents: how to orient from `project-status.md`, preserve evidence/provenance and recommendation boundaries, distinguish vendor-specific parsing from reusable invariants, test changes, and keep documentation current. It deliberately points agents back to this file for the changing operational baseline rather than duplicating current PR/workstream state.
+
+This is workflow/documentation guidance only. It does not change recommendation semantics, historical benchmark freezes, the current baseline, or the next recommended implementation slice.
+
 ## Current baseline
 
 Merged `main` before the current PR is PR #69, `Carry evidence-bound ToolAttachment installations into field recommendations`.
