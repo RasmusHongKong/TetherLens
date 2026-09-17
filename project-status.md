@@ -4,23 +4,23 @@ _Last updated: 2026-09-17_
 
 This is the operational handoff for the current TetherLens knowledge/recommendation stack and the immediate MVP work sequence. Durable design detail lives in the dedicated documents; this file stays focused on the current semantic baseline, invariants that must not regress, and the next highest-value work.
 
-For detailed design, see `product-vision.md`, `mvp.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `connection-compatibility.md`, `anchor-interface-form.md`, `anchor-installation-binding.md`, `tool-attachment-compatibility.md`, `feature-bound-dimensional-eligibility.md`, `attachment-method-vocabulary.md`, `candidate-ranking-selection.md`, `recommendation-run.md`, `recommendation-session.md`, `demand-side-field-orchestration.md`, `recommendation-benchmark.md`, `portability-benchmark.md`, `portability-v5-post-pr62.md`, `portability-v6-post-feature-dimensional.md`, `benchmark-goals.md`, and `adapter-review-guidance.md`.
+For detailed design, see `product-vision.md`, `mvp.md`, `domain-model.md`, `evidence-model.md`, `architecture.md`, `ingestion.md`, `technical-schema.md`, `recommendation-engine.md`, `connection-compatibility.md`, `anchor-interface-form.md`, `anchor-installation-binding.md`, `tool-attachment-compatibility.md`, `tool-anatomy-selection-semantics.md`, `compatibility-evidence-and-inference.md`, `feature-bound-dimensional-eligibility.md`, `attachment-method-vocabulary.md`, `candidate-ranking-selection.md`, `recommendation-run.md`, `recommendation-session.md`, `demand-side-field-orchestration.md`, `recommendation-benchmark.md`, `portability-benchmark.md`, `portability-v5-post-pr62.md`, `portability-v6-post-feature-dimensional.md`, `benchmark-goals.md`, and `adapter-review-guidance.md`.
 
 ## Current baseline
 
-PR #67, `Add advisory field Tool catalogue search`, is merged. Current pre-PR #68 `main` is:
+PR #68, `Resolve catalogue operational profiles for field selection`, is merged. Current `main` at the base of PR #69 is:
 
 ```text
-ec681aef5e9d76513fe921060b6415bed14054bf
+7027a90248708eec0ddae0d20799ce95f503a4f1
 ```
 
-PR #68, `Resolve catalogue operational profiles for field selection`, is the current review branch:
+PR #69, `Carry evidence-bound ToolAttachment installations into field recommendations`, is the current review branch:
 
 ```text
-feature/catalogue-operational-profile-resolution
+feature/hilti-evidence-bound-installation
 ```
 
-PR #68 is intentionally a catalogue-to-demand normalization slice. It does not rewrite historical portability semantics, Tool confirmation authority, attachment eligibility, connection compatibility, candidate identity, hard evaluation, contextual ranking or recommendation-session semantics.
+PR #69 carries one real Hilti SF 4-22 operational profile through the complete ordinary recommendation pipeline while preserving sparse-evidence boundaries. It does not rewrite historical portability semantics, hard compatibility/capacity rules, contextual ranking, recommendation-session semantics, or mixed-manufacturer alternatives.
 
 Historical portability cohorts remain immutable at their original semantic revisions:
 
@@ -43,7 +43,8 @@ Therefore:
 
 - portability is now a periodic stress/regression audit, not the primary implementation loop;
 - the primary workstreams are **catalogue throughput + demand-side MVP**;
-- new ontology should be introduced only when a concrete recurring decision need proves it necessary.
+- new ontology should be introduced only when a concrete recurring decision need proves it necessary; and
+- incomplete manufacturer geometry is treated as a permanent catalogue condition, not a temporary cleanup problem.
 
 Do not start another portability cohort merely to search for a new primitive.
 
@@ -53,6 +54,7 @@ The recommendation core remains a reusable evidence-bound pipeline:
 
 ```text
 normalized Tool / ToolAttachment / tether / anchor facts
+  + accepted exact installation/connection evidence where needed
   -> candidate generation
   -> hard candidate evaluation
   -> contextual ranking/selection
@@ -61,9 +63,32 @@ normalized Tool / ToolAttachment / tether / anchor facts
 
 Hard viability and ranking remain separate. Ranking cannot override hard incompatibility or missing required evidence. Global exhaustion may be concluded only after the complete generated alternative set has been evaluated.
 
+### Sparse-geometry evidence boundary
+
+Exact geometry and dimensions remain preferred inputs when sources publish them, but they are not assumed to exist for every product family.
+
+The governing progression is:
+
+```text
+exact geometry/dimensions where established
+  -> reusable technical rule
+
+functional/topological facts where established
+  -> reusable technical rule
+
+explicit documented relationship but insufficient reusable geometry
+  -> exact evidence-bound path
+```
+
+An evidence-bound path is positive evidence for one documented relationship. It is not a generic SKU-pair compatibility rule and does not prove alternatives incompatible.
+
+Do not reverse-engineer a `through_opening`, captive state, dimensions, ring/eye form or other physical fact merely because such a fact would explain a manufacturer's pairing.
+
+See `compatibility-evidence-and-inference.md` for the normative evidence/inference model.
+
 ### Tool-side installation
 
-A ToolAttachment eligibility path binds one concrete `ToolInterfaceFeature`. Feature kind, captive state, dimensions, attributes and other feature-local predicates in that path must all be satisfied by the same feature instance.
+Reusable ToolAttachment eligibility binds one concrete `ToolInterfaceFeature`. Feature kind, captive state, dimensions, attributes and other feature-local predicates in that path must all be satisfied by the same feature instance.
 
 PR #64 added manufacturer-neutral compilation of accepted feature-bound dimensional fit evidence through:
 
@@ -73,6 +98,8 @@ attachment_eligibility.dimension.<code>
 ```
 
 with explicit ordered comparison direction. Split-source envelope synthesis, conflicting fit subjects and unsupported inference remain fail-closed.
+
+PR #69 adds a separate exact evidence-bound installation path for accepted cases where the manufacturer establishes **what installs where** but does not publish enough geometry for a reusable eligibility rule.
 
 ### Anchor-side installation
 
@@ -108,11 +135,11 @@ hook_on
 
 Anchor installation eligibility remains distinct from tether-to-anchor connection compatibility.
 
-## PR #65: demand-side field coordinator
+## Demand-side baseline through PR #68
 
-The field coordinator provides the typed worker-facing boundary above the existing recommendation engine.
+PRs #65–#68 establish the catalogue-to-field boundary without adding recommendation authority to search/recognition.
 
-It supports:
+The field coordinator supports:
 
 - advisory recognition/search candidate Tool refs;
 - mandatory explicit worker Tool confirmation;
@@ -123,194 +150,106 @@ It supports:
 - explicit session-local generic profile fallback; and
 - exact handoff of the normalized Tool plus all supplied tether, ToolAttachment and anchor alternatives to `run_recommendation()`.
 
-The coordinator adds no compatibility, installation, hard-evaluation, ranking or selection rules.
+PR #67 supplies lexical catalogue Tool search as a real producer of `candidate_tool_refs`, but a search hit cannot confirm Tool identity.
 
-The field result preserves the existing distinction between:
+PR #68 resolves accepted catalogue operational-profile mass claims against explicit `OperationalProfileDescriptor` configuration identity. It does not infer Battery identity from profile refs, URLs, SKU conventions or mass arithmetic.
 
-```text
-selected
-no_generated_candidates
-no_suitable_recommendation
-```
+The first real proof is Hilti SF 4-22 `2253847` with B 22-55 and B 22-85. Selecting B 22-85 retains the exact configured mass and configuration-product identity required by load reasoning.
 
-and retains exact run/profile/configuration provenance, generation-time Tool-side bindings, exact hard/contextual evaluation, pending verification checks and pending pre-use actions.
+## PR #69: evidence-bound ToolAttachment installation
 
-## PR #66: ToolAttachment installation-method retention
+PR #69 closes the remaining Hilti recommendation-readiness gap without inventing installation geometry.
 
-PR #66 closes the next field-output provenance gap without turning method metadata into a new compatibility rule.
+### Exact installation evidence
 
-Accepted ToolAttachment `attachment_method_code` claims now resolve into:
+`ToolAttachmentInstallationBinding` represents positive manufacturer evidence that one ToolAttachment product installs at one exact resolved Tool feature:
 
 ```text
-ToolAttachmentInstallationMethod
+ToolAttachmentInstallationBinding
+  binding_id
+  tool_ref
   source_product_ref
-  attachment_method_code
+  installation_feature_id
+  issuer_manufacturer
+  scope
   source_urls
 ```
 
-Resolution is fail-closed:
+This object is intentionally separate from generic `AttachmentEligibility` rules.
 
-- only accepted/reconciled method claims participate;
-- values must be native non-empty strings;
-- conflicting accepted method codes do not receive an invented precedence; and
-- exact accepted source URLs are retained.
+`EvidenceBoundToolAttachmentAssemblyOption` remains separate from ordinary geometry-backed `ToolAttachmentAssemblyOption` so exact manufacturer evidence cannot silently become a reusable technical rule.
 
-A `ToolAttachmentAssemblyOption` may carry this method only when its provenance belongs to a selected assembly component. Candidate generation deep-copies the exact method onto the corresponding `CandidatePathSelection`.
+At `run_recommendation()` the exact accepted binding is composed against the already-resolved Tool feature through an execution-local projection into the ordinary generator. The original binding is retained separately in `CandidateToolBinding`; the projection is never persisted or reused as generic compatibility.
 
-The method remains **descriptive retained installation provenance**. It does not change:
+### Conservative Hilti normalization
 
-- ToolAttachment eligibility;
-- direct or ToolAttachment-mediated connection compatibility;
-- load/capacity evaluation;
-- hard viability;
-- contextual ranking;
-- candidate identity; or
-- legacy/runtime assembly validity when method provenance is absent.
+The current SF 4-22 evidence establishes a manufacturer-defined location described as `installation openings for accessories`, but does not establish its exact physical form.
 
-The field-facing result can therefore expose a canonical physical installation action such as `cinch` or `wrap` from retained runtime provenance instead of reconstructing it from product names, selected feature IDs or human-readable reason strings.
-
-## PR #66 catalogue-backed worker vertical
-
-PR #66 also proves the field path with a real catalogue-backed scenario rather than a synthetic SKU-pair rule.
-
-The vertical uses:
-
-- Milwaukee `48-22-7215` as the Tool;
-- NLG `101363` as the ToolAttachment;
-- GRIPPS `H01079` as the Tether; and
-- NLG `101366` as the anchor path.
-
-The worker must still explicitly confirm the Tool. The selected path retains the NLG ToolAttachment's canonical `cinch` method provenance while unresolved connection compatibility remains visible as verification work rather than being guessed.
-
-This scenario demonstrates that the field coordinator can now preserve both **where/how the ToolAttachment binds** and **the accepted physical installation mechanism** through the selected recommendation path.
-
-## PR #66 targeted Milwaukee throughput
-
-Milwaukee ingestion now recognizes explicit first-party:
+Current normalized Tool feature:
 
 ```text
-tether-ready lanyard hole
-tether-ready handle loop
+feature_id = accessory_installation_openings
+feature_kind = other
+feature_role = accessory_mount
+captive_state = unknown
+location_description = "installation openings for accessories"
 ```
 
-as one manufacturer-neutral captive `through_opening` Tool tether interface.
+Do **not** normalize this evidence to `through_opening`, `captive`, ring/eye form or invented dimensions.
 
-Important boundaries:
-
-- this extraction is Tool-only;
-- generic handle language does not create tether-interface evidence;
-- the exact-SKU Milwaukee product page must be verified;
-- the tether-ready phrase is scoped to the selected product record rather than searched page-wide; and
-- repeated occurrences of the selected SKU remain inside the same selected record while the first different recognized SKU terminates it.
-
-The last rule is implemented in the shared `bounded_record_for_identifier()` invariant because repeated title/heading identifiers and cross-record evidence leakage are source-independent parsing concerns. Milwaukee's SKU grammar remains adapter-specific.
-
-## PR #66 NLG method canonicalization hardening
-
-NLG attachment-method extraction now treats explicit positive cinch/choke instructions as stronger evidence than incidental pass-through plus later `secure` wording. This is required for real instructions that pass a loop through a captive feature before creating the constricting cinch.
-
-Negative wording remains non-evidence. Prohibitions such as:
+The retaining strap #2293133 provides only the functional tether-side interface established by its product evidence:
 
 ```text
-Do not create a cinch.
-Do not use the loop to create a cinch.
-Never use it to cinch around the handle.
+interface_id = tether_attachment_point
+role = tool_attachment_tether_side
+interface_type = attachment_point
 ```
 
-must not emit or outrank `cinch`.
+Hilti's #2261970 tether-to-#2293133 retaining-strap instruction is retained as manufacturer-declared connection evidence scoped to those exact products. Product scope limits the positive manufacturer evidence; it is not a generic technical exclusion of other tethers/attachments.
 
-Negation handling is clause-local and bounded by punctuation/explicit contrast so a prohibition does not suppress a separate positive instruction. Retained cinch evidence uses the same positive-only view.
+### Complete field vertical
 
-## Review-derived reusable ingestion invariants
-
-PR #66 review reinforced two reusable rules:
-
-1. **Page identity is not fact attribution.** Verifying that a page belongs to SKU A does not allow every phrase on the page to be assigned to SKU A; related-product content must remain out of the selected record.
-2. **Repeated selected identifiers are not neighboring records.** A flattened page may repeat its selected SKU in title/heading content; the selected record ends at the first different recognized identifier, not the next occurrence of the same identifier.
-
-These rules belong in shared ingestion behavior where safe; source-specific SKU grammars and wording stay in adapters.
-
-## PR #67: advisory Tool catalogue search
-
-PR #67 supplies the first real producer of `candidate_tool_refs` without changing who is allowed to confirm Tool identity.
-
-The producer is:
+The PR proves:
 
 ```text
-candidate_tool_refs_from_text_search(query, catalogue, max_candidates=5)
+catalogue search
+  -> explicit SF 4-22 confirmation
+  -> B 22-55 / B 22-85 profile selection
+  -> exact evidence-bound retaining-strap installation
+  -> ordinary load + connection evaluation
+  -> deterministic selection
+  -> RECOMMENDED_WITH_CONSTRAINTS
 ```
 
-It searches only the normalized Tool entries already present in the supplied `FieldRecommendationCatalogue`.
+For the B 22-85 route the selected recommendation retains:
 
-Current semantics are deliberately modest:
+- exact Tool and Battery profile/configuration identity;
+- exact operational mass;
+- attachment assembly `Hilti:2293133:assembly`;
+- exact installation feature `accessory_installation_openings`;
+- exact installation binding provenance;
+- tether `Hilti:2261970`;
+- manufacturer-declared Tool-side tether/strap connection;
+- runtime verification on the unresolved anchor-side connection; and
+- ordinary component capacity checks.
 
-- search surface = exact `tool_ref` + worker-facing `display_name`;
-- matching = Unicode-aware lexical token containment after NFKC normalization and case-folding;
-- Unicode letters, numbers and combining marks remain part of identity tokens, while punctuation/separators form boundaries;
-- every query token must match;
-- partial identifier tokens, edit-distance/fuzzy matching and semantic expansion are not used;
-- catalogue order is retained rather than inventing a confidence ranking; and
-- results are bounded to a short list.
+The documented Hilti route does not suppress a separately geometry-eligible ToolAttachment competitor.
 
-The function returns refs only. It cannot set `confirmed_tool_ref`, choose an `OperationalToolProfile`, or invoke `run_recommendation()`.
+## Review-derived reusable provenance invariants
 
-Therefore even a single exact SKU result still produces:
+PR #69 review reinforced reusable evidence rules that apply beyond Hilti.
 
-```text
-candidate_tool_refs
-  -> TOOL_CONFIRMATION
-  -> explicit confirmed_tool_ref
-  -> operational-profile resolution
-  -> recommendation run
-```
-
-The catalogue-backed Milwaukee/NLG/GRIPPS/NLG worker vertical now starts from this real search producer rather than a hand-injected Milwaukee candidate ref, while retaining the same mandatory confirmation boundary and downstream recommendation semantics.
-
-## PR #68: catalogue-backed operational profile resolution
-
-PR #68 closes the next catalogue-to-demand gap without teaching the field layer to infer configuration identity.
-
-The new boundary is:
-
-```text
-resolve_operational_tool_profiles(
-    claims,
-    tool_ref=...,
-    descriptors=...,
-    features=...,
-    direct_interfaces=...,
-)
-```
-
-`OperationalProfileDescriptor` carries exact normalized configuration identity:
-
-```text
-profile_ref
-worker-facing display_name
-configuration_product_refs
-```
-
-Configuration refs are required and must already come from normalized catalogue relationships. The resolver does **not** reconstruct Battery/configuration identity from:
-
-- compound profile-ref text;
-- manufacturer or SKU conventions;
-- source URLs;
-- arithmetic matching between Tool/Battery/profile masses; or
-- shared battery-platform labels.
-
-It binds accepted `operational_mass_kg` claims only to the exact supplied descriptor ref. An operational-mass claim without a descriptor fails closed; conflicting accepted masses for one profile do not receive invented precedence.
-
-`operational_mass_kg` is a canonical normalized property at this boundary. If a unit is explicitly present, it must be `kg`; a non-canonical unit such as `lb` is rejected rather than converted or reinterpreted as kilograms. Raw-unit conversion remains an upstream ingestion/normalization responsibility.
-
-Known configurations whose operational mass is still missing remain present as profiles with unknown mass. This is important: dropping an incomplete configuration could make another profile look like the Tool's only option and trigger incorrect automatic selection. If the worker selects the incomplete profile, the existing `operational_mass_not_established` readiness boundary stops the run before candidate generation.
-
-The first real proof uses Hilti SF 4-22 `2253847` with the already-ingested B 22-55 and B 22-85 operational masses. Text search remains advisory, the Tool still requires explicit confirmation, and confirmation then exposes both real Battery configurations through the existing `operational_profile_selection` requirement. Selecting B 22-85 retains its exact `2.072917 kg` configured mass and configuration-product identity.
-
-This does **not** yet make the SF 4-22 recommendation-ready. The current Hilti instructions pair the Tool with retaining strap `2293133` and tether `2261970`, but the retaining-strap Tool-side installation geometry/interface still needs reusable normalization before that pairing can enter candidate generation without SKU-pair logic.
+1. **Product-scoped connection evidence belongs to the exact target interface owner.** Assembly-wide product membership is insufficient when several selected components expose similar interfaces.
+2. **Multi-product evidence-bound assemblies require complete interface ownership.** Single-product ownership may be inferred; ambiguous multi-product ownership fails closed.
+3. **Executable document evidence must be model-local.** A model appearing somewhere in a combined manual does not authorize another model's installation section.
+4. **Enumerate all safely scoped model sections.** An incomplete contents/intro entry must not hide a later complete section, and distinct complete routes may coexist.
+5. **Evidence-record identity follows the documented relationship.** Different product routes use different semantic subjects; repeated sources for the same route support one logical relationship.
+6. **Primary evidence provenance is atomic.** `source_url`, raw wording, evidence method and extractor metadata must remain aligned. Later equivalent artifacts may become supporting sources but must not steal the primary URL while leaving another source's wording attached.
+7. **Duplicate evidence-bound assembly identities are invalid.** Do not let candidate-ID deduplication hide catalogue ambiguity.
 
 ## Current deliberate boundaries
 
-The field baseline through PR #68 does **not** add:
+The PR #69 baseline does **not** add:
 
 - image recognition or computer-vision inference;
 - fuzzy Tool identity acceptance;
@@ -322,30 +261,29 @@ The field baseline through PR #68 does **not** add:
 - anchorage recognition;
 - inventory optimization;
 - user-facing natural-language recommendation generation;
-- new attachment eligibility predicates;
-- new connection compatibility rules;
-- new contextual/ranking rules;
-- SKU-pair recommendation logic; or
+- cross-product compatibility inference;
+- confidence scoring for inferred compatibility rules;
+- automatic promotion of repeated manufacturer pairings into technical rules;
+- configuration-component/assembled-configuration feature ownership beyond current exact selected-component interface ownership;
+- global mixed-manufacturer exclusion; or
 - a replacement for the existing recommendation-session condition resolver.
 
 Those boundaries remain deliberate.
 
-## Next highest-value demand-side seam
+## Next highest-value seam after PR #69
 
-With PR #68, real configuration-dependent catalogue evidence can now reach the existing worker profile-selection boundary without hand-building `OperationalToolProfile` masses.
+Do not immediately generalize the Hilti relationship into a physical rule. One documented route is insufficient evidence for `through_opening`, captive state, dimensions or a broader family rule.
 
-The next highest-value seam is to carry one of those real profiles into a **complete recommendation run**. Hilti SF 4-22 is now the strongest candidate because its Tool/Battery mass side is ready and its first-party instructions explicitly identify the required retaining strap/tether system.
+The next work should remain driven by real catalogue/user-value pressure. Highest-value candidates are:
 
-The implementation should remain reusable rather than encoding the `2253847 + 2293133 + 2261970` combination downstream. The likely work is to establish the smallest evidence-backed normalized representation of:
+- validate the evidence-bound installation pattern against another real manufacturer/product family with similarly sparse geometry;
+- continue catalogue throughput toward additional complete worker-facing recommendation scenarios;
+- introduce explicit epistemic/provenance basis on reusable inferred rules only when a concrete cross-product inference case requires it; and
+- add configuration-component or assembled-configuration feature ownership only when a real ToolAttachment installs on a selected Battery/configuration rather than the bare Tool.
 
-- the SF 4-22 installation opening(s) as Tool-side physical feature(s);
-- the retaining strap's eligible installation relationship to that feature geometry;
-- the tether-side interface provided by the installed retaining strap; and
-- the existing Hilti tether endpoint/capacity facts needed by ordinary connection/capacity evaluation.
+The first goal should be to learn whether the new evidence-bound primitive is genuinely reusable, not to increase abstraction for its own sake.
 
-If the current first-party evidence cannot support one of those semantics without inference, leave that part unresolved and choose another real scenario rather than adding a product-specific bypass.
-
-Only after a real complete path exists should we add the smallest task/anchorage question that can materially change feasibility, ranking or worker instructions. Required working reach remains a strong candidate because the contextual ranking layer already models it, but the field workflow should ask it only when a real candidate set makes it decision-relevant.
+Only after more real complete paths exist should the field workflow add the smallest task/anchorage questions that materially change feasibility, ranking or worker instructions. Required working reach remains a strong candidate because the contextual ranking layer already models it, but the field workflow should ask it only when a real candidate set makes it decision-relevant.
 
 Image recognition can later produce the same `candidate_tool_refs` contract when a curated pilot image set is ready. It should not bypass the confirmation boundary.
 
@@ -359,38 +297,29 @@ High-value throughput work includes:
 - exact Tool/product/variant identity binding;
 - operational Tool/Battery profile construction;
 - conflict/readiness handling for contradictory first-party facts;
+- model/section-local manufacturer-document extraction;
 - product-family adapter broadening;
 - decomposition of sellable kits into recommendation components; and
-- ingestion of the physical/interface facts actually required by demand-side sessions.
+- ingestion of the physical, functional and relationship facts actually required by demand-side sessions.
 
-The Milwaukee `48-22-7215` page currently publishes `Weight 2.85 lb`, but the existing Milwaukee adapter intentionally accepts more specific Tool-mass labels on this path. Do not broaden generic `Weight` into `tool_body_mass_kg` merely to remove the vertical's accepted normalized mass fixture; that could weaken configuration-dependent mass semantics on other Tools. Treat this as a catalogue-readiness/evidence-modelling question, not a recognition concern.
-
-V6 B cases are useful throughput candidates, but they should not drive new recommendation primitives unless implementation reveals a genuine reusable decision gap.
+V6 B cases remain useful throughput candidates, but they should not drive new recommendation primitives unless implementation reveals a genuine reusable decision gap.
 
 ## Guardrails that must remain true
 
 - Do not introduce manufacturer/SKU branches downstream of ingestion/resolution unless no reusable semantic representation exists and the exception is explicitly justified.
 - Missing evidence fails closed; do not infer geometry, direction, compatibility, capacity or installation suitability from absence of contrary evidence.
+- Exact manufacturer-documented relationships may be retained when geometry is incomplete, but they must stay narrowly scoped evidence rather than becoming generic rules by convenience.
 - Do not convert qualitative marketing language into numeric fit envelopes.
 - Compile numeric feature predicates only from accepted source evidence that explicitly establishes the dimension, declared-constraint semantics and comparison/bound.
 - Keep every feature-bound predicate on one concrete feature instance.
 - Do not synthesize fit envelopes by joining bounds from unrelated subjects or incomplete evidence sources.
 - Keep manufacturer provenance separate from exact product/variant identity.
-- Bound flattened multi-product evidence to the requested identity before parsing sibling-specific fields; repeated selected identifiers remain part of the same record until a different recognized identifier appears.
-- Respect negative installation wording; prohibitions are not positive method evidence.
-- Preserve candidate identity and exact provenance through generation/evaluation.
-- Preserve generation-time Tool-side bindings independently of reconstructed Tool state.
-- Preserve operational profile/configuration identity independently of the normalized Tool used by the recommendation core.
-- Do not reconstruct configuration identity from compound profile refs, mass coincidences or source URLs.
-- Preserve known incomplete configuration alternatives so missing evidence cannot manufacture a one-profile auto-selection case.
-- Treat canonical normalized properties as canonical at resolver boundaries; do not reinterpret or silently convert a mismatched explicit unit into the runtime field's expected unit.
-- Preserve ToolAttachment installation-method provenance independently of eligibility and candidate identity.
-- Recognition/search candidates are advisory only; no search/recognition producer may silently populate authoritative Tool confirmation.
-- Do not reconstruct safety-relevant facts or installation actions from human-readable reason text.
-- Keep hard viability separate from ranking/context.
-- Preserve V1-V6 historical portability cohorts and the immutable Batch 2 blind baseline.
-- Prefer a small reusable primitive only when a concrete recurring decision need exists; do not pre-build ontology for optional product behavior.
-
-## Suggested next-chat starting point
-
-> Continue TetherLens from PR #68, `Resolve catalogue operational profiles for field selection`, on top of merged PR #67. Keep V1 **0 A / 5 B / 3 C / 0 D**, V2 **0 A / 6 B / 2 C / 0 D**, V3 **0 A / 5 B / 3 C / 0 D**, V4 **0 A / 4 B / 4 C / 0 D**, V5 **0 A / 6 B / 2 C / 0 D** and V6 **1 A / 7 B / 0 C / 0 D** frozen at their historical semantic revisions. Portability remains a periodic stress test rather than the primary implementation loop. PR #68 adds explicit `OperationalProfileDescriptor` configuration identity plus fail-closed binding of accepted `operational_mass_kg` claims into real field `OperationalToolProfile`s, preserving incomplete configurations instead of silently dropping them. The Hilti SF 4-22 now reaches advisory search -> explicit Tool confirmation -> real B 22-55/B 22-85 profile selection with exact configured mass/configuration provenance, but its retaining-strap/tether path is not yet recommendation-ready. Inspect the current Hilti first-party installation evidence and define the smallest reusable Tool-feature / ToolAttachment installation / provided-interface normalization needed to carry one selected Hilti profile into the ordinary complete recommendation pipeline without SKU-pair logic or unsupported geometric inference.
+- Bind product-scoped manufacturer connection evidence to the exact product that owns the evaluated interface.
+- Bound flattened multi-product or multi-model evidence to the requested identity before parsing sibling-specific fields.
+- Preserve the primary source/evidence tuple atomically when merging equivalent claims from multiple sources.
+- Treat manufacturer prescription as positive issuer-scoped evidence unless the source establishes a causal technical prohibition.
+- Omission from a manufacturer compatibility list remains `unknown`, not `incompatible`.
+- Keep operational mass configuration-specific when the Tool requires an installed configuration.
+- Search/recognition remains advisory until the worker explicitly confirms Tool identity.
+- Preserve exact candidate, component, feature, endpoint, installation-binding and source-product provenance through generation, evaluation, ranking and field output.
+- Historical portability cohorts V1–V6 remain frozen at their original semantic revisions.
