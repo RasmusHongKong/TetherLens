@@ -22,6 +22,10 @@ from .hilti import HiltiAdapter as _BaseHiltiAdapter
 
 
 _DOCUMENT_ROLES = {"document_index", "operating_instruction"}
+_ACCESSORY_OPENINGS_FEATURE_REF = "accessory_installation_openings"
+_RETAINING_STRAP_INTERFACE_REF = "tether_attachment_point"
+_RETAINING_STRAP_INSTALLATION_REF = "retaining_strap_accessory_openings"
+_TETHER_TO_STRAP_DECLARATION_REF = "tool_tether_to_retaining_strap"
 
 
 class HiltiAdapter(_BaseHiltiAdapter):
@@ -67,19 +71,19 @@ class HiltiAdapter(_BaseHiltiAdapter):
                 if artifact.metadata.get("role"):
                     continue
                 raw_capacity = self._extract_retaining_strap_capacity(identity, artifact)
-                if not raw_capacity or not (quantity := parse_mass(raw_capacity)):
-                    continue
-                claims.append(CandidateClaim(
-                    subject_type=ClaimSubjectType.PRODUCT,
-                    subject_ref="self",
-                    property_key="rated_capacity_kg",
-                    value=quantity.value,
-                    unit="kg",
-                    raw_value=raw_capacity,
-                    source_url=artifact.url,
-                    evidence_method="manufacturer_stated",
-                    extractor="hilti.v0.8",
-                ))
+                if raw_capacity and (quantity := parse_mass(raw_capacity)):
+                    claims.append(CandidateClaim(
+                        subject_type=ClaimSubjectType.PRODUCT,
+                        subject_ref="self",
+                        property_key="rated_capacity_kg",
+                        value=quantity.value,
+                        unit="kg",
+                        raw_value=raw_capacity,
+                        source_url=artifact.url,
+                        evidence_method="manufacturer_stated",
+                        extractor="hilti.v0.9",
+                    ))
+                claims.extend(self._extract_retaining_strap_interface(identity, artifact))
 
         if identity.product_type == ProductType.TOOL:
             for artifact in artifacts:
@@ -98,7 +102,7 @@ class HiltiAdapter(_BaseHiltiAdapter):
                 value=len(manuals),
                 detail="Hilti operating instructions were discovered through the manufacturer technical library.",
                 source_url=identity.url,
-                extractor="hilti.v0.8",
+                extractor="hilti.v0.9",
             ))
         return observations
 
@@ -147,7 +151,7 @@ class HiltiAdapter(_BaseHiltiAdapter):
         anchor = re.search(r"(?:fall arrest|drop arrester)", text, re.I)
         if not anchor:
             return []
-        window = text[anchor.start():anchor.start() + 1800]
+        window = text[anchor.start():anchor.start() + 2200]
         pairing = re.search(
             r"retaining strap(?P<strap>.{0,220}?)and the Hilti tool tether(?P<tether>.{0,160}?)(?:\.|$)",
             window,
@@ -172,7 +176,7 @@ class HiltiAdapter(_BaseHiltiAdapter):
                 raw_value=raw,
                 source_url=artifact.url,
                 evidence_method="manufacturer_pairing",
-                extractor="hilti.v0.8",
+                extractor="hilti.v0.9",
             ))
         if tether_match:
             claims.append(CandidateClaim(
@@ -184,9 +188,154 @@ class HiltiAdapter(_BaseHiltiAdapter):
                 raw_value=raw,
                 source_url=artifact.url,
                 evidence_method="manufacturer_pairing",
-                extractor="hilti.v0.8",
+                extractor="hilti.v0.9",
             ))
+
+        installation = re.search(
+            r"Secure the retaining strap to the installation openings for accessories(?:\.|\s)",
+            window,
+            re.I,
+        )
+        if installation and strap_match:
+            installation_raw = installation.group(0).strip()
+            for property_key, value in (
+                ("feature.kind", "other"),
+                ("feature.role", "accessory_mount"),
+                ("feature.location_description", "installation openings for accessories"),
+            ):
+                claims.append(CandidateClaim(
+                    subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+                    subject_ref=_ACCESSORY_OPENINGS_FEATURE_REF,
+                    property_key=property_key,
+                    value=value,
+                    unit=None,
+                    raw_value=installation_raw,
+                    source_url=artifact.url,
+                    evidence_method="manufacturer_installation_location",
+                    extractor="hilti.v0.9",
+                ))
+
+            for property_key, value in (
+                ("tool_attachment_installation.attachment_identifier", strap_match.group(1)),
+                ("tool_attachment_installation.feature_ref", _ACCESSORY_OPENINGS_FEATURE_REF),
+                ("tool_attachment_installation.issuer_manufacturer", "Hilti"),
+                (
+                    "tool_attachment_installation.scope",
+                    f"{model} retaining strap installation at manufacturer-defined accessory openings",
+                ),
+            ):
+                claims.append(CandidateClaim(
+                    subject_type=ClaimSubjectType.TOOL_ATTACHMENT_INSTALLATION_PATH,
+                    subject_ref=_RETAINING_STRAP_INSTALLATION_REF,
+                    property_key=property_key,
+                    value=value,
+                    unit=None,
+                    raw_value=installation_raw,
+                    source_url=artifact.url,
+                    evidence_method="manufacturer_installation",
+                    extractor="hilti.v0.9",
+                ))
+
+        connection = re.search(
+            r"Secure one carabiner of the tool tether to the retaining strap(?:\s+and\s+secure the second carabiner to a load-bearing structure)?(?:\.|\s)",
+            window,
+            re.I,
+        )
+        if connection and strap_match and tether_match:
+            connection_raw = connection.group(0).strip()
+            compatibility_values = (
+                ("connection_compatibility.connector_spec_ref", "tether_connector"),
+                ("connection_compatibility.source_interface_type", "carabiner"),
+                ("connection_compatibility.target_interface_type", "attachment_point"),
+                (
+                    "connection_compatibility.target_role",
+                    "tool_attachment_tether_side",
+                ),
+                ("connection_compatibility.issuer_manufacturer", "Hilti"),
+                (
+                    "connection_compatibility.scope",
+                    f"{model}: Hilti tool tether #{tether_match.group(1)} carabiner to retaining strap #{strap_match.group(1)}",
+                ),
+                # Retain the explicit product scope even though the current generic
+                # declaration resolver does not yet execute on these two audit fields.
+                (
+                    "connection_compatibility.source_product_identifier",
+                    tether_match.group(1),
+                ),
+                (
+                    "connection_compatibility.target_product_identifier",
+                    strap_match.group(1),
+                ),
+            )
+            for property_key, value in compatibility_values:
+                claims.append(CandidateClaim(
+                    subject_type=ClaimSubjectType.CONNECTION_COMPATIBILITY,
+                    subject_ref=_TETHER_TO_STRAP_DECLARATION_REF,
+                    property_key=property_key,
+                    value=value,
+                    unit=None,
+                    raw_value=connection_raw,
+                    source_url=artifact.url,
+                    evidence_method="manufacturer_pairing",
+                    extractor="hilti.v0.9",
+                ))
+
         return claims
+
+    @staticmethod
+    def _extract_retaining_strap_interface(
+        identity: ProductIdentity,
+        artifact: SourceArtifact,
+    ) -> list[CandidateClaim]:
+        text = re.sub(r"\s+", " ", page_text(artifact.body)).strip()
+        if identity.sku and not re.search(rf"#\s*{re.escape(identity.sku)}\b", text):
+            return []
+        if "retaining strap" not in text.lower():
+            return []
+
+        function = re.search(
+            r"Accessory for connecting compatible power tools to a Hilti (?:tool )?lanyard",
+            text,
+            re.I,
+        )
+        if not function:
+            return []
+        raw = function.group(0)
+        return [
+            CandidateClaim(
+                subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+                subject_ref=_RETAINING_STRAP_INTERFACE_REF,
+                property_key="interface.type",
+                value="attachment_point",
+                unit=None,
+                raw_value=raw,
+                source_url=artifact.url,
+                evidence_method="manufacturer_functional_interface",
+                extractor="hilti.v0.9",
+            ),
+            CandidateClaim(
+                subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+                subject_ref=_RETAINING_STRAP_INTERFACE_REF,
+                property_key="interface.role",
+                value="tool_attachment_tether_side",
+                unit=None,
+                raw_value=raw,
+                source_url=artifact.url,
+                evidence_method="manufacturer_functional_interface",
+                extractor="hilti.v0.9",
+            ),
+            CandidateClaim(
+                subject_type=ClaimSubjectType.PHYSICAL_INTERFACE,
+                subject_ref=_RETAINING_STRAP_INTERFACE_REF,
+                property_key="interface.attribute.manufacturer_item_code",
+                value=identity.sku or "2293133",
+                unit=None,
+                raw_value=raw,
+                source_url=artifact.url,
+                evidence_method="manufacturer_functional_interface",
+                extractor="hilti.v0.9",
+            ),
+        ]
 
     @staticmethod
     def _extract_retaining_strap_capacity(identity: ProductIdentity, artifact: SourceArtifact) -> str | None:
