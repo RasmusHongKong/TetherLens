@@ -52,13 +52,14 @@ def test_hilti_retaining_strap_normalizes_only_functional_tether_attachment_poin
     assert interface.role == ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE
     assert interface.interface_type == "attachment_point"
     assert interface.dimensions_mm == {}
-    assert interface.attributes == {"manufacturer_item_code": "2293133"}
+    assert interface.attributes == {}
 
     assert not any(
         claim.property_key in {
             "feature.kind",
             "feature.captive_state",
             "interface.dimension.opening_width",
+            "interface.attribute.manufacturer_item_code",
         }
         for claim in claims
     )
