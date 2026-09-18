@@ -56,8 +56,11 @@ All physical catalogue products share a base `product` record and then use one s
 - `tool_attachment`
 - `anchor_attachment`
 - `container`
+- `kit`
 
 `battery` is a supporting configuration product rather than a tethering component. It exists because the installed battery can change the mass of a cordless Tool used by load reasoning.
+
+`kit` is a catalogue-only commercial wrapper. It may own manufacturer-backed contained-product relationships but has no load-path subtype and is never itself a recommendation component. Its contained products retain their ordinary `tether`, `tool_attachment`, `anchor_attachment`, or other physical product identities.
 
 This avoids both:
 
@@ -438,7 +441,7 @@ kit_relationship
 compatible_configuration
 ```
 
-`compatible_configuration` is intended for manufacturer-backed configuration relationships such as a Tool being valid with a particular Battery. It should not be populated merely from a shared voltage/platform label.
+`compatible_configuration` is intended for manufacturer-backed configuration relationships such as a Tool being valid with a particular Battery. It should not be populated merely from a shared voltage/platform label. `kit_relationship` records manufacturer-published commercial composition; it does not make the sellable wrapper a runtime tethering component.
 
 ## `constraint_operator`
 
@@ -1230,6 +1233,7 @@ This table is **not** a general compatibility matrix.
 | `object_product_id` | UUID | no | FK -> `product.id` |
 | `object_interface_id` | UUID | yes | FK -> `physical_interface.id` |
 | `relationship_type` | ENUM | no | `declared_relationship_type` |
+| `quantity` | SMALLINT | yes | Source-stated contained quantity where composition semantics require it |
 | `claim_id` | UUID | no | FK -> accepted Claim |
 | `active` | BOOLEAN | no | Default true |
 | `notes` | TEXT | yes | Qualification |
@@ -1239,6 +1243,7 @@ This table is **not** a general compatibility matrix.
 - `subject_interface_id`, when populated, must belong to `subject_product_id`.
 - `object_interface_id`, when populated, must belong to `object_product_id`.
 - `claim_id` must reference an accepted Claim whose manufacturer Evidence supports the declared relationship.
+- `quantity`, when populated, must be a positive integer. A `kit_relationship` with manufacturer-published quantity must preserve that value; missing quantity remains unknown rather than defaulting to one.
 - A `compatible_configuration` or `kit_relationship` used by an `operational_mass_profile` must relate a Tool to the exact Battery product used by that profile.
 - A shared platform/voltage string alone is not sufficient to create a Tool/Battery compatibility relationship.
 - No relationship row should be created merely because two tethering products happen to pass generic compatibility rules.
@@ -1254,6 +1259,19 @@ Manufacturer explicitly restricts Product E from Product F
 ```
 
 Absence of a row does not imply incompatibility, but a cordless operational profile requires a positive manufacturer-backed Tool/Battery relationship.
+
+### Commercial kit decomposition
+
+A sellable kit may exist primarily as catalogue/package identity while its contained products remain the physical recommendation components. In that case:
+
+- each contained product must resolve to an exact catalogue product identity before the relationship is executable;
+- source-stated quantity remains on the relationship when present; an omitted quantity remains unknown rather than defaulting to one;
+- relationship extraction is bounded to the exact product's own Kit Contents section, so sibling/cross-sell product fragments cannot establish membership;
+- the wrapper does not become a `Tether`, `ToolAttachment`, `AnchorAttachment` or synthetic `Composite` load-path component merely because it is sold as one SKU;
+- contained-product facts are ingested from the contained product's own accepted evidence rather than copied from the kit page; and
+- a contradictory or ambiguous kit row may remain accepted relationship evidence while blocking recommendation-ready decomposition until reconciled.
+
+PR #72's GRIPPS H01088 case is the first executable proof of this boundary: the page's Kit Contents rows are preserved, but the stated H01085 Slip-On component conflicts with the wrapper's adjustable/hook-and-loop semantics and therefore remains non-ready rather than being silently rewritten to H01086.
 
 ---
 

@@ -65,10 +65,11 @@ wrap
 cinch
 thread_over
 fasten_around
+slip_on
 hook_on
 ```
 
-These are mechanism-led rather than manufacturer-led. `fasten_around` covers evidence-backed adjustable fastening around a concrete receiving feature such as a wrist or rail. `hook_on` covers a rigid hook-style installation onto a supported concrete feature such as an aerial-bucket lip.
+These are mechanism-led rather than manufacturer-led. `fasten_around` covers evidence-backed adjustable fastening around a concrete receiving feature such as a wrist or rail. `slip_on` covers an attachment that is retained by being slipped over a receiving feature such as a hand and onto the wrist, without inventing a fastening step that the source does not describe. `hook_on` covers a rigid hook-style installation onto a supported concrete feature such as an aerial-bucket lip.
 
 The method is not a substitute for the receiving feature or for geometry. For example, `hook_on` does not mean that any edge is suitable, and `bucket_lip` does not prove that every hook product fits it. Both the method and the feature-local eligibility predicates remain explicit.
 
@@ -199,6 +200,22 @@ PR #62 closes the recurring V4 wrist-anchor seam with the concrete `wrist` featu
 FallTech 5331A1 proves a wrist path without turning `UniFit` wording into numeric wrist geometry. GRIPPS H01086 independently proves the same wrist family and, because its first-party wording explicitly permits hand rails as well as the wrist, also emits a separate `rail` path under the same `fasten_around` mechanism.
 
 The two paths remain alternatives over concrete features; no wrist fact is stitched onto a rail or vice versa. GRIPPS `all sizes` / adjustable wording remains qualitative and does not become a numeric envelope.
+
+### Worker-worn slip-on wrist anchor
+
+PR #72 adds `slip_on` only for the distinct physical mechanism exposed by GRIPPS H01085: the anchor is slipped over the hand onto the wrist rather than tightened, wrapped or fastened around it.
+
+The current production shape is deliberately narrow:
+
+```text
+method = slip_on
+path:
+  feature_kind = wrist
+```
+
+The installation action must be affirmative and product-local. A positive-looking substring inside a prohibition such as `do not just slip it on` does not establish `slip_on` suitability.
+
+Small/Medium/Large catalogue labels remain product variants, not numeric wrist-fit geometry. The provided tether-anchor point remains type-unknown when the source establishes its role but not its physical form.
 
 ### Aerial-bucket lip hook
 

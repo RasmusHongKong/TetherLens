@@ -20,6 +20,7 @@ class ProductType(StrEnum):
     TOOL_ATTACHMENT = "tool_attachment"
     ANCHOR_ATTACHMENT = "anchor_attachment"
     CONTAINER = "container"
+    KIT = "kit"
     UNKNOWN = "unknown"
 
 
@@ -33,6 +34,7 @@ class ClaimSubjectType(StrEnum):
     TETHER_ENDPOINT_ASSIGNMENT = "tether_endpoint_assignment"
     CONNECTOR_SPEC = "connector_spec"
     CONNECTION_COMPATIBILITY = "connection_compatibility"
+    DECLARED_RELATIONSHIP = "declared_relationship"
     RELATED_PRODUCT = "related_product"
     OPERATIONAL_PROFILE = "operational_profile"
 
