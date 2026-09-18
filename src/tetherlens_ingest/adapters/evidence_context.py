@@ -187,7 +187,7 @@ def match_is_locally_contradicted(
 
     prefix = _bounded_prefix(text, match.start(), prefix_chars)
     suffix = _bounded_suffix(text, match.end(), suffix_chars)
-    matched_text = match.group(0)
+    matched_text = re.sub(r"\bnot\s+only\b", "", match.group(0), flags=re.I)
 
     if _EPISTEMIC_DENIAL_PREFIX.search(prefix) is not None:
         return True
