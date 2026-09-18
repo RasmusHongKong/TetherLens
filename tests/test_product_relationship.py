@@ -98,10 +98,12 @@ def test_declared_relationship_does_not_accept_unknown_relationship_type() -> No
 
 
 
-def test_kit_relationship_requires_source_backed_quantity() -> None:
-    with pytest.raises(ValueError, match="missing.*declared_relationship.quantity"):
-        resolve_declared_product_relationships(
-            _claims(quantities=()),
-            subject_product_ref="GRIPPS:H01088",
-            product_refs_by_identifier={"H01067": "GRIPPS:H01067"},
-        )
+def test_kit_relationship_without_source_quantity_remains_unknown() -> None:
+    resolved = resolve_declared_product_relationships(
+        _claims(quantities=()),
+        subject_product_ref="GRIPPS:H01088",
+        product_refs_by_identifier={"H01067": "GRIPPS:H01067"},
+    )
+
+    assert len(resolved) == 1
+    assert resolved[0].quantity is None
