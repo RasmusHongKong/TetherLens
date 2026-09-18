@@ -83,7 +83,7 @@ A generic declaration retains only:
 - scope; and
 - source URLs.
 
-When the accepted source explicitly establishes a relationship between concrete products but does not publish enough geometry for a generic rule, the declaration may additionally retain both `source_product_ref` and `target_product_ref`. The pair is all-or-nothing and must be resolved from explicit catalogue identifier mappings; missing mappings fail closed. Product identity is not reconstructed from names, URLs or SKU syntax.
+When the accepted source explicitly establishes a relationship between concrete products but does not publish enough geometry for a generic rule, the declaration may additionally retain both `source_product_ref` and `target_product_ref`. The pair is all-or-nothing and must be resolved from explicit catalogue identifier mappings; missing mappings fail closed. Product identity is not reconstructed from names, URLs or SKU syntax. Where the relationship wording and exact product identity come from different local evidence on the same first-party source, their claim provenance remains separately aligned: relationship claims retain the relationship wording, while the product-identifier claim retains the exact identity evidence that authorized that scope.
 
 `connection_contexts_from_compatibility_declarations()` then matches those primitives against concrete runtime endpoint/target interfaces.
 
