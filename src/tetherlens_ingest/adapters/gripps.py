@@ -88,13 +88,18 @@ _H01085_SLIP_ACTION = re.compile(
     re.I,
 )
 _H01085_H01067_ENDORSEMENT = re.compile(
-    r"\bsuitable\s+for\s+use\s+with\s+our\b[^.]{0,120}\bH01067\b"
-    r"[^.]{0,80}\bwrist\s+tethers?\b",
+    r"\bsuitable\s+for\s+use\s+with\s+our\b[^.;!?]{0,120}\bH01067\b"
+    r"[^.;!?]{0,80}\bwrist\s+tethers?\b",
     re.I,
 )
 _H01085_H01067_IN_MATCH_EXCLUSION = re.compile(
+    r"(?:"
     r"\b(?:but\s+not|not|except(?:ing)?|excluding?|other\s+than)\b"
-    r"[^.;!?]{0,60}\bH01067\b",
+    r"[^.;!?]{0,60}\bH01067\b"
+    r"|"
+    r"\bH01067\b[^.;!?]{0,60}"
+    r"\b(?:is\s+not|isn't|not|never|except(?:ed)?|excluded)\b"
+    r")",
     re.I,
 )
 _H01085_POST_ENDORSEMENT_PROHIBITION = re.compile(
