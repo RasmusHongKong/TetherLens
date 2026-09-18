@@ -125,6 +125,15 @@ _H01085_ADJACENT_PROHIBITION = re.compile(
     r"\b(?:use|used|using|attach|attached|connect|connected|tether|tethered)\b",
     re.I | re.S,
 )
+_H01085_ADJACENT_RELATION_CONTRADICTION = re.compile(
+    r"^\s*[.!?]\s*"
+    r"(?:\b(?:but|however|yet|although|though)\b[,:]?\s*)?"
+    r"(?:H01067|this\s+tether|the\s+tether|it)\b"
+    r"[^.!?]{0,60}\b(?:is|are)\s+not\s+"
+    r"(?:suitable|compatible)\b"
+    r"(?:[^.!?]{0,60}\b(?:with|for)\b)?",
+    re.I,
+)
 
 
 class GRIPPSAdapter(ManufacturerAdapter):
@@ -659,6 +668,7 @@ def _h01085_h01067_endorsement(text: str) -> re.Match[str] | None:
     if (
         _H01085_POST_ENDORSEMENT_PROHIBITION.search(suffix) is not None
         or _H01085_ADJACENT_PROHIBITION.search(suffix) is not None
+        or _H01085_ADJACENT_RELATION_CONTRADICTION.search(suffix) is not None
     ):
         return None
     return match
