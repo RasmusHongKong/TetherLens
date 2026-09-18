@@ -69,8 +69,13 @@ _H01067_TOOL_TO_WRIST_USE = re.compile(
     re.I | re.S,
 )
 _H01067_DIRECTIONAL_SPLIT = re.compile(
+    r"(?:"
     r"\b(?:dedicated|designated|tool[-\s]?side|anchor[-\s]?side|tool\s+end|anchor\s+end)\b"
-    r".{0,80}\bcarabiner\b",
+    r".{0,80}\bcarabiners?\b"
+    r"|"
+    r"\bcarabiners?\b.{0,80}"
+    r"\b(?:dedicated|designated|tool[-\s]?side|anchor[-\s]?side|tool\s+end|anchor\s+end)\b"
+    r")",
     re.I | re.S,
 )
 _H01085_WRIST_CONTEXT = re.compile(
@@ -235,7 +240,7 @@ class GRIPPSAdapter(ManufacturerAdapter):
             claims.extend(_capacity_claims(product_text, artifact.url))
 
             if _base_sku(identity.sku) == "H01085":
-                slip_action = _H01085_SLIP_ACTION.search(product_text)
+                slip_action = _affirmative_search(_H01085_SLIP_ACTION, product_text)
                 wrist_context = _H01085_WRIST_CONTEXT.search(product_text)
                 if slip_action is not None and wrist_context is not None:
                     raw = f"{wrist_context.group(0)}; {slip_action.group(0)}"
@@ -516,7 +521,10 @@ def _extract_declared_relationship_claims(
 
         product_text = _product_local_text(artifact.body, identity)
         if _base_sku(identity.sku) == "H01085":
-            endorsement = _H01085_H01067_ENDORSEMENT.search(product_text)
+            endorsement = _affirmative_search(
+                _H01085_H01067_ENDORSEMENT,
+                product_text,
+            )
             if endorsement is not None:
                 claims.extend(
                     _relationship_claims(
@@ -641,9 +649,38 @@ def _relationship_claims(
     ]
 
 
+def _affirmative_search(
+    pattern: re.Pattern[str],
+    text: str,
+) -> re.Match[str] | None:
+    """Return the first locally affirmative match, skipping explicit negation.
+
+    Manufacturer copy is flattened before extraction, so a positive-looking phrase can
+    occur inside a prohibition such as "do not just slip it on" or "not suitable for".
+    Treat nearby same-clause negation as contrary evidence and fail closed rather than
+    promoting the phrase into an executable claim.
+    """
+
+    for match in pattern.finditer(text):
+        prefix_start = max(
+            text.rfind(".", 0, match.start()),
+            text.rfind(";", 0, match.start()),
+            text.rfind("!", 0, match.start()),
+            text.rfind("?", 0, match.start()),
+            text.rfind("\n", 0, match.start()),
+        )
+        prefix = text[prefix_start + 1 : match.start()][-80:]
+        if re.search(r"\b(?:not|no|never)\b", prefix, re.I):
+            if re.search(r"\bnot\s+only\b", prefix, re.I):
+                continue
+            continue
+        return match
+    return None
+
+
 def _h01067_tether_claims(text: str, source_url: str) -> list[CandidateClaim]:
-    pair = _H01067_CARABINER_PAIR.search(text)
-    pair_use = _H01067_TOOL_TO_WRIST_USE.search(text)
+    pair = _affirmative_search(_H01067_CARABINER_PAIR, text)
+    pair_use = _affirmative_search(_H01067_TOOL_TO_WRIST_USE, text)
     if pair is None:
         return []
 
