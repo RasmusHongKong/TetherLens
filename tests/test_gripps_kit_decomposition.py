@@ -303,6 +303,26 @@ def test_h01085_uses_slip_on_wrist_path_and_preserves_h01067_endorsement() -> No
     assert connection_declaration.target_product_ref == "GRIPPS:H01085-S"
     assert connection_declaration.issuer_manufacturer == "GRIPPS"
 
+    target_identity_claim = next(
+        claim
+        for claim in claims
+        if claim.subject_type == ClaimSubjectType.CONNECTION_COMPATIBILITY
+        and claim.property_key == "connection_compatibility.target_product_identifier"
+    )
+    assert target_identity_claim.value == "H01085-S"
+    assert target_identity_claim.raw_value == "H01085-S"
+    assert target_identity_claim.evidence_method == "manufacturer_product_identity"
+
+    source_identity_claim = next(
+        claim
+        for claim in claims
+        if claim.subject_type == ClaimSubjectType.CONNECTION_COMPATIBILITY
+        and claim.property_key == "connection_compatibility.source_product_identifier"
+    )
+    assert source_identity_claim.value == "H01067"
+    assert "H01067" in (source_identity_claim.raw_value or "")
+    assert source_identity_claim.evidence_method == "manufacturer_pairing"
+
 
 
 def test_h01085_family_h1_does_not_authorize_unstated_exact_variant_connection() -> None:
@@ -371,6 +391,9 @@ def test_h01085_contradictory_suitability_wording_is_not_executable() -> None:
         "Suitable for use with our H01067 wrist tethers, yet do not tether them that way.",
         "Suitable for use with our H01067 wrist tethers. However, do not connect it this way.",
         "Suitable for use with our H01067 wrist tethers. Yet never attach it that way.",
+        "Suitable for use with our H01067 wrist tethers. Do not connect this tether to the anchor.",
+        "Suitable for use with our H01067 wrist tethers. Never attach this tether to the anchor.",
+        "Suitable for use with our H01067 wrist tethers. Cannot be used with this anchor.",
     )
 
     for phrase in contradictory_phrases:
