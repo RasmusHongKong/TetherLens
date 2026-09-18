@@ -170,19 +170,25 @@ def test_quick_clip_d_ring_declaration_rejects_cross_block_question_and_negation
         "The Quick Clip isn't suitable for the D Ring.</p>",
         "<p>The Quick Clip can be attached to a D Ring. "
         "The Quick Clip is incompatible with the D Ring.</p>",
+        "<p>The Quick Clip Attachment is designed to anchor the lanyard "
+        "without attachment to a D Ring.</p>",
     )
     for body in bodies:
         assert declaration_claims(body) == [], body
 
 
 def test_unrelated_negative_wording_does_not_block_positive_d_ring_relation():
-    claims = declaration_claims(
-        "<p>The Quick Clip can be attached to a D Ring without removing gloves.</p>"
+    bodies = (
+        "<p>The Quick Clip can be attached to a D Ring without removing gloves.</p>",
+        "<p>The Quick Clip Attachment is designed to securely anchor the lanyard "
+        "to a D Ring without removing gloves.</p>",
     )
 
-    assert claims
-    declaration = resolve_connector_interface_compatibility_declarations(claims)[0]
-    assert declaration.target_attributes == {"ring_form": "d_ring"}
+    for body in bodies:
+        claims = declaration_claims(body)
+        assert claims, body
+        declaration = resolve_connector_interface_compatibility_declarations(claims)[0]
+        assert declaration.target_attributes == {"ring_form": "d_ring"}
 
 
 def test_separate_html_block_does_not_get_joined_into_one_relationship_assertion():
