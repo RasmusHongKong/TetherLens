@@ -161,6 +161,7 @@ def test_quick_clip_d_ring_declaration_rejects_cross_block_question_and_negation
         "<p>Do not assume the Quick Clip can be attached to a D Ring.</p>",
         "<p>It is not established that the Quick Clip can be attached to a D Ring.</p>",
         "<p>The Quick Clip can be attached to a D Ring, but must not be used that way.</p>",
+        "<p>The Quick Clip can be attached to a D Ring, but must not be used.</p>",
         "<p>The Quick Clip can be attached to a D Ring. "
         "However, do not connect it this way.</p>",
         "<p>The Quick Clip can be attached to a D Ring. "
