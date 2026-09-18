@@ -323,3 +323,114 @@ def test_kit_contents_label_does_not_capture_later_related_products_table() -> N
         claim.subject_type == ClaimSubjectType.DECLARED_RELATIONSHIP
         for claim in claims
     )
+
+
+
+def test_cross_sell_copy_does_not_create_kit_identity_conflict() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.KIT,
+        name="Slip-On Wrist Anchor With Tool Tether",
+        sku="H01087-M",
+        url="https://gripps.com/products/slip-on-wrist-anchor-with-tool-tether",
+    )
+    artifact = _artifact(
+        identity.url,
+        """
+        <h1>Slip-On Wrist Anchor With Tool Tether - 2.5kg / 5.5lb</h1>
+        <p>SKU H01087-M</p>
+        <p>The slip-on wrist anchor is supplied with a tool tether.</p>
+        <h3>Kit Contents</h3>
+        <table>
+          <tr><td>H01067</td><td>Webbing Wrist Tether Single-Action</td><td>1</td></tr>
+          <tr><td>H01085-M</td><td>Slip-On Wrist Anchor</td><td>1</td></tr>
+        </table>
+        <h3>Related Products</h3>
+        <p>The Adjustable Wrist Anchor uses industrial-grade Velcro.</p>
+        """,
+    )
+
+    result = IngestionRunner(StaticFetcher(artifact)).ingest(identity, GRIPPSAdapter())
+
+    assert not any(
+        issue.code == "KIT_COMPONENT_IDENTITY_CONFLICT"
+        for issue in result.issues
+    )
+
+
+def test_h01085_cross_sell_copy_does_not_create_tether_endorsement() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.ANCHOR_ATTACHMENT,
+        name="Slip-On Wrist Anchor",
+        sku="H01085-S",
+        url="https://gripps.com/products/slip-on-wrist-anchor",
+    )
+    artifact = _artifact(
+        identity.url,
+        """
+        <h1>Slip-On Wrist Anchor - 2.5kg / 5.5lb</h1>
+        <p>SKU H01085-S</p>
+        <p>The GRIPPS Slip-On Wrist Anchor is a wrist-mounted tether anchor.</p>
+        <p>Just slip it on, secure your tool, and start your task.</p>
+        <h3>Related Products</h3>
+        <p>Suitable for use with our H01067 wrist tethers.</p>
+        """,
+    )
+
+    claims = GRIPPSAdapter().extract(identity, [artifact])
+
+    assert not any(
+        claim.subject_type == ClaimSubjectType.DECLARED_RELATIONSHIP
+        and claim.property_key == "declared_relationship.object_product_identifier"
+        and claim.value == "H01067"
+        for claim in claims
+    )
+
+
+def test_kit_membership_survives_blank_or_omitted_quantity() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.KIT,
+        name="Example Kit",
+        sku="H09996",
+        url="https://gripps.com/products/example-kit",
+    )
+    rows = (
+        "<tr><td>H01067</td><td>Webbing Wrist Tether Single-Action</td><td></td></tr>",
+        "<tr><td>H01067</td><td>Webbing Wrist Tether Single-Action</td></tr>",
+    )
+
+    for row in rows:
+        artifact = _artifact(
+            identity.url,
+            f"""
+            <h1>Example Kit</h1><p>SKU H09996</p>
+            <h3>Kit Contents</h3>
+            <table>{row}</table>
+            """,
+        )
+
+        claims = GRIPPSAdapter().extract(identity, [artifact])
+        relationship_claims = [
+            claim
+            for claim in claims
+            if claim.subject_type == ClaimSubjectType.DECLARED_RELATIONSHIP
+        ]
+        resolved = resolve_declared_product_relationships(
+            relationship_claims,
+            subject_product_ref="GRIPPS:H09996",
+            product_refs_by_identifier={"H01067": "GRIPPS:H01067"},
+        )
+
+        assert any(
+            claim.property_key == "declared_relationship.object_product_identifier"
+            and claim.value == "H01067"
+            for claim in relationship_claims
+        )
+        assert not any(
+            claim.property_key == "declared_relationship.quantity"
+            for claim in relationship_claims
+        )
+        assert len(resolved) == 1
+        assert resolved[0].quantity is None
