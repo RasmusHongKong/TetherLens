@@ -56,7 +56,7 @@ _EPISTEMIC_DENIAL_PREFIX = re.compile(
 )
 _PREFIX_NEGATION = re.compile(
     r"\b(?:"
-    r"not|never|cannot|can't|"
+    r"no|not|never|cannot|can't|"
     r"(?:do|does|did)\s+not|don't|doesn't|didn't|"
     r"(?:must|should|shall|may|can|could|would)\s+not|"
     r"mustn't|shouldn't|couldn't|wouldn't|"
