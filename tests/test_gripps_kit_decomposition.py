@@ -434,3 +434,31 @@ def test_kit_membership_survives_blank_or_omitted_quantity() -> None:
         )
         assert len(resolved) == 1
         assert resolved[0].quantity is None
+
+
+
+def test_malformed_kit_quantity_does_not_become_unknown_membership() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.KIT,
+        name="Malformed Kit",
+        sku="H09995",
+        url="https://gripps.com/products/malformed-kit",
+    )
+    artifact = _artifact(
+        identity.url,
+        """
+        <h1>Malformed Kit</h1><p>SKU H09995</p>
+        <h3>Kit Contents</h3>
+        <table>
+          <tr><td>H01067</td><td>Webbing Wrist Tether Single-Action</td><td>Ea</td></tr>
+        </table>
+        """,
+    )
+
+    claims = GRIPPSAdapter().extract(identity, [artifact])
+
+    assert not any(
+        claim.subject_type == ClaimSubjectType.DECLARED_RELATIONSHIP
+        for claim in claims
+    )
