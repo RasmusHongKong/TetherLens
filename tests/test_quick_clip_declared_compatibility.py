@@ -162,6 +162,7 @@ def test_quick_clip_d_ring_declaration_rejects_cross_block_question_and_negation
         "<p>It is not established that the Quick Clip can be attached to a D Ring.</p>",
         "<p>The Quick Clip can be attached to a D Ring, but must not be used that way.</p>",
         "<p>The Quick Clip can be attached to a D Ring, but must not be used.</p>",
+        "<p>The Quick Clip can be attached to a D Ring, but it must not be used that way.</p>",
         "<p>The Quick Clip can be attached to a D Ring. "
         "However, do not connect it this way.</p>",
         "<p>The Quick Clip can be attached to a D Ring. "
@@ -179,6 +180,7 @@ def test_quick_clip_d_ring_declaration_rejects_cross_block_question_and_negation
 
 def test_unrelated_negative_wording_does_not_block_positive_d_ring_relation():
     bodies = (
+        "<p>No special tools are required, the Quick Clip can be attached to a D Ring.</p>",
         "<p>The Quick Clip can be attached to a D Ring without removing gloves.</p>",
         "<p>The Quick Clip Attachment is designed to securely anchor the lanyard "
         "to a D Ring without removing gloves.</p>",
