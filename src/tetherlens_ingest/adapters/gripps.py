@@ -92,6 +92,11 @@ _H01085_H01067_ENDORSEMENT = re.compile(
     r"[^.]{0,80}\bwrist\s+tethers?\b",
     re.I,
 )
+_H01085_H01067_IN_MATCH_EXCLUSION = re.compile(
+    r"\b(?:but\s+not|not|except(?:ing)?|excluding?|other\s+than)\b"
+    r"[^.;!?]{0,60}\bH01067\b",
+    re.I,
+)
 _H01085_POST_ENDORSEMENT_PROHIBITION = re.compile(
     r"\b(?:but|however|yet|although|though)\b.{0,120}"
     r"\b(?:"
@@ -637,6 +642,8 @@ def _h01085_h01067_endorsement(text: str) -> re.Match[str] | None:
 
     match = _affirmative_search(_H01085_H01067_ENDORSEMENT, text)
     if match is None:
+        return None
+    if _H01085_H01067_IN_MATCH_EXCLUSION.search(match.group(0)) is not None:
         return None
 
     # A contradiction may follow in the same sentence or in an immediately adjacent
