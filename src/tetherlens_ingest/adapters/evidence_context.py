@@ -208,7 +208,7 @@ def match_is_locally_contradicted(
         return True
     if _negative_relation_assertion(matched_text, subject):
         return True
-    if _post_match_action_prohibition(suffix, subject):
+    if _post_match_action_prohibition(suffix):
         return True
     if _post_match_relation_contradiction(suffix, subject):
         return True
@@ -266,24 +266,20 @@ def _negative_relation_assertion(text: str, subject: str) -> bool:
     ) is not None
 
 
-def _post_match_action_prohibition(suffix: str, subject: str) -> bool:
+def _post_match_action_prohibition(suffix: str) -> bool:
+    """Reject an immediate local prohibition on using/connecting the matched relation."""
+
     if not suffix:
         return False
     lead = (
         r"^\s*(?:[,;.!?]\s*)?"
         r"(?:(?:but|and|however|yet|although|though)\b[,:]?\s*)?"
     )
-    prohibition = re.compile(
-        rf"{lead}{_NEGATIVE_MODAL}\b[^.!?;]{{0,100}}"
-        rf"{_RELATION_ACTION}\w*\b[^.!?;]{{0,100}}{subject}",
+    return re.search(
+        rf"{lead}{_NEGATIVE_MODAL}\b[^.!?;]{{0,100}}{_RELATION_ACTION}\w*\b",
+        suffix,
         re.I,
-    )
-    reverse_target = re.compile(
-        rf"{lead}{_NEGATIVE_MODAL}\b[^.!?;]{{0,100}}{subject}"
-        rf"[^.!?;]{{0,100}}{_RELATION_ACTION}\w*\b",
-        re.I,
-    )
-    return prohibition.search(suffix) is not None or reverse_target.search(suffix) is not None
+    ) is not None
 
 
 def _post_match_relation_contradiction(suffix: str, subject: str) -> bool:
