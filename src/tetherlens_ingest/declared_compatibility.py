@@ -36,10 +36,10 @@ class ConnectorInterfaceCompatibilityDeclaration(BaseModel):
     """
 
     declaration_id: str = Field(min_length=1)
-    connector_spec_ref: str = Field(min_length=1)
-    source_interface_type: str = Field(min_length=1)
-    target_interface_type: str = Field(min_length=1)
-    target_role: ConnectionInterfaceRole
+    connector_spec_ref: str | None = Field(default=None, min_length=1)
+    source_interface_type: str | None = Field(default=None, min_length=1)
+    target_interface_type: str | None = Field(default=None, min_length=1)
+    target_role: ConnectionInterfaceRole | None = None
     target_attributes: dict[str, str | int | float | bool] = Field(default_factory=dict)
     source_product_ref: str | None = Field(default=None, min_length=1)
     target_product_ref: str | None = Field(default=None, min_length=1)
@@ -57,6 +57,21 @@ class ConnectorInterfaceCompatibilityDeclaration(BaseModel):
             raise ValueError(
                 "product-scoped compatibility declarations require both source and target product refs"
             )
+
+        product_scoped = self.source_product_ref is not None
+        primitive_fields = {
+            "connector_spec_ref": self.connector_spec_ref,
+            "source_interface_type": self.source_interface_type,
+            "target_interface_type": self.target_interface_type,
+            "target_role": self.target_role,
+        }
+        if not product_scoped:
+            missing = [name for name, value in primitive_fields.items() if value is None]
+            if missing:
+                raise ValueError(
+                    "generic compatibility declarations require complete connector/interface "
+                    f"primitives; missing {missing!r}"
+                )
         return self
 
     @property
@@ -88,22 +103,22 @@ def resolve_connector_interface_compatibility_declarations(
 
     declarations: list[ConnectorInterfaceCompatibilityDeclaration] = []
     for declaration_id, declaration_claims in sorted(grouped.items()):
-        connector_spec_ref = _required_text(
+        connector_spec_ref = _optional_text(
             declaration_claims,
             CONNECTOR_SPEC_REF_KEY,
             declaration_id,
         )
-        source_interface_type = _required_text(
+        source_interface_type = _optional_text(
             declaration_claims,
             SOURCE_INTERFACE_TYPE_KEY,
             declaration_id,
         )
-        target_interface_type = _required_text(
+        target_interface_type = _optional_text(
             declaration_claims,
             TARGET_INTERFACE_TYPE_KEY,
             declaration_id,
         )
-        target_role_raw = _required_text(
+        target_role_raw = _optional_text(
             declaration_claims,
             TARGET_ROLE_KEY,
             declaration_id,
@@ -142,13 +157,15 @@ def resolve_connector_interface_compatibility_declarations(
             if source_product_ref is None or target_product_ref is None:
                 continue
 
-        try:
-            target_role = ConnectionInterfaceRole(target_role_raw)
-        except ValueError as exc:
-            raise ValueError(
-                f"unsupported target role on compatibility declaration {declaration_id!r}: "
-                f"{target_role_raw!r}"
-            ) from exc
+        target_role: ConnectionInterfaceRole | None = None
+        if target_role_raw is not None:
+            try:
+                target_role = ConnectionInterfaceRole(target_role_raw)
+            except ValueError as exc:
+                raise ValueError(
+                    f"unsupported target role on compatibility declaration {declaration_id!r}: "
+                    f"{target_role_raw!r}"
+                ) from exc
 
         target_attributes: dict[str, str | int | float | bool] = {}
         for claim in declaration_claims:
@@ -254,7 +271,13 @@ def connection_contexts_from_compatibility_declarations(
             matching = [
                 declaration
                 for declaration in declarations
-                if _declaration_matches(
+                if _product_scoped_target_is_unambiguous(
+                    declaration,
+                    target_interfaces=target_interfaces,
+                    target_interface_product_refs=interface_product_refs,
+                    inferred_single_target_product_ref=inferred_single_target_product_ref,
+                )
+                and _declaration_matches(
                     declaration,
                     endpoint,
                     target,
@@ -317,18 +340,56 @@ def _declaration_matches(
             return False
     if endpoint.role != ConnectionInterfaceRole.TETHER_CONNECTION:
         return False
-    if endpoint.connector_spec_ref != declaration.connector_spec_ref:
+    if (
+        declaration.connector_spec_ref is not None
+        and endpoint.connector_spec_ref != declaration.connector_spec_ref
+    ):
         return False
-    if endpoint.interface_type != declaration.source_interface_type:
+    if (
+        declaration.source_interface_type is not None
+        and endpoint.interface_type != declaration.source_interface_type
+    ):
         return False
-    if target.role != declaration.target_role:
+    if declaration.target_role is not None and target.role != declaration.target_role:
         return False
-    if target.interface_type != declaration.target_interface_type:
+    if (
+        declaration.target_interface_type is not None
+        and target.interface_type != declaration.target_interface_type
+    ):
         return False
     return all(
         target.attributes.get(key) == value
         for key, value in declaration.target_attributes.items()
     )
+
+
+def _product_scoped_target_is_unambiguous(
+    declaration: ConnectorInterfaceCompatibilityDeclaration,
+    *,
+    target_interfaces: list[ConnectionInterface],
+    target_interface_product_refs: dict[str, str],
+    inferred_single_target_product_ref: str | None,
+) -> bool:
+    """Fail closed when an unconstrained exact-product declaration has multiple targets."""
+
+    if declaration.target_product_ref is None:
+        return True
+    if (
+        declaration.target_role is not None
+        or declaration.target_interface_type is not None
+        or declaration.target_attributes
+    ):
+        return True
+
+    owned_targets = 0
+    for interface in target_interfaces:
+        owner_ref = target_interface_product_refs.get(
+            interface.interface_id,
+            inferred_single_target_product_ref,
+        )
+        if owner_ref == declaration.target_product_ref:
+            owned_targets += 1
+    return owned_targets == 1
 
 
 def _required_text(
