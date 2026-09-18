@@ -577,6 +577,8 @@ def _extract_connection_compatibility_claims(
         if not _is_verified_product_detail(artifact, identity):
             continue
         product_text = _product_local_text(artifact.body, identity)
+        if not _text_explicitly_names_sku(product_text, identity.sku):
+            continue
         endorsement = _h01085_h01067_endorsement(product_text)
         if endorsement is None:
             continue
@@ -591,6 +593,15 @@ def _extract_connection_compatibility_claims(
         )
     return _dedupe(claims)
 
+
+def _text_explicitly_names_sku(text: str, sku: str) -> bool:
+    """Require exact variant identity before executable product-scoped connection use."""
+
+    return re.search(
+        rf"(?<![A-Z0-9]){re.escape(sku)}(?![A-Z0-9])",
+        text,
+        re.I,
+    ) is not None
 
 def _h01085_h01067_endorsement(text: str) -> re.Match[str] | None:
     """Return the local affirmative H01067 suitability statement, if uncontradicted."""
