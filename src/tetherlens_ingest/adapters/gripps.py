@@ -444,7 +444,7 @@ def _extract_declared_relationship_claims(
                         f"endorsed:{identity.sku or 'H01085'}:H01067",
                         relationship_type="explicitly_endorsed",
                         object_identifier="H01067",
-                        quantity=1,
+                        quantity=None,
                         scope="GRIPPS states H01067 is suitable for this wrist anchor",
                         raw_value=endorsement.group(0),
                         source_url=artifact.url,
@@ -470,7 +470,24 @@ def _kit_content_rows(body: str) -> list[tuple[str, str, int]]:
         and "kit contents" in " ".join(value.casefold().split())
     )
     for marker in markers:
-        table = marker.parent.find_next("table")
+        table = None
+        for element in marker.parent.next_elements:
+            name = getattr(element, "name", None)
+            if name == "table":
+                table = element
+                break
+            if name in {"h1", "h2", "h3", "h4", "h5", "h6"}:
+                heading = " ".join(element.stripped_strings).casefold()
+                if any(
+                    boundary in heading
+                    for boundary in (
+                        "key features",
+                        "specifications",
+                        "downloads",
+                        "related products",
+                    )
+                ):
+                    break
         if table is None:
             continue
         for row in table.find_all("tr"):
@@ -501,7 +518,7 @@ def _relationship_claims(
     *,
     relationship_type: str,
     object_identifier: str,
-    quantity: int,
+    quantity: int | None,
     scope: str,
     raw_value: str,
     source_url: str,
@@ -510,9 +527,10 @@ def _relationship_claims(
     values = [
         ("declared_relationship.type", relationship_type),
         ("declared_relationship.object_product_identifier", object_identifier),
-        ("declared_relationship.quantity", quantity),
         ("declared_relationship.scope", scope),
     ]
+    if quantity is not None:
+        values.append(("declared_relationship.quantity", quantity))
     return [
         CandidateClaim(
             subject_type=ClaimSubjectType.DECLARED_RELATIONSHIP,
