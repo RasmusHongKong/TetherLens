@@ -16,7 +16,7 @@ This is workflow/documentation guidance only. It does not change recommendation 
 
 Merged `main` entering PR #73 is PR #72, `Decompose GRIPPS wrist kits into existing catalogue components`.
 
-PR #73 is the current follow-on slice. It keeps kits outside the runtime load path and carries the separately catalogued GRIPPS H01067 tether + exact H01085 variant through the ordinary recommendation path. Reusable H01067 connector/assignment semantics and H01085 slip-on installation remain primary; the product-local H01067 suitability statement supplies only the exact product-scoped connection authority that cannot be generalized because H01085 tether-side geometry is unpublished.
+PR #73 is the current follow-on slice. It keeps kits outside the runtime load path and carries the separately catalogued GRIPPS H01067 tether + an exactly evidenced H01085 variant through the ordinary recommendation path. Reusable H01067 connector/assignment semantics and H01085 slip-on installation remain primary; the product-local H01067 suitability statement supplies only the exact product-scoped connection authority that cannot be generalized because H01085 tether-side geometry is unpublished. The current vertical uses H01085-S because the bounded component evidence explicitly identifies that SKU.
 
 Historical portability cohorts remain immutable at their original semantic revisions:
 
@@ -269,9 +269,9 @@ ordinary TetherOption + AnchorPathOption
   -> deterministic selection
 ```
 
-The exact declaration is intentionally narrower than a generic compatibility rule. It becomes executable only when the source product identifier `H01067` and the target variant identifier such as `H01085-M` both resolve to stable catalogue refs. Family-only `H01085`, missing mappings, cross-sell copy, negated suitability and contradictory trailing prohibitions all fail closed.
+The exact declaration is intentionally narrower than a generic compatibility rule. It becomes executable only when the source product identifier `H01067` and a concrete H01085 variant identifier both resolve to stable catalogue refs **and** the bounded component evidence explicitly names that target variant SKU. Family-only `H01085`, caller-supplied variants not named by the component evidence, missing mappings, cross-sell copy, negated suitability and contradictory nearby prohibitions all fail closed.
 
-The end-to-end regression proves that runtime candidate components are exactly H01067 + H01085-M. No `KIT`, wrapper or synthetic `Composite` identity participates in the load path. H01067's reversible assignment yields the valid endpoint orientations, H01085's anchor-installation binding remains attached to the exact wrist feature, and the anchor-side connection uses the existing `MANUFACTURER_DECLARED` basis only for the documented product pair.
+The end-to-end regression uses the explicitly identified H01085-S component and proves that runtime candidate components are exactly H01067 + H01085-S. No `KIT`, wrapper or synthetic `Composite` identity participates in the load path. H01067's reversible assignment yields the valid endpoint orientations, H01085's anchor-installation binding remains attached to the exact wrist feature, and the anchor-side connection uses the existing `MANUFACTURER_DECLARED` basis only for the documented product pair. A kit row naming H01085-M remains catalogue evidence; it does not itself authorize the H01085-M connection path.
 
 This does not claim that GRIPPS kit membership explains compatibility. Kit evidence remains catalogue/system-architecture context; component-local evidence and reusable primitives determine recommendation behavior.
 ## Review-derived reusable provenance invariants
