@@ -11,7 +11,13 @@ from tetherlens_ingest.models import (
 )
 
 from .nlg_cinch_loop import NLGAdapter as BaseNLGAdapter
-from .nlg_connector_mechanism import _dedupe_claims, _html_evidence_clauses
+from .evidence_context import (
+    evidence_sentence_for_match,
+    html_evidence_blocks,
+    match_is_interrogative,
+    match_is_locally_contradicted,
+)
+from .nlg_connector_mechanism import _dedupe_claims
 
 
 _DECLARATION_REF = "quick_clip_to_d_ring_anchor"
@@ -25,24 +31,11 @@ _ISSUER_MANUFACTURER_KEY = "connection_compatibility.issuer_manufacturer"
 _SCOPE_KEY = "connection_compatibility.scope"
 _SCOPE = "Quick Clip to D-ring anchor point"
 
-_NEGATED_ASSERTION_PREFIX = re.compile(
-    r"(?:"
-    r"\b(?:do|does|did)\s+not\s+(?:assume|infer|conclude|interpret|treat|read|take)\b"
-    r"|\b(?:cannot|can't)\s+(?:assume|infer|conclude|interpret|treat|read|take)\b"
-    r"|\b(?:is|are|was|were)\s+not\s+(?:established|confirmed|stated|clear)\b"
-    r")",
-    re.I,
-)
-_POST_RELATION_PROHIBITION = re.compile(
-    r"(?:^|\b(?:but|yet|however|although|though)\b).{0,120}"
-    r"\b(?:"
-    r"(?:must|should|shall|may|can)\s+not|"
-    r"cannot|can't|"
-    r"(?:do|does|did)\s+not|"
-    r"never"
-    r")\b.{0,80}"
-    r"\b(?:use|used|using|attach|attached|connecting?|connected|anchor|anchored|that\s+way|this\s+way)\b",
-    re.I | re.S,
+_DECLARATION_SUBJECT_PATTERNS = (
+    r"\bQuick\s*Clip(?:s)?\b™?",
+    r"\bD[\s-]?Ring\b",
+    r"\b(?:it|the\s+attachment|this\s+tether|the\s+tether)\b",
+    r"\b(?:that|this)\s+way\b",
 )
 
 
@@ -81,15 +74,7 @@ class NLGAdapter(BaseNLGAdapter):
 
 
 def _quick_clip_d_ring_compatibility_evidence(text: str) -> str | None:
-    """Return one local positive manufacturer Quick Clip -> D-ring assertion.
-
-    A positive relation match is necessary but not sufficient. A bounded surrounding
-    context is also checked for epistemic negation before the match and a contradictory
-    use/connection prohibition after it. This prevents a positive substring inside a
-    negative assertion from becoming authoritative compatibility evidence without using
-    a clause-wide token blacklist that would reject unrelated wording such as
-    ``without removing gloves``.
-    """
+    """Return one local, affirmative Quick Clip -> D-ring manufacturer assertion."""
 
     quick_clip = r"Quick\s*Clip(?:s)?\b™?"
     quick_clip_attachment = rf"{quick_clip}\s+Attachment\b"
@@ -116,36 +101,20 @@ def _quick_clip_d_ring_compatibility_evidence(text: str) -> str | None:
         rf"(?:an?\s+|the\s+)?{d_ring}(?:\s+style\s+anchor\s+point)?\b",
         re.I,
     )
-    negation = re.compile(
-        r"\b(?:not|never|cannot|can't|should\s+not|must\s+not|do\s+not|does\s+not|without)\b",
-        re.I,
-    )
 
-    for clause in _html_evidence_clauses(text):
-        if clause.rstrip().endswith("?"):
-            continue
+    for block in html_evidence_blocks(text):
         for relation in (direct_relation, featuring_relation, designed_relation):
-            match = relation.search(clause)
-            if match is None:
-                continue
-            if negation.search(match.group(0)) is not None:
-                continue
-            if _surrounding_context_blocks_declaration(clause, match):
-                continue
-            return clause.strip()
+            for match in relation.finditer(block):
+                if match_is_interrogative(block, match):
+                    continue
+                if match_is_locally_contradicted(
+                    block,
+                    match,
+                    subject_patterns=_DECLARATION_SUBJECT_PATTERNS,
+                ):
+                    continue
+                return evidence_sentence_for_match(block, match)
     return None
-
-
-def _surrounding_context_blocks_declaration(clause: str, match: re.Match[str]) -> bool:
-    """Reject a positive substring when nearby grammar negates/prohibits its assertion."""
-
-    prefix = clause[max(0, match.start() - 140) : match.start()]
-    if _NEGATED_ASSERTION_PREFIX.search(prefix) is not None:
-        return True
-
-    suffix = clause[match.end() : match.end() + 180]
-    return _POST_RELATION_PROHIBITION.search(suffix) is not None
-
 
 def _declaration_claims(
     *,
