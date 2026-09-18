@@ -28,7 +28,7 @@ from .base import ManufacturerAdapter
 from .common import page_text
 
 
-_EXTRACTOR = "gripps.v0.4"
+_EXTRACTOR = "gripps.v0.5"
 
 _LOAD_RATING = re.compile(
     r"\b(?:max(?:imum)?\s+load|load\s+rating(?:\s+of)?(?:\s+up\s+to)?)\b\s*:?\s*"
@@ -92,6 +92,12 @@ _H01085_H01067_ENDORSEMENT = re.compile(
     r"[^.]{0,80}\bwrist\s+tethers?\b",
     re.I,
 )
+_H01085_POST_ENDORSEMENT_PROHIBITION = re.compile(
+    r"\b(?:but|however|yet|although|though)\b.{0,120}"
+    r"\b(?:must|should|shall|may|can)\s+not\b.{0,80}"
+    r"\b(?:use|used|using|attach|attached|connect|connected|tether|tethered)\b",
+    re.I | re.S,
+)
 
 
 class GRIPPSAdapter(ManufacturerAdapter):
@@ -116,6 +122,7 @@ class GRIPPSAdapter(ManufacturerAdapter):
         artifacts: list[SourceArtifact],
     ) -> list[CandidateClaim]:
         relationship_claims = _extract_declared_relationship_claims(identity, artifacts)
+        compatibility_claims = _extract_connection_compatibility_claims(identity, artifacts)
 
         if identity.product_type == ProductType.TETHER:
             component_claims = self._extract_tether(identity, artifacts)
@@ -126,7 +133,7 @@ class GRIPPSAdapter(ManufacturerAdapter):
         else:
             component_claims = []
 
-        return _dedupe([*relationship_claims, *component_claims])
+        return _dedupe([*relationship_claims, *compatibility_claims, *component_claims])
 
     def _extract_tether(
         self,
@@ -521,10 +528,7 @@ def _extract_declared_relationship_claims(
 
         product_text = _product_local_text(artifact.body, identity)
         if _base_sku(identity.sku) == "H01085":
-            endorsement = _affirmative_search(
-                _H01085_H01067_ENDORSEMENT,
-                product_text,
-            )
+            endorsement = _h01085_h01067_endorsement(product_text)
             if endorsement is not None:
                 claims.extend(
                     _relationship_claims(
@@ -541,6 +545,105 @@ def _extract_declared_relationship_claims(
 
     return _dedupe(claims)
 
+
+
+def _extract_connection_compatibility_claims(
+    identity: ProductIdentity,
+    artifacts: list[SourceArtifact],
+) -> list[CandidateClaim]:
+    """Keep H01067/H01085 connection authority exact when geometry remains sparse.
+
+    The H01085 page explicitly names H01067 wrist tethers as suitable, while the
+    normalized H01085 tether-side interface remains physically unknown. Preserve that
+    statement as a product-scoped manufacturer declaration rather than widening it into
+    generic carabiner-to-wrist-anchor compatibility.
+    """
+
+    if (
+        identity.product_type != ProductType.ANCHOR_ATTACHMENT
+        or _base_sku(identity.sku) != "H01085"
+        or not identity.sku
+        or identity.sku.upper() == "H01085"
+    ):
+        return []
+
+    claims: list[CandidateClaim] = []
+    for artifact in artifacts:
+        if not _is_verified_product_detail(artifact, identity):
+            continue
+        product_text = _product_local_text(artifact.body, identity)
+        endorsement = _h01085_h01067_endorsement(product_text)
+        if endorsement is None:
+            continue
+        claims.extend(
+            _connection_compatibility_claims(
+                declaration_ref=f"h01067_to_{identity.sku.lower()}_wrist_anchor",
+                source_product_identifier="H01067",
+                target_product_identifier=identity.sku.upper(),
+                raw_value=endorsement.group(0),
+                source_url=artifact.url,
+            )
+        )
+    return _dedupe(claims)
+
+
+def _h01085_h01067_endorsement(text: str) -> re.Match[str] | None:
+    """Return the local affirmative H01067 suitability statement, if uncontradicted."""
+
+    match = _affirmative_search(_H01085_H01067_ENDORSEMENT, text)
+    if match is None:
+        return None
+
+    sentence_end_positions = [
+        position
+        for punctuation in (".", "!", "?")
+        for position in [text.find(punctuation, match.end())]
+        if position != -1
+    ]
+    sentence_end = min(sentence_end_positions) if sentence_end_positions else len(text)
+    suffix = text[match.end() : sentence_end]
+    if _H01085_POST_ENDORSEMENT_PROHIBITION.search(suffix) is not None:
+        return None
+    return match
+
+
+def _connection_compatibility_claims(
+    *,
+    declaration_ref: str,
+    source_product_identifier: str,
+    target_product_identifier: str,
+    raw_value: str,
+    source_url: str,
+) -> list[CandidateClaim]:
+    values = (
+        ("connection_compatibility.connector_spec_ref", "wrist_tether_carabiner"),
+        ("connection_compatibility.source_interface_type", "carabiner"),
+        ("connection_compatibility.target_interface_type", "unknown"),
+        ("connection_compatibility.target_role", "anchor_attachment_tether_side"),
+        ("connection_compatibility.source_product_identifier", source_product_identifier),
+        ("connection_compatibility.target_product_identifier", target_product_identifier),
+        ("connection_compatibility.issuer_manufacturer", "GRIPPS"),
+        (
+            "connection_compatibility.scope",
+            "GRIPPS states H01067 wrist tethers are suitable for this exact "
+            "Slip-On Wrist Anchor variant; tether-side interface geometry remains unpublished",
+        ),
+    )
+    return [
+        CandidateClaim(
+            subject_type=ClaimSubjectType.CONNECTION_COMPATIBILITY,
+            subject_ref=declaration_ref,
+            property_key=property_key,
+            value=value,
+            unit=None,
+            raw_value=raw_value,
+            source_url=source_url,
+            evidence_method="manufacturer_pairing",
+            extractor=_EXTRACTOR,
+            claim_type=ClaimType.DIRECT,
+        )
+        for property_key, value in values
+    ]
 
 def _kit_content_rows(
     body: str,
