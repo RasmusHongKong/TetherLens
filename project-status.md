@@ -14,9 +14,9 @@ This is workflow/documentation guidance only. It does not change recommendation 
 
 ## Current baseline
 
-Merged `main` entering PR #73 is PR #72, `Decompose GRIPPS wrist kits into existing catalogue components`.
+Merged `main` entering PR #74 is PR #73, `Prove GRIPPS H01067 + H01085 wrist recommendation path`.
 
-PR #73 is the current follow-on slice. It keeps kits outside the runtime load path and carries the separately catalogued GRIPPS H01067 tether + an exactly evidenced H01085 variant through the ordinary recommendation path. Reusable H01067 connector/assignment semantics and H01085 slip-on installation remain primary; the product-local H01067 suitability statement supplies only the exact product-scoped connection authority that cannot be generalized because H01085 tether-side geometry is unpublished. The current vertical uses H01085-S because the bounded component evidence explicitly identifies that SKU.
+PR #74 is the current ingestion-architecture follow-on. It does not widen recommendation authority or catalogue semantics. It centralizes the manufacturer-neutral question of whether a positive-looking local prose match is negated, excluded, prohibited or contradicted, while leaving each adapter responsible for the manufacturer-specific positive wording it recognizes.
 
 Historical portability cohorts remain immutable at their original semantic revisions:
 
@@ -274,6 +274,44 @@ The exact declaration is intentionally narrower than a generic compatibility rul
 The end-to-end regression uses the explicitly identified H01085-S component and proves that runtime candidate components are exactly H01067 + H01085-S. No `KIT`, wrapper or synthetic `Composite` identity participates in the load path. H01067's reversible assignment and connector/interface facts remain sourced from H01067 itself; H01085's anchor-installation binding and tether-side interface remain sourced from H01085. The product-scoped declaration contributes only the documented pair authority used by the existing `MANUFACTURER_DECLARED` basis. A kit row naming H01085-M remains catalogue evidence; it does not itself authorize the H01085-M connection path.
 
 This does not claim that GRIPPS kit membership explains compatibility. Kit evidence remains catalogue/system-architecture context; component-local evidence and reusable primitives determine recommendation behavior.
+## PR #74: shared local evidence context
+
+PR #74 turns the repeated contradiction hardening exposed by PR #73 into a bounded shared ingestion invariant rather than copying another set of vendor regexes.
+
+The new shared evidence-context layer owns:
+
+- HTML block/clause rendering that preserves inline text without joining separate semantic blocks;
+- punctuation-bounded sentence context around a positive match;
+- prefix and immediate trailing negation;
+- caller-bound in-match exclusions;
+- same-sentence or immediately adjacent action prohibitions;
+- nearby negative relation assertions such as `not suitable`, `not compatible`, `unsuitable` and `incompatible`;
+- common contractions and rhetorical conjunctions; and
+- negative-looking but non-contradictory wording such as `without removing gloves` and additive `not only`.
+
+The adapter still owns the positive source grammar and supplies the relationship referents that a contradiction must concern. Shared code therefore contains no GRIPPS SKU, NLG product name, D-ring compatibility rule or manufacturer-specific recommendation branch.
+
+The first migrations are deliberately narrow:
+
+```text
+GRIPPS H01085 page
+  -> adapter-specific H01067 suitability pattern
+  -> shared local contradiction check
+  -> existing exact relationship / connection claims
+
+NLG Quick Clip evidence
+  -> adapter-specific Quick Clip -> D-ring positive patterns
+  -> shared block + sentence context
+  -> shared local contradiction check
+  -> existing generic connection declaration
+```
+
+GRIPPS-specific in-match exclusion, adjacent prohibition and negative-relation regexes are removed from that pairing path. NLG declared compatibility no longer maintains a separate assertion/prohibition grammar. The existing shared HTML clause renderer also moves out of the connector-mechanism implementation so other prose extractors can depend on an evidence-context module rather than a feature-specific parser.
+
+A table-driven shared contradiction matrix covers prefix negation, in-match exclusion, entity-first negation, adjacent direct and rhetorical prohibitions, negative relation adjectives, contractions, trailing predicate negation, hard block boundaries, `not only`, and harmless `without removing gloves`. Existing GRIPPS and NLG adapter regressions continue to prove end-to-end claim behavior.
+
+This is not a wholesale regex framework. `nlg_compat._match_is_negated()`, the Quick Clip trigger mechanism's trigger-specific negation, and the anchor D-ring parser's predicate-ownership rules remain local until their evidence boundaries are compared and shown to be genuinely equivalent.
+
 ## Review-derived reusable provenance invariants
 
 The PR #69, #70, #72 and #73 workstreams reinforce several reusable rules:
@@ -286,7 +324,7 @@ The PR #69, #70, #72 and #73 workstreams reinforce several reusable rules:
 6. **Manufacturer prescription and physical compatibility are independent unless causal technical scope is established.** A mixed-brand route can remain technically field-verifiable while carrying contrary manufacturer-position evidence.
 7. **Matching a manufacturer family is not blanket endorsement.** `appropriate <manufacturer> tether` does not prove every tether sold by that manufacturer is approved.
 8. **Product-detail URLs still need section-local evidence boundaries.** Exact URL/product verification does not authorize sibling cards, Related Products, later product fragments or their Kit Contents as evidence for the requested product.
-9. **Positive-looking text with local contradictory grammar is contrary evidence, not positive evidence.** Prefix/in-match negation, adjacent prohibitions and adjacent negative relation assertions such as `not suitable`, `not compatible`, `unsuitable` or `incompatible` must fail closed rather than become installation, relationship or construction authority. The exact grammar is currently adapter-local and is the next consistency target.
+9. **Positive-looking text with local contradictory grammar is contrary evidence, not positive evidence.** Prefix/in-match negation, adjacent prohibitions and adjacent negative relation assertions such as `not suitable`, `not compatible`, `unsuitable` or `incompatible` must fail closed rather than become installation, relationship or construction authority. PR #74 centralizes this invariant for the first two free-prose relationship paths while preserving specialized parser semantics where equivalence has not yet been established.
 10. **Directional semantics are not tied to one grammatical order.** Dedicated/designated endpoint wording vetoes reversible endpoint derivation whether the role phrase appears before or after the connector noun.
 11. **Historical portability classifications remain historical.** Closing later catalogue gaps does not rewrite V6.
 
@@ -315,24 +353,19 @@ The post-PR #73 baseline does **not** add:
 
 Those boundaries remain deliberate.
 
-## Next recommended slice after PR #73
+## Next recommended slice after PR #74
 
-PR #73 closes the useful GRIPPS wrist-component proof without making a kit executable. H01088 remains unresolved until GRIPPS resolves its contradictory component identity, and no further kit-specific work is required merely to demonstrate runtime composition.
+PR #74 establishes the shared evidence-context boundary and proves it across one GRIPPS product-scoped relationship and one NLG generic interface relationship. The next architecture step is **not** to migrate every regex mechanically.
 
-The review cycle exposed a higher-value ingestion-consistency gap before the next catalogue-throughput case: affirmative/negative local evidence grammar is currently implemented several times across GRIPPS and NLG. GRIPPS now has product-specific guards for prefix/in-match exclusions, adjacent prohibitions and declarative contradictions; `nlg_compat.py` has a separate `_match_is_negated()` helper; `nlg_declared_compatibility.py` independently implements prefix/post-relation guards; and connector-mechanism parsing has another local negation check.
+First compare the remaining nearby parsers against the shared semantics:
 
-The next highest-value slice is therefore a **manufacturer-neutral local evidence-context/contradiction layer**. Keep manufacturer-specific positive evidence patterns in their adapters, but centralize the reusable questions about the matched evidence context:
+- `nlg_compat._match_is_negated()` — determine which prefix/trailing polarity checks are identical to the shared invariant and which constraint-specific cases need to stay local;
+- Quick Clip connector-mechanism negation — retain trigger ownership/mechanism binding locally, delegating only generic local-context checks if that does not weaken the current evidence boundary; and
+- anchor D-ring predicate ownership — keep external-requirement and coordinated-predicate semantics local unless a second concrete parser proves the same abstraction.
 
-- clause/sentence/block boundaries around a positive match;
-- prefix, in-match and immediate trailing negation;
-- adjacent action prohibitions;
-- adjacent negative relation assertions such as `not suitable`, `not compatible`, `unsuitable` and `incompatible`;
-- contractions and rhetorical conjunctions; and
-- harmless negative wording such as `without removing gloves` that must not veto otherwise positive evidence.
+Add focused equivalence regressions before deleting any remaining local guard. Do not turn PR #74's relationship helper into a clause-wide negative-token blacklist or generic NLP layer.
 
-Start by migrating the GRIPPS H01085/H01067 relationship and NLG Quick Clip -> D-ring declared compatibility to the shared helper with one table-driven contradiction matrix. Then compare `nlg_compat._match_is_negated()` and connector-mechanism negation semantics and consolidate only where their evidence boundaries genuinely match. Do not attempt a wholesale rewrite of adapters that do not perform this kind of free-prose relationship extraction.
-
-Historical portability cohorts remain frozen throughout this refactor. After the shared evidence-context layer is stable, return to FallTech 5106A5 / Ergodyne 3172/19172 catalogue throughput.
+Once that comparison is complete, return to FallTech 5106A5 / Ergodyne 3172/19172 catalogue throughput. Historical portability cohorts remain frozen throughout the refactor.
 
 ## Catalogue throughput in parallel
 
@@ -371,15 +404,11 @@ High-value throughput work includes:
 ## Suggested opening prompt for the next chat
 
 ```text
-Continue TetherLens from PR #73 after it is merged to main. Keep all historical portability cohorts frozen at their existing semantic revisions: V1 is 0 A / 5 B / 3 C / 0 D, V2 is 0 A / 6 B / 2 C / 0 D, V3 is 0 A / 5 B / 3 C / 0 D, V4 is 0 A / 4 B / 4 C / 0 D, V5 is 0 A / 6 B / 2 C / 0 D, and V6 is 1 A / 7 B / 0 C / 0 D.
+Continue TetherLens from PR #74 after it is merged to main. Keep all historical portability cohorts frozen at their existing semantic revisions: V1 is 0 A / 5 B / 3 C / 0 D, V2 is 0 A / 6 B / 2 C / 0 D, V3 is 0 A / 5 B / 3 C / 0 D, V4 is 0 A / 4 B / 4 C / 0 D, V5 is 0 A / 6 B / 2 C / 0 D, and V6 is 1 A / 7 B / 0 C / 0 D.
 
-PR #73 proves the component-local GRIPPS H01067 + exact H01085-variant recommendation path while retaining sparse target geometry as exact product-scoped connection authority. Its review cycle also exposed a broader ingestion-consistency problem: local affirmative/negative evidence context is implemented separately in GRIPPS, nlg_compat.py, nlg_declared_compatibility.py and connector-mechanism parsing.
+PR #74 adds the manufacturer-neutral local evidence-context/contradiction layer and migrates the GRIPPS H01085/H01067 relationship plus NLG Quick Clip -> D-ring declared compatibility. Positive manufacturer grammar remains adapter-specific; shared code owns only bounded block/sentence context and reusable contradiction semantics. The shared contradiction matrix now covers the grammar learned during PR #73 without changing historical portability expectations.
 
-Before returning to catalogue throughput, inspect those ingestion paths and define the smallest manufacturer-neutral local evidence-context/contradiction helper. Manufacturer-specific adapters should continue to own the positive facts they are looking for; shared infrastructure should only decide whether a positive-looking match is locally negated, excluded or contradicted, while preserving evidence boundaries.
+Before returning to catalogue throughput, compare nlg_compat._match_is_negated(), Quick Clip connector-mechanism negation, and the anchor D-ring predicate guards against the new shared helper. Consolidate only the parts whose evidence boundaries genuinely match. Keep mechanism ownership, external-requirement grammar, coordinated-predicate semantics and other source-specific interpretation local where needed.
 
-Cover the learned grammar with table-driven tests: prefix negation, in-match exclusions, entity-first negation, adjacent imperative prohibitions, not suitable/not compatible, unsuitable/incompatible, contractions, rhetorical conjunctions, clause/sentence/block boundaries, and harmless negative wording such as without removing gloves.
-
-Migrate GRIPPS H01085/H01067 and NLG Quick Clip -> D-ring declared compatibility first. Then compare nlg_compat._match_is_negated() and connector-mechanism negation behavior and consolidate only where the semantics genuinely match. Do not turn this into a wholesale rewrite of adapters that do not perform free-prose relationship extraction, and do not change historical portability expectations.
-
-Recommend the smallest reusable implementation slice after inspecting current main, project-status.md, the relevant adapters/tests and existing ingestion guidance.
+Recommend the smallest safe follow-up after inspecting current main, the shared evidence-context helper, the remaining local guards and their tests. If no further safe consolidation is justified, return to FallTech 5106A5 / Ergodyne 3172/19172 throughput rather than refactoring for symmetry.
 ```
