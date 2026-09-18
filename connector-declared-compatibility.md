@@ -135,9 +135,12 @@ issuer = GRIPPS
 manufacturer position = explicitly_compatible
 ```
 
-`unknown` remains an honest normalized physical fact about the H01085 target interface. It is not being promoted into a reusable interface class: the exact product refs are mandatory for this declaration to match. A different tether with the same broad interface type, a different wrist anchor, an unmapped H01085 family identity, or a sibling/cross-sell statement receives no authority from this declaration.
+`unknown` remains an honest normalized physical fact about the H01085 target interface. It is not being promoted into a reusable interface class: the exact product refs are mandatory for this declaration to match. For the target side, executable variant scope also requires the bounded product evidence to name that exact H01085 variant SKU; a family H1 plus a caller-supplied variant identifier is insufficient. A different tether with the same broad interface type, a different wrist anchor, an unmapped or unstated H01085 variant, or a sibling/cross-sell statement receives no authority from this declaration.
+
+The current end-to-end proof uses H01085-S because the component product evidence explicitly identifies that variant. A kit row naming H01085-M may establish kit membership and exact catalogue identity for that wrapper, but kit membership does not grant H01085-M the component-local connection declaration.
 
 This is intentionally different from the NLG Quick Clip case. NLG publishes enough target topology (`ring_form = d_ring`) for the declaration to remain reusable without product refs. The GRIPPS case proves only its documented relationship until better geometry is available.
+
 ## Quick Clip v1 matching scope
 
 A Quick Clip declaration matches only when all of the following are established:
