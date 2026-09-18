@@ -130,12 +130,16 @@ class GRIPPSAdapter(ManufacturerAdapter):
     ) -> list[CandidateClaim]:
         claims: list[CandidateClaim] = []
         for artifact in artifacts:
+            if _base_sku(identity.sku) == "H01067":
+                if not _is_verified_product_detail(artifact, identity):
+                    continue
+                product_text = _product_local_text(artifact.body, identity)
+                claims.extend(_capacity_claims(product_text, artifact.url))
+                claims.extend(_h01067_tether_claims(product_text, artifact.url))
+                continue
+
             text = page_text(artifact.body)
             claims.extend(_capacity_claims(text, artifact.url))
-
-            if _base_sku(identity.sku) == "H01067":
-                claims.extend(_h01067_tether_claims(text, artifact.url))
-                continue
 
             directional = _DIRECTIONAL_CARABINERS.search(text)
             if directional is None:
@@ -227,12 +231,12 @@ class GRIPPSAdapter(ManufacturerAdapter):
             if not _is_verified_product_detail(artifact, identity):
                 continue
 
-            text = page_text(artifact.body)
-            claims.extend(_capacity_claims(text, artifact.url))
+            product_text = _product_local_text(artifact.body, identity)
+            claims.extend(_capacity_claims(product_text, artifact.url))
 
             if _base_sku(identity.sku) == "H01085":
-                slip_action = _H01085_SLIP_ACTION.search(text)
-                wrist_context = _H01085_WRIST_CONTEXT.search(text)
+                slip_action = _H01085_SLIP_ACTION.search(product_text)
+                wrist_context = _H01085_WRIST_CONTEXT.search(product_text)
                 if slip_action is not None and wrist_context is not None:
                     raw = f"{wrist_context.group(0)}; {slip_action.group(0)}"
                     claims.extend(
@@ -254,8 +258,8 @@ class GRIPPSAdapter(ManufacturerAdapter):
                         ]
                     )
 
-            target = _WRIST_TARGET.search(text)
-            fastening = _WRIST_FASTENING.search(text)
+            target = _WRIST_TARGET.search(product_text)
+            fastening = _WRIST_FASTENING.search(product_text)
             if target is not None and fastening is not None:
                 claims.extend(
                     [
@@ -284,7 +288,7 @@ class GRIPPSAdapter(ManufacturerAdapter):
                     ]
                 )
 
-            tether_anchor = _LOAD_RATED_TETHER_ANCHOR.search(text)
+            tether_anchor = _LOAD_RATED_TETHER_ANCHOR.search(product_text)
             if tether_anchor is not None:
                 # The page establishes a provided tether anchor, but not its physical
                 # interface form. Retain the role and let resolution keep type unknown.
@@ -317,7 +321,7 @@ class GRIPPSAdapter(ManufacturerAdapter):
             wrapper_text = _product_local_text(artifact.body, identity)
             slip_on_rows = [
                 (sku, description, quantity)
-                for sku, description, quantity in _kit_content_rows(artifact.body)
+                for sku, description, quantity in _kit_content_rows(artifact.body, identity)
                 if re.search(r"\bslip[-\s]?on\s+wrist\s+anchor\b", description, re.I)
             ]
             if (
@@ -410,17 +414,16 @@ def _is_verified_product_detail(
     return bool(name_tokens) and all(token in heading_text for token in name_tokens)
 
 
-def _product_local_text(body: str, identity: ProductIdentity) -> str:
-    """Return text from the exact product's main page region, excluding cross-sell areas.
+def _product_local_elements(body: str, identity: ProductIdentity) -> list:
+    """Return the exact product's main page region before cross-sell content.
 
-    A trusted product-detail URL can still contain popular-product cards, related
-    products and recently viewed items. Start from the h1 that matches the requested
-    product identity and stop before the first explicit cross-sell heading so those
-    sibling products cannot establish executable product-local semantics.
+    Exact product URLs still contain sibling product cards. The matching product H1 is
+    therefore the start boundary. A later H1 always ends the region; explicit cross-sell
+    headings also end it. All PR #72 GRIPPS semantics consume this same bounded region.
     """
 
     if not identity.name:
-        return ""
+        return []
 
     soup = BeautifulSoup(body, "html.parser")
     name_tokens = [
@@ -429,7 +432,7 @@ def _product_local_text(body: str, identity: ProductIdentity) -> str:
         if len(token) > 2
     ]
     if not name_tokens:
-        return ""
+        return []
 
     heading = next(
         (
@@ -443,23 +446,37 @@ def _product_local_text(body: str, identity: ProductIdentity) -> str:
         None,
     )
     if heading is None:
-        return ""
+        return []
 
-    pieces: list[str] = []
+    elements: list = []
     for element in heading.next_elements:
         name = getattr(element, "name", None)
-        if name in {"h1", "h2", "h3", "h4", "h5", "h6"}:
+        if name == "h1" and element is not heading:
+            break
+        if name in {"h2", "h3", "h4", "h5", "h6"}:
             heading_text = " ".join(element.stripped_strings).casefold()
             if any(
                 boundary in heading_text
-                for boundary in ("related products", "recently viewed products")
+                for boundary in (
+                    "related products",
+                    "recently viewed products",
+                    "popular products",
+                    "you may also like",
+                )
             ):
                 break
+        elements.append(element)
+
+    return elements
+
+
+def _product_local_text(body: str, identity: ProductIdentity) -> str:
+    pieces: list[str] = []
+    for element in _product_local_elements(body, identity):
         if isinstance(element, str):
             normalized = " ".join(element.split())
             if normalized:
                 pieces.append(normalized)
-
     return " ".join(pieces)
 
 
@@ -472,29 +489,30 @@ def _extract_declared_relationship_claims(
         if not _is_verified_product_detail(artifact, identity):
             continue
 
-        for sku, description, quantity in _kit_content_rows(artifact.body):
-            relationship_ref = f"kit:{identity.sku or identity.model or 'product'}:{sku}"
-            raw = " ".join(
-                part
-                for part in (
-                    sku,
-                    description,
-                    str(quantity) if quantity is not None else None,
+        if identity.product_type == ProductType.KIT:
+            for sku, description, quantity in _kit_content_rows(artifact.body, identity):
+                relationship_ref = f"kit:{identity.sku or identity.model or 'product'}:{sku}"
+                raw = " ".join(
+                    part
+                    for part in (
+                        sku,
+                        description,
+                        str(quantity) if quantity is not None else None,
+                    )
+                    if part
                 )
-                if part
-            )
-            claims.extend(
-                _relationship_claims(
-                    relationship_ref,
-                    relationship_type="kit_relationship",
-                    object_identifier=sku,
-                    quantity=quantity,
-                    scope="Manufacturer-published Kit Contents row",
-                    raw_value=raw,
-                    source_url=artifact.url,
-                    evidence_method="manufacturer_kit_composition",
+                claims.extend(
+                    _relationship_claims(
+                        relationship_ref,
+                        relationship_type="kit_relationship",
+                        object_identifier=sku,
+                        quantity=quantity,
+                        scope="Manufacturer-published Kit Contents row",
+                        raw_value=raw,
+                        source_url=artifact.url,
+                        evidence_method="manufacturer_kit_composition",
+                    )
                 )
-            )
 
         product_text = _product_local_text(artifact.body, identity)
         if _base_sku(identity.sku) == "H01085":
@@ -516,70 +534,75 @@ def _extract_declared_relationship_claims(
     return _dedupe(claims)
 
 
-def _kit_content_rows(body: str) -> list[tuple[str, str, int | None]]:
-    """Return only rows from an explicitly labelled Kit Contents table.
+def _kit_content_rows(
+    body: str,
+    identity: ProductIdentity,
+) -> list[tuple[str, str, int | None]]:
+    """Return rows only from a Kit Contents table inside the requested product region."""
 
-    Shopify pages also contain Related Products and other product cards. Those nearby
-    catalogue references are not kit membership and must never be promoted merely
-    because they happen to contain a SKU.
-    """
-
-    soup = BeautifulSoup(body, "html.parser")
+    elements = _product_local_elements(body, identity)
     rows: list[tuple[str, str, int | None]] = []
-    markers = soup.find_all(
-        string=lambda value: isinstance(value, str)
-        and "kit contents" in " ".join(value.casefold().split())
-    )
-    for marker in markers:
-        table = None
-        for element in marker.parent.next_elements:
-            name = getattr(element, "name", None)
-            if name == "table":
-                table = element
-                break
-            if name in {"h1", "h2", "h3", "h4", "h5", "h6"}:
-                heading = " ".join(element.stripped_strings).casefold()
-                if any(
-                    boundary in heading
-                    for boundary in (
-                        "key features",
-                        "specifications",
-                        "downloads",
-                        "related products",
-                    )
-                ):
-                    break
-        if table is None:
-            continue
-        for row in table.find_all("tr"):
-            cells = [" ".join(cell.stripped_strings) for cell in row.find_all(["th", "td"])]
-            if len(cells) < 2:
-                continue
-            sku_match = re.search(r"\bH\d{5}(?:-[A-Z0-9]+)?\b", cells[0], re.I)
-            if sku_match is None:
-                continue
-            quantity: int | None = None
-            description_cells = cells[1:]
-            if len(cells) >= 3:
-                quantity_text = cells[-1].strip()
-                description_cells = cells[1:-1]
-                if quantity_text:
-                    quantity_match = re.fullmatch(r"\d+", quantity_text)
-                    if quantity_match is None:
-                        continue
-                    quantity = int(quantity_match.group(0))
-            description = " ".join(description_cells).strip()
-            if not description:
-                continue
-            rows.append(
-                (
-                    sku_match.group(0).upper(),
-                    description,
-                    quantity,
-                )
-            )
-        if rows:
+
+    marker_index: int | None = None
+    for index, element in enumerate(elements):
+        if (
+            isinstance(element, str)
+            and "kit contents" in " ".join(element.casefold().split())
+        ):
+            marker_index = index
             break
+    if marker_index is None:
+        return rows
+
+    table = None
+    for element in elements[marker_index + 1 :]:
+        name = getattr(element, "name", None)
+        if name == "table":
+            table = element
+            break
+        if name in {"h1", "h2", "h3", "h4", "h5", "h6"}:
+            heading_text = " ".join(element.stripped_strings).casefold()
+            if any(
+                boundary in heading_text
+                for boundary in (
+                    "key features",
+                    "specifications",
+                    "downloads",
+                    "related products",
+                    "recently viewed products",
+                )
+            ):
+                break
+    if table is None:
+        return rows
+
+    for row in table.find_all("tr"):
+        cells = [" ".join(cell.stripped_strings) for cell in row.find_all(["th", "td"])]
+        if len(cells) < 2:
+            continue
+        sku_match = re.search(r"\bH\d{5}(?:-[A-Z0-9]+)?\b", cells[0], re.I)
+        if sku_match is None:
+            continue
+        quantity: int | None = None
+        description_cells = cells[1:]
+        if len(cells) >= 3:
+            quantity_text = cells[-1].strip()
+            description_cells = cells[1:-1]
+            if quantity_text:
+                quantity_match = re.fullmatch(r"\d+", quantity_text)
+                if quantity_match is None:
+                    continue
+                quantity = int(quantity_match.group(0))
+        description = " ".join(description_cells).strip()
+        if not description:
+            continue
+        rows.append(
+            (
+                sku_match.group(0).upper(),
+                description,
+                quantity,
+            )
+        )
     return rows
 
 
