@@ -97,17 +97,22 @@ def _quick_clip_d_ring_compatibility_evidence(text: str) -> str | None:
     designed_relation = re.compile(
         rf"\b{quick_clip_attachment}\s+"
         rf"(?:has\s+been\s+|is\s+)?(?:specifically\s+)?designed\s+to\s+"
-        rf"(?:securely\s+)?anchor\b.{{0,100}}?\bto\s+"
+        rf"(?:securely\s+)?anchor\b[^.!?;\n]{{0,100}}?\bto\s+"
         rf"(?:an?\s+|the\s+)?{d_ring}(?:\s+style\s+anchor\s+point)?\b",
         re.I,
     )
 
     relational_without = re.compile(
         rf"\bwithout\s+(?:"
-        rf"(?:an?\s+)?(?:attachment|connection)|"
-        rf"(?:being\s+)?(?:attached|connected|anchored)|"
-        rf"(?:attaching|connecting|anchoring)"
-        rf")\s+to\s+(?:an?\s+|the\s+)?{d_ring}\b",
+        rf"(?:an?\s+)?(?:attachment|connection)\s+to|"
+        rf"(?:(?:ever|actually|directly|physically|necessarily)\s+){{0,3}}"
+        rf"(?:being\s+)?(?:attached|connected|anchored)\s+to|"
+        rf"(?:(?:ever|actually|directly|physically|necessarily)\s+){{0,3}}"
+        rf"(?:attaching|connecting|anchoring)(?:\s+it)?\s+to|"
+        rf"(?:(?:ever|actually|directly|physically|necessarily)\s+){{0,3}}"
+        rf"(?:needing\s+to|having\s+to|(?:any\s+)?need\s+to)\s*"
+        rf"(?:attach|connect|anchor)(?:\s+it)?\s+to"
+        rf")\s+(?:an?\s+|the\s+)?{d_ring}\b",
         re.I,
     )
 
