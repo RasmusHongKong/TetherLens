@@ -236,27 +236,40 @@ def _bounded_suffix(text: str, match_end: int, limit: int) -> str:
 def _local_predicate_prefix(prefix: str) -> str:
     """Return the predicate segment that most directly governs the positive match.
 
-    Coordinating conjunctions are hard predicate boundaries. A comma is treated as a
-    boundary only when the text before it already contains a finite governing verb;
-    this keeps introductory claims such as "No special tools are required, ..." from
-    donating their negation to the following relation without breaking noun phrases
-    such as "No product, including H01060, is suitable ...".
+    Adversative conjunctions are hard predicate boundaries. "and" is a boundary only
+    when the text before it already contains a finite governing verb; otherwise it may
+    still be joining a compound subject such as "No gloves and wrist anchors are ...".
+    A comma follows the same completed-predicate rule, keeping introductory claims such
+    as "No special tools are required, ..." from donating their negation forward.
     """
 
+    finite_verb = re.compile(
+        r"\b(?:is|are|was|were|has|have|had|can|could|may|might|must|should|"
+        r"shall|will|would|do|does|did)\b",
+        re.I,
+    )
     parts = re.split(
-        r"\b(?:and|but|yet|however|although|though)\b",
+        r"\b(?:but|yet|however|although|though)\b",
         prefix,
         flags=re.I,
     )
     predicate = parts[-1]
+
+    and_boundaries = [
+        match
+        for match in re.finditer(r"\band\b", predicate, re.I)
+        if finite_verb.search(predicate[: match.start()]) is not None
+    ]
+    if and_boundaries:
+        predicate = predicate[and_boundaries[-1].end() :]
+
     comma_boundary = re.compile(
-        r"\b(?:is|are|was|were|has|have|had|can|could|may|might|must|should|"
-        r"shall|will|would|do|does|did)\b[^,]{0,80},\s*",
+        rf"{finite_verb.pattern}[^,]{{0,80}},\s*",
         re.I,
     )
-    matches = list(comma_boundary.finditer(predicate))
-    if matches:
-        predicate = predicate[matches[-1].end() :]
+    comma_matches = list(comma_boundary.finditer(predicate))
+    if comma_matches:
+        predicate = predicate[comma_matches[-1].end() :]
     return predicate.strip(" ,:")
 
 
