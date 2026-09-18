@@ -339,24 +339,32 @@ def test_h01085_contradictory_suitability_wording_is_not_executable() -> None:
         sku="H01085-M",
         url="https://gripps.com/products/slip-on-wrist-anchor",
     )
-    artifact = _artifact(
-        identity.url,
-        """
-        <h1>Slip-On Wrist Anchor - 2.5kg / 5.5lb</h1>
-        <p>SKU: H01085-M</p>
-        <p>Suitable for use with our H01067 wrist tethers, but must not be connected that way.</p>
-        """,
+    contradictory_phrases = (
+        "Suitable for use with our H01067 wrist tethers, but must not be connected that way.",
+        "Suitable for use with our H01067 wrist tethers, but cannot be used that way.",
+        "Suitable for use with our H01067 wrist tethers, however never attach them that way.",
+        "Suitable for use with our H01067 wrist tethers, yet do not tether them that way.",
     )
 
-    claims = GRIPPSAdapter().extract(identity, [artifact])
+    for phrase in contradictory_phrases:
+        artifact = _artifact(
+            identity.url,
+            f"""
+            <h1>Slip-On Wrist Anchor - 2.5kg / 5.5lb</h1>
+            <p>SKU: H01085-M</p>
+            <p>{phrase}</p>
+            """,
+        )
 
-    assert not any(
-        claim.subject_type in {
-            ClaimSubjectType.DECLARED_RELATIONSHIP,
-            ClaimSubjectType.CONNECTION_COMPATIBILITY,
-        }
-        for claim in claims
-    )
+        claims = GRIPPSAdapter().extract(identity, [artifact])
+
+        assert not any(
+            claim.subject_type in {
+                ClaimSubjectType.DECLARED_RELATIONSHIP,
+                ClaimSubjectType.CONNECTION_COMPATIBILITY,
+            }
+            for claim in claims
+        ), phrase
 
 
 def test_h01085_family_identity_does_not_widen_exact_connection_evidence() -> None:
