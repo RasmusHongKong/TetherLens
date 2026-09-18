@@ -33,7 +33,7 @@ class DeclaredProductRelationship(BaseModel):
     object_product_identifier: str = Field(min_length=1)
     object_product_ref: str = Field(min_length=1)
     relationship_type: DeclaredProductRelationshipType
-    quantity: int = Field(default=1, ge=1)
+    quantity: int | None = Field(default=None, ge=1)
     scope: str = Field(min_length=1)
     source_urls: list[str] = Field(min_length=1)
 
@@ -94,12 +94,18 @@ def resolve_declared_product_relationships(
             # executable catalogue composition until exact product identity is mapped.
             continue
 
-        quantity = _required_positive_int(
+        quantity = _optional_positive_int(
             relationship_claims,
             QUANTITY_KEY,
             relationship_id,
-            default=1,
         )
+        if (
+            relationship_type == DeclaredProductRelationshipType.KIT_RELATIONSHIP
+            and quantity is None
+        ):
+            raise ValueError(
+                f"declared relationship {relationship_id!r} is missing {QUANTITY_KEY!r}"
+            )
         scope = _required_text(
             relationship_claims,
             SCOPE_KEY,
@@ -149,16 +155,14 @@ def _required_text(
     return next(iter(values))
 
 
-def _required_positive_int(
+def _optional_positive_int(
     claims: list[CandidateClaim],
     property_key: str,
     relationship_id: str,
-    *,
-    default: int,
-) -> int:
+) -> int | None:
     matches = [claim for claim in claims if claim.property_key == property_key]
     if not matches:
-        return default
+        return None
     values = {claim.value for claim in matches}
     if len(values) != 1:
         raise ValueError(
