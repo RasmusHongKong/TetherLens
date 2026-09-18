@@ -2,13 +2,18 @@
 
 ## Purpose
 
-This note defines the first reusable path for turning an accepted manufacturer statement about a connector/interface relationship into candidate-scoped connection evidence without creating a SKU-pair compatibility table.
+This note defines the reusable declaration path for turning an accepted manufacturer statement about a connector/interface relationship into candidate-scoped connection evidence without creating an inferred SKU-pair compatibility table.
 
-The initial evidence case is NLG Quick Clip -> D-ring anchor compatibility.
+Two evidence shapes are supported:
+
+- a reusable connector/interface declaration when the source publishes enough physical or functional primitives to define the relationship independently of exact products; and
+- an exact product-scoped declaration when the manufacturer explicitly establishes one connection relationship but does not publish enough target geometry to generalize it safely.
+
+The initial reusable case is NLG Quick Clip -> D-ring anchor compatibility. GRIPPS H01067 -> H01085 variant suitability is the first exact sparse-geometry use of the same downstream mechanism.
 
 The governing rule is:
 
-> **A manufacturer declaration may establish a reusable connector/interface relationship when its connector identity, target interface primitives, role scope, issuer and provenance are explicit. Runtime product identities scope the matched candidate; they are not the compatibility rule.**
+> **Prefer reusable connector/interface semantics wherever the evidence supports them. When the documented connection is explicit but reusable geometry is insufficient, retain exact source/target product scope rather than inventing a generic rule.**
 
 ## Evidence boundary
 
@@ -66,7 +71,7 @@ The declaration issuer is taken from the adapter's canonical manufacturer identi
 
 `resolve_connector_interface_compatibility_declarations()` compiles accepted declaration claims into `ConnectorInterfaceCompatibilityDeclaration` objects.
 
-A declaration contains no tether SKU, anchor SKU or candidate ID. It retains only:
+A generic declaration retains only:
 
 - declaration identity;
 - connector specification reference;
@@ -77,6 +82,8 @@ A declaration contains no tether SKU, anchor SKU or candidate ID. It retains onl
 - issuer manufacturer;
 - scope; and
 - source URLs.
+
+When the accepted source explicitly establishes a relationship between concrete products but does not publish enough geometry for a generic rule, the declaration may additionally retain both `source_product_ref` and `target_product_ref`. The pair is all-or-nothing and must be resolved from explicit catalogue identifier mappings; missing mappings fail closed. Product identity is not reconstructed from names, URLs or SKU syntax. Where the relationship wording and exact product identity come from different local evidence on the same first-party source, their claim provenance remains separately aligned: relationship claims retain the relationship wording, while the product-identifier claim retains the exact identity evidence that authorized that scope.
 
 `connection_contexts_from_compatibility_declarations()` then matches those primitives against concrete runtime endpoint/target interfaces.
 
@@ -96,6 +103,43 @@ claim_or_evidence_ref = manufacturer source URL
 ```
 
 The ordinary connection evaluator remains the authority for precedence, endpoint-side semantics, contradictions and the final technical status.
+
+## Product-scoped sparse-geometry declarations
+
+Product scoping is a fallback, not the preferred compatibility representation.
+
+GRIPPS H01085 provides the concrete example. Accepted product-local evidence establishes:
+
+```text
+H01067 endpoint connector spec = wrist_tether_carabiner
+H01067 endpoint interface type = carabiner
+
+H01085 installation method = slip_on
+H01085 primary-anchor feature = wrist
+H01085 tether-side role = anchor_attachment_tether_side
+H01085 tether-side interface type = unknown
+```
+
+GRIPPS also explicitly states that H01067 wrist tethers are suitable for use with the H01085 Slip-On Wrist Anchor. That statement establishes the documented pairing, but it does not establish a ring, eye, opening, dimensions, captive state or other target geometry that would justify a generic `carabiner -> <interface class>` rule.
+
+The exact declaration therefore retains only the relationship authority that the H01085 source actually owns:
+
+```text
+source product = exact H01067 product ref
+target product = exact H01085 variant product ref
+issuer = GRIPPS
+manufacturer position = explicitly_compatible
+```
+
+It does **not** duplicate `wrist_tether_carabiner`, `carabiner` or H01085 interface primitives as direct declaration claims from the H01085 suitability sentence. Those physical facts remain on the independently sourced component records that own them. At runtime, the exact product-scoped declaration is composed with the selected H01067 endpoint and H01085 target interface rather than pretending the pairing sentence established their geometry.
+
+`unknown` therefore remains an honest normalized physical fact about the H01085 target interface, not a compatibility-declaration value. The exact product refs are mandatory for this declaration to match. For the target side, executable variant scope requires unambiguous identity-bearing SKU evidence such as the product-local `SKU: H01085-S` field; a bare sibling mention or a page region containing several identity-bearing H01085 variants fails closed. A different tether, a different wrist anchor, an unmapped or unstated H01085 variant, or sibling/cross-sell copy receives no authority from this declaration.
+
+For any exact product-scoped declaration, the retained target predicates must identify exactly one concrete interface owned by the exact target product in the selected scope. A product-only declaration therefore fails closed when that product contributes more than one possible target interface, and a partially constrained declaration (for example, role-only) also fails closed when multiple owned interfaces satisfy the retained predicates. A reusable primitive declaration should be used instead whenever the manufacturer publishes enough topology to distinguish those interfaces.
+
+The current end-to-end proof uses H01085-S because the component product evidence explicitly identifies that variant. A kit row naming H01085-M may establish kit membership and exact catalogue identity for that wrapper, but kit membership does not grant H01085-M the component-local connection declaration.
+
+This is intentionally different from the NLG Quick Clip case. NLG publishes enough target topology (`ring_form = d_ring`) for the declaration to remain reusable without product refs. The GRIPPS case proves only its documented relationship until better geometry is available.
 
 ## Quick Clip v1 matching scope
 
@@ -177,7 +221,8 @@ A future recommendation benchmark should exercise resolved catalogue evidence th
 
 This slice does not:
 
-- introduce SKU-pair compatibility;
+- introduce inferred or blanket SKU-pair compatibility;
+- promote an exact product-scoped sparse-geometry declaration into a generic rule;
 - infer a generic Quick Clip connector class;
 - widen D-ring evidence to every ring or `similar anchor point`;
 - infer endpoint side/interchangeability;

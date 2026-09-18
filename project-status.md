@@ -14,9 +14,9 @@ This is workflow/documentation guidance only. It does not change recommendation 
 
 ## Current baseline
 
-Merged `main` entering PR #72 is PR #70, `Broaden 3M ingestion for D-Ring Cord 1500009`.
+Merged `main` entering PR #73 is PR #72, `Decompose GRIPPS wrist kits into existing catalogue components`.
 
-PR #72 is the next catalogue-throughput semantic slice. It adds executable manufacturer-backed product relationships for commercial-kit decomposition, preserves the GRIPPS H01088 component-identity conflict as a readiness blocker rather than guessing a correction, and broadens the separately catalogued H01067 tether and H01085 AnchorAttachment through existing runtime primitives. It does not add a runtime `Composite` component.
+PR #73 is the current follow-on slice. It keeps kits outside the runtime load path and carries the separately catalogued GRIPPS H01067 tether + an exactly evidenced H01085 variant through the ordinary recommendation path. Reusable H01067 connector/assignment semantics and H01085 slip-on installation remain primary; the product-local H01067 suitability statement supplies only the exact product-scoped connection authority that cannot be generalized because H01085 tether-side geometry is unpublished. The current vertical uses H01085-S because the bounded component evidence explicitly identifies that SKU.
 
 Historical portability cohorts remain immutable at their original semantic revisions:
 
@@ -81,7 +81,7 @@ An evidence-bound path is positive evidence for one documented relationship. It 
 
 Do not reverse-engineer a `through_opening`, captive state, dimensions, ring/eye form or other physical fact merely because such a fact would explain a manufacturer's pairing.
 
-PR #69 proves the exact evidence-bound fallback with Hilti SF 4-22 / retaining strap #2293133. PR #70 deliberately does **not** use that fallback for 3M 1500009 because 3M publishes enough functional topology for the ordinary reusable ToolAttachment model.
+PR #69 proves the exact evidence-bound installation fallback with Hilti SF 4-22 / retaining strap #2293133. PR #70 deliberately does **not** use that fallback for 3M 1500009 because 3M publishes enough functional topology for the ordinary reusable ToolAttachment model. PR #73 applies the same governing boundary to connection evidence: H01067/H01085 reuse every published physical/topological primitive first, then retain the exact product-scoped suitability statement only for the remaining sparse target-interface geometry.
 
 ## Demand-side baseline
 
@@ -241,9 +241,42 @@ provided interface type = unknown
 
 Small/Medium/Large labels are not converted into numeric wrist-fit geometry. Slip-on installation and the H01067 suitability relationship require affirmative product-local evidence: a prohibition such as `do not ... slip it on` does not create an installation rule, and `not suitable for ... H01067` does not create an endorsement. A positive H01067 suitability statement is retained as an `explicitly_endorsed` catalogue relationship, not automatically promoted into a generic physical compatibility rule.
 
+PR #73 additionally allows that same affirmative product-local statement to resolve as an exact product-scoped connection declaration only when H01067 and the concrete H01085 variant are explicitly mapped to stable product refs and the H01085 source provides unambiguous identity-bearing SKU evidence for that exact variant. The declaration carries the exact product relationship only; H01067 connector facts and H01085 interface facts remain on their independently sourced component records. The H01085 tether-side interface remains `unknown`; no ring, eye, opening, dimension or captive state is inferred.
+
+## PR #73: GRIPPS H01067 + H01085 wrist recommendation path
+
+PR #73 proves the component-local recommendation path directly rather than making a commercial kit the executable object.
+
+The normalized path is:
+
+```text
+H01067 Tether
+  -> existing two-carabiner connector facts
+  -> existing reversible endpoint-assignment evidence
+
+H01085 exact variant AnchorAttachment
+  -> slip_on wrist installation
+  -> exact selected wrist feature binding
+  -> tether-side role retained with interface type = unknown
+
+product-local H01085 suitability statement
+  -> exact H01067 + exact H01085-variant connection declaration
+  -> existing manufacturer-declared connection context
+
+ordinary TetherOption + AnchorPathOption
+  -> candidate generation
+  -> hard evaluation
+  -> deterministic selection
+```
+
+The exact declaration is intentionally narrower than a generic compatibility rule. It becomes executable only when the source product identifier `H01067` and a concrete H01085 variant identifier both resolve to stable catalogue refs **and** the bounded component evidence contains unambiguous identity-bearing SKU evidence for that target variant. A bare sibling mention such as `also available as H01085-M`, a page region containing several identity-bearing H01085 variants, family-only `H01085`, missing mappings, cross-sell copy, negated suitability, in-match exclusions such as `not H01067`, contradictory nearby prohibitions, and nearby declarative conflicts such as `H01067 is incompatible/unsuitable` all fail closed. At runtime, whatever target predicates an exact product-scoped declaration retains must collectively select exactly one interface owned by that target product; product-only and partially constrained declarations both fail closed when more than one owned interface remains possible.
+
+The end-to-end regression uses the explicitly identified H01085-S component and proves that runtime candidate components are exactly H01067 + H01085-S. No `KIT`, wrapper or synthetic `Composite` identity participates in the load path. H01067's reversible assignment and connector/interface facts remain sourced from H01067 itself; H01085's anchor-installation binding and tether-side interface remain sourced from H01085. The product-scoped declaration contributes only the documented pair authority used by the existing `MANUFACTURER_DECLARED` basis. A kit row naming H01085-M remains catalogue evidence; it does not itself authorize the H01085-M connection path.
+
+This does not claim that GRIPPS kit membership explains compatibility. Kit evidence remains catalogue/system-architecture context; component-local evidence and reusable primitives determine recommendation behavior.
 ## Review-derived reusable provenance invariants
 
-The PR #69, #70 and #72 reviews reinforce several reusable rules:
+The PR #69, #70, #72 and #73 workstreams reinforce several reusable rules:
 
 1. **Product-scoped evidence belongs to the exact owner/interface it describes.** Assembly-wide membership is insufficient when several products expose similar interfaces.
 2. **Executable document evidence must be model-local.** A product appearing somewhere in a combined/related document does not authorize another model's section.
@@ -253,13 +286,13 @@ The PR #69, #70 and #72 reviews reinforce several reusable rules:
 6. **Manufacturer prescription and physical compatibility are independent unless causal technical scope is established.** A mixed-brand route can remain technically field-verifiable while carrying contrary manufacturer-position evidence.
 7. **Matching a manufacturer family is not blanket endorsement.** `appropriate <manufacturer> tether` does not prove every tether sold by that manufacturer is approved.
 8. **Product-detail URLs still need section-local evidence boundaries.** Exact URL/product verification does not authorize sibling cards, Related Products, later product fragments or their Kit Contents as evidence for the requested product.
-9. **Positive-looking text inside a negated clause is contrary evidence, not positive evidence.** Phrases such as `do not slip it on`, `not suitable for`, or `does not have` must fail closed rather than become installation, relationship or construction authority.
+9. **Positive-looking text with local contradictory grammar is contrary evidence, not positive evidence.** Prefix/in-match negation, adjacent prohibitions and adjacent negative relation assertions such as `not suitable`, `not compatible`, `unsuitable` or `incompatible` must fail closed rather than become installation, relationship or construction authority. The exact grammar is currently adapter-local and is the next consistency target.
 10. **Directional semantics are not tied to one grammatical order.** Dedicated/designated endpoint wording vetoes reversible endpoint derivation whether the role phrase appears before or after the connector noun.
 11. **Historical portability classifications remain historical.** Closing later catalogue gaps does not rewrite V6.
 
 ## Current deliberate boundaries
 
-The post-PR #72 baseline does **not** add:
+The post-PR #73 baseline does **not** add:
 
 - image recognition or computer-vision inference;
 - fuzzy Tool identity acceptance;
@@ -282,26 +315,24 @@ The post-PR #72 baseline does **not** add:
 
 Those boundaries remain deliberate.
 
-## Next recommended slice after PR #72
+## Next recommended slice after PR #73
 
-The relationship/decomposition primitive is now proven, but H01088 itself should remain unresolved until GRIPPS resolves the contradictory component identity.
+PR #73 closes the useful GRIPPS wrist-component proof without making a kit executable. H01088 remains unresolved until GRIPPS resolves its contradictory component identity, and no further kit-specific work is required merely to demonstrate runtime composition.
 
-The next highest-value follow-on is to prove **clean end-to-end kit decomposition** on a sellable wrapper whose contained-product identities agree with the wrapper semantics. Start by inspecting the closely related GRIPPS H01087 Slip-On Wrist Anchor With Tool Tether, or another exact GRIPPS kit page, for an explicit product-local Kit Contents table.
+The review cycle exposed a higher-value ingestion-consistency gap before the next catalogue-throughput case: affirmative/negative local evidence grammar is currently implemented several times across GRIPPS and NLG. GRIPPS now has product-specific guards for prefix/in-match exclusions, adjacent prohibitions and declarative contradictions; `nlg_compat.py` has a separate `_match_is_negated()` helper; `nlg_declared_compatibility.py` independently implements prefix/post-relation guards; and connector-mechanism parsing has another local negation check.
 
-If a clean case exists, the target is:
+The next highest-value slice is therefore a **manufacturer-neutral local evidence-context/contradiction layer**. Keep manufacturer-specific positive evidence patterns in their adapters, but centralize the reusable questions about the matched evidence context:
 
-```text
-sellable kit identity
-  -> accepted kit_relationship rows
-  -> exact contained Tether + AnchorAttachment identities
-  -> contained products' own accepted facts
-  -> ordinary TetherOption + AnchorPathOption
-  -> existing candidate generation/evaluation
-```
+- clause/sentence/block boundaries around a positive match;
+- prefix, in-match and immediate trailing negation;
+- adjacent action prohibitions;
+- adjacent negative relation assertions such as `not suitable`, `not compatible`, `unsuitable` and `incompatible`;
+- contractions and rhetorical conjunctions; and
+- harmless negative wording such as `without removing gloves` that must not veto otherwise positive evidence.
 
-The proof should not add `Composite`, copy contained-product facts from the wrapper page, or treat kit membership alone as connection compatibility. Any exact manufacturer pairing needed for sparse-geometry connection should remain a separate evidence-bound relationship.
+Start by migrating the GRIPPS H01085/H01067 relationship and NLG Quick Clip -> D-ring declared compatibility to the shared helper with one table-driven contradiction matrix. Then compare `nlg_compat._match_is_negated()` and connector-mechanism negation semantics and consolidate only where their evidence boundaries genuinely match. Do not attempt a wholesale rewrite of adapters that do not perform this kind of free-prose relationship extraction.
 
-If the nearby GRIPPS kit pages do not provide a clean, exact composition proof, do not spend the next slice repairing catalogue copy. Move to another V6 B throughput case such as FallTech 5106A5 or Ergodyne 3172/19172, keeping the new relationship primitive available for future clean kit cases.
+Historical portability cohorts remain frozen throughout this refactor. After the shared evidence-context layer is stable, return to FallTech 5106A5 / Ergodyne 3172/19172 catalogue throughput.
 
 ## Catalogue throughput in parallel
 
@@ -340,13 +371,15 @@ High-value throughput work includes:
 ## Suggested opening prompt for the next chat
 
 ```text
-Continue TetherLens from PR #72 after it is merged to main. Keep all historical portability cohorts frozen at their existing semantic revisions: V1 is 0 A / 5 B / 3 C / 0 D, V2 is 0 A / 6 B / 2 C / 0 D, V3 is 0 A / 5 B / 3 C / 0 D, V4 is 0 A / 4 B / 4 C / 0 D, V5 is 0 A / 6 B / 2 C / 0 D, and V6 is 1 A / 7 B / 0 C / 0 D.
+Continue TetherLens from PR #73 after it is merged to main. Keep all historical portability cohorts frozen at their existing semantic revisions: V1 is 0 A / 5 B / 3 C / 0 D, V2 is 0 A / 6 B / 2 C / 0 D, V3 is 0 A / 5 B / 3 C / 0 D, V4 is 0 A / 4 B / 4 C / 0 D, V5 is 0 A / 6 B / 2 C / 0 D, and V6 is 1 A / 7 B / 0 C / 0 D.
 
-PR #72 establishes catalogue decomposition without a runtime Composite: manufacturer-backed declared relationships bind a commercial wrapper to exact contained product refs, while the contained Tether/AnchorAttachment facts remain sourced from their own products. H01088 preserves its published H01067 + H01085 Kit Contents rows but remains not recommendation-ready because the wrapper's adjustable/hook-and-loop semantics conflict with the named H01085 Slip-On component. Do not silently rewrite that relationship to H01086.
+PR #73 proves the component-local GRIPPS H01067 + exact H01085-variant recommendation path while retaining sparse target geometry as exact product-scoped connection authority. Its review cycle also exposed a broader ingestion-consistency problem: local affirmative/negative evidence context is implemented separately in GRIPPS, nlg_compat.py, nlg_declared_compatibility.py and connector-mechanism parsing.
 
-PR #72 also broadens H01067 through the existing two-carabiner tether + derived reversible endpoint-assignment semantics and adds the manufacturer-neutral AnchorInstallationMethod.slip_on for H01085's wrist path. H01085's H01067 suitability statement is retained as an explicit catalogue relationship, not blanket physical compatibility.
+Before returning to catalogue throughput, inspect those ingestion paths and define the smallest manufacturer-neutral local evidence-context/contradiction helper. Manufacturer-specific adapters should continue to own the positive facts they are looking for; shared infrastructure should only decide whether a positive-looking match is locally negated, excluded or contradicted, while preserving evidence boundaries.
 
-For the next slice, inspect whether GRIPPS H01087 or another exact GRIPPS kit page provides a clean product-local Kit Contents relationship that can be decomposed into already-catalogued Tether + AnchorAttachment components and carried through the existing recommendation path. If no clean decomposition case exists, move to another V6 B catalogue-throughput case rather than forcing ambiguous kit evidence.
+Cover the learned grammar with table-driven tests: prefix negation, in-match exclusions, entity-first negation, adjacent imperative prohibitions, not suitable/not compatible, unsuitable/incompatible, contractions, rhetorical conjunctions, clause/sentence/block boundaries, and harmless negative wording such as without removing gloves.
 
-Before changing code, inspect current main, exact first-party kit/component evidence, existing declared-product relationship resolution, and the ordinary TetherOption + AnchorPathOption composition path. Recommend the smallest reusable implementation slice before building it.
+Migrate GRIPPS H01085/H01067 and NLG Quick Clip -> D-ring declared compatibility first. Then compare nlg_compat._match_is_negated() and connector-mechanism negation behavior and consolidate only where the semantics genuinely match. Do not turn this into a wholesale rewrite of adapters that do not perform free-prose relationship extraction, and do not change historical portability expectations.
+
+Recommend the smallest reusable implementation slice after inspecting current main, project-status.md, the relevant adapters/tests and existing ingestion guidance.
 ```

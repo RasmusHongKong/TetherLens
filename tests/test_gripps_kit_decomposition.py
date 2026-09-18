@@ -3,6 +3,9 @@ from __future__ import annotations
 from tetherlens_ingest.adapters import GRIPPSAdapter
 from tetherlens_ingest.anchor_claim_resolution import resolve_anchor_attachment_installation_rule
 from tetherlens_ingest.anchor_installation import AnchorInstallationMethod
+from tetherlens_ingest.declared_compatibility import (
+    resolve_connector_interface_compatibility_declarations,
+)
 from tetherlens_ingest.endpoint_assignment import (
     EndpointAssignmentBasis,
     resolve_tether_endpoint_assignment_declarations,
@@ -263,6 +266,13 @@ def test_h01085_uses_slip_on_wrist_path_and_preserves_h01067_endorsement() -> No
         subject_product_ref="GRIPPS:H01085-S",
         product_refs_by_identifier={"H01067": "GRIPPS:H01067"},
     )
+    connection_declarations = resolve_connector_interface_compatibility_declarations(
+        claims,
+        product_refs_by_identifier={
+            "H01067": "GRIPPS:H01067",
+            "H01085-S": "GRIPPS:H01085-S",
+        },
+    )
 
     assert rule is not None
     assert rule.installation_method == AnchorInstallationMethod.SLIP_ON
@@ -283,6 +293,217 @@ def test_h01085_uses_slip_on_wrist_path_and_preserves_h01067_endorsement() -> No
     assert relationships[0].object_product_ref == "GRIPPS:H01067"
     assert relationships[0].quantity is None
 
+    assert len(connection_declarations) == 1
+    connection_declaration = connection_declarations[0]
+    assert connection_declaration.connector_spec_ref is None
+    assert connection_declaration.source_interface_type is None
+    assert connection_declaration.target_interface_type is None
+    assert connection_declaration.target_role is None
+    assert connection_declaration.source_product_ref == "GRIPPS:H01067"
+    assert connection_declaration.target_product_ref == "GRIPPS:H01085-S"
+    assert connection_declaration.issuer_manufacturer == "GRIPPS"
+
+    target_identity_claim = next(
+        claim
+        for claim in claims
+        if claim.subject_type == ClaimSubjectType.CONNECTION_COMPATIBILITY
+        and claim.property_key == "connection_compatibility.target_product_identifier"
+    )
+    assert target_identity_claim.value == "H01085-S"
+    assert target_identity_claim.raw_value == "SKU: H01085-S"
+    assert target_identity_claim.evidence_method == "manufacturer_product_identity"
+
+    source_identity_claim = next(
+        claim
+        for claim in claims
+        if claim.subject_type == ClaimSubjectType.CONNECTION_COMPATIBILITY
+        and claim.property_key == "connection_compatibility.source_product_identifier"
+    )
+    assert source_identity_claim.value == "H01067"
+    assert "H01067" in (source_identity_claim.raw_value or "")
+    assert source_identity_claim.evidence_method == "manufacturer_pairing"
+
+
+
+def test_h01085_family_h1_does_not_authorize_unstated_exact_variant_connection() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.ANCHOR_ATTACHMENT,
+        name="Slip-On Wrist Anchor",
+        sku="H01085-M",
+        url="https://gripps.com/products/slip-on-wrist-anchor",
+    )
+    artifact = _artifact(
+        identity.url,
+        """
+        <h1>Slip-On Wrist Anchor - 2.5kg / 5.5lb</h1>
+        <p>Available in Small, Medium and Large.</p>
+        <p>Suitable for use with our H01067 wrist tethers.</p>
+        <p>Built-in load-rated tether anchor point.</p>
+        """,
+    )
+
+    claims = GRIPPSAdapter().extract(identity, [artifact])
+
+    assert not any(
+        claim.subject_type == ClaimSubjectType.CONNECTION_COMPATIBILITY
+        for claim in claims
+    )
+
+def test_h01085_sibling_variant_mention_does_not_authorize_requested_variant() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.ANCHOR_ATTACHMENT,
+        name="Slip-On Wrist Anchor",
+        sku="H01085-M",
+        url="https://gripps.com/products/slip-on-wrist-anchor",
+    )
+    artifact = _artifact(
+        identity.url,
+        """
+        <h1>Slip-On Wrist Anchor - 2.5kg / 5.5lb</h1>
+        <p>SKU: H01085-S</p>
+        <p>Also available as H01085-M.</p>
+        <p>Suitable for use with our H01067 wrist tethers.</p>
+        """,
+    )
+
+    claims = GRIPPSAdapter().extract(identity, [artifact])
+
+    assert not any(
+        claim.subject_type == ClaimSubjectType.CONNECTION_COMPATIBILITY
+        for claim in claims
+    )
+
+
+def test_h01085_multiple_identity_bearing_variants_fail_closed() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.ANCHOR_ATTACHMENT,
+        name="Slip-On Wrist Anchor",
+        sku="H01085-M",
+        url="https://gripps.com/products/slip-on-wrist-anchor",
+    )
+    artifact = _artifact(
+        identity.url,
+        """
+        <h1>Slip-On Wrist Anchor - 2.5kg / 5.5lb</h1>
+        <p>SKU: H01085-S</p>
+        <p>SKU: H01085-M</p>
+        <p>Suitable for use with our H01067 wrist tethers.</p>
+        """,
+    )
+
+    claims = GRIPPSAdapter().extract(identity, [artifact])
+
+    assert not any(
+        claim.subject_type == ClaimSubjectType.CONNECTION_COMPATIBILITY
+        for claim in claims
+    )
+
+
+def test_h01085_connection_declaration_fails_closed_without_exact_variant_mapping() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.ANCHOR_ATTACHMENT,
+        name="Slip-On Wrist Anchor",
+        sku="H01085-M",
+        url="https://gripps.com/products/slip-on-wrist-anchor",
+    )
+    artifact = _artifact(
+        identity.url,
+        """
+        <h1>Slip-On Wrist Anchor - 2.5kg / 5.5lb</h1>
+        <p>SKU: H01085-M</p>
+        <p>Suitable for use with our H01060, H01062 and H01067 wrist tethers.</p>
+        <p>Built-in load-rated tether anchor point.</p>
+        """,
+    )
+
+    claims = GRIPPSAdapter().extract(identity, [artifact])
+
+    assert resolve_connector_interface_compatibility_declarations(
+        claims,
+        product_refs_by_identifier={"H01067": "GRIPPS:H01067"},
+    ) == []
+
+
+def test_h01085_contradictory_suitability_wording_is_not_executable() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.ANCHOR_ATTACHMENT,
+        name="Slip-On Wrist Anchor",
+        sku="H01085-M",
+        url="https://gripps.com/products/slip-on-wrist-anchor",
+    )
+    contradictory_phrases = (
+        "Suitable for use with our H01067 wrist tethers, but must not be connected that way.",
+        "Suitable for use with our H01067 wrist tethers, but cannot be used that way.",
+        "Suitable for use with our H01067 wrist tethers, however never attach them that way.",
+        "Suitable for use with our H01067 wrist tethers, yet do not tether them that way.",
+        "Suitable for use with our H01067 wrist tethers. However, do not connect it this way.",
+        "Suitable for use with our H01067 wrist tethers. Yet never attach it that way.",
+        "Suitable for use with our H01067 wrist tethers. Do not connect this tether to the anchor.",
+        "Suitable for use with our H01067 wrist tethers. Never attach this tether to the anchor.",
+        "Suitable for use with our H01067 wrist tethers. Cannot be used with this anchor.",
+        "Suitable for use with our H01060 wrist tethers; not H01067 wrist tethers.",
+        "Suitable for use with our H01060 wrist tethers, except H01067 wrist tethers.",
+        "Suitable for use with our H01060 wrist tethers, excluding H01067 wrist tethers.",
+        "Suitable for use with our H01060 wrist tethers; H01067 is not suitable for wrist tethers.",
+        "Suitable for use with our H01060 wrist tethers, but H01067 is not suitable for wrist tethers.",
+        "Suitable for use with our H01060 wrist tethers, H01067 isn't suitable for wrist tethers.",
+        "Suitable for use with our H01067 wrist tethers. H01067 is not compatible with this anchor.",
+        "Suitable for use with our H01067 wrist tethers. H01067 is not suitable for this anchor.",
+        "Suitable for use with our H01067 wrist tethers. This tether is not compatible with this anchor.",
+        "Suitable for use with our H01067 wrist tethers. However, H01067 is not compatible with this anchor.",
+        "Suitable for use with our H01067 wrist tethers. H01067 isn't compatible with this anchor.",
+        "Suitable for use with our H01067 wrist tethers. H01067 is incompatible with this anchor.",
+        "Suitable for use with our H01067 wrist tethers. H01067 is unsuitable for this anchor.",
+    )
+
+    for phrase in contradictory_phrases:
+        artifact = _artifact(
+            identity.url,
+            f"""
+            <h1>Slip-On Wrist Anchor - 2.5kg / 5.5lb</h1>
+            <p>SKU: H01085-M</p>
+            <p>{phrase}</p>
+            """,
+        )
+
+        claims = GRIPPSAdapter().extract(identity, [artifact])
+
+        assert not any(
+            claim.subject_type in {
+                ClaimSubjectType.DECLARED_RELATIONSHIP,
+                ClaimSubjectType.CONNECTION_COMPATIBILITY,
+            }
+            for claim in claims
+        ), phrase
+
+
+def test_h01085_family_identity_does_not_widen_exact_connection_evidence() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.ANCHOR_ATTACHMENT,
+        name="Slip-On Wrist Anchor",
+        sku="H01085",
+        url="https://gripps.com/products/slip-on-wrist-anchor",
+    )
+    artifact = _artifact(
+        identity.url,
+        """
+        <h1>Slip-On Wrist Anchor - 2.5kg / 5.5lb</h1>
+        <p>Suitable for use with our H01067 wrist tethers.</p>
+        """,
+    )
+
+    claims = GRIPPSAdapter().extract(identity, [artifact])
+
+    assert not any(
+        claim.subject_type == ClaimSubjectType.CONNECTION_COMPATIBILITY
+        for claim in claims
+    )
 
 def test_h01085_does_not_turn_size_labels_into_numeric_wrist_fit() -> None:
     identity = ProductIdentity(
@@ -398,6 +619,10 @@ def test_h01085_cross_sell_copy_does_not_create_tether_endorsement() -> None:
         claim.subject_type == ClaimSubjectType.DECLARED_RELATIONSHIP
         and claim.property_key == "declared_relationship.object_product_identifier"
         and claim.value == "H01067"
+        for claim in claims
+    )
+    assert not any(
+        claim.subject_type == ClaimSubjectType.CONNECTION_COMPATIBILITY
         for claim in claims
     )
 

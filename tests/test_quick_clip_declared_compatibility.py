@@ -1,3 +1,5 @@
+import pytest
+
 from tetherlens_ingest.adapters import NLGAdapter
 from tetherlens_ingest.candidate_generation import (
     AnchorPathOption,
@@ -16,6 +18,7 @@ from tetherlens_ingest.connection import (
     evaluate_endpoint_engagement,
 )
 from tetherlens_ingest.declared_compatibility import (
+    ConnectorInterfaceCompatibilityDeclaration,
     connection_contexts_from_compatibility_declarations,
     resolve_connector_interface_compatibility_declarations,
 )
@@ -99,6 +102,19 @@ def d_ring_anchor(interface_id: str = "anchor:d-ring") -> ConnectionInterface:
     )
 
 
+def test_generic_declaration_still_requires_complete_interface_primitives():
+    with pytest.raises(
+        ValueError,
+        match="generic compatibility declarations require complete connector/interface primitives",
+    ):
+        ConnectorInterfaceCompatibilityDeclaration(
+            declaration_id="incomplete-generic",
+            issuer_manufacturer="NLG",
+            scope="incomplete generic declaration",
+            source_urls=[SOURCE_URL],
+        )
+
+
 def test_quick_clip_d_ring_declaration_is_evidence_led_not_sku_led():
     claims = declaration_claims(
         "<p>Featuring the Quick Clip™ it can be quickly and easily attached to a D Ring.</p>"
@@ -174,6 +190,55 @@ def test_designed_anchor_wording_resolves_exact_declaration_scope():
     assert declaration.target_attributes == {"ring_form": "d_ring"}
     assert declaration.issuer_manufacturer == "NLG"
     assert declaration.source_urls == [SOURCE_URL]
+
+
+def test_product_scoped_partial_target_predicates_must_select_one_interface():
+    declaration = ConnectorInterfaceCompatibilityDeclaration(
+        declaration_id="exact-product-role-only",
+        target_role=ConnectionInterfaceRole.ANCHOR_ATTACHMENT_TETHER_SIDE,
+        source_product_ref="product:tether-a",
+        target_product_ref="product:anchor-a",
+        issuer_manufacturer="Example",
+        scope="exact product pair with target role only",
+        source_urls=[SOURCE_URL],
+    )
+    endpoint = quick_clip_endpoint()
+    target_a = ConnectionInterface(
+        interface_id="anchor:a",
+        role=ConnectionInterfaceRole.ANCHOR_ATTACHMENT_TETHER_SIDE,
+        interface_type="unknown",
+    )
+    target_b = ConnectionInterface(
+        interface_id="anchor:b",
+        role=ConnectionInterfaceRole.ANCHOR_ATTACHMENT_TETHER_SIDE,
+        interface_type="ring",
+    )
+
+    ambiguous = connection_contexts_from_compatibility_declarations(
+        tether_ref="product:tether-a",
+        endpoints=[endpoint],
+        target_owner_ref="anchor:path-a",
+        target_interfaces=[target_a, target_b],
+        declarations=[declaration],
+        tether_product_ref="product:tether-a",
+        target_product_refs={"product:anchor-a"},
+    )
+    assert ambiguous == []
+
+    nonmatching_target = target_b.model_copy(
+        update={"role": ConnectionInterfaceRole.TOOL_ATTACHMENT_TETHER_SIDE}
+    )
+    unambiguous = connection_contexts_from_compatibility_declarations(
+        tether_ref="product:tether-a",
+        endpoints=[endpoint],
+        target_owner_ref="anchor:path-a",
+        target_interfaces=[target_a, nonmatching_target],
+        declarations=[declaration],
+        tether_product_ref="product:tether-a",
+        target_product_refs={"product:anchor-a"},
+    )
+    assert len(unambiguous) == 1
+    assert unambiguous[0].target_interface_id == "anchor:a"
 
 
 def test_declaration_binds_to_exact_d_ring_anchor_and_uses_existing_manufacturer_basis():

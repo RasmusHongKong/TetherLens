@@ -28,7 +28,7 @@ from .base import ManufacturerAdapter
 from .common import page_text
 
 
-_EXTRACTOR = "gripps.v0.4"
+_EXTRACTOR = "gripps.v0.5"
 
 _LOAD_RATING = re.compile(
     r"\b(?:max(?:imum)?\s+load|load\s+rating(?:\s+of)?(?:\s+up\s+to)?)\b\s*:?\s*"
@@ -88,8 +88,52 @@ _H01085_SLIP_ACTION = re.compile(
     re.I,
 )
 _H01085_H01067_ENDORSEMENT = re.compile(
-    r"\bsuitable\s+for\s+use\s+with\s+our\b[^.]{0,120}\bH01067\b"
-    r"[^.]{0,80}\bwrist\s+tethers?\b",
+    r"\bsuitable\s+for\s+use\s+with\s+our\b[^.;!?]{0,120}\bH01067\b"
+    r"[^.;!?]{0,80}\bwrist\s+tethers?\b",
+    re.I,
+)
+_H01085_H01067_IN_MATCH_EXCLUSION = re.compile(
+    r"(?:"
+    r"\b(?:but\s+not|not|except(?:ing)?|excluding?|other\s+than)\b"
+    r"[^.;!?]{0,60}\bH01067\b"
+    r"|"
+    r"\bH01067\b[^.;!?]{0,60}"
+    r"\b(?:is\s+not|isn't|not|never|except(?:ed)?|excluded)\b"
+    r")",
+    re.I,
+)
+_H01085_POST_ENDORSEMENT_PROHIBITION = re.compile(
+    r"\b(?:but|however|yet|although|though)\b.{0,120}"
+    r"\b(?:"
+    r"(?:must|should|shall|may|can)\s+not|"
+    r"cannot|can't|"
+    r"(?:do|does|did)\s+not|"
+    r"never"
+    r")\b.{0,80}"
+    r"\b(?:use|used|using|attach|attached|connect|connected|tether|tethered)\b",
+    re.I | re.S,
+)
+_H01085_ADJACENT_PROHIBITION = re.compile(
+    r"^\s*[.!?]\s*"
+    r"(?:\b(?:but|however|yet|although|though)\b[,:]?\s*)?"
+    r"(?:"
+    r"(?:must|should|shall|may|can)\s+not|"
+    r"cannot|can't|"
+    r"(?:do|does|did)\s+not|"
+    r"never"
+    r")\b.{0,80}"
+    r"\b(?:use|used|using|attach|attached|connect|connected|tether|tethered)\b",
+    re.I | re.S,
+)
+_H01085_ADJACENT_RELATION_CONTRADICTION = re.compile(
+    r"^\s*[.!?]\s*"
+    r"(?:\b(?:but|however|yet|although|though)\b[,:]?\s*)?"
+    r"(?:H01067|this\s+tether|the\s+tether|it)\b"
+    r"[^.!?]{0,60}\b(?:"
+    r"(?:(?:is|are)\s+not|isn't|aren't)\s+(?:suitable|compatible)"
+    r"|(?:is|are)\s+(?:unsuitable|incompatible)"
+    r")\b"
+    r"(?:[^.!?]{0,60}\b(?:with|for)\b)?",
     re.I,
 )
 
@@ -116,6 +160,7 @@ class GRIPPSAdapter(ManufacturerAdapter):
         artifacts: list[SourceArtifact],
     ) -> list[CandidateClaim]:
         relationship_claims = _extract_declared_relationship_claims(identity, artifacts)
+        compatibility_claims = _extract_connection_compatibility_claims(identity, artifacts)
 
         if identity.product_type == ProductType.TETHER:
             component_claims = self._extract_tether(identity, artifacts)
@@ -126,7 +171,7 @@ class GRIPPSAdapter(ManufacturerAdapter):
         else:
             component_claims = []
 
-        return _dedupe([*relationship_claims, *component_claims])
+        return _dedupe([*relationship_claims, *compatibility_claims, *component_claims])
 
     def _extract_tether(
         self,
@@ -521,10 +566,7 @@ def _extract_declared_relationship_claims(
 
         product_text = _product_local_text(artifact.body, identity)
         if _base_sku(identity.sku) == "H01085":
-            endorsement = _affirmative_search(
-                _H01085_H01067_ENDORSEMENT,
-                product_text,
-            )
+            endorsement = _h01085_h01067_endorsement(product_text)
             if endorsement is not None:
                 claims.extend(
                     _relationship_claims(
@@ -540,6 +582,147 @@ def _extract_declared_relationship_claims(
                 )
 
     return _dedupe(claims)
+
+
+
+def _extract_connection_compatibility_claims(
+    identity: ProductIdentity,
+    artifacts: list[SourceArtifact],
+) -> list[CandidateClaim]:
+    """Keep H01067/H01085 connection authority exact when geometry remains sparse.
+
+    The H01085 page explicitly names H01067 wrist tethers as suitable, while the
+    normalized H01085 tether-side interface remains physically unknown. Preserve that
+    statement as a product-scoped manufacturer declaration rather than widening it into
+    generic carabiner-to-wrist-anchor compatibility.
+    """
+
+    if (
+        identity.product_type != ProductType.ANCHOR_ATTACHMENT
+        or _base_sku(identity.sku) != "H01085"
+        or not identity.sku
+        or identity.sku.upper() == "H01085"
+    ):
+        return []
+
+    claims: list[CandidateClaim] = []
+    for artifact in artifacts:
+        if not _is_verified_product_detail(artifact, identity):
+            continue
+        product_text = _product_local_text(artifact.body, identity)
+        variant_evidence = _exact_sku_evidence(product_text, identity.sku)
+        if variant_evidence is None:
+            continue
+        endorsement = _h01085_h01067_endorsement(product_text)
+        if endorsement is None:
+            continue
+        claims.extend(
+            _connection_compatibility_claims(
+                declaration_ref=f"h01067_to_{identity.sku.lower()}_wrist_anchor",
+                source_product_identifier="H01067",
+                target_product_identifier=identity.sku.upper(),
+                relationship_raw_value=endorsement.group(0),
+                target_product_raw_value=variant_evidence,
+                source_url=artifact.url,
+            )
+        )
+    return _dedupe(claims)
+
+
+def _exact_sku_evidence(text: str, sku: str) -> str | None:
+    """Return unambiguous identity-bearing SKU evidence for one exact variant."""
+
+    identity_matches = list(
+        re.finditer(
+            r"\bSKU\s*[:#-]?\s*(?P<sku>H\d{5}(?:-[A-Z0-9]+)?)\b",
+            text,
+            re.I,
+        )
+    )
+    identity_skus = {match.group("sku").upper() for match in identity_matches}
+    if identity_skus != {sku.upper()}:
+        return None
+
+    match = next(
+        (
+            match
+            for match in identity_matches
+            if match.group("sku").upper() == sku.upper()
+        ),
+        None,
+    )
+    return match.group(0) if match is not None else None
+
+def _h01085_h01067_endorsement(text: str) -> re.Match[str] | None:
+    """Return the local affirmative H01067 suitability statement, if uncontradicted."""
+
+    match = _affirmative_search(_H01085_H01067_ENDORSEMENT, text)
+    if match is None:
+        return None
+    if _H01085_H01067_IN_MATCH_EXCLUSION.search(match.group(0)) is not None:
+        return None
+
+    # A contradiction may follow in the same sentence or in an immediately adjacent
+    # rhetorical sentence ("However, do not ..."). Keep the scan bounded so an
+    # unrelated later prohibition elsewhere on the product page does not erase the
+    # positive statement, but fail closed on nearby contrary first-party wording.
+    suffix = text[match.end() : match.end() + 180]
+    if (
+        _H01085_POST_ENDORSEMENT_PROHIBITION.search(suffix) is not None
+        or _H01085_ADJACENT_PROHIBITION.search(suffix) is not None
+        or _H01085_ADJACENT_RELATION_CONTRADICTION.search(suffix) is not None
+    ):
+        return None
+    return match
+
+
+def _connection_compatibility_claims(
+    *,
+    declaration_ref: str,
+    source_product_identifier: str,
+    target_product_identifier: str,
+    relationship_raw_value: str,
+    target_product_raw_value: str,
+    source_url: str,
+) -> list[CandidateClaim]:
+    values = (
+        ("connection_compatibility.source_product_identifier", source_product_identifier),
+        ("connection_compatibility.target_product_identifier", target_product_identifier),
+        ("connection_compatibility.issuer_manufacturer", "GRIPPS"),
+        (
+            "connection_compatibility.scope",
+            "GRIPPS states H01067 wrist tethers are suitable for this exact "
+            "Slip-On Wrist Anchor variant; tether-side interface geometry remains unpublished",
+        ),
+    )
+    claims: list[CandidateClaim] = []
+    for property_key, value in values:
+        is_target_identity = (
+            property_key == "connection_compatibility.target_product_identifier"
+        )
+        claims.append(
+            CandidateClaim(
+                subject_type=ClaimSubjectType.CONNECTION_COMPATIBILITY,
+                subject_ref=declaration_ref,
+                property_key=property_key,
+                value=value,
+                unit=None,
+                raw_value=(
+                    target_product_raw_value
+                    if is_target_identity
+                    else relationship_raw_value
+                ),
+                source_url=source_url,
+                evidence_method=(
+                    "manufacturer_product_identity"
+                    if is_target_identity
+                    else "manufacturer_pairing"
+                ),
+                extractor=_EXTRACTOR,
+                claim_type=ClaimType.DIRECT,
+            )
+        )
+    return claims
 
 
 def _kit_content_rows(
