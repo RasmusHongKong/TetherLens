@@ -102,10 +102,21 @@ def _quick_clip_d_ring_compatibility_evidence(text: str) -> str | None:
         re.I,
     )
 
+    relational_without = re.compile(
+        rf"\bwithout\s+(?:"
+        rf"(?:an?\s+)?(?:attachment|connection)|"
+        rf"(?:being\s+)?(?:attached|connected|anchored)|"
+        rf"(?:attaching|connecting|anchoring)"
+        rf")\s+to\s+(?:an?\s+|the\s+)?{d_ring}\b",
+        re.I,
+    )
+
     for block in html_evidence_blocks(text):
         for relation in (direct_relation, featuring_relation, designed_relation):
             for match in relation.finditer(block):
                 if match_is_interrogative(block, match):
+                    continue
+                if relational_without.search(match.group(0)) is not None:
                     continue
                 if match_is_locally_contradicted(
                     block,
