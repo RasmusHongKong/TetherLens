@@ -65,6 +65,10 @@ _QUICK_CLIP_SUBJECTS = (
             True,
         ),
         (
+            "Suitable for use with our H01067 wrist tethers, but must not be used.",
+            True,
+        ),
+        (
             "Suitable for use with our H01067 wrist tethers. "
             "Do not connect this tether to the anchor.",
             True,
@@ -132,6 +136,10 @@ def test_local_contradiction_matrix_for_product_pairing(text: str, expected: boo
         ),
         (
             "The Quick Clip can be attached to a D Ring, but must not be used that way.",
+            True,
+        ),
+        (
+            "The Quick Clip can be attached to a D Ring, but must not be used.",
             True,
         ),
         (
