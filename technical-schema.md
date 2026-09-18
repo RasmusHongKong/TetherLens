@@ -438,7 +438,7 @@ kit_relationship
 compatible_configuration
 ```
 
-`compatible_configuration` is intended for manufacturer-backed configuration relationships such as a Tool being valid with a particular Battery. It should not be populated merely from a shared voltage/platform label.
+`compatible_configuration` is intended for manufacturer-backed configuration relationships such as a Tool being valid with a particular Battery. It should not be populated merely from a shared voltage/platform label. `kit_relationship` records manufacturer-published commercial composition; it does not make the sellable wrapper a runtime tethering component.
 
 ## `constraint_operator`
 
@@ -1254,6 +1254,18 @@ Manufacturer explicitly restricts Product E from Product F
 ```
 
 Absence of a row does not imply incompatibility, but a cordless operational profile requires a positive manufacturer-backed Tool/Battery relationship.
+
+### Commercial kit decomposition
+
+A sellable kit may exist primarily as catalogue/package identity while its contained products remain the physical recommendation components. In that case:
+
+- each contained product must resolve to an exact catalogue product identity before the relationship is executable;
+- quantity and source provenance remain on the relationship;
+- the wrapper does not become a `Tether`, `ToolAttachment`, `AnchorAttachment` or synthetic `Composite` load-path component merely because it is sold as one SKU;
+- contained-product facts are ingested from the contained product's own accepted evidence rather than copied from the kit page; and
+- a contradictory or ambiguous kit row may remain accepted relationship evidence while blocking recommendation-ready decomposition until reconciled.
+
+PR #72's GRIPPS H01088 case is the first executable proof of this boundary: the page's Kit Contents rows are preserved, but the stated H01085 Slip-On component conflicts with the wrapper's adjustable/hook-and-loop semantics and therefore remains non-ready rather than being silently rewritten to H01086.
 
 ---
 
