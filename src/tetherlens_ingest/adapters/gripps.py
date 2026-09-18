@@ -129,8 +129,10 @@ _H01085_ADJACENT_RELATION_CONTRADICTION = re.compile(
     r"^\s*[.!?]\s*"
     r"(?:\b(?:but|however|yet|although|though)\b[,:]?\s*)?"
     r"(?:H01067|this\s+tether|the\s+tether|it)\b"
-    r"[^.!?]{0,60}\b(?:(?:is|are)\s+not|isn't|aren't)\s+"
-    r"(?:suitable|compatible)\b"
+    r"[^.!?]{0,60}\b(?:"
+    r"(?:(?:is|are)\s+not|isn't|aren't)\s+(?:suitable|compatible)"
+    r"|(?:is|are)\s+(?:unsuitable|incompatible)"
+    r")\b"
     r"(?:[^.!?]{0,60}\b(?:with|for)\b)?",
     re.I,
 )
