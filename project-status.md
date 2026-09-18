@@ -1,6 +1,6 @@
 # TetherLens Project Status
 
-_Last updated: 2026-09-17_
+_Last updated: 2026-09-18_
 
 This is the operational handoff for the current TetherLens knowledge/recommendation stack and the immediate MVP work sequence. Durable design detail lives in the dedicated documents; this file stays focused on the current semantic baseline, invariants that must not regress, and the next highest-value work.
 
@@ -14,9 +14,9 @@ This is workflow/documentation guidance only. It does not change recommendation 
 
 ## Current baseline
 
-Merged `main` before this documentation-only PR is PR #70, `Broaden 3M ingestion for D-Ring Cord 1500009`.
+Merged `main` entering PR #72 is PR #70, `Broaden 3M ingestion for D-Ring Cord 1500009`.
 
-PR #70 is the current production semantic baseline. It includes both PR #69's sparse-geometry evidence boundary and the first catalogue-throughput proof over a conventional reusable ToolAttachment path, while preserving manufacturer-position evidence as a separate axis from technical compatibility. This documentation-only PR does not alter that baseline.
+PR #72 is the next catalogue-throughput semantic slice. It adds executable manufacturer-backed product relationships for commercial-kit decomposition, preserves the GRIPPS H01088 component-identity conflict as a readiness blocker rather than guessing a correction, and broadens the separately catalogued H01067 tether and H01085 AnchorAttachment through existing runtime primitives. It does not add a runtime `Composite` component.
 
 Historical portability cohorts remain immutable at their original semantic revisions:
 
@@ -170,6 +170,77 @@ The selected path retains:
 
 The candidate remains technically usable with conditions. The manufacturer assessment is retained for policy/user transparency rather than smuggled into the hard technical result.
 
+## PR #72: GRIPPS catalogue decomposition and wrist components
+
+PR #72 tests the V6 H01088 case as a catalogue-decomposition problem rather than a new recommendation-core shape.
+
+### Commercial kit relationships stay outside the load path
+
+The technical schema already defined `declared_relationship_type = kit_relationship`; PR #72 adds the small executable resolver needed to bind accepted relationship claims to exact catalogue product refs.
+
+The boundary is:
+
+```text
+sellable kit/wrapper identity
+  -> accepted declared relationships
+  -> exact contained-product refs
+  -> contained products normalized independently
+  -> ordinary Tether / ToolAttachment / AnchorAttachment runtime options
+```
+
+A kit relationship is catalogue metadata. It does not create `ProductType.COMPOSITE`, a synthetic candidate component, or a generic compatibility rule.
+
+Relationship resolution also fails closed on identity: accepted raw relationship claims may remain when the related product is not yet mapped, but executable catalogue composition requires an explicit identifier-to-product-ref mapping. Product identity is never reconstructed from SKU syntax, names or URLs.
+
+### H01088 is deliberately not forced recommendation-ready
+
+The current GRIPPS H01088 product page explicitly publishes Kit Contents rows naming H01067 Webbing Wrist Tether and H01085 Slip-On Wrist Anchor.
+
+The same exact H01088 page describes the wrapper as an adjustable wrist anchor secured with hook-and-loop/Velcro semantics, while GRIPPS separately distinguishes H01085 as the Slip-On family. PR #72 therefore preserves the stated H01067/H01085 kit relationship evidence but emits `KIT_COMPONENT_IDENTITY_CONFLICT` and blocks recommendation-ready decomposition.
+
+TetherLens does **not** silently replace H01085 with H01086 merely because H01086 appears more consistent with the wrapper description.
+
+Related-product cards remain non-evidence for kit membership; only an explicitly labelled, exact-product Kit Contents table may emit `kit_relationship` claims.
+
+### H01067 reuses existing tether and assignment semantics
+
+The separately catalogued H01067 Webbing Wrist Tether normalizes through existing primitives:
+
+```text
+rated_capacity_kg = 2.5
+connection_count = 2
+endpoint 1 = carabiner
+endpoint 2 = carabiner
+shared connector = single-action + swivel
+endpoint roles = unknown
+```
+
+When the same exact-product evidence also establishes one same-construction carabiner pair plus undifferentiated hand-tool-to-glove/wrist-anchor use, the adapter emits the existing `derived_endpoint_equivalence` / `reversible_tool_anchor_pair` relation. The endpoints remain `TetherSide.UNKNOWN`; the relation authorizes bounded assignments without mutating intrinsic roles.
+
+That assignment evidence does not establish engagement with any particular anchor interface.
+
+### H01085 adds only the missing physical installation mechanism
+
+H01085 uses the existing `wrist` PrimaryAnchorFeature but requires a distinct mechanism: the product is slipped over the hand onto the wrist rather than fastened around it.
+
+PR #72 therefore adds the manufacturer-neutral:
+
+```text
+AnchorInstallationMethod.SLIP_ON
+```
+
+The current H01085 path is:
+
+```text
+method = slip_on
+feature_kind = wrist
+rated_capacity_kg = 2.5
+provided interface role = anchor_attachment_tether_side
+provided interface type = unknown
+```
+
+Small/Medium/Large labels are not converted into numeric wrist-fit geometry. The page's explicit statement that H01067 is suitable for H01085 is retained as an `explicitly_endorsed` catalogue relationship, not automatically promoted into a generic physical compatibility rule.
+
 ## Review-derived reusable provenance invariants
 
 The PR #69 and #70 reviews reinforce several reusable rules:
@@ -185,7 +256,7 @@ The PR #69 and #70 reviews reinforce several reusable rules:
 
 ## Current deliberate boundaries
 
-The post-PR #70 baseline does **not** add:
+The post-PR #72 baseline does **not** add:
 
 - image recognition or computer-vision inference;
 - fuzzy Tool identity acceptance;
@@ -202,45 +273,32 @@ The post-PR #70 baseline does **not** add:
 - global mixed-manufacturer exclusion;
 - manufacturer identity inference from SKU/product-ref naming conventions;
 - automatic positive endorsement for same-manufacturer combinations; or
-- a replacement for the existing recommendation-session condition resolver.
+- a replacement for the existing recommendation-session condition resolver;
+- a runtime `Composite`/kit load-path component; or
+- silent correction of contradictory manufacturer kit composition.
 
 Those boundaries remain deliberate.
 
-## Next recommended slice after PR #70
+## Next recommended slice after PR #72
 
-The next slice should continue proving catalogue throughput, but should exercise a **different supply-side shape** rather than immediately adding another conventional ToolAttachment family branch.
+The relationship/decomposition primitive is now proven, but H01088 itself should remain unresolved until GRIPPS resolves the contradictory component identity.
 
-Recommended inspection target:
+The next highest-value follow-on is to prove **clean end-to-end kit decomposition** on a sellable wrapper whose contained-product identities agree with the wrapper semantics. Start by inspecting the closely related GRIPPS H01087 Slip-On Wrist Anchor With Tool Tether, or another exact GRIPPS kit page, for an explicit product-local Kit Contents table.
 
-```text
-GRIPPS H01088 — Adjustable Wrist Anchor With Tool Tether
-```
-
-The frozen V6 review classified H01088 as B because GRIPPS explicitly identifies the sellable kit as containing separately identifiable recommendation components:
-
-```text
-H01067 Webbing Wrist Tether
-+
-H01085 Slip-On Wrist Anchor
-```
-
-The likely reusable lesson is catalogue decomposition, not a runtime `Composite` load-path type. A commercial wrapper may describe/package components without itself becoming another physical component in candidate evaluation.
-
-Start the next slice by inspecting current GRIPPS ingestion, any existing related-product/kit relationship semantics, the H01067 and H01085 first-party evidence, current wrist-anchor installation support, and how `FieldRecommendationCatalogue` should receive the decomposed components.
-
-The target should be the smallest evidence-backed path that proves:
+If a clean case exists, the target is:
 
 ```text
 sellable kit identity
-  -> accepted contained-product relationships
-  -> exact contained product identities
-  -> ordinary tether + AnchorAttachment normalization
-  -> ordinary candidate composition/evaluation
+  -> accepted kit_relationship rows
+  -> exact contained Tether + AnchorAttachment identities
+  -> contained products' own accepted facts
+  -> ordinary TetherOption + AnchorPathOption
+  -> existing candidate generation/evaluation
 ```
 
-Do not create a new composite runtime primitive unless inspection finds a real load-path or decision semantic that cannot be represented by the contained products.
+The proof should not add `Composite`, copy contained-product facts from the wrapper page, or treat kit membership alone as connection compatibility. Any exact manufacturer pairing needed for sparse-geometry connection should remain a separate evidence-bound relationship.
 
-If H01088 evidence turns out not to support a clean decomposition without additional catalogue work, choose another remaining V6 B throughput case rather than forcing the abstraction. The next alternatives are the FallTech 5106A5 conventional ToolAttachment family, Ergodyne 3172/19172 AnchorAttachment family, or one of the exact-product capacity-conflict cases where existing reconciliation should fail closed.
+If the nearby GRIPPS kit pages do not provide a clean, exact composition proof, do not spend the next slice repairing catalogue copy. Move to another V6 B throughput case such as FallTech 5106A5 or Ergodyne 3172/19172, keeping the new relationship primitive available for future clean kit cases.
 
 ## Catalogue throughput in parallel
 
@@ -279,13 +337,13 @@ High-value throughput work includes:
 ## Suggested opening prompt for the next chat
 
 ```text
-Continue TetherLens from merged `main` after PR #70. Keep all historical portability cohorts frozen at their existing semantic revisions: V1 is 0 A / 5 B / 3 C / 0 D, V2 is 0 A / 6 B / 2 C / 0 D, V3 is 0 A / 5 B / 3 C / 0 D, V4 is 0 A / 4 B / 4 C / 0 D, V5 is 0 A / 6 B / 2 C / 0 D, and V6 is 1 A / 7 B / 0 C / 0 D.
+Continue TetherLens from PR #72 after it is merged to main. Keep all historical portability cohorts frozen at their existing semantic revisions: V1 is 0 A / 5 B / 3 C / 0 D, V2 is 0 A / 6 B / 2 C / 0 D, V3 is 0 A / 5 B / 3 C / 0 D, V4 is 0 A / 4 B / 4 C / 0 D, V5 is 0 A / 6 B / 2 C / 0 D, and V6 is 1 A / 7 B / 0 C / 0 D.
 
-PR #69 establishes the sparse-geometry evidence boundary: use reusable physical/topological rules where the source supports them, but retain exact evidence-bound installation/connection relationships when manufacturer evidence establishes what works without enough geometry to infer why.
+PR #72 establishes catalogue decomposition without a runtime Composite: manufacturer-backed declared relationships bind a commercial wrapper to exact contained product refs, while the contained Tether/AnchorAttachment facts remain sourced from their own products. H01088 preserves its published H01067 + H01085 Kit Contents rows but remains not recommendation-ready because the wrapper's adjustable/hook-and-loop semantics conflict with the named H01085 Slip-On component. Do not silently rewrite that relationship to H01086.
 
-PR #70 closes the frozen 3M 1500009 V6 B case using existing generic ToolAttachment semantics: captive handle OR captive through-opening eligibility, cinch installation, 2.3 kg rated capacity and a provided D-ring interface. It also preserves 3M's Python Safety tether-family requirement on the manufacturer-position axis. The shared resolver compares accepted selected-tether manufacturer identity against the manufacturer named by the source; a mismatch becomes CONTRARY_TO_MANUFACTURER_INSTRUCTION without becoming technical incompatibility, and a same-manufacturer match is not blanket endorsement.
+PR #72 also broadens H01067 through the existing two-carabiner tether + derived reversible endpoint-assignment semantics and adds the manufacturer-neutral AnchorInstallationMethod.slip_on for H01085's wrist path. H01085's H01067 suitability statement is retained as an explicit catalogue relationship, not blanket physical compatibility.
 
-For the next slice, inspect GRIPPS H01088 Adjustable Wrist Anchor With Tool Tether as a catalogue-decomposition case. Determine whether the sellable kit can be represented as accepted relationships to its separately identified H01067 Webbing Wrist Tether and H01085 Slip-On Wrist Anchor, then composed through the existing tether + AnchorAttachment recommendation path without inventing a runtime Composite component.
+For the next slice, inspect whether GRIPPS H01087 or another exact GRIPPS kit page provides a clean product-local Kit Contents relationship that can be decomposed into already-catalogued Tether + AnchorAttachment components and carried through the existing recommendation path. If no clean decomposition case exists, move to another V6 B catalogue-throughput case rather than forcing ambiguous kit evidence.
 
-Before changing code, inspect current GRIPPS ingestion, related-product/kit semantics, first-party evidence for all three SKUs, and existing wrist-anchor support. Identify the smallest reusable implementation slice and recommend the approach before building it.
+Before changing code, inspect current main, exact first-party kit/component evidence, existing declared-product relationship resolution, and the ordinary TetherOption + AnchorPathOption composition path. Recommend the smallest reusable implementation slice before building it.
 ```
