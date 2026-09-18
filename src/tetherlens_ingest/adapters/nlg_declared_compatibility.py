@@ -32,9 +32,9 @@ _SCOPE_KEY = "connection_compatibility.scope"
 _SCOPE = "Quick Clip to D-ring anchor point"
 
 _DECLARATION_SUBJECT_PATTERNS = (
-    r"\bQuick\s*Clip(?:s)?\b™?",
-    r"\bD[\s-]?Ring\b",
-    r"\b(?:it|the\s+attachment|this\s+tether|the\s+tether)\b",
+    r"\b(?:the\s+)?Quick\s*Clip(?:s)?\b™?",
+    r"\b(?:the\s+)?D[\s-]?Ring\b",
+    r"\b(?:it|(?:the|this)\s+attachment|this\s+tether|the\s+tether)\b",
     r"\b(?:that|this)\s+way\b",
 )
 
