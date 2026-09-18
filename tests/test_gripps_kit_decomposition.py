@@ -38,6 +38,20 @@ class StaticFetcher:
         return self.artifact.model_copy(deep=True, update={"source_type": source_type})
 
 
+class RedirectingFetcher:
+    def __init__(self, requested_url: str, artifact: SourceArtifact):
+        self.requested_url = requested_url
+        self.artifact = artifact
+
+    def get(
+        self,
+        url: str,
+        source_type: SourceType = SourceType.MANUFACTURER_WEBPAGE,
+    ) -> SourceArtifact:
+        assert url == self.requested_url
+        return self.artifact.model_copy(deep=True, update={"source_type": source_type})
+
+
 def _artifact(url: str, body: str) -> SourceArtifact:
     return SourceArtifact(
         url=url,
@@ -462,3 +476,110 @@ def test_malformed_kit_quantity_does_not_become_unknown_membership() -> None:
         claim.subject_type == ClaimSubjectType.DECLARED_RELATIONSHIP
         for claim in claims
     )
+
+
+
+def test_sibling_kit_contents_outside_requested_product_region_are_ignored() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.KIT,
+        name="Primary Kit",
+        sku="H09994",
+        url="https://gripps.com/products/primary-kit",
+    )
+    artifact = _artifact(
+        identity.url,
+        """
+        <h1>Primary Kit</h1><p>SKU H09994</p>
+        <p>This product has no published component table.</p>
+        <h1>Sibling Kit</h1>
+        <h3>Kit Contents</h3>
+        <table>
+          <tr><td>H01067</td><td>Webbing Wrist Tether Single-Action</td><td>1</td></tr>
+        </table>
+        """,
+    )
+
+    claims = GRIPPSAdapter().extract(identity, [artifact])
+
+    assert not any(
+        claim.subject_type == ClaimSubjectType.DECLARED_RELATIONSHIP
+        for claim in claims
+    )
+
+
+def test_h01067_same_host_redirect_does_not_create_endpoint_semantics() -> None:
+    requested = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.TETHER,
+        name="Webbing Wrist Tether Single-Action",
+        sku="H01067",
+        url="https://gripps.com/products/webbing-single-action-wrist-tether",
+    )
+    redirected = _artifact(
+        "https://gripps.com/products/different-tether",
+        """
+        <h1>Different Tether</h1><p>SKU H09993</p>
+        <p>Two swivel-head single-action carabiners.</p>
+        <p>Attachment of hand tools to gloves or wrist anchors.</p>
+        <p>Max Load: 2.5 kg</p>
+        """,
+    )
+
+    result = IngestionRunner(
+        RedirectingFetcher(requested.url, redirected)
+    ).ingest(requested, GRIPPSAdapter())
+
+    assert result.claims == []
+
+
+def test_h01067_cross_sell_pair_use_does_not_create_reversible_assignment() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.TETHER,
+        name="Webbing Wrist Tether Single-Action",
+        sku="H01067",
+        url="https://gripps.com/products/webbing-single-action-wrist-tether",
+    )
+    artifact = _artifact(
+        identity.url,
+        """
+        <h1>Webbing Wrist Tether Single-Action</h1><p>SKU H01067</p>
+        <p>Two swivel-head single-action carabiners.</p>
+        <h3>Related Products</h3>
+        <p>Attachment of hand tools to gloves or wrist anchors.</p>
+        """,
+    )
+
+    claims = GRIPPSAdapter().extract(identity, [artifact])
+
+    assert resolve_tether_endpoint_assignment_declarations(
+        claims,
+        tether_ref="GRIPPS:H01067",
+    ) == []
+
+
+def test_h01085_cross_sell_slip_action_does_not_create_installation_rule() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.ANCHOR_ATTACHMENT,
+        name="Slip-On Wrist Anchor",
+        sku="H01085-S",
+        url="https://gripps.com/products/slip-on-wrist-anchor",
+    )
+    artifact = _artifact(
+        identity.url,
+        """
+        <h1>Slip-On Wrist Anchor</h1><p>SKU H01085-S</p>
+        <p>This wrist-mounted tether anchor has a load-rated tether point.</p>
+        <h3>Related Products</h3>
+        <p>Just slip it on, secure your tool, and start your task.</p>
+        """,
+    )
+
+    claims = GRIPPSAdapter().extract(identity, [artifact])
+
+    assert resolve_anchor_attachment_installation_rule(
+        claims,
+        source_product_ref="GRIPPS:H01085-S",
+    ) is None
