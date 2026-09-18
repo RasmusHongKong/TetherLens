@@ -305,6 +305,31 @@ def test_h01085_uses_slip_on_wrist_path_and_preserves_h01067_endorsement() -> No
 
 
 
+def test_h01085_family_h1_does_not_authorize_unstated_exact_variant_connection() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.ANCHOR_ATTACHMENT,
+        name="Slip-On Wrist Anchor",
+        sku="H01085-M",
+        url="https://gripps.com/products/slip-on-wrist-anchor",
+    )
+    artifact = _artifact(
+        identity.url,
+        """
+        <h1>Slip-On Wrist Anchor - 2.5kg / 5.5lb</h1>
+        <p>Available in Small, Medium and Large.</p>
+        <p>Suitable for use with our H01067 wrist tethers.</p>
+        <p>Built-in load-rated tether anchor point.</p>
+        """,
+    )
+
+    claims = GRIPPSAdapter().extract(identity, [artifact])
+
+    assert not any(
+        claim.subject_type == ClaimSubjectType.CONNECTION_COMPATIBILITY
+        for claim in claims
+    )
+
 def test_h01085_connection_declaration_fails_closed_without_exact_variant_mapping() -> None:
     identity = ProductIdentity(
         manufacturer="GRIPPS",
