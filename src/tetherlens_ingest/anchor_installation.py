@@ -26,6 +26,7 @@ class AnchorInstallationMethod(StrEnum):
     CINCH = "cinch"
     THREAD_OVER = "thread_over"
     FASTEN_AROUND = "fasten_around"
+    SLIP_ON = "slip_on"
     HOOK_ON = "hook_on"
 
 
