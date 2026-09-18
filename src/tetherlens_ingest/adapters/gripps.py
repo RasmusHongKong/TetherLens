@@ -558,9 +558,16 @@ def _kit_content_rows(body: str) -> list[tuple[str, str, int | None]]:
             sku_match = re.search(r"\bH\d{5}(?:-[A-Z0-9]+)?\b", cells[0], re.I)
             if sku_match is None:
                 continue
-            quantity_match = re.fullmatch(r"\s*(\d+)\s*", cells[-1])
-            quantity = int(quantity_match.group(1)) if quantity_match is not None else None
-            description_cells = cells[1:-1] if quantity_match is not None else cells[1:]
+            quantity: int | None = None
+            description_cells = cells[1:]
+            if len(cells) >= 3:
+                quantity_text = cells[-1].strip()
+                description_cells = cells[1:-1]
+                if quantity_text:
+                    quantity_match = re.fullmatch(r"\d+", quantity_text)
+                    if quantity_match is None:
+                        continue
+                    quantity = int(quantity_match.group(0))
             description = " ".join(description_cells).strip()
             if not description:
                 continue
