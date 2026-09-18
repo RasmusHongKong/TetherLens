@@ -33,6 +33,7 @@ class ClaimSubjectType(StrEnum):
     TETHER_ENDPOINT_ASSIGNMENT = "tether_endpoint_assignment"
     CONNECTOR_SPEC = "connector_spec"
     CONNECTION_COMPATIBILITY = "connection_compatibility"
+    DECLARED_RELATIONSHIP = "declared_relationship"
     RELATED_PRODUCT = "related_product"
     OPERATIONAL_PROFILE = "operational_profile"
 
