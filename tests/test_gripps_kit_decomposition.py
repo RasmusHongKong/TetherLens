@@ -97,7 +97,6 @@ def test_h01088_extracts_kit_relationships_but_identity_conflict_blocks_readines
         subject_product_ref="GRIPPS:H01088",
         product_refs_by_identifier={
             "H01067": "GRIPPS:H01067",
-            "H01085": "GRIPPS:H01085-S",
         },
     )
     assert {
@@ -109,8 +108,13 @@ def test_h01088_extracts_kit_relationships_but_identity_conflict_blocks_readines
         for relationship in relationships
     } == {
         ("GRIPPS:H01067", DeclaredProductRelationshipType.KIT_RELATIONSHIP, 1),
-        ("GRIPPS:H01085-S", DeclaredProductRelationshipType.KIT_RELATIONSHIP, 1),
     }
+    # The wrapper names only the H01085 family. Do not silently select one of the
+    # separately sold H01085-S/M/L variants just to make the kit executable.
+    assert not any(
+        relationship.object_product_identifier == "H01085"
+        for relationship in relationships
+    )
 
     assert result.readiness_assessed is True
     assert [issue.code for issue in result.issues] == ["KIT_COMPONENT_IDENTITY_CONFLICT"]
