@@ -122,6 +122,38 @@ def html_evidence_clauses(html: str) -> list[str]:
     return clauses
 
 
+def evidence_sentence_for_match(text: str, match: re.Match[str]) -> str:
+    """Return the punctuation-bounded sentence/clause that owns a match."""
+
+    left = max(
+        text.rfind(".", 0, match.start()),
+        text.rfind("!", 0, match.start()),
+        text.rfind("?", 0, match.start()),
+        text.rfind(";", 0, match.start()),
+        text.rfind("\n", 0, match.start()),
+    )
+    right_candidates = [
+        index
+        for index in (
+            text.find(".", match.end()),
+            text.find("!", match.end()),
+            text.find("?", match.end()),
+            text.find(";", match.end()),
+            text.find("\n", match.end()),
+        )
+        if index >= 0
+    ]
+    right = min(right_candidates) + 1 if right_candidates else len(text)
+    return re.sub(r"\s+", " ", text[left + 1 : right]).strip()
+
+
+def match_is_interrogative(text: str, match: re.Match[str]) -> bool:
+    """Return whether the local evidence sentence is a question rather than an assertion."""
+
+    return evidence_sentence_for_match(text, match).rstrip().endswith("?")
+
+
+
 def match_is_locally_contradicted(
     text: str,
     match: re.Match[str],
