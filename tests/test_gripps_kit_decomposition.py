@@ -437,6 +437,7 @@ def test_h01085_contradictory_suitability_wording_is_not_executable() -> None:
         url="https://gripps.com/products/slip-on-wrist-anchor",
     )
     contradictory_phrases = (
+        "No product is suitable for use with our H01067 wrist tethers.",
         "Suitable for use with our H01067 wrist tethers, but must not be connected that way.",
         "Suitable for use with our H01067 wrist tethers, but cannot be used that way.",
         "Suitable for use with our H01067 wrist tethers, however never attach them that way.",
