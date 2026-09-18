@@ -56,8 +56,11 @@ All physical catalogue products share a base `product` record and then use one s
 - `tool_attachment`
 - `anchor_attachment`
 - `container`
+- `kit`
 
 `battery` is a supporting configuration product rather than a tethering component. It exists because the installed battery can change the mass of a cordless Tool used by load reasoning.
+
+`kit` is a catalogue-only commercial wrapper. It may own manufacturer-backed contained-product relationships but has no load-path subtype and is never itself a recommendation component. Its contained products retain their ordinary `tether`, `tool_attachment`, `anchor_attachment`, or other physical product identities.
 
 This avoids both:
 
