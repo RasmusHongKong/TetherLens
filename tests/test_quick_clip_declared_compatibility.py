@@ -1,3 +1,5 @@
+import pytest
+
 from tetherlens_ingest.adapters import NLGAdapter
 from tetherlens_ingest.candidate_generation import (
     AnchorPathOption,
@@ -16,6 +18,7 @@ from tetherlens_ingest.connection import (
     evaluate_endpoint_engagement,
 )
 from tetherlens_ingest.declared_compatibility import (
+    ConnectorInterfaceCompatibilityDeclaration,
     connection_contexts_from_compatibility_declarations,
     resolve_connector_interface_compatibility_declarations,
 )
@@ -97,6 +100,19 @@ def d_ring_anchor(interface_id: str = "anchor:d-ring") -> ConnectionInterface:
         interface_type="ring",
         attributes={"ring_form": "d_ring"},
     )
+
+
+def test_generic_declaration_still_requires_complete_interface_primitives():
+    with pytest.raises(
+        ValueError,
+        match="generic compatibility declarations require complete connector/interface primitives",
+    ):
+        ConnectorInterfaceCompatibilityDeclaration(
+            declaration_id="incomplete-generic",
+            issuer_manufacturer="NLG",
+            scope="incomplete generic declaration",
+            source_urls=[SOURCE_URL],
+        )
 
 
 def test_quick_clip_d_ring_declaration_is_evidence_led_not_sku_led():
