@@ -188,7 +188,7 @@ sellable kit/wrapper identity
   -> ordinary Tether / ToolAttachment / AnchorAttachment runtime options
 ```
 
-A kit relationship is catalogue metadata. It does not create `ProductType.COMPOSITE`, a synthetic candidate component, or a generic compatibility rule.
+The sellable wrapper uses catalogue-only `ProductType.KIT` identity so its relationships have an exact owner. `KIT` has no candidate/load-path subtype. A kit relationship therefore does not create `ProductType.COMPOSITE`, a synthetic candidate component, or a generic compatibility rule.
 
 Relationship resolution also fails closed on identity: accepted raw relationship claims may remain when the related product is not yet mapped, but executable catalogue composition requires an explicit identifier-to-product-ref mapping. Product identity is never reconstructed from SKU syntax, names or URLs.
 
@@ -274,7 +274,7 @@ The post-PR #72 baseline does **not** add:
 - manufacturer identity inference from SKU/product-ref naming conventions;
 - automatic positive endorsement for same-manufacturer combinations; or
 - a replacement for the existing recommendation-session condition resolver;
-- a runtime `Composite`/kit load-path component; or
+- a runtime `Composite`/kit load-path component (catalogue-only `ProductType.KIT` is identity metadata, not a candidate component); or
 - silent correction of contradictory manufacturer kit composition.
 
 Those boundaries remain deliberate.
