@@ -463,6 +463,7 @@ def test_h01085_contradictory_suitability_wording_is_not_executable() -> None:
     )
     contradictory_phrases = (
         "No product is suitable for use with our H01067 wrist tethers.",
+        "No gloves and wrist anchors are suitable for use with our H01067 wrist tethers.",
         "Suitable for use with our H01067 wrist tethers, but must not be connected that way.",
         "Suitable for use with our H01067 wrist tethers, but this tether must not be connected that way.",
         "Suitable for use with our H01067 wrist tethers, but cannot be used that way.",
