@@ -583,3 +583,138 @@ def test_h01085_cross_sell_slip_action_does_not_create_installation_rule() -> No
         claims,
         source_product_ref="GRIPPS:H01085-S",
     ) is None
+
+
+
+def test_h01067_negated_pair_construction_does_not_create_endpoint_claims() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.TETHER,
+        name="Webbing Wrist Tether Single-Action",
+        sku="H01067",
+        url="https://gripps.com/products/webbing-single-action-wrist-tether",
+    )
+    artifact = _artifact(
+        identity.url,
+        """
+        <h1>Webbing Wrist Tether Single-Action</h1><p>SKU H01067</p>
+        <p>This model does not have two swivel-head single-action carabiners.</p>
+        <p>Attachment of hand tools to gloves or wrist anchors.</p>
+        """,
+    )
+
+    claims = GRIPPSAdapter().extract(identity, [artifact])
+
+    assert not any(
+        claim.property_key == "tether.connection_count"
+        for claim in claims
+    )
+    assert resolve_tether_endpoint_assignment_declarations(
+        claims,
+        tether_ref="GRIPPS:H01067",
+    ) == []
+
+
+def test_h01067_negated_pair_use_does_not_create_reversible_assignment() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.TETHER,
+        name="Webbing Wrist Tether Single-Action",
+        sku="H01067",
+        url="https://gripps.com/products/webbing-single-action-wrist-tether",
+    )
+    artifact = _artifact(
+        identity.url,
+        """
+        <h1>Webbing Wrist Tether Single-Action</h1><p>SKU H01067</p>
+        <p>Two swivel-head single-action carabiners.</p>
+        <p>This model is not approved for attachment of hand tools to wrist anchors.</p>
+        """,
+    )
+
+    claims = GRIPPSAdapter().extract(identity, [artifact])
+
+    assert any(
+        claim.property_key == "tether.connection_count"
+        for claim in claims
+    )
+    assert resolve_tether_endpoint_assignment_declarations(
+        claims,
+        tether_ref="GRIPPS:H01067",
+    ) == []
+
+
+def test_h01067_direction_after_carabiner_vetoes_reversible_assignment() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.TETHER,
+        name="Webbing Wrist Tether Single-Action",
+        sku="H01067",
+        url="https://gripps.com/products/webbing-single-action-wrist-tether",
+    )
+    artifact = _artifact(
+        identity.url,
+        """
+        <h1>Webbing Wrist Tether Single-Action</h1><p>SKU H01067</p>
+        <p>Two swivel-head single-action carabiners.</p>
+        <p>Attachment of hand tools to gloves or wrist anchors.</p>
+        <p>One carabiner is dedicated to the tool end and the other to the anchor end.</p>
+        """,
+    )
+
+    claims = GRIPPSAdapter().extract(identity, [artifact])
+
+    assert resolve_tether_endpoint_assignment_declarations(
+        claims,
+        tether_ref="GRIPPS:H01067",
+    ) == []
+
+
+def test_h01085_negated_slip_instruction_does_not_create_installation_rule() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.ANCHOR_ATTACHMENT,
+        name="Slip-On Wrist Anchor",
+        sku="H01085-S",
+        url="https://gripps.com/products/slip-on-wrist-anchor",
+    )
+    artifact = _artifact(
+        identity.url,
+        """
+        <h1>Slip-On Wrist Anchor</h1><p>SKU H01085-S</p>
+        <p>This is a wrist-mounted tether anchor, but do not just slip it on.</p>
+        """,
+    )
+
+    claims = GRIPPSAdapter().extract(identity, [artifact])
+
+    assert resolve_anchor_attachment_installation_rule(
+        claims,
+        source_product_ref="GRIPPS:H01085-S",
+    ) is None
+
+
+def test_h01085_negated_h01067_suitability_does_not_create_endorsement() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.ANCHOR_ATTACHMENT,
+        name="Slip-On Wrist Anchor",
+        sku="H01085-S",
+        url="https://gripps.com/products/slip-on-wrist-anchor",
+    )
+    artifact = _artifact(
+        identity.url,
+        """
+        <h1>Slip-On Wrist Anchor</h1><p>SKU H01085-S</p>
+        <p>This product is not suitable for use with our H01067 wrist tethers.</p>
+        """,
+    )
+
+    claims = GRIPPSAdapter().extract(identity, [artifact])
+
+    assert not any(
+        claim.subject_type == ClaimSubjectType.DECLARED_RELATIONSHIP
+        and claim.property_key == "declared_relationship.object_product_identifier"
+        and claim.value == "H01067"
+        for claim in claims
+    )
