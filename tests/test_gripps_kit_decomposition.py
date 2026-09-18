@@ -263,6 +263,7 @@ def test_h01085_uses_slip_on_wrist_path_and_preserves_h01067_endorsement() -> No
         DeclaredProductRelationshipType.EXPLICITLY_ENDORSED
     )
     assert relationships[0].object_product_ref == "GRIPPS:H01067"
+    assert relationships[0].quantity is None
 
 
 def test_h01085_does_not_turn_size_labels_into_numeric_wrist_fit() -> None:
@@ -289,5 +290,32 @@ def test_h01085_does_not_turn_size_labels_into_numeric_wrist_fit() -> None:
 
     assert not any(
         claim.property_key.startswith("anchor_installation.dimension.")
+        for claim in claims
+    )
+
+
+
+def test_kit_contents_label_does_not_capture_later_related_products_table() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.UNKNOWN,
+        name="Incomplete Kit Wrapper",
+        sku="H09997",
+        url="https://gripps.com/products/incomplete-kit-wrapper",
+    )
+    artifact = _artifact(
+        identity.url,
+        """
+        <h1>Incomplete Kit Wrapper</h1><p>SKU H09997</p>
+        <h3>Kit Contents</h3><p>See package for contents.</p>
+        <h3>Related Products</h3>
+        <table><tr><td>H01067</td><td>Webbing Wrist Tether</td><td>1</td></tr></table>
+        """,
+    )
+
+    claims = GRIPPSAdapter().extract(identity, [artifact])
+
+    assert not any(
+        claim.subject_type == ClaimSubjectType.DECLARED_RELATIONSHIP
         for claim in claims
     )
