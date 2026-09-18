@@ -103,6 +103,18 @@ _H01085_POST_ENDORSEMENT_PROHIBITION = re.compile(
     r"\b(?:use|used|using|attach|attached|connect|connected|tether|tethered)\b",
     re.I | re.S,
 )
+_H01085_ADJACENT_PROHIBITION = re.compile(
+    r"^\s*[.!?]\s*"
+    r"(?:\b(?:but|however|yet|although|though)\b[,:]?\s*)?"
+    r"(?:"
+    r"(?:must|should|shall|may|can)\s+not|"
+    r"cannot|can't|"
+    r"(?:do|does|did)\s+not|"
+    r"never"
+    r")\b.{0,80}"
+    r"\b(?:use|used|using|attach|attached|connect|connected|tether|tethered)\b",
+    re.I | re.S,
+)
 
 
 class GRIPPSAdapter(ManufacturerAdapter):
@@ -577,7 +589,8 @@ def _extract_connection_compatibility_claims(
         if not _is_verified_product_detail(artifact, identity):
             continue
         product_text = _product_local_text(artifact.body, identity)
-        if not _text_explicitly_names_sku(product_text, identity.sku):
+        variant_evidence = _exact_sku_evidence(product_text, identity.sku)
+        if variant_evidence is None:
             continue
         endorsement = _h01085_h01067_endorsement(product_text)
         if endorsement is None:
@@ -587,21 +600,23 @@ def _extract_connection_compatibility_claims(
                 declaration_ref=f"h01067_to_{identity.sku.lower()}_wrist_anchor",
                 source_product_identifier="H01067",
                 target_product_identifier=identity.sku.upper(),
-                raw_value=endorsement.group(0),
+                relationship_raw_value=endorsement.group(0),
+                target_product_raw_value=variant_evidence,
                 source_url=artifact.url,
             )
         )
     return _dedupe(claims)
 
 
-def _text_explicitly_names_sku(text: str, sku: str) -> bool:
-    """Require exact variant identity before executable product-scoped connection use."""
+def _exact_sku_evidence(text: str, sku: str) -> str | None:
+    """Return the exact variant token that authorizes product-scoped connection use."""
 
-    return re.search(
+    match = re.search(
         rf"(?<![A-Z0-9]){re.escape(sku)}(?![A-Z0-9])",
         text,
         re.I,
-    ) is not None
+    )
+    return match.group(0) if match is not None else None
 
 def _h01085_h01067_endorsement(text: str) -> re.Match[str] | None:
     """Return the local affirmative H01067 suitability statement, if uncontradicted."""
@@ -615,7 +630,10 @@ def _h01085_h01067_endorsement(text: str) -> re.Match[str] | None:
     # unrelated later prohibition elsewhere on the product page does not erase the
     # positive statement, but fail closed on nearby contrary first-party wording.
     suffix = text[match.end() : match.end() + 180]
-    if _H01085_POST_ENDORSEMENT_PROHIBITION.search(suffix) is not None:
+    if (
+        _H01085_POST_ENDORSEMENT_PROHIBITION.search(suffix) is not None
+        or _H01085_ADJACENT_PROHIBITION.search(suffix) is not None
+    ):
         return None
     return match
 
@@ -625,7 +643,8 @@ def _connection_compatibility_claims(
     declaration_ref: str,
     source_product_identifier: str,
     target_product_identifier: str,
-    raw_value: str,
+    relationship_raw_value: str,
+    target_product_raw_value: str,
     source_url: str,
 ) -> list[CandidateClaim]:
     values = (
@@ -642,21 +661,34 @@ def _connection_compatibility_claims(
             "Slip-On Wrist Anchor variant; tether-side interface geometry remains unpublished",
         ),
     )
-    return [
-        CandidateClaim(
-            subject_type=ClaimSubjectType.CONNECTION_COMPATIBILITY,
-            subject_ref=declaration_ref,
-            property_key=property_key,
-            value=value,
-            unit=None,
-            raw_value=raw_value,
-            source_url=source_url,
-            evidence_method="manufacturer_pairing",
-            extractor=_EXTRACTOR,
-            claim_type=ClaimType.DIRECT,
+    claims: list[CandidateClaim] = []
+    for property_key, value in values:
+        is_target_identity = (
+            property_key == "connection_compatibility.target_product_identifier"
         )
-        for property_key, value in values
-    ]
+        claims.append(
+            CandidateClaim(
+                subject_type=ClaimSubjectType.CONNECTION_COMPATIBILITY,
+                subject_ref=declaration_ref,
+                property_key=property_key,
+                value=value,
+                unit=None,
+                raw_value=(
+                    target_product_raw_value
+                    if is_target_identity
+                    else relationship_raw_value
+                ),
+                source_url=source_url,
+                evidence_method=(
+                    "manufacturer_product_identity"
+                    if is_target_identity
+                    else "manufacturer_pairing"
+                ),
+                extractor=_EXTRACTOR,
+                claim_type=ClaimType.DIRECT,
+            )
+        )
+    return claims
 
 
 def _kit_content_rows(
