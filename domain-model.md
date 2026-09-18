@@ -379,7 +379,7 @@ Supporting products such as Batteries may exist primarily to define a Tool's val
 
 ### Commercial kit / wrapper identity
 
-A manufacturer may sell several independently identifiable recommendation components under one commercial kit SKU. The kit identity and its contained-product relationships belong in the catalogue/evidence layer, but the wrapper does not automatically become another physical load-path component.
+A manufacturer may sell several independently identifiable recommendation components under one commercial kit SKU. The wrapper is retained as a catalogue-only `kit` product identity so it can own evidence-backed relationships, but it has no recommendation/load-path subtype and does not become another physical component.
 
 Where the manufacturer identifies the contained products explicitly, TetherLens may preserve exact `kit_relationship` records and then normalize each contained Tether, ToolAttachment or AnchorAttachment from its own product evidence. Runtime candidate generation continues to compose those existing component types.
 
