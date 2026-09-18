@@ -194,7 +194,6 @@ def test_separate_html_block_does_not_get_joined_into_one_relationship_assertion
     assert claims
 
 
-
 def test_designed_anchor_wording_resolves_exact_declaration_scope():
     claims = declaration_claims(
         "<p>The Retractable Quick Clip Attachment has been specifically designed to "
