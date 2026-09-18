@@ -20,6 +20,7 @@ class ProductType(StrEnum):
     TOOL_ATTACHMENT = "tool_attachment"
     ANCHOR_ATTACHMENT = "anchor_attachment"
     CONTAINER = "container"
+    KIT = "kit"
     UNKNOWN = "unknown"
 
 
