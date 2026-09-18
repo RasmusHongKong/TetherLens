@@ -1230,6 +1230,7 @@ This table is **not** a general compatibility matrix.
 | `object_product_id` | UUID | no | FK -> `product.id` |
 | `object_interface_id` | UUID | yes | FK -> `physical_interface.id` |
 | `relationship_type` | ENUM | no | `declared_relationship_type` |
+| `quantity` | SMALLINT | yes | Source-stated contained quantity where composition semantics require it |
 | `claim_id` | UUID | no | FK -> accepted Claim |
 | `active` | BOOLEAN | no | Default true |
 | `notes` | TEXT | yes | Qualification |
@@ -1239,6 +1240,7 @@ This table is **not** a general compatibility matrix.
 - `subject_interface_id`, when populated, must belong to `subject_product_id`.
 - `object_interface_id`, when populated, must belong to `object_product_id`.
 - `claim_id` must reference an accepted Claim whose manufacturer Evidence supports the declared relationship.
+- `quantity`, when populated, must be a positive integer. A `kit_relationship` with manufacturer-published quantity must preserve that value; missing quantity remains unknown rather than defaulting to one.
 - A `compatible_configuration` or `kit_relationship` used by an `operational_mass_profile` must relate a Tool to the exact Battery product used by that profile.
 - A shared platform/voltage string alone is not sufficient to create a Tool/Battery compatibility relationship.
 - No relationship row should be created merely because two tethering products happen to pass generic compatibility rules.
