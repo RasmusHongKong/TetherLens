@@ -10,13 +10,13 @@ from tetherlens_ingest.models import (
     SourceArtifact,
 )
 
-from .nlg_cinch_loop import NLGAdapter as BaseNLGAdapter
 from .evidence_context import (
     evidence_sentence_for_match,
     html_evidence_blocks,
     match_is_interrogative,
     match_is_locally_contradicted,
 )
+from .nlg_cinch_loop import NLGAdapter as BaseNLGAdapter
 from .nlg_connector_mechanism import _dedupe_claims
 
 
@@ -115,6 +115,7 @@ def _quick_clip_d_ring_compatibility_evidence(text: str) -> str | None:
                     continue
                 return evidence_sentence_for_match(block, match)
     return None
+
 
 def _declaration_claims(
     *,
