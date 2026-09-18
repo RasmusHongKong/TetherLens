@@ -50,7 +50,7 @@ def _artifact(url: str, body: str) -> SourceArtifact:
 def test_h01088_extracts_kit_relationships_but_identity_conflict_blocks_readiness() -> None:
     identity = ProductIdentity(
         manufacturer="GRIPPS",
-        product_type=ProductType.UNKNOWN,
+        product_type=ProductType.KIT,
         name="Adjustable Wrist Anchor With Tool Tether",
         sku="H01088",
         url="https://gripps.com/products/adjustable-wrist-anchor-with-webbing-wrist-tether-single-action",
@@ -124,7 +124,7 @@ def test_h01088_extracts_kit_relationships_but_identity_conflict_blocks_readines
 def test_related_products_without_kit_contents_do_not_create_kit_membership() -> None:
     identity = ProductIdentity(
         manufacturer="GRIPPS",
-        product_type=ProductType.UNKNOWN,
+        product_type=ProductType.KIT,
         name="Example Wrapper",
         sku="H09998",
         url="https://gripps.com/products/example-wrapper",
@@ -302,7 +302,7 @@ def test_h01085_does_not_turn_size_labels_into_numeric_wrist_fit() -> None:
 def test_kit_contents_label_does_not_capture_later_related_products_table() -> None:
     identity = ProductIdentity(
         manufacturer="GRIPPS",
-        product_type=ProductType.UNKNOWN,
+        product_type=ProductType.KIT,
         name="Incomplete Kit Wrapper",
         sku="H09997",
         url="https://gripps.com/products/incomplete-kit-wrapper",
