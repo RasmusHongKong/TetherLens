@@ -198,7 +198,7 @@ The current GRIPPS H01088 product page explicitly publishes Kit Contents rows na
 
 The same exact H01088 page describes the wrapper as an adjustable wrist anchor secured with hook-and-loop/Velcro semantics, while GRIPPS separately distinguishes H01085 as the Slip-On family. PR #72 therefore preserves the stated H01067/H01085 kit relationship evidence but emits `KIT_COMPONENT_IDENTITY_CONFLICT` and blocks recommendation-ready decomposition.
 
-TetherLens does **not** silently replace H01085 with H01086 merely because H01086 appears more consistent with the wrapper description.
+TetherLens does **not** silently replace H01085 with H01086 merely because H01086 appears more consistent with the wrapper description. Nor does the family-level H01085 row authorize choosing an arbitrary H01085-S/M/L variant; exact variant identity remains unresolved until supported by evidence.
 
 Related-product cards remain non-evidence for kit membership; only an explicitly labelled, exact-product Kit Contents table may emit `kit_relationship` claims. The adjustable-versus-slip-on conflict check is GRIPPS kit-semantic rather than H01088-SKU-specific: any exact kit page with the same contradictory wrapper/component evidence fails closed.
 
@@ -272,7 +272,7 @@ The post-PR #72 baseline does **not** add:
 - automatic promotion of repeated manufacturer pairings into technical rules;
 - global mixed-manufacturer exclusion;
 - manufacturer identity inference from SKU/product-ref naming conventions;
-- automatic positive endorsement for same-manufacturer combinations; or
+- automatic positive endorsement for same-manufacturer combinations;
 - a replacement for the existing recommendation-session condition resolver;
 - a runtime `Composite`/kit load-path component (catalogue-only `ProductType.KIT` is identity metadata, not a candidate component); or
 - silent correction of contradictory manufacturer kit composition.
