@@ -314,7 +314,7 @@ class GRIPPSAdapter(ManufacturerAdapter):
         for artifact in artifacts:
             if not _is_verified_product_detail(artifact, identity):
                 continue
-            text = page_text(artifact.body)
+            wrapper_text = _product_local_text(artifact.body, identity)
             slip_on_rows = [
                 (sku, description, quantity)
                 for sku, description, quantity in _kit_content_rows(artifact.body)
@@ -322,8 +322,8 @@ class GRIPPSAdapter(ManufacturerAdapter):
             ]
             if (
                 slip_on_rows
-                and re.search(r"\badjustable\s+wrist\s+anchor\b", text, re.I)
-                and re.search(r"\b(?:velcro|hook\s+and\s+loop)\b", text, re.I)
+                and re.search(r"\badjustable\s+wrist\s+anchor\b", wrapper_text, re.I)
+                and re.search(r"\b(?:velcro|hook\s+and\s+loop)\b", wrapper_text, re.I)
             ):
                 identifiers = ", ".join(sorted({sku for sku, _, _ in slip_on_rows}))
                 observations.append(
@@ -410,6 +410,59 @@ def _is_verified_product_detail(
     return bool(name_tokens) and all(token in heading_text for token in name_tokens)
 
 
+def _product_local_text(body: str, identity: ProductIdentity) -> str:
+    """Return text from the exact product's main page region, excluding cross-sell areas.
+
+    A trusted product-detail URL can still contain popular-product cards, related
+    products and recently viewed items. Start from the h1 that matches the requested
+    product identity and stop before the first explicit cross-sell heading so those
+    sibling products cannot establish executable product-local semantics.
+    """
+
+    if not identity.name:
+        return ""
+
+    soup = BeautifulSoup(body, "html.parser")
+    name_tokens = [
+        token
+        for token in re.findall(r"[a-z0-9]+", identity.name.casefold())
+        if len(token) > 2
+    ]
+    if not name_tokens:
+        return ""
+
+    heading = next(
+        (
+            candidate
+            for candidate in soup.find_all("h1")
+            if all(
+                token in " ".join(candidate.stripped_strings).casefold()
+                for token in name_tokens
+            )
+        ),
+        None,
+    )
+    if heading is None:
+        return ""
+
+    pieces: list[str] = []
+    for element in heading.next_elements:
+        name = getattr(element, "name", None)
+        if name in {"h1", "h2", "h3", "h4", "h5", "h6"}:
+            heading_text = " ".join(element.stripped_strings).casefold()
+            if any(
+                boundary in heading_text
+                for boundary in ("related products", "recently viewed products")
+            ):
+                break
+        if isinstance(element, str):
+            normalized = " ".join(element.split())
+            if normalized:
+                pieces.append(normalized)
+
+    return " ".join(pieces)
+
+
 def _extract_declared_relationship_claims(
     identity: ProductIdentity,
     artifacts: list[SourceArtifact],
@@ -421,7 +474,15 @@ def _extract_declared_relationship_claims(
 
         for sku, description, quantity in _kit_content_rows(artifact.body):
             relationship_ref = f"kit:{identity.sku or identity.model or 'product'}:{sku}"
-            raw = f"{sku} {description} {quantity}".strip()
+            raw = " ".join(
+                part
+                for part in (
+                    sku,
+                    description,
+                    str(quantity) if quantity is not None else None,
+                )
+                if part
+            )
             claims.extend(
                 _relationship_claims(
                     relationship_ref,
@@ -435,9 +496,9 @@ def _extract_declared_relationship_claims(
                 )
             )
 
-        text = page_text(artifact.body)
+        product_text = _product_local_text(artifact.body, identity)
         if _base_sku(identity.sku) == "H01085":
-            endorsement = _H01085_H01067_ENDORSEMENT.search(text)
+            endorsement = _H01085_H01067_ENDORSEMENT.search(product_text)
             if endorsement is not None:
                 claims.extend(
                     _relationship_claims(
@@ -455,7 +516,7 @@ def _extract_declared_relationship_claims(
     return _dedupe(claims)
 
 
-def _kit_content_rows(body: str) -> list[tuple[str, str, int]]:
+def _kit_content_rows(body: str) -> list[tuple[str, str, int | None]]:
     """Return only rows from an explicitly labelled Kit Contents table.
 
     Shopify pages also contain Related Products and other product cards. Those nearby
@@ -464,7 +525,7 @@ def _kit_content_rows(body: str) -> list[tuple[str, str, int]]:
     """
 
     soup = BeautifulSoup(body, "html.parser")
-    rows: list[tuple[str, str, int]] = []
+    rows: list[tuple[str, str, int | None]] = []
     markers = soup.find_all(
         string=lambda value: isinstance(value, str)
         and "kit contents" in " ".join(value.casefold().split())
@@ -498,14 +559,16 @@ def _kit_content_rows(body: str) -> list[tuple[str, str, int]]:
             if sku_match is None:
                 continue
             quantity_match = re.fullmatch(r"\s*(\d+)\s*", cells[-1])
-            if quantity_match is None:
+            quantity = int(quantity_match.group(1)) if quantity_match is not None else None
+            description_cells = cells[1:-1] if quantity_match is not None else cells[1:]
+            description = " ".join(description_cells).strip()
+            if not description:
                 continue
-            description = " ".join(cells[1:-1]).strip()
             rows.append(
                 (
                     sku_match.group(0).upper(),
                     description,
-                    int(quantity_match.group(1)),
+                    quantity,
                 )
             )
         if rows:
