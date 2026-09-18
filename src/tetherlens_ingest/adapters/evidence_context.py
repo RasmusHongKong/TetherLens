@@ -153,7 +153,6 @@ def match_is_interrogative(text: str, match: re.Match[str]) -> bool:
     return evidence_sentence_for_match(text, match).rstrip().endswith("?")
 
 
-
 def match_is_locally_contradicted(
     text: str,
     match: re.Match[str],
@@ -199,6 +198,8 @@ def match_is_locally_contradicted(
 
     if _TRAILING_NEGATION.search(suffix) is not None:
         return True
+    if _post_match_action_prohibition(suffix):
+        return True
 
     if not subject_patterns:
         return False
@@ -207,8 +208,6 @@ def match_is_locally_contradicted(
     if _subject_is_excluded_or_denied(matched_text, subject):
         return True
     if _negative_relation_assertion(matched_text, subject):
-        return True
-    if _post_match_action_prohibition(suffix):
         return True
     if _post_match_relation_contradiction(suffix, subject):
         return True
