@@ -313,7 +313,9 @@ A table-driven shared contradiction matrix covers prefix negation (including `no
 
 Review hardening keeps the `without` distinction at the correct layer: harmless adjunct wording remains acceptable in shared context, while NLG's positive Quick Clip -> D-ring parser rejects relational forms such as `without attachment to a D Ring` because that grammar changes the relationship the adapter is asserting.
 
-The same review cycle makes predicate ownership explicit in the shared layer. An introductory negative predicate such as `No special tools are required, ...` does not negate a later independent positive relationship, while an immediately following prohibition still fails closed when a short explicit subject intervenes, for example `but it must not be used that way`. Local contradiction handling therefore stays bounded by grammatical ownership as well as physical text distance.
+The same review cycle makes predicate ownership explicit in the shared layer. An introductory negative predicate such as `No special tools are required, ...` does not negate a later independent positive relationship, while an immediately following prohibition still fails closed when a short explicit subject intervenes, for example `but it must not be used that way`. Compound subjects preserve their governing negation, so `No gloves and wrist anchors are suitable ...` remains contrary evidence. Local contradiction handling therefore stays bounded by grammatical ownership as well as physical text distance.
+
+NLG's positive declaration grammar is also kept sentence-local: the broad designed-to-anchor form may not borrow a D-ring from a following sentence. Its local relational-`without` guard covers qualified denial forms such as `without ever being attached to` and `without needing to connect it to`, while harmless wording about working without removing gloves remains admissible.
 
 This is not a wholesale regex framework. `nlg_compat._match_is_negated()`, the Quick Clip trigger mechanism's trigger-specific negation, and the anchor D-ring parser's predicate-ownership rules remain local until their evidence boundaries are compared and shown to be genuinely equivalent.
 
