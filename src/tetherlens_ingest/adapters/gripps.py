@@ -599,14 +599,11 @@ def _h01085_h01067_endorsement(text: str) -> re.Match[str] | None:
     if match is None:
         return None
 
-    sentence_end_positions = [
-        position
-        for punctuation in (".", "!", "?")
-        for position in [text.find(punctuation, match.end())]
-        if position != -1
-    ]
-    sentence_end = min(sentence_end_positions) if sentence_end_positions else len(text)
-    suffix = text[match.end() : sentence_end]
+    # A contradiction may follow in the same sentence or in an immediately adjacent
+    # rhetorical sentence ("However, do not ..."). Keep the scan bounded so an
+    # unrelated later prohibition elsewhere on the product page does not erase the
+    # positive statement, but fail closed on nearby contrary first-party wording.
+    suffix = text[match.end() : match.end() + 180]
     if _H01085_POST_ENDORSEMENT_PROHIBITION.search(suffix) is not None:
         return None
     return match
