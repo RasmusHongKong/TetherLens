@@ -43,7 +43,7 @@ from tetherlens_ingest.resolution import (
 
 
 TETHER_REF = "GRIPPS:H01067"
-ANCHOR_REF = "GRIPPS:H01085-M"
+ANCHOR_REF = "GRIPPS:H01085-S"
 
 
 def _artifact(url: str, body: str) -> SourceArtifact:
@@ -63,7 +63,7 @@ def _capacity(claims) -> float:
     )
 
 
-def test_h01067_h01085_m_flows_through_ordinary_tether_and_anchor_path() -> None:
+def test_h01067_h01085_s_flows_through_ordinary_tether_and_anchor_path() -> None:
     tether_identity = ProductIdentity(
         manufacturer="GRIPPS",
         product_type=ProductType.TETHER,
@@ -106,7 +106,7 @@ def test_h01067_h01085_m_flows_through_ordinary_tether_and_anchor_path() -> None
         manufacturer="GRIPPS",
         product_type=ProductType.ANCHOR_ATTACHMENT,
         name="Slip-On Wrist Anchor",
-        sku="H01085-M",
+        sku="H01085-S",
         url="https://gripps.com/products/slip-on-wrist-anchor",
     )
     anchor_claims = GRIPPSAdapter().extract(
@@ -116,7 +116,7 @@ def test_h01067_h01085_m_flows_through_ordinary_tether_and_anchor_path() -> None
                 anchor_identity.url,
                 """
                 <h1>Slip-On Wrist Anchor - 2.5kg / 5.5lb</h1>
-                <p>SKU: H01085-M</p>
+                <p>SKU: H01085-S</p>
                 <p>The GRIPPS Slip-On Wrist Anchor is a wrist-mounted tether anchor.</p>
                 <p>Just slip it on, secure your tool, and start your task.</p>
                 <p>Suitable for use with our H01060, H01062 and H01067 wrist tethers.</p>
@@ -161,7 +161,7 @@ def test_h01067_h01085_m_flows_through_ordinary_tether_and_anchor_path() -> None
         anchor_claims,
         product_refs_by_identifier={
             "H01067": TETHER_REF,
-            "H01085-M": ANCHOR_REF,
+            "H01085-S": ANCHOR_REF,
         },
     )
     assert len(declarations) == 1
