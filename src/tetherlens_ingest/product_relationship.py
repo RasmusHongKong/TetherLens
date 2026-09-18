@@ -99,13 +99,6 @@ def resolve_declared_product_relationships(
             QUANTITY_KEY,
             relationship_id,
         )
-        if (
-            relationship_type == DeclaredProductRelationshipType.KIT_RELATIONSHIP
-            and quantity is None
-        ):
-            raise ValueError(
-                f"declared relationship {relationship_id!r} is missing {QUANTITY_KEY!r}"
-            )
         scope = _required_text(
             relationship_claims,
             SCOPE_KEY,
