@@ -42,6 +42,10 @@ _QUICK_CLIP_SUBJECTS = (
         ("Not suitable for use with our H01067 wrist tethers.", True),
         ("No product is suitable for use with our H01067 wrist tethers.", True),
         (
+            "No gloves and wrist anchors are suitable for use with our H01067 wrist tethers.",
+            True,
+        ),
+        (
             "No special tools are required, this product is suitable for use with our "
             "H01067 wrist tethers.",
             False,
