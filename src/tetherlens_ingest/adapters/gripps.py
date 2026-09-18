@@ -307,7 +307,7 @@ class GRIPPSAdapter(ManufacturerAdapter):
         identity: ProductIdentity,
         artifacts: list[SourceArtifact],
     ) -> list[AcquisitionObservation]:
-        if _base_sku(identity.sku) != "H01088":
+        if identity.product_type != ProductType.KIT:
             return []
 
         observations: list[AcquisitionObservation] = []
@@ -315,27 +315,27 @@ class GRIPPSAdapter(ManufacturerAdapter):
             if not _is_verified_product_detail(artifact, identity):
                 continue
             text = page_text(artifact.body)
-            rows = _kit_content_rows(artifact.body)
-            h01085_rows = [
+            slip_on_rows = [
                 (sku, description, quantity)
-                for sku, description, quantity in rows
-                if _base_sku(sku) == "H01085"
+                for sku, description, quantity in _kit_content_rows(artifact.body)
+                if re.search(r"\bslip[-\s]?on\s+wrist\s+anchor\b", description, re.I)
             ]
             if (
-                h01085_rows
+                slip_on_rows
                 and re.search(r"\badjustable\s+wrist\s+anchor\b", text, re.I)
                 and re.search(r"\b(?:velcro|hook\s+and\s+loop)\b", text, re.I)
-                and any(re.search(r"\bslip[-\s]?on\b", description, re.I) for _, description, _ in h01085_rows)
             ):
+                identifiers = ", ".join(sorted({sku for sku, _, _ in slip_on_rows}))
                 observations.append(
                     AcquisitionObservation(
                         code="KIT_COMPONENT_IDENTITY_CONFLICT",
-                        value="H01085",
+                        value=identifiers,
                         detail=(
-                            "The H01088 page describes an adjustable hook-and-loop wrist anchor "
-                            "but its Kit Contents row names H01085 Slip-On Wrist Anchor. Preserve "
-                            "the stated relationship evidence but do not make the kit composition "
-                            "recommendation-ready until GRIPPS resolves the component identity."
+                            "The exact GRIPPS kit page describes an adjustable hook-and-loop "
+                            "wrist anchor but its Kit Contents names "
+                            f"{identifiers} Slip-On Wrist Anchor. Preserve the stated relationship "
+                            "evidence but do not make the kit composition recommendation-ready "
+                            "until GRIPPS resolves the component identity."
                         ),
                         source_url=artifact.url,
                         extractor=_EXTRACTOR,
