@@ -66,6 +66,7 @@ def test_explicit_endorsement_uses_same_identity_bound_relationship_model() -> N
         _claims(
             relationship_id="endorsed:H01085:H01067",
             relationship_type="explicitly_endorsed",
+            quantities=(),
         ),
         subject_product_ref="GRIPPS:H01085-S",
         product_refs_by_identifier={"H01067": "GRIPPS:H01067"},
@@ -75,6 +76,7 @@ def test_explicit_endorsement_uses_same_identity_bound_relationship_model() -> N
         DeclaredProductRelationshipType.EXPLICITLY_ENDORSED
     )
     assert resolved[0].object_product_ref == "GRIPPS:H01067"
+    assert resolved[0].quantity is None
 
 
 def test_declared_relationship_conflicting_quantity_fails_closed() -> None:
@@ -90,6 +92,16 @@ def test_declared_relationship_does_not_accept_unknown_relationship_type() -> No
     with pytest.raises(ValueError, match="unsupported declared relationship type"):
         resolve_declared_product_relationships(
             _claims(relationship_type="looks_compatible"),
+            subject_product_ref="GRIPPS:H01088",
+            product_refs_by_identifier={"H01067": "GRIPPS:H01067"},
+        )
+
+
+
+def test_kit_relationship_requires_source_backed_quantity() -> None:
+    with pytest.raises(ValueError, match="missing.*declared_relationship.quantity"):
+        resolve_declared_product_relationships(
+            _claims(quantities=()),
             subject_product_ref="GRIPPS:H01088",
             product_refs_by_identifier={"H01067": "GRIPPS:H01067"},
         )
