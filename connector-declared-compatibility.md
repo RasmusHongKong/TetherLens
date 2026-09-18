@@ -122,20 +122,20 @@ H01085 tether-side interface type = unknown
 
 GRIPPS also explicitly states that H01067 wrist tethers are suitable for use with the H01085 Slip-On Wrist Anchor. That statement establishes the documented pairing, but it does not establish a ring, eye, opening, dimensions, captive state or other target geometry that would justify a generic `carabiner -> <interface class>` rule.
 
-The declaration therefore retains:
+The exact declaration therefore retains only the relationship authority that the H01085 source actually owns:
 
 ```text
-source connector spec = wrist_tether_carabiner
-source interface type = carabiner
-target role = anchor_attachment_tether_side
-target interface type = unknown
 source product = exact H01067 product ref
 target product = exact H01085 variant product ref
 issuer = GRIPPS
 manufacturer position = explicitly_compatible
 ```
 
-`unknown` remains an honest normalized physical fact about the H01085 target interface. It is not being promoted into a reusable interface class: the exact product refs are mandatory for this declaration to match. For the target side, executable variant scope also requires the bounded product evidence to name that exact H01085 variant SKU; a family H1 plus a caller-supplied variant identifier is insufficient. A different tether with the same broad interface type, a different wrist anchor, an unmapped or unstated H01085 variant, or a sibling/cross-sell statement receives no authority from this declaration.
+It does **not** duplicate `wrist_tether_carabiner`, `carabiner` or H01085 interface primitives as direct declaration claims from the H01085 suitability sentence. Those physical facts remain on the independently sourced component records that own them. At runtime, the exact product-scoped declaration is composed with the selected H01067 endpoint and H01085 target interface rather than pretending the pairing sentence established their geometry.
+
+`unknown` therefore remains an honest normalized physical fact about the H01085 target interface, not a compatibility-declaration value. The exact product refs are mandatory for this declaration to match. For the target side, executable variant scope requires unambiguous identity-bearing SKU evidence such as the product-local `SKU: H01085-S` field; a bare sibling mention or a page region containing several identity-bearing H01085 variants fails closed. A different tether, a different wrist anchor, an unmapped or unstated H01085 variant, or sibling/cross-sell copy receives no authority from this declaration.
+
+Because a product-only declaration contains no target-interface geometry, runtime binding also fails closed if that exact target product contributes more than one possible target interface in the selected scope. A reusable primitive declaration should be used instead whenever the manufacturer publishes enough topology to distinguish those interfaces.
 
 The current end-to-end proof uses H01085-S because the component product evidence explicitly identifies that variant. A kit row naming H01085-M may establish kit membership and exact catalogue identity for that wrapper, but kit membership does not grant H01085-M the component-local connection declaration.
 
