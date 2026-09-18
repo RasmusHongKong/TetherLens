@@ -274,6 +274,7 @@ The exact declaration is intentionally narrower than a generic compatibility rul
 The end-to-end regression uses the explicitly identified H01085-S component and proves that runtime candidate components are exactly H01067 + H01085-S. No `KIT`, wrapper or synthetic `Composite` identity participates in the load path. H01067's reversible assignment and connector/interface facts remain sourced from H01067 itself; H01085's anchor-installation binding and tether-side interface remain sourced from H01085. The product-scoped declaration contributes only the documented pair authority used by the existing `MANUFACTURER_DECLARED` basis. A kit row naming H01085-M remains catalogue evidence; it does not itself authorize the H01085-M connection path.
 
 This does not claim that GRIPPS kit membership explains compatibility. Kit evidence remains catalogue/system-architecture context; component-local evidence and reusable primitives determine recommendation behavior.
+
 ## PR #74: shared local evidence context
 
 PR #74 turns the repeated contradiction hardening exposed by PR #73 into a bounded shared ingestion invariant rather than copying another set of vendor regexes.
@@ -314,7 +315,7 @@ This is not a wholesale regex framework. `nlg_compat._match_is_negated()`, the Q
 
 ## Review-derived reusable provenance invariants
 
-The PR #69, #70, #72 and #73 workstreams reinforce several reusable rules:
+The PR #69, #70, #72, #73 and #74 workstreams reinforce several reusable rules:
 
 1. **Product-scoped evidence belongs to the exact owner/interface it describes.** Assembly-wide membership is insufficient when several products expose similar interfaces.
 2. **Executable document evidence must be model-local.** A product appearing somewhere in a combined/related document does not authorize another model's section.
@@ -330,7 +331,7 @@ The PR #69, #70, #72 and #73 workstreams reinforce several reusable rules:
 
 ## Current deliberate boundaries
 
-The post-PR #73 baseline does **not** add:
+The post-PR #74 baseline does **not** add:
 
 - image recognition or computer-vision inference;
 - fuzzy Tool identity acceptance;
