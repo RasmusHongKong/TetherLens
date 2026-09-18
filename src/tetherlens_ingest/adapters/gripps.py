@@ -94,7 +94,12 @@ _H01085_H01067_ENDORSEMENT = re.compile(
 )
 _H01085_POST_ENDORSEMENT_PROHIBITION = re.compile(
     r"\b(?:but|however|yet|although|though)\b.{0,120}"
-    r"\b(?:must|should|shall|may|can)\s+not\b.{0,80}"
+    r"\b(?:"
+    r"(?:must|should|shall|may|can)\s+not|"
+    r"cannot|can't|"
+    r"(?:do|does|did)\s+not|"
+    r"never"
+    r")\b.{0,80}"
     r"\b(?:use|used|using|attach|attached|connect|connected|tether|tethered)\b",
     re.I | re.S,
 )
@@ -644,6 +649,7 @@ def _connection_compatibility_claims(
         )
         for property_key, value in values
     ]
+
 
 def _kit_content_rows(
     body: str,
