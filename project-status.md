@@ -200,7 +200,7 @@ The same exact H01088 page describes the wrapper as an adjustable wrist anchor s
 
 TetherLens does **not** silently replace H01085 with H01086 merely because H01086 appears more consistent with the wrapper description.
 
-Related-product cards remain non-evidence for kit membership; only an explicitly labelled, exact-product Kit Contents table may emit `kit_relationship` claims.
+Related-product cards remain non-evidence for kit membership; only an explicitly labelled, exact-product Kit Contents table may emit `kit_relationship` claims. The adjustable-versus-slip-on conflict check is GRIPPS kit-semantic rather than H01088-SKU-specific: any exact kit page with the same contradictory wrapper/component evidence fails closed.
 
 ### H01067 reuses existing tether and assignment semantics
 
