@@ -165,6 +165,27 @@ def test_h01067_h01085_s_flows_through_ordinary_tether_and_anchor_path() -> None
         },
     )
     assert len(declarations) == 1
+    declaration = declarations[0]
+    assert declaration.connector_spec_ref is None
+    assert declaration.source_interface_type is None
+    assert declaration.target_interface_type is None
+    assert declaration.target_role is None
+
+    sole_target = anchor_path.target_interfaces[0]
+    ambiguous_targets = [
+        sole_target,
+        sole_target.model_copy(update={"interface_id": "anchor:second-interface"}),
+    ]
+    assert connection_contexts_from_compatibility_declarations(
+        tether_ref=tether.tether_ref,
+        endpoints=tether.endpoints,
+        target_owner_ref=anchor_path.anchor_path_ref,
+        target_interfaces=ambiguous_targets,
+        declarations=declarations,
+        tether_product_ref=TETHER_REF,
+        target_product_refs={ANCHOR_REF},
+    ) == []
+
     contexts = connection_contexts_from_compatibility_declarations(
         tether_ref=tether.tether_ref,
         endpoints=tether.endpoints,
