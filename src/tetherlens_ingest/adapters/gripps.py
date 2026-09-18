@@ -26,6 +26,7 @@ from .anchor_attachment_common import (
 )
 from .base import ManufacturerAdapter
 from .common import page_text
+from .evidence_context import match_is_locally_contradicted
 
 
 _EXTRACTOR = "gripps.v0.5"
@@ -92,50 +93,14 @@ _H01085_H01067_ENDORSEMENT = re.compile(
     r"[^.;!?]{0,80}\bwrist\s+tethers?\b",
     re.I,
 )
-_H01085_H01067_IN_MATCH_EXCLUSION = re.compile(
-    r"(?:"
-    r"\b(?:but\s+not|not|except(?:ing)?|excluding?|other\s+than)\b"
-    r"[^.;!?]{0,60}\bH01067\b"
-    r"|"
-    r"\bH01067\b[^.;!?]{0,60}"
-    r"\b(?:is\s+not|isn't|not|never|except(?:ed)?|excluded)\b"
-    r")",
-    re.I,
+_H01085_H01067_CONTRADICTION_SUBJECTS = (
+    r"\bH01067\b",
+    r"\b(?:this|the)\s+tether\b",
+    r"\b(?:it|them)\b",
+    r"\bthis\s+anchor\b",
+    r"\b(?:that|this)\s+way\b",
 )
-_H01085_POST_ENDORSEMENT_PROHIBITION = re.compile(
-    r"\b(?:but|however|yet|although|though)\b.{0,120}"
-    r"\b(?:"
-    r"(?:must|should|shall|may|can)\s+not|"
-    r"cannot|can't|"
-    r"(?:do|does|did)\s+not|"
-    r"never"
-    r")\b.{0,80}"
-    r"\b(?:use|used|using|attach|attached|connect|connected|tether|tethered)\b",
-    re.I | re.S,
-)
-_H01085_ADJACENT_PROHIBITION = re.compile(
-    r"^\s*[.!?]\s*"
-    r"(?:\b(?:but|however|yet|although|though)\b[,:]?\s*)?"
-    r"(?:"
-    r"(?:must|should|shall|may|can)\s+not|"
-    r"cannot|can't|"
-    r"(?:do|does|did)\s+not|"
-    r"never"
-    r")\b.{0,80}"
-    r"\b(?:use|used|using|attach|attached|connect|connected|tether|tethered)\b",
-    re.I | re.S,
-)
-_H01085_ADJACENT_RELATION_CONTRADICTION = re.compile(
-    r"^\s*[.!?]\s*"
-    r"(?:\b(?:but|however|yet|although|though)\b[,:]?\s*)?"
-    r"(?:H01067|this\s+tether|the\s+tether|it)\b"
-    r"[^.!?]{0,60}\b(?:"
-    r"(?:(?:is|are)\s+not|isn't|aren't)\s+(?:suitable|compatible)"
-    r"|(?:is|are)\s+(?:unsuitable|incompatible)"
-    r")\b"
-    r"(?:[^.!?]{0,60}\b(?:with|for)\b)?",
-    re.I,
-)
+
 
 
 class GRIPPSAdapter(ManufacturerAdapter):
@@ -656,24 +621,15 @@ def _exact_sku_evidence(text: str, sku: str) -> str | None:
 def _h01085_h01067_endorsement(text: str) -> re.Match[str] | None:
     """Return the local affirmative H01067 suitability statement, if uncontradicted."""
 
-    match = _affirmative_search(_H01085_H01067_ENDORSEMENT, text)
-    if match is None:
-        return None
-    if _H01085_H01067_IN_MATCH_EXCLUSION.search(match.group(0)) is not None:
-        return None
-
-    # A contradiction may follow in the same sentence or in an immediately adjacent
-    # rhetorical sentence ("However, do not ..."). Keep the scan bounded so an
-    # unrelated later prohibition elsewhere on the product page does not erase the
-    # positive statement, but fail closed on nearby contrary first-party wording.
-    suffix = text[match.end() : match.end() + 180]
-    if (
-        _H01085_POST_ENDORSEMENT_PROHIBITION.search(suffix) is not None
-        or _H01085_ADJACENT_PROHIBITION.search(suffix) is not None
-        or _H01085_ADJACENT_RELATION_CONTRADICTION.search(suffix) is not None
-    ):
-        return None
-    return match
+    for match in _H01085_H01067_ENDORSEMENT.finditer(text):
+        if match_is_locally_contradicted(
+            text,
+            match,
+            subject_patterns=_H01085_H01067_CONTRADICTION_SUBJECTS,
+        ):
+            continue
+        return match
+    return None
 
 
 def _connection_compatibility_claims(
