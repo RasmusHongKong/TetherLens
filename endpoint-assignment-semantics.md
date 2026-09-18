@@ -152,6 +152,20 @@ NLG 101756 remains a hard negative control. Its first-party evidence distinguish
 
 This new evidence family remains assignment-only. It does not establish that either carabiner can engage a particular D-ring, ToolAttachment interface, anchor, container interface, handle or tool point. Those connections still require their ordinary independent compatibility basis.
 
+### GRIPPS H01067 same-construction wrist-tether pair
+
+PR #72 adds a third production evidence family without changing the reusable relation. GRIPPS H01067 may emit the existing `derived_endpoint_equivalence` / `reversible_tool_anchor_pair` relation only when one exact-product evidence set establishes:
+
+- exactly two unresolved tether endpoints;
+- an affirmative same-construction phrase equivalent to `two swivel-head single-action carabiners`;
+- both endpoints reference the same normalized H01067 carabiner specification;
+- affirmative undifferentiated hand-tool to glove/wrist-anchor use; and
+- no dedicated/designated tool-side or anchor-side carabiner wording.
+
+The individual endpoints remain `TetherSide.UNKNOWN`. The derived declaration authorizes the two bounded tool/anchor orientations; it does not rewrite either endpoint to `either`.
+
+This relation is still assignment-only. It does not prove that either carabiner can engage an H01085 anchor point or any other target. Product suitability/pairing evidence and physical connection evidence remain separate.
+
 ## Candidate-generation semantics
 
 Candidate generation first applies the ordinary endpoint roles.
