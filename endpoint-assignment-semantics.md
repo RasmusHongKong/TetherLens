@@ -157,10 +157,12 @@ This new evidence family remains assignment-only. It does not establish that eit
 PR #72 adds a third production evidence family without changing the reusable relation. GRIPPS H01067 may emit the existing `derived_endpoint_equivalence` / `reversible_tool_anchor_pair` relation only when one exact-product evidence set establishes:
 
 - exactly two unresolved tether endpoints;
-- an affirmative same-construction phrase equivalent to `two swivel-head single-action carabiners`;
+- an affirmative, locally non-negated same-construction phrase equivalent to `two swivel-head single-action carabiners`;
 - both endpoints reference the same normalized H01067 carabiner specification;
-- affirmative undifferentiated hand-tool to glove/wrist-anchor use; and
-- no dedicated/designated tool-side or anchor-side carabiner wording.
+- affirmative, locally non-negated undifferentiated hand-tool to glove/wrist-anchor use; and
+- no dedicated/designated tool-side or anchor-side carabiner wording, regardless of whether the directional phrase appears before or after the connector noun.
+
+Negated construction evidence does not create the H01067 pair claims, and negated pair-use evidence does not authorize reversible assignment. Explicit directional wording remains a veto rather than being ignored because its word order differs from the positive pattern.
 
 The individual endpoints remain `TetherSide.UNKNOWN`. The derived declaration authorizes the two bounded tool/anchor orientations; it does not rewrite either endpoint to `either`.
 

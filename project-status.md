@@ -200,7 +200,7 @@ The same exact H01088 page describes the wrapper as an adjustable wrist anchor s
 
 TetherLens does **not** silently replace H01085 with H01086 merely because H01086 appears more consistent with the wrapper description. Nor does the family-level H01085 row authorize choosing an arbitrary H01085-S/M/L variant; exact variant identity remains unresolved until supported by evidence.
 
-Related-product cards remain non-evidence for kit membership; only an explicitly labelled, exact-product Kit Contents table may emit `kit_relationship` claims. The adjustable-versus-slip-on conflict check is GRIPPS kit-semantic rather than H01088-SKU-specific: any exact kit page with the same contradictory wrapper/component evidence fails closed.
+Related-product cards remain non-evidence for kit membership; only an explicitly labelled Kit Contents table inside the exact product's bounded page region may emit `kit_relationship` claims. The same product-local boundary applies to the adjustable-versus-slip-on conflict check, so sibling/cross-sell copy cannot create either kit membership or a readiness conflict. The conflict check is GRIPPS kit-semantic rather than H01088-SKU-specific: any exact kit page with the same contradictory wrapper/component evidence fails closed.
 
 ### H01067 reuses existing tether and assignment semantics
 
@@ -215,7 +215,7 @@ shared connector = single-action + swivel
 endpoint roles = unknown
 ```
 
-When the same exact-product evidence also establishes one same-construction carabiner pair plus undifferentiated hand-tool-to-glove/wrist-anchor use, the adapter emits the existing `derived_endpoint_equivalence` / `reversible_tool_anchor_pair` relation. The endpoints remain `TetherSide.UNKNOWN`; the relation authorizes bounded assignments without mutating intrinsic roles.
+When the same exact-product, product-local evidence also affirmatively establishes one same-construction carabiner pair plus undifferentiated hand-tool-to-glove/wrist-anchor use, the adapter emits the existing `derived_endpoint_equivalence` / `reversible_tool_anchor_pair` relation. Negated construction/use wording is not promoted into positive evidence, and any explicit dedicated/designated endpoint wording vetoes the derivation regardless of whether the directional phrase appears before or after the word `carabiner`. The endpoints remain `TetherSide.UNKNOWN`; the relation authorizes bounded assignments without mutating intrinsic roles.
 
 That assignment evidence does not establish engagement with any particular anchor interface.
 
@@ -239,11 +239,11 @@ provided interface role = anchor_attachment_tether_side
 provided interface type = unknown
 ```
 
-Small/Medium/Large labels are not converted into numeric wrist-fit geometry. The page's explicit statement that H01067 is suitable for H01085 is retained as an `explicitly_endorsed` catalogue relationship, not automatically promoted into a generic physical compatibility rule.
+Small/Medium/Large labels are not converted into numeric wrist-fit geometry. Slip-on installation and the H01067 suitability relationship require affirmative product-local evidence: a prohibition such as `do not ... slip it on` does not create an installation rule, and `not suitable for ... H01067` does not create an endorsement. A positive H01067 suitability statement is retained as an `explicitly_endorsed` catalogue relationship, not automatically promoted into a generic physical compatibility rule.
 
 ## Review-derived reusable provenance invariants
 
-The PR #69 and #70 reviews reinforce several reusable rules:
+The PR #69, #70 and #72 reviews reinforce several reusable rules:
 
 1. **Product-scoped evidence belongs to the exact owner/interface it describes.** Assembly-wide membership is insufficient when several products expose similar interfaces.
 2. **Executable document evidence must be model-local.** A product appearing somewhere in a combined/related document does not authorize another model's section.
@@ -252,7 +252,10 @@ The PR #69 and #70 reviews reinforce several reusable rules:
 5. **Vendor-specific wording may produce manufacturer-specific values, but downstream reasoning should remain manufacturer-neutral.** 3M parsing may extract `Python Safety`; shared logic compares selected vs required manufacturer without a Python-Safety branch.
 6. **Manufacturer prescription and physical compatibility are independent unless causal technical scope is established.** A mixed-brand route can remain technically field-verifiable while carrying contrary manufacturer-position evidence.
 7. **Matching a manufacturer family is not blanket endorsement.** `appropriate <manufacturer> tether` does not prove every tether sold by that manufacturer is approved.
-8. **Historical portability classifications remain historical.** Closing the 1500009 B gap does not rewrite V6.
+8. **Product-detail URLs still need section-local evidence boundaries.** Exact URL/product verification does not authorize sibling cards, Related Products, later product fragments or their Kit Contents as evidence for the requested product.
+9. **Positive-looking text inside a negated clause is contrary evidence, not positive evidence.** Phrases such as `do not slip it on`, `not suitable for`, or `does not have` must fail closed rather than become installation, relationship or construction authority.
+10. **Directional semantics are not tied to one grammatical order.** Dedicated/designated endpoint wording vetoes reversible endpoint derivation whether the role phrase appears before or after the connector noun.
+11. **Historical portability classifications remain historical.** Closing later catalogue gaps does not rewrite V6.
 
 ## Current deliberate boundaries
 

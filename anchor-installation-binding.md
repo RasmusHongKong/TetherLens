@@ -213,6 +213,8 @@ path:
   feature_kind = wrist
 ```
 
+The installation action must be affirmative and product-local. A positive-looking substring inside a prohibition such as `do not just slip it on` does not establish `slip_on` suitability.
+
 Small/Medium/Large catalogue labels remain product variants, not numeric wrist-fit geometry. The provided tether-anchor point remains type-unknown when the source establishes its role but not its physical form.
 
 ### Aerial-bucket lip hook

@@ -1265,7 +1265,8 @@ Absence of a row does not imply incompatibility, but a cordless operational prof
 A sellable kit may exist primarily as catalogue/package identity while its contained products remain the physical recommendation components. In that case:
 
 - each contained product must resolve to an exact catalogue product identity before the relationship is executable;
-- quantity and source provenance remain on the relationship;
+- source-stated quantity remains on the relationship when present; an omitted quantity remains unknown rather than defaulting to one;
+- relationship extraction is bounded to the exact product's own Kit Contents section, so sibling/cross-sell product fragments cannot establish membership;
 - the wrapper does not become a `Tether`, `ToolAttachment`, `AnchorAttachment` or synthetic `Composite` load-path component merely because it is sold as one SKU;
 - contained-product facts are ingested from the contained product's own accepted evidence rather than copied from the kit page; and
 - a contradictory or ambiguous kit row may remain accepted relationship evidence while blocking recommendation-ready decomposition until reconciled.
