@@ -309,7 +309,9 @@ NLG Quick Clip evidence
 
 GRIPPS-specific in-match exclusion, adjacent prohibition and negative-relation regexes are removed from that pairing path. NLG declared compatibility no longer maintains a separate assertion/prohibition grammar. The existing shared HTML clause renderer also moves out of the connector-mechanism implementation so other prose extractors can depend on an evidence-context module rather than a feature-specific parser.
 
-A table-driven shared contradiction matrix covers prefix negation, in-match exclusion, entity-first negation, adjacent direct and rhetorical prohibitions, negative relation adjectives, contractions, trailing predicate negation, hard block boundaries, `not only`, and harmless `without removing gloves`. Existing GRIPPS and NLG adapter regressions continue to prove end-to-end claim behavior.
+A table-driven shared contradiction matrix covers prefix negation (including `no`), in-match exclusion, entity-first negation, adjacent direct and rhetorical prohibitions, negative relation adjectives, contractions, trailing predicate negation, hard block boundaries, `not only`, and harmless `without removing gloves`. Existing GRIPPS and NLG adapter regressions continue to prove end-to-end claim behavior.
+
+Review hardening keeps the `without` distinction at the correct layer: harmless adjunct wording remains acceptable in shared context, while NLG's positive Quick Clip -> D-ring parser rejects relational forms such as `without attachment to a D Ring` because that grammar changes the relationship the adapter is asserting.
 
 This is not a wholesale regex framework. `nlg_compat._match_is_negated()`, the Quick Clip trigger mechanism's trigger-specific negation, and the anchor D-ring parser's predicate-ownership rules remain local until their evidence boundaries are compared and shown to be genuinely equivalent.
 
