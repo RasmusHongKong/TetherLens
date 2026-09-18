@@ -234,14 +234,30 @@ def _bounded_suffix(text: str, match_end: int, limit: int) -> str:
 
 
 def _local_predicate_prefix(prefix: str) -> str:
-    """Return the coordinated predicate segment nearest the positive match."""
+    """Return the predicate segment that most directly governs the positive match.
+
+    Coordinating conjunctions are hard predicate boundaries. A comma is treated as a
+    boundary only when the text before it already contains a finite governing verb;
+    this keeps introductory claims such as "No special tools are required, ..." from
+    donating their negation to the following relation without breaking noun phrases
+    such as "No product, including H01060, is suitable ...".
+    """
 
     parts = re.split(
         r"\b(?:and|but|yet|however|although|though)\b",
         prefix,
         flags=re.I,
     )
-    return parts[-1].strip(" ,:")
+    predicate = parts[-1]
+    comma_boundary = re.compile(
+        r"\b(?:is|are|was|were|has|have|had|can|could|may|might|must|should|"
+        r"shall|will|would|do|does|did)\b[^,]{0,80},\s*",
+        re.I,
+    )
+    matches = list(comma_boundary.finditer(predicate))
+    if matches:
+        predicate = predicate[matches[-1].end() :]
+    return predicate.strip(" ,:")
 
 
 def _subject_is_excluded_or_denied(text: str, subject: str) -> bool:
@@ -275,7 +291,8 @@ def _post_match_action_prohibition(suffix: str) -> bool:
         r"(?:(?:but|and|however|yet|although|though)\b[,:]?\s*)?"
     )
     return re.search(
-        rf"{lead}{_NEGATIVE_MODAL}\b[^.!?;]{{0,100}}{_RELATION_ACTION}\w*\b",
+        rf"{lead}[^.!?;]{{0,80}}?{_NEGATIVE_MODAL}\b"
+        rf"[^.!?;]{{0,100}}{_RELATION_ACTION}\w*\b",
         suffix,
         re.I,
     ) is not None
