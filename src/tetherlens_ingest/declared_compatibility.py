@@ -350,6 +350,13 @@ def _declaration_matches(
         and endpoint.interface_type != declaration.source_interface_type
     ):
         return False
+    return _target_matches_declaration(declaration, target)
+
+
+def _target_matches_declaration(
+    declaration: ConnectorInterfaceCompatibilityDeclaration,
+    target: ConnectionInterface,
+) -> bool:
     if declaration.target_role is not None and target.role != declaration.target_role:
         return False
     if (
@@ -370,26 +377,22 @@ def _product_scoped_target_is_unambiguous(
     target_interface_product_refs: dict[str, str],
     inferred_single_target_product_ref: str | None,
 ) -> bool:
-    """Fail closed when an unconstrained exact-product declaration has multiple targets."""
+    """Require exact-product target predicates to identify one concrete interface."""
 
     if declaration.target_product_ref is None:
         return True
-    if (
-        declaration.target_role is not None
-        or declaration.target_interface_type is not None
-        or declaration.target_attributes
-    ):
-        return True
 
-    owned_targets = 0
+    matching_owned_targets = 0
     for interface in target_interfaces:
         owner_ref = target_interface_product_refs.get(
             interface.interface_id,
             inferred_single_target_product_ref,
         )
-        if owner_ref == declaration.target_product_ref:
-            owned_targets += 1
-    return owned_targets == 1
+        if owner_ref != declaration.target_product_ref:
+            continue
+        if _target_matches_declaration(declaration, interface):
+            matching_owned_targets += 1
+    return matching_owned_targets == 1
 
 
 def _required_text(
