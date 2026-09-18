@@ -91,6 +91,18 @@ _NEGATIVE_RELATION = (
 _EXCLUSION = r"(?:but\s+not|not|never|except(?:ing)?|excluding?|other\s+than)"
 
 
+def html_evidence_blocks(html: str) -> list[str]:
+    """Return normalized prose blocks without joining separate HTML block elements."""
+
+    soup = BeautifulSoup(html, "html.parser")
+    rendered = _render_with_block_markers(soup)
+    return [
+        normalized
+        for block in rendered.split(_BLOCK_MARKER)
+        if (normalized := re.sub(r"\s+", " ", block).strip())
+    ]
+
+
 def html_evidence_clauses(html: str) -> list[str]:
     """Return sentence/clause evidence units without joining separate HTML blocks.
 
@@ -100,16 +112,11 @@ def html_evidence_clauses(html: str) -> list[str]:
     items, table cells, or headings.
     """
 
-    soup = BeautifulSoup(html, "html.parser")
-    rendered = _render_with_block_markers(soup)
     clauses: list[str] = []
-    for block in rendered.split(_BLOCK_MARKER):
-        normalized = re.sub(r"\s+", " ", block).strip()
-        if not normalized:
-            continue
+    for block in html_evidence_blocks(html):
         clauses.extend(
             part.strip()
-            for part in re.split(r"(?<=[.!?;])\s+", normalized)
+            for part in re.split(r"(?<=[.!?;])\s+", block)
             if part.strip()
         )
     return clauses
