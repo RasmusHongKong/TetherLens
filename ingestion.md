@@ -349,6 +349,41 @@ A simple measurement record should capture:
 
 Internal measurements should create source/evidence records rather than silently overwriting product fields.
 
+## Local prose evidence context
+
+Manufacturer adapters remain responsible for the **positive source grammar** that identifies
+the fact or relationship they are looking for. A shared evidence-context layer may then
+apply manufacturer-neutral fail-closed checks to that matched prose before it becomes an
+executable Claim.
+
+The reusable layer may own questions such as:
+
+- whether inline markup belongs to one evidence clause while separate HTML blocks remain
+  hard evidence boundaries;
+- whether the positive-looking match is locally negated or excluded;
+- whether the same relation is immediately followed by an action prohibition;
+- whether nearby wording says the same subject is `not suitable`, `not compatible`,
+  `unsuitable`, or `incompatible`; and
+- whether apparently negative wording is actually harmless context, such as `without
+  removing gloves`, rather than a veto on the matched relation.
+
+This layer must not decide that a phrase describes H01067, a Quick Clip, a D-ring, or any
+other manufacturer concept. The caller supplies the source-specific positive pattern and,
+where needed, the referents that a contradiction must concern. This keeps the architecture:
+
+```text
+manufacturer/source-specific positive grammar
+        ↓
+shared local evidence-context / contradiction checks
+        ↓
+manufacturer-neutral Claim semantics
+```
+
+Do not use a clause-wide negative-token blacklist. Do not widen a local contradiction into
+page-wide contrary evidence, and do not join separate product or HTML blocks merely because
+their text is nearby after flattening. Specialized predicate ownership or source grammar
+remains local unless another concrete case proves the same reusable evidence boundary.
+
 ## Source handling
 
 One product graph may require several sources.
