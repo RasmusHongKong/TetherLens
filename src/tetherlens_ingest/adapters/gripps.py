@@ -609,12 +609,26 @@ def _extract_connection_compatibility_claims(
 
 
 def _exact_sku_evidence(text: str, sku: str) -> str | None:
-    """Return the exact variant token that authorizes product-scoped connection use."""
+    """Return unambiguous identity-bearing SKU evidence for one exact variant."""
 
-    match = re.search(
-        rf"(?<![A-Z0-9]){re.escape(sku)}(?![A-Z0-9])",
-        text,
-        re.I,
+    identity_matches = list(
+        re.finditer(
+            r"\bSKU\s*[:#-]?\s*(?P<sku>H\d{5}(?:-[A-Z0-9]+)?)\b",
+            text,
+            re.I,
+        )
+    )
+    identity_skus = {match.group("sku").upper() for match in identity_matches}
+    if identity_skus != {sku.upper()}:
+        return None
+
+    match = next(
+        (
+            match
+            for match in identity_matches
+            if match.group("sku").upper() == sku.upper()
+        ),
+        None,
     )
     return match.group(0) if match is not None else None
 
@@ -648,10 +662,6 @@ def _connection_compatibility_claims(
     source_url: str,
 ) -> list[CandidateClaim]:
     values = (
-        ("connection_compatibility.connector_spec_ref", "wrist_tether_carabiner"),
-        ("connection_compatibility.source_interface_type", "carabiner"),
-        ("connection_compatibility.target_interface_type", "unknown"),
-        ("connection_compatibility.target_role", "anchor_attachment_tether_side"),
         ("connection_compatibility.source_product_identifier", source_product_identifier),
         ("connection_compatibility.target_product_identifier", target_product_identifier),
         ("connection_compatibility.issuer_manufacturer", "GRIPPS"),
