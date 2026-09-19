@@ -63,7 +63,7 @@ def test_sanitization_strips_metadata_and_bounds_pixels():
     assert sanitized.media_type == "image/jpeg"
     with Image.open(BytesIO(sanitized.content)) as image:
         assert image.size == (10, 5)
-        assert image.getexif() == {}
+        assert dict(image.getexif()) == {}
 
 
 def test_image_recognizer_receives_only_sanitized_pixels_and_catalogue_identity():
@@ -91,7 +91,7 @@ def test_image_recognizer_receives_only_sanitized_pixels_and_catalogue_identity(
     assert recognizer.image is not None
     assert recognizer.image.media_type == "image/jpeg"
     with Image.open(BytesIO(recognizer.image.content)) as image:
-        assert image.getexif() == {}
+        assert dict(image.getexif()) == {}
 
 
 def test_image_candidate_producer_rejects_unknown_or_duplicate_refs():
