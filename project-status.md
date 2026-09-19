@@ -360,34 +360,50 @@ The post-PR #74 baseline does **not** add:
 
 Those boundaries remain deliberate.
 
-## Next recommended slice after PR #74
+## Next recommended workstream after PR #74
 
-PR #74 establishes the shared evidence-context boundary and proves it across one GRIPPS product-scoped relationship and one NLG generic interface relationship. The next architecture step is **not** to migrate every regex mechanically.
+PR #74 closes the current ingestion-refinement slice at a useful MVP boundary. The shared evidence-context layer now handles the reusable contradiction/predicate-ownership cases exposed by the migrated GRIPPS and NLG relationship paths, with full adapter regressions and frozen portability expectations still passing.
 
-First compare the remaining nearby parsers against the shared semantics:
+There are still nearby local parser guards that could be compared with the shared helper, but that work is now **deferred cleanup rather than the highest-value MVP slice**. Do not migrate `nlg_compat._match_is_negated()`, Quick Clip mechanism negation, anchor D-ring predicate ownership, or other local grammar merely for symmetry. Revisit them when:
 
-- `nlg_compat._match_is_negated()` — determine which prefix/trailing polarity checks are identical to the shared invariant and which constraint-specific cases need to stay local;
-- Quick Clip connector-mechanism negation — retain trigger ownership/mechanism binding locally, delegating only generic local-context checks if that does not weaken the current evidence boundary; and
-- anchor D-ring predicate ownership — keep external-requirement and coordinated-predicate semantics local unless a second concrete parser proves the same abstraction.
+- a concrete ingestion defect is observed in a real source;
+- a second parser proves an identical reusable evidence boundary; or
+- the local duplication materially blocks catalogue throughput or maintenance.
 
-Add focused equivalence regressions before deleting any remaining local guard. Do not turn PR #74's relationship helper into a clause-wide negative-token blacklist or generic NLP layer.
+The next primary workstream is the **worker-facing MVP vertical**. The recommendation engine, recommendation-run/session layers and demand-side field coordinator already provide the structured decision path; the missing product-value layer is the field interaction that helps a worker get from a physical Tool to that path.
 
-Once that comparison is complete, return to FallTech 5106A5 / Ergodyne 3172/19172 catalogue throughput. Historical portability cohorts remain frozen throughout the refactor.
+The smallest useful end-to-end target should be:
 
-## Catalogue throughput in parallel
+```text
+camera/image input
+    -> advisory Tool candidate refs
+    -> explicit worker Tool confirmation
+    -> operational profile selection where required
+    -> smallest material context-question flow
+    -> existing run_field_recommendation()
+    -> structured selected/no-suitable result presentation
+    -> lightweight worker feedback
+```
 
-Continue increasing catalogue coverage specifically to unlock realistic field scenarios and reusable manufacturer/family ingestion, not for breadth alone.
+Image recognition remains advisory. It must never confirm Tool identity, select a Battery/profile, invent catalogue facts, or bypass the existing recommendation-readiness and fail-closed boundaries.
 
-High-value throughput work includes:
+Prefer a thin worker-facing surface over a new recommendation abstraction. Reuse the existing `candidate_tool_refs`, confirmation/profile requirements, recommendation run, session resolution and field-summary models rather than duplicating them in UI/application code.
 
-- reusable manufacturer-family source discovery/acquisition;
-- exact Tool/product/variant identity binding;
-- operational Tool/Battery profile construction;
-- conflict/readiness handling for contradictory first-party facts;
-- model/section-local manufacturer-document extraction;
-- product-family adapter broadening;
-- decomposition of sellable kits into recommendation components; and
-- ingestion of the physical, functional and relationship facts actually required by demand-side sessions.
+## Ingestion and catalogue work during the worker-facing phase
+
+Ingestion should now be **scenario-driven rather than refinement-driven**.
+
+Continue catalogue work when a worker-facing scenario exposes a real missing dependency, such as:
+
+- a pilot Tool is not discoverable because exact identity is missing;
+- an operational Tool/Battery profile is incomplete;
+- a required ToolAttachment/Tether/AnchorAttachment path lacks recommendation-ready facts;
+- a selected field scenario exposes a genuine parser defect; or
+- another product is needed to exercise meaningful recommendation variation.
+
+Do not broaden adapters, consolidate regexes, or add catalogue SKUs only to make ingestion look more complete. FallTech 5106A5 / Ergodyne 3172/19172 and similar throughput items remain useful backlog candidates, but they should be pulled by pilot-scenario value rather than precede the worker-facing MVP vertical by default.
+
+Historical portability cohorts remain frozen throughout this work.
 
 ## Guardrails that must remain true
 
@@ -411,11 +427,11 @@ High-value throughput work includes:
 ## Suggested opening prompt for the next chat
 
 ```text
-Continue TetherLens from PR #74 after it is merged to main. Keep all historical portability cohorts frozen at their existing semantic revisions: V1 is 0 A / 5 B / 3 C / 0 D, V2 is 0 A / 6 B / 2 C / 0 D, V3 is 0 A / 5 B / 3 C / 0 D, V4 is 0 A / 4 B / 4 C / 0 D, V5 is 0 A / 6 B / 2 C / 0 D, and V6 is 1 A / 7 B / 0 C / 0 D.
+Continue TetherLens from merged main after PR #74. Keep all historical portability cohorts frozen at their existing semantic revisions: V1 is 0 A / 5 B / 3 C / 0 D, V2 is 0 A / 6 B / 2 C / 0 D, V3 is 0 A / 5 B / 3 C / 0 D, V4 is 0 A / 4 B / 4 C / 0 D, V5 is 0 A / 6 B / 2 C / 0 D, and V6 is 1 A / 7 B / 0 C / 0 D.
 
-PR #74 adds the manufacturer-neutral local evidence-context/contradiction layer and migrates the GRIPPS H01085/H01067 relationship plus NLG Quick Clip -> D-ring declared compatibility. Positive manufacturer grammar remains adapter-specific; shared code owns only bounded block/sentence context and reusable contradiction semantics. The shared contradiction matrix now covers the grammar learned during PR #73 without changing historical portability expectations.
+PR #74 establishes the manufacturer-neutral local evidence-context/contradiction layer and closes the current ingestion-refinement slice. Positive manufacturer grammar remains adapter-specific; shared code owns only bounded reusable evidence-context semantics. Remaining parser consolidation is deferred unless a concrete source defect or genuinely reusable second case justifies it.
 
-Before returning to catalogue throughput, compare nlg_compat._match_is_negated(), Quick Clip connector-mechanism negation, and the anchor D-ring predicate guards against the new shared helper. Consolidate only the parts whose evidence boundaries genuinely match. Keep mechanism ownership, external-requirement grammar, coordinated-predicate semantics and other source-specific interpretation local where needed.
+The next highest-value MVP workstream is worker-facing identification and interaction. Start by inspecting demand-side-field-orchestration.md, recommendation-session.md, the existing run_field_recommendation() implementation/tests, and current repository structure. Define the smallest end-to-end mobile-first vertical that can accept a Tool image, produce advisory catalogue candidate refs, require explicit worker confirmation, resolve any required operational profile/context inputs, invoke the existing field recommendation boundary unchanged, and present the structured result plus lightweight feedback.
 
-Recommend the smallest safe follow-up after inspecting current main, the shared evidence-context helper, the remaining local guards and their tests. If no further safe consolidation is justified, return to FallTech 5106A5 / Ergodyne 3172/19172 throughput rather than refactoring for symmetry.
+Do not redesign the recommendation engine or weaken catalogue evidence/readiness rules. Image recognition is only an upstream candidate-ref producer; it must not confirm identity or invent safety-critical facts. Pull additional ingestion/catalogue work only when the chosen field scenario exposes a real readiness gap.
 ```
