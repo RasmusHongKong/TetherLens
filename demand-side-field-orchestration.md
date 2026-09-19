@@ -366,13 +366,20 @@ The Hilti SF 4-22 profile vertical separately proves that real catalogue-backed 
 
 ## Next demand-side steps
 
-After this boundary is stable, the next useful demand-side work should continue from real field scenarios rather than another broad modelling pass. Likely extensions are:
+The field-orchestration boundary is now mature enough that the next MVP work should move **above** it rather than deepen ingestion or recommendation semantics first.
 
-1. normalize the smallest reusable Hilti retaining-strap/tool-interface path needed to carry the SF 4-22 selected profile into a complete recommendation run, without converting the manufacturer-required 2293133 + 2261970 pairing into SKU-pair recommendation logic;
-2. apply the same profile materialization boundary to additional real configuration-dependent Tools as catalogue relationships become recommendation-ready;
-3. add the smallest task/anchorage question flow needed by those scenarios;
-4. pass pending checks into the existing recommendation-session evidence adapters;
-5. introduce image-recognition candidates behind the same advisory `candidate_tool_refs` boundary when a curated pilot image set is ready; and
-6. build a thin mobile result presentation over the structured field summary.
+The next primary workstream is a thin worker-facing vertical that proves the camera-first demand-side hypothesis:
 
-Catalogue-ingestion work should continue in parallel, especially where a real field scenario exposes missing normalized Tool/Tether/ToolAttachment/AnchorAttachment facts. Searchability and profile materialization are not substitutes for recommendation readiness: a Tool may be discoverable and its installed mass known before its required physical tethering path is complete, and the system must continue to fail closed at the existing readiness boundaries.
+1. add an image-recognition candidate producer behind the existing advisory `candidate_tool_refs` contract;
+2. build the smallest mobile-first interaction surface for image capture/upload and explicit Tool confirmation;
+3. expose existing operational-profile selection only when the confirmed Tool actually requires it;
+4. ask only the smallest context questions that materially affect the chosen pilot scenarios;
+5. invoke `run_field_recommendation()` unchanged and render its structured selected / not-ready / no-generated / no-suitable states;
+6. surface the exact pending verification/pre-use actions through the existing recommendation-session boundary rather than inventing UI-only outcomes; and
+7. capture lightweight worker feedback such as wrong Tool, missing Tool, impractical recommendation, or unrepresented context.
+
+Recognition should remain an upstream retrieval aid, not a recommendation authority. A one-candidate image result must still require explicit Tool confirmation, and low-confidence or ambiguous results should degrade to a shortlist or ordinary identification flow rather than silently selecting a similar catalogue Tool.
+
+Do not block this worker-facing workstream on broad catalogue completion. Ingestion and catalogue enrichment should be pulled by the selected pilot scenarios: if a field path exposes a missing Hilti retaining-strap normalization, Tool/Battery profile, ToolAttachment installation fact, or another recommendation-readiness gap, close that concrete gap and return to the vertical. Do not resume broad parser consolidation merely because local guards remain duplicated.
+
+A thin mobile result presentation is therefore part of the next workstream, not a final polish step after more ingestion. The MVP needs to test whether a worker can actually reach and understand the recommendation at the point of use.

@@ -11,7 +11,8 @@ from tetherlens_ingest.models import (
     SourceArtifact,
 )
 
-from .nlg_connector_mechanism import _dedupe_claims, _html_evidence_clauses
+from .evidence_context import html_evidence_clauses
+from .nlg_connector_mechanism import _dedupe_claims
 from .nlg_declared_compatibility import NLGAdapter as BaseNLGAdapter
 
 
@@ -143,7 +144,7 @@ class NLGAdapter(BaseNLGAdapter):
 def _singular_anchor_d_ring_evidence(html: str) -> str | None:
     """Return one direct singular D-ring/lanyard relation, failing closed on plural sets."""
 
-    clauses = _html_evidence_clauses(html)
+    clauses = html_evidence_clauses(html)
     if any(_PLURAL_D_RING_LANYARD.search(clause) for clause in clauses):
         return None
 

@@ -11,10 +11,10 @@ from tetherlens_ingest.models import (
     SourceArtifact,
 )
 
+from .evidence_context import html_evidence_clauses
 from .nlg_connector_mechanism import (
     NLGAdapter as BaseNLGAdapter,
     _dedupe_claims,
-    _html_evidence_clauses,
 )
 
 
@@ -132,7 +132,7 @@ def _cinch_loop_evidence(html: str) -> str | None:
         re.I,
     )
 
-    for clause in _html_evidence_clauses(html):
+    for clause in html_evidence_clauses(html):
         if clause.rstrip().endswith("?"):
             continue
         match = relation.search(clause)

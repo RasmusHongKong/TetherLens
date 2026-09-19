@@ -428,6 +428,31 @@ def test_h01085_connection_declaration_fails_closed_without_exact_variant_mappin
     ) == []
 
 
+def test_h01085_unrelated_comma_negation_does_not_block_suitability() -> None:
+    identity = ProductIdentity(
+        manufacturer="GRIPPS",
+        product_type=ProductType.ANCHOR_ATTACHMENT,
+        name="Slip-On Wrist Anchor",
+        sku="H01085-M",
+        url="https://gripps.com/products/slip-on-wrist-anchor",
+    )
+    artifact = _artifact(
+        identity.url,
+        """
+        <h1>Slip-On Wrist Anchor - 2.5kg / 5.5lb</h1>
+        <p>SKU: H01085-M</p>
+        <p>No special tools are required, this product is suitable for use with our H01067 wrist tethers.</p>
+        """,
+    )
+
+    claims = GRIPPSAdapter().extract(identity, [artifact])
+
+    assert any(
+        claim.subject_type == ClaimSubjectType.DECLARED_RELATIONSHIP
+        for claim in claims
+    )
+
+
 def test_h01085_contradictory_suitability_wording_is_not_executable() -> None:
     identity = ProductIdentity(
         manufacturer="GRIPPS",
@@ -437,7 +462,10 @@ def test_h01085_contradictory_suitability_wording_is_not_executable() -> None:
         url="https://gripps.com/products/slip-on-wrist-anchor",
     )
     contradictory_phrases = (
+        "No product is suitable for use with our H01067 wrist tethers.",
+        "No gloves and wrist anchors are suitable for use with our H01067 wrist tethers.",
         "Suitable for use with our H01067 wrist tethers, but must not be connected that way.",
+        "Suitable for use with our H01067 wrist tethers, but this tether must not be connected that way.",
         "Suitable for use with our H01067 wrist tethers, but cannot be used that way.",
         "Suitable for use with our H01067 wrist tethers, however never attach them that way.",
         "Suitable for use with our H01067 wrist tethers, yet do not tether them that way.",

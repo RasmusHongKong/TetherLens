@@ -71,6 +71,29 @@ Its intended semantics are:
 
 Do not treat every later marker as a new record if it merely repeats the selected product identity. Conversely, do not search the whole page after exact-page identity verification: proving that the page is for SKU A does not prove that every phrase on the page belongs to SKU A rather than a related-product card.
 
+## Free-prose relationship evidence
+
+Repeated regex hardening across vendors can indicate a reusable evidence-context invariant
+rather than shared source grammar.
+
+For free-prose relationship extraction, keep the **positive match** local to the adapter:
+the adapter knows which manufacturer wording establishes the relationship. Shared code may
+own the manufacturer-independent question of whether that otherwise-positive match is
+locally negated, excluded, prohibited, contradicted, or presented as a question.
+
+The shared layer should remain bounded to the evidence context it can defend. In particular:
+
+- preserve HTML block boundaries instead of joining unrelated paragraphs or list items;
+- distinguish prefix, in-match, trailing and immediately adjacent contradiction grammar;
+- require contradiction wording to concern caller-supplied relationship referents where
+  appropriate;
+- treat contractions and equivalent negative adjectives consistently; and
+- keep harmless negative wording such as `without removing gloves` from acting as a
+  clause-wide veto.
+
+Do not move manufacturer terminology, SKU grammar, positive relationship patterns, or
+specialized predicate-ownership rules into shared code merely because they also use regex.
+
 ## Current examples
 
 PR #55 provides several examples of this boundary:

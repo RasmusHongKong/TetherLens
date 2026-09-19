@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import re
 
-from bs4 import BeautifulSoup, NavigableString, Tag
-
 from tetherlens_ingest.models import (
     CandidateClaim,
     ClaimSubjectType,
@@ -13,53 +11,13 @@ from tetherlens_ingest.models import (
     SourceArtifact,
 )
 
+from .evidence_context import html_evidence_clauses as _html_evidence_clauses
 from .nlg_container import NLGAdapter as BaseNLGAdapter
 
 
 _QUICK_CLIP_REF = "quick_clip"
 _OPENING_MECHANISM_KEY = "connector.attribute.opening_mechanism"
 _TRIGGER_OPERATED = "trigger_operated"
-_BLOCK_TAGS = {
-    "address",
-    "article",
-    "aside",
-    "blockquote",
-    "br",
-    "dd",
-    "div",
-    "dl",
-    "dt",
-    "fieldset",
-    "figcaption",
-    "figure",
-    "footer",
-    "form",
-    "h1",
-    "h2",
-    "h3",
-    "h4",
-    "h5",
-    "h6",
-    "header",
-    "hr",
-    "li",
-    "main",
-    "nav",
-    "ol",
-    "p",
-    "pre",
-    "section",
-    "table",
-    "tbody",
-    "td",
-    "tfoot",
-    "th",
-    "thead",
-    "tr",
-    "ul",
-}
-_BLOCK_MARKER = "\u241e"
-
 
 class NLGAdapter(BaseNLGAdapter):
     """Add evidence-backed connector mechanism semantics above the NLG adapter stack.
@@ -163,34 +121,6 @@ def _quick_clip_trigger_evidence(html: str) -> str | None:
             continue
         return clause.strip()
     return None
-
-
-def _html_evidence_clauses(html: str) -> list[str]:
-    """Render HTML while preserving semantic block boundaries as hard delimiters."""
-
-    soup = BeautifulSoup(html, "html.parser")
-    rendered = _render_with_block_markers(soup)
-    clauses: list[str] = []
-    for block in rendered.split(_BLOCK_MARKER):
-        normalized = re.sub(r"\s+", " ", block).strip()
-        if not normalized:
-            continue
-        clauses.extend(
-            part.strip()
-            for part in re.split(r"(?<=[.!?;])\s+", normalized)
-            if part.strip()
-        )
-    return clauses
-
-
-def _render_with_block_markers(node: Tag | NavigableString) -> str:
-    if isinstance(node, NavigableString):
-        return str(node)
-    parts = [_render_with_block_markers(child) for child in node.children]
-    text = " ".join(part for part in parts if part)
-    if getattr(node, "name", None) in _BLOCK_TAGS:
-        return f"{_BLOCK_MARKER}{text}{_BLOCK_MARKER}"
-    return text
 
 
 def _dedupe_claims(claims: list[CandidateClaim]) -> list[CandidateClaim]:
