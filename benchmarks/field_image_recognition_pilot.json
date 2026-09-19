@@ -1,0 +1,22 @@
+{
+  "version": "0.1",
+  "description": "Identity-only pilot catalogue for advisory worker image recognition. Recommendation readiness is intentionally not required for inclusion.",
+  "tools": [
+    {
+      "tool_ref": "Hilti:2253847",
+      "display_name": "Hilti 2253847 SF 4-22 Cordless drill driver"
+    },
+    {
+      "tool_ref": "Milwaukee:48-22-7215",
+      "display_name": "Milwaukee 48-22-7215 14L Aluminum Pipe Wrench with POWERLENGTH Handle"
+    },
+    {
+      "tool_ref": "Milwaukee:2607-20",
+      "display_name": "Milwaukee 2607-20 M18 1/2 in Hammer Drill/Driver"
+    },
+    {
+      "tool_ref": "StopDrop:SDKN1802",
+      "display_name": "StopDrop SDKN1802 Crimp tool for working at height"
+    }
+  ]
+}
