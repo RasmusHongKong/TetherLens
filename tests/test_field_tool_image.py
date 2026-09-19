@@ -28,6 +28,13 @@ def _image_with_metadata() -> FieldToolImage:
     return FieldToolImage(content=output.getvalue(), media_type="image/jpeg")
 
 
+def _transparent_image_with_hidden_rgb() -> FieldToolImage:
+    image = Image.new("RGBA", (24, 12), (220, 20, 20, 0))
+    output = BytesIO()
+    image.save(output, format="PNG")
+    return FieldToolImage(content=output.getvalue(), media_type="image/png")
+
+
 def _catalogue() -> FieldRecommendationCatalogue:
     return FieldRecommendationCatalogue(
         tools=[
@@ -64,6 +71,15 @@ def test_sanitization_strips_metadata_and_bounds_pixels():
     with Image.open(BytesIO(sanitized.content)) as image:
         assert image.size == (10, 5)
         assert dict(image.getexif()) == {}
+
+
+def test_sanitization_flattens_transparency_without_exposing_hidden_rgb():
+    sanitized = sanitize_field_tool_image(_transparent_image_with_hidden_rgb())
+
+    with Image.open(BytesIO(sanitized.content)) as image:
+        assert image.mode == "RGB"
+        red, green, blue = image.getpixel((image.width // 2, image.height // 2))
+        assert min(red, green, blue) >= 250
 
 
 def test_image_recognizer_receives_only_sanitized_pixels_and_catalogue_identity():
