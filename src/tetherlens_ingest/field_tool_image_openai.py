@@ -88,7 +88,6 @@ class OpenAIToolImageRecognizer:
                         "enum": tool_refs,
                     },
                     "maxItems": min(max_candidates, len(tool_refs)),
-                    "uniqueItems": True,
                 }
             },
             "required": ["candidate_tool_refs"],
