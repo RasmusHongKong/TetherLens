@@ -1,3 +1,7 @@
+from io import BytesIO
+
+from PIL import Image
+
 from tetherlens_ingest.adapters import HiltiAdapter
 from tetherlens_ingest.candidate_generation import (
     AnchorPathOption,
@@ -26,6 +30,10 @@ from tetherlens_ingest.field_recommendation import (
     FieldToolCatalogueEntry,
     FieldToolObservation,
     run_field_recommendation,
+)
+from tetherlens_ingest.field_tool_image import (
+    FieldToolImage,
+    candidate_tool_refs_from_image,
 )
 from tetherlens_ingest.field_tool_search import candidate_tool_refs_from_text_search
 from tetherlens_ingest.models import ProductIdentity, ProductType, SourceArtifact, SourceType
@@ -60,6 +68,21 @@ BATTERY_85_URL = (
 STRAP_URL = "https://www.hilti.com/c/CLS_HEALTH_SAFETY/CLS_SAFETY_GEAR/2293133"
 TETHER_URL = "https://www.hilti.com/c/CLS_HEALTH_SAFETY/CLS_SAFETY_GEAR/2261970"
 MANUAL_URL = "https://productdata.hilti.com/APQ_HC_RAW/PUB_SF4_22_000.pdf"
+
+
+class _HiltiImageRecognizer:
+    def recognize_tool_refs(self, image, tools, *, max_candidates):
+        assert image.media_type == "image/jpeg"
+        assert [tool.tool_ref for tool in tools] == ["Hilti:2253847"]
+        assert max_candidates == 5
+        return ["Hilti:2253847"]
+
+
+def _test_tool_image() -> FieldToolImage:
+    image = Image.new("RGB", (32, 24), (200, 20, 20))
+    output = BytesIO()
+    image.save(output, format="PNG")
+    return FieldToolImage(content=output.getvalue(), media_type="image/png")
 
 
 def _tool_identity() -> ProductIdentity:
@@ -298,11 +321,18 @@ def test_selected_hilti_operational_profile_reaches_complete_recommendation_pipe
         evidence_bound_tool_attachment_assemblies=[strap],
     )
 
-    candidates = candidate_tool_refs_from_text_search("Hilti 2253847", catalogue)
-    assert candidates == ["Hilti:2253847"]
+    text_candidates = candidate_tool_refs_from_text_search("Hilti 2253847", catalogue)
+    assert text_candidates == ["Hilti:2253847"]
+
+    image_candidates = candidate_tool_refs_from_image(
+        _test_tool_image(),
+        catalogue,
+        _HiltiImageRecognizer(),
+    )
+    assert image_candidates == ["Hilti:2253847"]
 
     confirmation = run_field_recommendation(
-        FieldToolObservation(candidate_tool_refs=candidates),
+        FieldToolObservation(candidate_tool_refs=image_candidates),
         catalogue,
         connection_contexts=connection_contexts,
     )
