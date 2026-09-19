@@ -103,7 +103,12 @@ def sanitize_field_tool_image(
                 (max_dimension, max_dimension),
                 Image.Resampling.LANCZOS,
             )
-            normalized = normalized.convert("RGB")
+            # Always flatten through RGBA onto an opaque background. Transparent PNG/WebP
+            # pixels may retain hidden RGB values even when alpha makes them invisible to the
+            # worker; direct RGB conversion would expose those values to the recognizer.
+            rgba = normalized.convert("RGBA")
+            background = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
+            normalized = Image.alpha_composite(background, rgba).convert("RGB")
 
             output = BytesIO()
             normalized.save(
