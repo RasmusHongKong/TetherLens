@@ -346,7 +346,18 @@ The committed tests use deterministic recognizer doubles and generated images so
 
 The core does not choose an AI provider. PR #75 includes one OpenAI Responses API adapter as an application-edge implementation: the caller supplies model/API credentials explicitly, only sanitized image bytes and allowed catalogue identities are sent, response storage is disabled, and strict structured output limits returned values to the supplied Tool refs. Another provider can implement the same protocol without changing field or recommendation semantics.
 
-PR #75 still does not choose a frontend framework. A meaningful blind recognition smoke must also use multiple catalogue identities; a one-Tool recognition set would disclose the answer by construction.
+PR #75 still does not choose a frontend framework.
+
+The blind-smoke harness now uses an identity-only four-Tool pilot catalogue built entirely from existing records:
+
+```text
+Hilti:2253847
+Milwaukee:48-22-7215
+Milwaukee:2607-20
+StopDrop:SDKN1802
+```
+
+This is deliberately broader than the set of recommendation-ready Tools. Recognition may correctly identify a Tool whose downstream recommendation state is still `not_ready`; recommendation readiness is evaluated only after explicit worker confirmation. The committed pilot manifest contains no expected answer. `scripts/run_field_image_recognition_smoke.py` receives the expected Tool ref separately and scores it only after the provider returns a bounded shortlist.
 
 ## Review-derived reusable provenance invariants
 
@@ -393,7 +404,7 @@ Those boundaries remain deliberate.
 
 PR #75 establishes the provider-neutral image-to-candidate seam and proves that it reaches the existing worker confirmation/profile/recommendation path without adding recognition authority to the recommendation core.
 
-The next primary slice should stay above that seam: exercise the concrete vision adapter on a small blind multi-Tool image set and build the smallest mobile-first interaction surface needed to exercise a real worker journey. The target remains:
+The next primary slice should stay above that seam: run the concrete vision adapter against representative images using the committed four-Tool blind-smoke catalogue, record shortlist behavior, and then build the smallest mobile-first interaction surface needed to exercise a real worker journey. The target remains:
 
 ```text
 camera/upload
@@ -456,7 +467,7 @@ Continue TetherLens from merged main after PR #75. Keep all historical portabili
 
 PR #75 establishes the provider-neutral worker image-recognition seam. FieldToolImage carries only encoded image bytes/media type; the shared boundary strips metadata by decode/re-encode before an injected ToolImageRecognizer sees the pixels. The recognizer may return only bounded refs from the supplied catalogue and still cannot confirm Tool identity, choose a Battery/profile, or add recommendation facts. An isolated OpenAI Responses API adapter provides the first concrete implementation, and the Hilti SF 4-22 vertical proves that image candidates flow through explicit confirmation and the existing profile/recommendation path.
 
-The next highest-value MVP slice is to run a blind multi-Tool recognition smoke and build the thinnest mobile-first interaction surface over the existing field/session structures. Preserve the sanitized-pixels-only blind boundary, require explicit Tool confirmation even for one candidate, expose operational-profile selection only when required, invoke run_field_recommendation() unchanged, render its structured states, and route pending checks through the existing recommendation-session resolver.
+The next highest-value MVP slice is to run the committed four-Tool blind recognition smoke on representative real images and then build the thinnest mobile-first interaction surface over the existing field/session structures. Preserve the sanitized-pixels-only blind boundary, require explicit Tool confirmation even for one candidate, expose operational-profile selection only when required, invoke run_field_recommendation() unchanged, render its structured states, and route pending checks through the existing recommendation-session resolver.
 
 Do not redesign the recommendation engine or weaken catalogue evidence/readiness rules. Image recognition is only an upstream candidate-ref producer; it must not confirm identity or invent safety-critical facts. Pull additional ingestion/catalogue work only when the chosen field scenario exposes a real readiness gap.
 ```
