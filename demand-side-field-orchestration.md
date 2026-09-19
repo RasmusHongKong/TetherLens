@@ -141,7 +141,11 @@ sanitized image
     -> operational_profile_selection where required
 ```
 
-A single image candidate therefore still requires explicit worker confirmation. The Hilti SF 4-22 field vertical now exercises this seam before the existing B 22-55 / B 22-85 profile-selection and recommendation path. The deterministic test recognizer proves the architectural handoff; a concrete hosted/local vision provider and representative-image accuracy benchmark remain application-layer follow-ons rather than recommendation-core semantics.
+A single image candidate therefore still requires explicit worker confirmation. The Hilti SF 4-22 field vertical now exercises this seam before the existing B 22-55 / B 22-85 profile-selection and recommendation path. Deterministic recognizer doubles prove the architectural handoff without making network/model behavior part of unit tests.
+
+A concrete OpenAI adapter is also isolated behind the same protocol. It uses the Responses API with Base64 image input and a strict JSON-schema response whose allowed values are only the supplied Tool refs. The caller supplies the model and API key explicitly; the recommendation/domain layers do not import or depend on an OpenAI SDK. The adapter disables response storage for the request and still relies on the shared producer to reject duplicate/out-of-catalogue refs.
+
+Provider accuracy remains a separate product measurement. A representative blind smoke must present several plausible pilot catalogue identities (including close visual alternatives where available); testing against a one-Tool catalogue would reveal the answer by construction and is not a meaningful recognition benchmark.
 
 ## Operational profile resolution
 
@@ -411,7 +415,7 @@ The field-orchestration boundary is now mature enough that the next MVP work sho
 
 The next primary workstream remains the thin worker-facing vertical, but the provider-neutral camera-to-candidate seam is now established. Continue above it rather than adding recognition semantics to the recommendation core:
 
-1. connect a concrete vision provider to the `ToolImageRecognizer` boundary and benchmark it on a small representative pilot-image set;
+1. run the concrete vision adapter against a small representative blind pilot-image set and record shortlist accuracy/ambiguity rather than treating one successful image as sufficient evidence;
 2. build the smallest mobile-first interaction surface for image capture/upload and explicit Tool confirmation;
 3. expose existing operational-profile selection only when the confirmed Tool actually requires it;
 4. ask only the smallest context questions that materially affect the chosen pilot scenarios;
