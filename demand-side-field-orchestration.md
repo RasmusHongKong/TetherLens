@@ -47,7 +47,7 @@ The reusable core model is already able to:
 
 The missing MVP seam was therefore not another compatibility primitive. It was the worker-side coordination required to establish which Tool/configuration the engine is evaluating and to expose the selected result without bypassing those completed layers.
 
-This slice deliberately stops short of image recognition itself. Recognition is treated as an upstream producer of candidate Tool refs so computer-vision implementation can evolve independently of recommendation semantics.
+Image recognition remains an upstream producer of candidate Tool refs rather than part of recommendation semantics. The field coordinator consumes those refs exactly like advisory text-search output, so computer-vision providers can evolve independently of Tool confirmation, profile resolution and recommendation logic.
 
 ## Tool observation and confirmation
 
@@ -146,6 +146,19 @@ A single image candidate therefore still requires explicit worker confirmation. 
 A concrete OpenAI adapter is also isolated behind the same protocol. It uses the Responses API with Base64 image input and a strict JSON-schema response whose allowed values are only the supplied Tool refs. The caller supplies the model and API key explicitly; the recommendation/domain layers do not import or depend on an OpenAI SDK. The adapter disables response storage for the request and still relies on the shared producer to reject duplicate/out-of-catalogue refs.
 
 Provider accuracy remains a separate product measurement. A representative blind smoke must present several plausible pilot catalogue identities (including close visual alternatives where available); testing against a one-Tool catalogue would reveal the answer by construction and is not a meaningful recognition benchmark.
+
+The first executable blind-smoke harness is `scripts/run_field_image_recognition_smoke.py`. Its committed identity-only pilot catalogue contains four existing real Tools:
+
+```text
+Hilti:2253847             SF 4-22 Cordless drill driver
+Milwaukee:48-22-7215     14L Aluminum Pipe Wrench with POWERLENGTH Handle
+Milwaukee:2607-20        M18 1/2 in Hammer Drill/Driver
+StopDrop:SDKN1802        Crimp tool for working at height
+```
+
+Recommendation readiness is intentionally irrelevant to inclusion in that recognition catalogue. The two Milwaukee/Hilti worker-ready paths and the incomplete Milwaukee/StopDrop records are all valid recognition targets because recognition answers only "which catalogue Tool might this be?" Downstream readiness remains the coordinator's responsibility after explicit confirmation.
+
+The benchmark manifest contains no expected answer. The expected Tool ref is supplied separately to the smoke scorer and is checked only after recognition returns; it is never added to the provider prompt as a privileged value. A successful smoke means the expected Tool is present in the bounded advisory shortlist, not that the provider has confirmed identity or proven recommendation readiness.
 
 ## Operational profile resolution
 
