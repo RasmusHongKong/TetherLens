@@ -161,6 +161,11 @@ class OpenAIToolImageRecognizer:
                 "OpenAI image recognition output was not valid structured JSON"
             ) from exc
 
+        if not isinstance(parsed, dict):
+            raise ToolImageRecognitionProviderError(
+                "OpenAI image recognition structured output must be a JSON object"
+            )
+
         refs = parsed.get("candidate_tool_refs")
         if not isinstance(refs, list) or any(not isinstance(ref, str) for ref in refs):
             raise ToolImageRecognitionProviderError(
