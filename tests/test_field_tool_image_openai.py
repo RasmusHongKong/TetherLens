@@ -139,6 +139,42 @@ def test_openai_adapter_surfaces_provider_failures(monkeypatch):
         )
 
 
+@pytest.mark.parametrize("output_text", ('["maker:tool-a"]', '"maker:tool-a"', "null", "1"))
+def test_openai_adapter_rejects_non_object_structured_output(monkeypatch, output_text):
+    def fake_post(url, *, headers, json, timeout):
+        request = httpx.Request("POST", url)
+        return httpx.Response(
+            200,
+            request=request,
+            json={
+                "status": "completed",
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [
+                            {
+                                "type": "output_text",
+                                "text": output_text,
+                            }
+                        ],
+                    }
+                ],
+            },
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    with pytest.raises(ToolImageRecognitionProviderError, match="JSON object"):
+        candidate_tool_refs_from_image(
+            _image(),
+            _catalogue(),
+            OpenAIToolImageRecognizer(
+                api_key="test-key",
+                model="vision-test-model",
+            ),
+        )
+
+
 def test_openai_adapter_rejects_refusal_or_missing_output_text(monkeypatch):
     responses = iter(
         [
