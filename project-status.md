@@ -14,9 +14,9 @@ This is workflow/documentation guidance only. It does not change recommendation 
 
 ## Current baseline
 
-Merged `main` entering PR #74 is PR #73, `Prove GRIPPS H01067 + H01085 wrist recommendation path`.
+Merged `main` entering PR #75 is PR #74, `Centralize local evidence contradiction handling`.
 
-PR #74 is the current ingestion-architecture follow-on. It does not widen recommendation authority or catalogue semantics. It centralizes the manufacturer-neutral question of whether a positive-looking local prose match is negated, excluded, prohibited or contradicted, while leaving each adapter responsible for the manufacturer-specific positive wording it recognizes.
+PR #75 is the first worker-facing identification slice. It establishes a provider-neutral image-to-candidate boundary above the existing field coordinator, sanitizes image inputs before recognition, constrains recognizers to the supplied catalogue Tool identities, and proves that an image shortlist still flows through explicit worker confirmation and the existing Hilti operational-profile/recommendation path. A concrete OpenAI Responses API adapter is isolated behind that protocol for the first live pilot, without adding automatic Tool confirmation or new recommendation authority.
 
 Historical portability cohorts remain immutable at their original semantic revisions:
 
@@ -319,6 +319,46 @@ NLG's positive declaration grammar is also kept sentence-local: the broad design
 
 This is not a wholesale regex framework. `nlg_compat._match_is_negated()`, the Quick Clip trigger mechanism's trigger-specific negation, and the anchor D-ring parser's predicate-ownership rules remain local until their evidence boundaries are compared and shown to be genuinely equivalent.
 
+## PR #75: advisory worker image recognition boundary
+
+PR #75 starts the worker-facing MVP vertical without redesigning the recommendation engine or field coordinator.
+
+The new image seam is deliberately narrow:
+
+```text
+worker image bytes
+  -> decode / orient / resize / re-encode
+  -> sanitized pixels only
+  -> provider-neutral ToolImageRecognizer
+  -> bounded catalogue Tool refs
+  -> existing FieldToolObservation(candidate_tool_refs=...)
+  -> explicit worker Tool confirmation
+  -> existing operational-profile selection / recommendation flow
+```
+
+`FieldToolImage` contains only image bytes plus the declared image media type. It has no source URL, filename, page title, alt text or known product identity. Before recognition, the shared boundary strips EXIF/text metadata by decoding and re-encoding the image, while normalizing orientation and bounding very large mobile images.
+
+The recognizer receives only the sanitized image plus the allowed catalogue Tool `tool_ref` / worker-facing `display_name` options. It does not receive Battery/profile identity, mass, recommendation facts or a pre-confirmed Tool. Returned refs must be unique members of the supplied catalogue; invented refs fail closed. Provider ordering remains advisory only and is bounded by `max_candidates`.
+
+The Hilti SF 4-22 vertical now passes an image-derived `Hilti:2253847` candidate through the existing confirmation requirement, then exposes the real B 22-55 / B 22-85 profile choice and continues through the already-established retaining-strap/tether recommendation path. A one-candidate image result therefore still cannot silently resolve Tool identity.
+
+The committed tests use deterministic recognizer doubles and generated images so the repository does not embed third-party marketing photography. A first-party Hilti in-use image can be used transiently for a blind live smoke once a concrete vision-provider adapter is connected; the recognizer input should contain only the sanitized pixels, never the source page or image metadata.
+
+The core does not choose an AI provider. PR #75 includes one OpenAI Responses API adapter as an application-edge implementation: the caller supplies model/API credentials explicitly, only sanitized image bytes and allowed catalogue identities are sent, response storage is disabled, and strict structured output limits returned values to the supplied Tool refs. Another provider can implement the same protocol without changing field or recommendation semantics.
+
+PR #75 still does not choose a frontend framework.
+
+The blind-smoke harness now uses an identity-only four-Tool pilot catalogue built entirely from existing records:
+
+```text
+Hilti:2253847
+Milwaukee:48-22-7215
+Milwaukee:2607-20
+StopDrop:SDKN1802
+```
+
+This is deliberately broader than the set of recommendation-ready Tools. Recognition may correctly identify a Tool whose downstream recommendation state is still `not_ready`; recommendation readiness is evaluated only after explicit worker confirmation. The committed pilot manifest contains no expected answer. `scripts/run_field_image_recognition_smoke.py` receives the expected Tool ref separately and scores it only after the provider returns a bounded shortlist.
+
 ## Review-derived reusable provenance invariants
 
 The PR #69, #70, #72, #73 and #74 workstreams reinforce several reusable rules:
@@ -337,9 +377,9 @@ The PR #69, #70, #72, #73 and #74 workstreams reinforce several reusable rules:
 
 ## Current deliberate boundaries
 
-The post-PR #74 baseline does **not** add:
+The PR #75 branch does **not** add:
 
-- image recognition or computer-vision inference;
+- a built-in vision-model/provider decision or automatic Tool confirmation;
 - fuzzy Tool identity acceptance;
 - search-derived confidence scores as recommendation authority;
 - persistent database/repository querying;
@@ -360,34 +400,30 @@ The post-PR #74 baseline does **not** add:
 
 Those boundaries remain deliberate.
 
-## Next recommended workstream after PR #74
+## Next recommended workstream after PR #75
 
-PR #74 closes the current ingestion-refinement slice at a useful MVP boundary. The shared evidence-context layer now handles the reusable contradiction/predicate-ownership cases exposed by the migrated GRIPPS and NLG relationship paths, with full adapter regressions and frozen portability expectations still passing.
+PR #75 establishes the provider-neutral image-to-candidate seam and proves that it reaches the existing worker confirmation/profile/recommendation path without adding recognition authority to the recommendation core.
 
-There are still nearby local parser guards that could be compared with the shared helper, but that work is now **deferred cleanup rather than the highest-value MVP slice**. Do not migrate `nlg_compat._match_is_negated()`, Quick Clip mechanism negation, anchor D-ring predicate ownership, or other local grammar merely for symmetry. Revisit them when:
-
-- a concrete ingestion defect is observed in a real source;
-- a second parser proves an identical reusable evidence boundary; or
-- the local duplication materially blocks catalogue throughput or maintenance.
-
-The next primary workstream is the **worker-facing MVP vertical**. The recommendation engine, recommendation-run/session layers and demand-side field coordinator already provide the structured decision path; the missing product-value layer is the field interaction that helps a worker get from a physical Tool to that path.
-
-The smallest useful end-to-end target should be:
+The next primary slice should stay above that seam: run the concrete vision adapter against representative images using the committed four-Tool blind-smoke catalogue, record shortlist behavior, and then build the smallest mobile-first interaction surface needed to exercise a real worker journey. The target remains:
 
 ```text
-camera/image input
+camera/upload
+    -> sanitized image pixels
     -> advisory Tool candidate refs
     -> explicit worker Tool confirmation
     -> operational profile selection where required
     -> smallest material context-question flow
     -> existing run_field_recommendation()
     -> structured selected/no-suitable result presentation
+    -> existing session-condition resolution where required
     -> lightweight worker feedback
 ```
 
-Image recognition remains advisory. It must never confirm Tool identity, select a Battery/profile, invent catalogue facts, or bypass the existing recommendation-readiness and fail-closed boundaries.
+The provider must consume the sanitized image plus allowed catalogue identities only; source URLs, filenames, page/alt metadata and known answers must not be supplied. A one-candidate result still requires confirmation. Recognition confidence/ranking may help order a shortlist but must not become recommendation authority.
 
-Prefer a thin worker-facing surface over a new recommendation abstraction. Reuse the existing `candidate_tool_refs`, confirmation/profile requirements, recommendation run, session resolution and field-summary models rather than duplicating them in UI/application code.
+Do not create a parallel worker-flow state machine merely for UI convenience. Reuse `FieldRecommendationResult`, `FieldInputRequirement`, the operational-profile binding, recommendation summary and existing recommendation-session resolver. The next implementation should make these structures usable from a thin application surface rather than duplicate their semantics.
+
+Remaining ingestion parser consolidation stays deferred unless a real pilot scenario exposes a concrete defect or readiness gap.
 
 ## Ingestion and catalogue work during the worker-facing phase
 
@@ -427,11 +463,11 @@ Historical portability cohorts remain frozen throughout this work.
 ## Suggested opening prompt for the next chat
 
 ```text
-Continue TetherLens from merged main after PR #74. Keep all historical portability cohorts frozen at their existing semantic revisions: V1 is 0 A / 5 B / 3 C / 0 D, V2 is 0 A / 6 B / 2 C / 0 D, V3 is 0 A / 5 B / 3 C / 0 D, V4 is 0 A / 4 B / 4 C / 0 D, V5 is 0 A / 6 B / 2 C / 0 D, and V6 is 1 A / 7 B / 0 C / 0 D.
+Continue TetherLens from merged main after PR #75. Keep all historical portability cohorts frozen at their existing semantic revisions: V1 is 0 A / 5 B / 3 C / 0 D, V2 is 0 A / 6 B / 2 C / 0 D, V3 is 0 A / 5 B / 3 C / 0 D, V4 is 0 A / 4 B / 4 C / 0 D, V5 is 0 A / 6 B / 2 C / 0 D, and V6 is 1 A / 7 B / 0 C / 0 D.
 
-PR #74 establishes the manufacturer-neutral local evidence-context/contradiction layer and closes the current ingestion-refinement slice. Positive manufacturer grammar remains adapter-specific; shared code owns only bounded reusable evidence-context semantics. Remaining parser consolidation is deferred unless a concrete source defect or genuinely reusable second case justifies it.
+PR #75 establishes the provider-neutral worker image-recognition seam. FieldToolImage carries only encoded image bytes/media type; the shared boundary strips metadata by decode/re-encode before an injected ToolImageRecognizer sees the pixels. The recognizer may return only bounded refs from the supplied catalogue and still cannot confirm Tool identity, choose a Battery/profile, or add recommendation facts. An isolated OpenAI Responses API adapter provides the first concrete implementation, and the Hilti SF 4-22 vertical proves that image candidates flow through explicit confirmation and the existing profile/recommendation path.
 
-The next highest-value MVP workstream is worker-facing identification and interaction. Start by inspecting demand-side-field-orchestration.md, recommendation-session.md, the existing run_field_recommendation() implementation/tests, and current repository structure. Define the smallest end-to-end mobile-first vertical that can accept a Tool image, produce advisory catalogue candidate refs, require explicit worker confirmation, resolve any required operational profile/context inputs, invoke the existing field recommendation boundary unchanged, and present the structured result plus lightweight feedback.
+The next highest-value MVP slice is to run the committed four-Tool blind recognition smoke on representative real images and then build the thinnest mobile-first interaction surface over the existing field/session structures. Preserve the sanitized-pixels-only blind boundary, require explicit Tool confirmation even for one candidate, expose operational-profile selection only when required, invoke run_field_recommendation() unchanged, render its structured states, and route pending checks through the existing recommendation-session resolver.
 
 Do not redesign the recommendation engine or weaken catalogue evidence/readiness rules. Image recognition is only an upstream candidate-ref producer; it must not confirm identity or invent safety-critical facts. Pull additional ingestion/catalogue work only when the chosen field scenario exposes a real readiness gap.
 ```
