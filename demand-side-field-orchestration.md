@@ -104,7 +104,44 @@ tool_confirmation
 worker supplies confirmed_tool_ref
 ```
 
-A zero-result search remains ordinary `tool_identification`; it is not widened to a similar SKU. Future image recognition can replace or complement this lexical producer while retaining the same advisory contract.
+A zero-result search remains ordinary `tool_identification`; it is not widened to a similar SKU.
+
+## Advisory image recognition boundary
+
+The first camera/image seam now uses the same advisory contract rather than creating a parallel Tool-resolution path:
+
+```python
+candidate_tool_refs_from_image(
+    image,
+    catalogue,
+    recognizer,
+    *,
+    max_candidates=5,
+)
+```
+
+`FieldToolImage` contains only encoded image bytes and a declared image media type. It deliberately has no filename, source URL, page title, alt text or known product identity. Before a recognizer sees the image, the shared boundary decodes it, applies EXIF orientation, bounds the longest edge and re-encodes the pixels as JPEG. That strips EXIF/text metadata and prevents a web-source filename or page context from becoming hidden answer leakage.
+
+The recognizer is injected behind a provider-neutral `ToolImageRecognizer` protocol. It receives only:
+
+- the sanitized image pixels;
+- the catalogue Tool `tool_ref` and worker-facing `display_name` for each allowed candidate; and
+- the requested shortlist bound.
+
+It does **not** receive operational profiles, Battery/configuration identity, mass, recommendation facts or a pre-confirmed Tool. Returned refs must be unique members of the supplied field catalogue; an invented/out-of-catalogue ref fails the producer contract rather than being widened or silently accepted. Provider order is retained as advisory ordering and then bounded by `max_candidates`; no recognition score becomes recommendation authority.
+
+The output still flows through the existing coordinator:
+
+```text
+sanitized image
+    -> advisory candidate_tool_refs
+    -> FieldToolObservation(candidate_tool_refs=...)
+    -> tool_confirmation
+    -> confirmed Tool
+    -> operational_profile_selection where required
+```
+
+A single image candidate therefore still requires explicit worker confirmation. The Hilti SF 4-22 field vertical now exercises this seam before the existing B 22-55 / B 22-85 profile-selection and recommendation path. The deterministic test recognizer proves the architectural handoff; a concrete hosted/local vision provider and representative-image accuracy benchmark remain application-layer follow-ons rather than recommendation-core semantics.
 
 ## Operational profile resolution
 
@@ -319,7 +356,7 @@ The field coordinator must not mark a pending check satisfied or failed directly
 
 The field layer does not add:
 
-- image recognition or model inference;
+- a built-in vision-model/provider decision or automatic Tool confirmation;
 - fuzzy Tool/SKU matching;
 - a persistent catalogue/database repository;
 - automatic Battery recognition;
@@ -344,6 +381,10 @@ Focused tests cover at least:
 - punctuation/case normalization without fuzzy or prefix identity matching;
 - bounded multi-match shortlists preserving catalogue order rather than invented confidence;
 - a one-item search result still requiring explicit worker Tool confirmation;
+- image inputs being decoded/re-encoded before recognition so EXIF/text metadata is stripped;
+- image recognizers receiving catalogue Tool identity only, not operational profiles or recommendation facts;
+- image recognizers failing closed when they return duplicate or out-of-catalogue Tool refs;
+- a one-item image shortlist still requiring explicit worker Tool confirmation;
 - catalogue-backed operational-mass Claims materializing only against exact normalized profile descriptors;
 - operational-mass evidence without configuration identity failing closed rather than having identity reconstructed from profile strings/URLs/mass arithmetic;
 - known configurations with missing operational mass remaining visible and failing closed when selected;
@@ -362,15 +403,15 @@ Focused tests cover at least:
 
 The catalogue-backed Milwaukee/NLG/GRIPPS/NLG worker vertical still proves the complete recommendation handoff. It begins from real text search, stops at explicit Tool confirmation, retains the exact `cinch` provenance of the selected NLG ToolAttachment and leaves unresolved connection checks visible rather than inventing compatibility evidence.
 
-The Hilti SF 4-22 profile vertical separately proves that real catalogue-backed configuration choices can now reach the existing worker profile-selection boundary without weakening that recommendation pipeline or pretending the still-incomplete retaining-strap path is ready.
+The Hilti SF 4-22 vertical now proves that an advisory image shortlist can enter the existing explicit Tool-confirmation boundary, expose the real B 22-55 / B 22-85 profile choice, and continue through the already-normalized retaining-strap/tether recommendation path without weakening recommendation semantics.
 
 ## Next demand-side steps
 
 The field-orchestration boundary is now mature enough that the next MVP work should move **above** it rather than deepen ingestion or recommendation semantics first.
 
-The next primary workstream is a thin worker-facing vertical that proves the camera-first demand-side hypothesis:
+The next primary workstream remains the thin worker-facing vertical, but the provider-neutral camera-to-candidate seam is now established. Continue above it rather than adding recognition semantics to the recommendation core:
 
-1. add an image-recognition candidate producer behind the existing advisory `candidate_tool_refs` contract;
+1. connect a concrete vision provider to the `ToolImageRecognizer` boundary and benchmark it on a small representative pilot-image set;
 2. build the smallest mobile-first interaction surface for image capture/upload and explicit Tool confirmation;
 3. expose existing operational-profile selection only when the confirmed Tool actually requires it;
 4. ask only the smallest context questions that materially affect the chosen pilot scenarios;
